@@ -45,6 +45,7 @@ import {
 import {
   buildColors,
   buildLayout,
+  nativeMode,
   buildTypography,
   toSemantic,
   type ColorVariant,
@@ -53,6 +54,7 @@ import {
   type TypographyTokens,
 } from "./appearance/tokens";
 import { setLiveTypography } from "./typography";
+import { simplifyAppearance } from "./appearance/readability-policy";
 
 export const THEME_PREFERENCE_KEY = LEGACY_THEME_PREFERENCE_KEY;
 
@@ -202,6 +204,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
   const touchedRef = useRef(false);
   /** Only the latest Apply / Undo may commit after its font finishes loading. */
   const applySeqRef = useRef(0);
+  const commitSeqRef = useRef(0);
 
   const publishFighter = useCallback((next: AppearanceDraft, persisted: boolean) => {
     fighterRef.current = next;
@@ -250,11 +253,11 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
       const resolved: DisplayMode = readAppearanceScheme() === "dark" ? "dark" : "light";
       const nextFighter = fighterSaved ?? unsavedFighterBaseline(result.applied, resolved);
       const sharedSaved = result.source === "stored" || result.source === "legacy";
-      const nextShared = sharedSaved
+      const nextShared = simplifyAppearance(sharedSaved
         ? result.applied
         : fighterSaved
           ? fighterDraftToShared(fighterSaved, result.applied)
-          : result.applied;
+          : result.applied);
       const next = adopt ? nextShared : appliedRef.current;
       await withTimeout(
         Promise.all([loadCoreFonts(), loadFamily(next.settings.fontFamily)]),
@@ -264,7 +267,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
       if (adopt) {
         setApplied(nextShared);
-        applyNativeScheme(nextShared.settings.mode);
+        applyNativeScheme(nativeMode(nextShared.settings));
         if (nextShared.settings.mode === "system") setAppearanceScheme(readAppearanceScheme());
         publishFighter(nextFighter, fighterSaved != null);
       }
@@ -295,20 +298,27 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const commit = useCallback(
-    async (next: AppliedAppearance) => {
+    async (value: AppliedAppearance) => {
+      const next = simplifyAppearance(value);
+      const seq = ++commitSeqRef.current;
+      const owner = ownerRef.current;
+      const scope = scopeSeqRef.current;
+      const saved = await persist(next);
+      if (!saved || seq !== commitSeqRef.current || ownerRef.current !== owner || scopeSeqRef.current !== scope) return false;
       touchedRef.current = true;
       setApplied(next);
-      applyNativeScheme(next.settings.mode);
+      applyNativeScheme(nativeMode(next.settings));
       const scheme = readAppearanceScheme();
       if (next.settings.mode === "system") setAppearanceScheme(scheme);
       applyRootBackground(buildColors(next.settings, scheme).colors.bg);
-      return persist(next);
+      return true;
     },
     [persist],
   );
 
   const applyAppearance = useCallback(
-    async (next: AppliedAppearance) => {
+    async (value: AppliedAppearance) => {
+      const next = simplifyAppearance(value);
       const seq = ++applySeqRef.current;
       if (!isFamilyLoaded(next.settings.fontFamily)) {
         await registerFont(next.settings.fontFamily);
@@ -326,7 +336,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
       const displayMode = displayModeFromBrightness(mode, resolved);
       if (fighterPersistedRef.current && (mode === "light" || mode === "dark")) {
         const nextFighter = { ...fighterRef.current, mode: displayMode };
-        const shared = withBrightnessMode(appliedRef.current, mode);
+        const shared = simplifyAppearance(withBrightnessMode(appliedRef.current, mode));
         const owner = ownerRef.current;
         void (async () => {
           try {
@@ -340,7 +350,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
           publishFighter(nextFighter, true);
           touchedRef.current = true;
           setApplied(shared);
-          applyNativeScheme(shared.settings.mode);
+          applyNativeScheme(nativeMode(shared.settings));
           applyRootBackground(buildColors(shared.settings, readAppearanceScheme()).colors.bg);
         })();
         return;
@@ -355,7 +365,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
 
   const applyFighterAppearance = useCallback(async (draft: AppearanceDraft) => {
     const owner = ownerRef.current;
-    const shared = fighterDraftToShared(draft, appliedRef.current);
+    const shared = simplifyAppearance(fighterDraftToShared(draft, appliedRef.current));
     try {
       await writeAppliedFighterAppearance(owner, draft, shared);
     } catch (error) {
@@ -368,7 +378,7 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
     touchedRef.current = true;
     setPreviousApplied(appliedRef.current);
     setApplied(shared);
-    applyNativeScheme(shared.settings.mode);
+    applyNativeScheme(nativeMode(shared.settings));
     const scheme = readAppearanceScheme();
     if (shared.settings.mode === "system") setAppearanceScheme(scheme);
     applyRootBackground(buildColors(shared.settings, scheme).colors.bg);
@@ -381,6 +391,8 @@ export function ThemePreferenceProvider({ children }: { children: ReactNode }) {
     boundOwnerRef.current = next;
     ownerRef.current = next;
     scopeSeqRef.current += 1;
+    applySeqRef.current += 1;
+    commitSeqRef.current += 1;
     setOwnerEpoch((n) => n + 1);
   }, []);
 

@@ -367,7 +367,7 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
 
         const updatedSession = db().trainingSessions.find((s) => s.id === testSessionId);
         expect(updatedSession?.status).toBe("cancelled");
-        expect(updatedSession?.cancellationReason).toBe("Suspension in force");
+        expect(updatedSession?.cancellationReason).toBe("Đang bị đình chỉ");
 
         const affectedPlan = res.affectedPlans.find((p) => p.planId === testPlanId);
         expect(affectedPlan).toBeDefined();
@@ -605,7 +605,7 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
 
         const sessionInDb = db().trainingSessions.find((s) => s.id === sessionId);
         expect(sessionInDb?.status).toBe("cancelled");
-        expect(sessionInDb?.cancellationReason).toBe("Suspension in force");
+        expect(sessionInDb?.cancellationReason).toBe("Đang bị đình chỉ");
     });
 
     it("B2-12: demo tạo KO với requiresClearance false → ném lỗi validation, không tạo đình chỉ", async () => {
@@ -1072,7 +1072,7 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
 
         const inDb = db().trainingSessions.find((s) => s.id === sessPendingId);
         expect(inDb?.status).toBe("cancelled");
-        expect(inDb?.cancellationReason).toBe("Suspension in force");
+        expect(inDb?.cancellationReason).toBe("Đang bị đình chỉ");
     });
 
     it("B2-27: demo applyConflicts với sessionId không có trong đề xuất → lỗi 422; coach phân công võ sĩ A form gửi fighterId = A nhưng đình chỉ thuộc B → từ chối; đối chứng đình chỉ thuộc A → thành công (cả clear và applyConflicts)", async () => {

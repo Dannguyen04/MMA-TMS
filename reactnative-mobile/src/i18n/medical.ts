@@ -90,7 +90,7 @@ export const medical = {
   },
   reason: {
     EXAMINATION_REQUIRED:
-      "Cần hoàn tất khám baseline, hoặc kết luận tập luyện phù hợp, trước khi tập. Hồ sơ cũ đã có kết luận tập luyện không bị yêu cầu khám lại chỉ vì thiếu chi tiết.",
+      "Cần hoàn tất khám ban đầu, hoặc kết luận tập luyện phù hợp, trước khi tập. Hồ sơ cũ đã có kết luận tập luyện không bị yêu cầu khám lại chỉ vì thiếu chi tiết.",
     REVIEW_REQUEST_PENDING: "Còn yêu cầu khám chưa được xử lý.",
     EXAMINATION_NOT_ELIGIBLE: "Kết luận khám hiện hành là chưa đủ điều kiện.",
     CLEARANCE_REQUIRED: "Chưa có giấy phép phù hợp từ kết luận hiện hành, hoặc giấy đã bị thu hồi.",
@@ -98,8 +98,8 @@ export const medical = {
     SESSION_TYPE_RESTRICTED: "Loại buổi tập này nằm ngoài phạm vi được phép.",
   },
   unknownReason: "Chưa đủ điều kiện y tế. Máy chủ không gửi lý do — không coi đây là đủ điều kiện.",
-  stepAssignDoctor: "Đang chờ Admin phân công bác sĩ. Chưa được tập.",
-  stepBaseline: "Đang chờ bác sĩ khám baseline. Chưa được tập.",
+  stepAssignDoctor: "Đang chờ quản trị phân công bác sĩ. Chưa được tập.",
+  stepBaseline: "Đang chờ bác sĩ khám ban đầu. Chưa được tập.",
   stepClearance: "Đang chờ bác sĩ cấp giấy phép y tế. Chưa được tập.",
   stepEligible: "Hồ sơ y tế đang cho phép tập theo kết luận của bác sĩ.",
   clearanceUnconfirmed:
@@ -143,7 +143,7 @@ export const medical = {
     CRITICAL: "Rất nặng",
   },
   recoveryStatus: {
-    ACTIVE: "Đang chạy",
+    ACTIVE: "Đang áp dụng",
     COMPLETED: "Đã xong",
     CANCELLED: "Đã huỷ",
   },
@@ -171,12 +171,12 @@ export const medical = {
     SPINE_CORE: "Cột sống / thân",
   },
   technique: {
-    JAB: "Jab",
-    CROSS: "Cross",
-    LEAD_HOOK: "Móc tay trước",
-    REAR_HOOK: "Móc tay sau",
-    LEAD_UPPERCUT: "Múc tay trước",
-    REAR_UPPERCUT: "Múc tay sau",
+    JAB: "Đấm thẳng tay trước",
+    CROSS: "Đấm thẳng tay sau",
+    LEAD_HOOK: "Đấm móc ngang, tay trước",
+    REAR_HOOK: "Đấm móc ngang, tay sau",
+    LEAD_UPPERCUT: "Đấm móc lên, tay trước",
+    REAR_UPPERCUT: "Đấm móc lên, tay sau",
     LEAD_LOW_KICK: "Đá thấp chân trước",
     REAR_LOW_KICK: "Đá thấp chân sau",
     LEAD_MIDDLE_KICK: "Đá giữa chân trước",

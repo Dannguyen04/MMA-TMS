@@ -86,7 +86,7 @@ export function LineChart({
             <ChartSurface
                 ariaLabel={ariaLabel}
                 height={height}
-                keyboardHint="Use the left and right arrow keys to read the values for each period."
+                keyboardHint="Dùng phím mũi tên trái/phải để đọc giá trị từng kỳ."
                 announcement={announcement}
                 handlers={handlers}
             >
@@ -323,7 +323,7 @@ function Dot({ point, color }: { point: Point; color: string }) {
 }
 
 function formatMaybe(value: number | null, format: (value: number) => string): string {
-    return value === null ? "No data" : format(value);
+    return value === null ? "Chưa có dữ liệu" : format(value);
 }
 
 function resolveScale(

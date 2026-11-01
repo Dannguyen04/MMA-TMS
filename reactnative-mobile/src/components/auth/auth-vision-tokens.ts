@@ -1,21 +1,64 @@
+import { palettes, type ColorSchemeName } from "@/theme/colors";
 import { fonts } from "@/theme/typography";
 
-/** Fixed dark surfaces for login, enter-email, and enter-code. Not the saved appearance. */
-export const authDark = {
-  canvas: "#0A0A0C",
-  ink: "#F2F2F4",
-  muted: "#A9A9B3",
-  line: "#44444E",
-  gold: "#D5B16B",
-  field: "#16161A",
-  fieldFill: "rgba(18,18,22,0.82)",
-  fieldFillFocus: "rgba(38,38,44,0.94)",
-  form: "rgba(12,13,16,0.94)",
-  buttonOff: "#33333C",
-  buttonOffText: "#ACACB6",
-  buttonOnText: "#121316",
-  danger: "#F0A8A8",
-} as const;
+/**
+ * Auth colors come from the DEFAULT palette (Figma tokens), never the saved
+ * Appearance: before sign-in there is no owner, and a shared device must not
+ * show the previous user's theme. Light/dark follows the system.
+ */
+export type AuthColors = {
+  canvas: string;
+  surface: string;
+  ink: string;
+  muted: string;
+  line: string;
+  accent: string;
+  field: string;
+  fieldBorder: string;
+  fieldFocus: string;
+  /** Soft red fill for a field in error (text below carries the message). */
+  fieldError: string;
+  /** Focused input: a soft tint of the brand accent instead of a border. */
+  fieldActive: string;
+  buttonOn: string;
+  buttonOnText: string;
+  buttonOff: string;
+  buttonOffText: string;
+  danger: string;
+  dark: boolean;
+};
+
+export function authPalette(scheme: ColorSchemeName): AuthColors {
+  const p = palettes[scheme];
+  return {
+    canvas: p.bg,
+    surface: p.surface,
+    ink: p.ink,
+    muted: p.inkMuted,
+    line: p.line,
+    accent: p.lotus,
+    field: p.surfaceMuted,
+    fieldBorder: p.controlBorder,
+    fieldFocus: p.ring,
+    fieldError: p.dangerSoft,
+    fieldActive: `${p.lotus}24`,
+    buttonOn: p.cta,
+    buttonOnText: p.onCta,
+    buttonOff: p.disabledFill,
+    buttonOffText: p.disabledInk,
+    danger: p.danger,
+    dark: scheme === "dark",
+  };
+}
+
+/** System scheme only (no saved Appearance). */
+/** Auth screens (login/register/forgot/reset) keep one fixed dark look whatever the app or system theme. */
+export function useAuthColors(): AuthColors {
+  return authPalette("dark");
+}
+
+/** Kept for callers that need a static dark value (status bar fallbacks). */
+export const authDark = authPalette("dark");
 
 /** Default bundled faces. These do not follow the user's saved font, scale, or accent. */
 export const authType = {
@@ -45,12 +88,9 @@ export function isVisionAuthLeaf(leaf: string | undefined): boolean {
   return leaf == null || leaf === "(auth)" || VISION_LEAVES.has(leaf);
 }
 
-/**
- * The four dark auth screens ignore the saved background.
- * `savedBackground` is accepted so callers can prove it is not applied.
- */
-export function visionAuthCanvas(leaf: string | undefined, savedBackground: string): string {
+/** Auth canvas ignores the saved background: default palette for the system scheme. */
+export function visionAuthCanvas(leaf: string | undefined, savedBackground: string, scheme: ColorSchemeName = "dark"): string {
   void leaf;
   void savedBackground;
-  return authDark.canvas;
+  return authPalette(scheme).canvas;
 }

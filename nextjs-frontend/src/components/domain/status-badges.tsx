@@ -132,10 +132,10 @@ export function HealthStatusBadge({ status, size, className, locale }: { status:
 
 export const CLEARANCE_STATE_META: Record<ClearanceState, StatusMeta> = {
     full: { label: CLEARANCE_LEVEL_LABELS.full, tone: "success", icon: ShieldCheck },
-    restricted: { label: "Restricted", tone: "warning", icon: ShieldAlert },
+    restricted: { label: "Có hạn chế", tone: "warning", icon: ShieldAlert },
     not_cleared: { label: CLEARANCE_LEVEL_LABELS.not_cleared, tone: "danger", icon: ShieldX, solid: true },
-    expired: { label: "Expired", tone: "danger", icon: ShieldX },
-    none: { label: "No clearance", tone: "neutral", icon: ShieldQuestion },
+    expired: { label: "Hết hạn", tone: "danger", icon: ShieldX },
+    none: { label: "Chưa có giấy phép", tone: "neutral", icon: ShieldQuestion },
 };
 
 export function ClearanceBadge({ state, size, className, locale }: { state: ClearanceState; size?: BadgeSize; className?: string; locale?: Locale }) {
@@ -197,13 +197,13 @@ export function AIJobStatusBadge({ status, size, className }: { status: AIJobSta
 export function LowConfidenceBadge({ size, className }: { size?: BadgeSize; className?: string }) {
     return (
         <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-            Low confidence
+            Độ tin cậy thấp
         </Badge>
     );
 }
 
 /** Marks content produced by AI so it is never mistaken for a human judgement. */
-export function AIGeneratedBadge({ size, className, locale, label = createTranslator(locale ?? "en")("aiGenerated") }: { size?: BadgeSize; className?: string; locale?: Locale; label?: string }) {
+export function AIGeneratedBadge({ size, className, locale, label = createTranslator(locale ?? "vi")("aiGenerated") }: { size?: BadgeSize; className?: string; locale?: Locale; label?: string }) {
     return (
         <Badge tone="ai" icon={Sparkles} size={size} className={className}>
             {label}
@@ -227,35 +227,35 @@ export function ReviewStateBadge({
 }) {
     if (review?.decision === "confirmed") {
         return (
-            <Badge tone="success" icon={UserCheck} size={size} className={className} title={`Confirmed by ${review.reviewerName}`}>
-                Human verified
+            <Badge tone="success" icon={UserCheck} size={size} className={className} title={`${review.reviewerName} đã xác nhận`}>
+                Đã được người duyệt
             </Badge>
         );
     }
     if (review?.decision === "corrected") {
         return (
-            <Badge tone="info" icon={PenLine} size={size} className={className} title={`Corrected by ${review.reviewerName}`}>
-                Human corrected
+            <Badge tone="info" icon={PenLine} size={size} className={className} title={`${review.reviewerName} đã sửa`}>
+                Đã được người sửa
             </Badge>
         );
     }
     if (review?.decision === "rejected") {
         return (
-            <Badge tone="neutral" icon={UserX} size={size} className={className} title={`Rejected by ${review.reviewerName}`}>
-                Rejected by reviewer
+            <Badge tone="neutral" icon={UserX} size={size} className={className} title={`${review.reviewerName} đã từ chối`}>
+                Bị người duyệt từ chối
             </Badge>
         );
     }
     if (confidenceBand(confidence) === "low") {
         return (
             <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-                Needs review
+                Cần xem lại
             </Badge>
         );
     }
     return (
         <Badge tone="ai" icon={Bot} size={size} className={className}>
-            Unreviewed
+            Chưa duyệt
         </Badge>
     );
 }
@@ -277,7 +277,7 @@ export function ConfidenceBadge({ confidence, size, className }: { confidence: n
     const tone: Tone = band === "high" ? "neutral" : band === "medium" ? "neutral" : "warning";
     return (
         <Badge tone={tone} variant="outline" size={size} className={className} icon={band === "low" ? TriangleAlert : undefined}>
-            {formatConfidence(confidence)} confidence
+            Tin cậy {formatConfidence(confidence)}
         </Badge>
     );
 }
@@ -475,7 +475,7 @@ export function Gate1Badge({
     size,
     className,
     compact,
-    locale = "en",
+    locale = "vi",
 }: {
     gate1?: Gate1Result | null;
     size?: BadgeSize;

@@ -205,7 +205,7 @@ const VIDEO_PLANS: VideoPlan[] = [
         fighterId: "f-minh-tran",
         uploadedById: RAFAEL,
         sessionId: "s-minh-pads-2d",
-        title: "Pad work — 8 rounds, hook focus",
+        title: "Đánh đích — 8 hiệp, tập trung đấm móc",
         trainingType: "pad_work",
         cameraAngle: "diagonal",
         resolution: "1920x1080",
@@ -661,7 +661,7 @@ const VIDEO_PLANS: VideoPlan[] = [
                         metric: (ctx) => {
                             const earlier = ctx.events.filter((e) => e.type === "guard_drop" && e.endMs < ctx.durationMs * 0.84);
                             return {
-                                label: "Guard recovery after the exchange",
+                                label: "Hồi thế thủ sau pha trao đổi đòn",
                                 value: guardRecoveryAfter(ctx, "exchange"),
                                 unit: "ms",
                                 reference: `Earlier in the clip: ${Math.round(average(earlier.map((e) => e.endMs - e.startMs)))} ms`,
@@ -912,7 +912,7 @@ const VIDEO_PLANS: VideoPlan[] = [
         fighterId: "f-hoang-long",
         uploadedById: "u-hoang-long",
         sessionId: "s-hoang-shadow-7d",
-        title: "Shadow boxing — early morning session",
+        title: "Đánh gió — buổi sáng sớm",
         trainingType: "shadow_boxing",
         cameraAngle: "front",
         resolution: "1080x1920",
@@ -1709,12 +1709,12 @@ const ALERT_PLANS: AlertPlan[] = [
         id: "al-minh-elbow-2d",
         key: "minh-pads-2d",
         bodyRegion: "left_elbow",
-        pattern: "Lead-arm elbow extension beyond his usual range on hooks",
+        pattern: "Khuỷu tay trước duỗi rộng hơn thường lệ khi đấm móc",
         description:
-            "On several lead hooks the left elbow appears to open wider than in Minh's earlier analysed footage. Movement observation for clinical context; the fighter reported no symptoms in the session notes.",
+            "Ở một số cú móc tay trước, khuỷu tay trái có vẻ mở rộng hơn so với Video đã phân tích trước đây của Minh. Quan sát chuyển động để tham khảo lâm sàng; võ sĩ không báo triệu chứng trong ghi chú buổi tập.",
         confidence: 0.64,
         metric: (analysis) => ({
-            label: "Lead-hook elbow angle at peak (widest hooks)",
+            label: "Góc khuỷu khi móc tay trước ở đỉnh (các cú mở rộng nhất)",
             observed: meanOf(ranked(leftHooks(analysis), "jointAngleDeg", 3), "jointAngleDeg"),
             baseline: meanOf([...leftHooks(analysisOf("minh-shadow-9d")), ...leftHooks(analysisOf("minh-sparring-16d"))], "jointAngleDeg"),
             unit: "°",
@@ -1728,17 +1728,17 @@ const ALERT_PLANS: AlertPlan[] = [
         id: "al-kenji-shoulder-9d",
         key: "kenji-bag-9d",
         bodyRegion: "right_shoulder",
-        pattern: "Right shoulder elevation asymmetry on the cross",
+        pattern: "Vai phải nâng lệch khi đấm thẳng tay sau",
         description:
-            "At the peak of right-hand crosses the right shoulder appears raised relative to the left, compared with Kenji's earlier shadow-boxing footage. The pattern is more frequent in later rounds.",
+            "Ở đỉnh các cú đấm thẳng tay phải, vai phải có vẻ nâng cao hơn vai trái so với Video đánh gió trước đây của Kenji. Hiện tượng xuất hiện nhiều hơn ở các hiệp cuối.",
         confidence: 0.81,
-        metric: () => ({ label: "Right shoulder elevation at cross peak", observed: 3.8, baseline: 1.4, unit: "cm" }),
+        metric: () => ({ label: "Độ nâng vai phải ở đỉnh cú đấm thẳng", observed: 3.8, baseline: 1.4, unit: "cm" }),
         timestampsMs: (analysis) => ranked(strikesIn(findingContext(analysis), { type: "cross", limb: "right_arm" }), "jointAngleDeg", 4).map((d) => d.peakMs),
         status: "follow_up",
         review: {
             reviewerId: "u-thu-le",
             reviewedAt: daysAgo(8, 10, 30),
-            note: "Elevation visible on replay. Shoulder examination booked for tomorrow; intensity capped at RPE 8 until then.",
+            note: "Thấy rõ vai nâng khi xem lại. Đã hẹn khám vai ngày mai; giới hạn cường độ RPE 8 đến lúc đó.",
         },
         linkedInjuryId: null,
     },
@@ -1746,11 +1746,11 @@ const ALERT_PLANS: AlertPlan[] = [
         id: "al-lucas-hip-4d",
         key: "lucas-shadow-4d",
         bodyRegion: "left_hamstring",
-        pattern: "Shortened left stride and reduced hip extension vs. baseline",
+        pattern: "Bước chân trái ngắn và duỗi hông giảm so với mức nền",
         description:
             "Steps off the left leg appear shorter and hip extension on that side appears reduced compared with Lucas's pre-injury sparring footage.",
         confidence: 0.77,
-        metric: () => ({ label: "Left stride length", observed: 81, baseline: 100, unit: "% of baseline" }),
+        metric: () => ({ label: "Độ dài bước chân trái", observed: 81, baseline: 100, unit: "% mức nền" }),
         timestampsMs: (analysis) =>
             analysis.movementEvents
                 .filter((e) => e.type === "step_in" || e.type === "step_out")
@@ -1760,7 +1760,7 @@ const ALERT_PLANS: AlertPlan[] = [
         review: {
             reviewerId: "u-samuel-brooks",
             reviewedAt: daysAgo(3, 14, 10),
-            note: "Consistent with the known left hamstring strain at phase 3 of rehab. Stride asymmetry is expected at this stage; re-checking at the next physio session.",
+            note: "Phù hợp với căng cơ đùi sau trái đã biết ở giai đoạn 3 phục hồi. Bước chân lệch là bình thường ở giai đoạn này; sẽ kiểm tra lại ở buổi vật lý trị liệu tới.",
         },
         linkedInjuryId: "inj-lucas-hamstring",
     },
@@ -1768,7 +1768,7 @@ const ALERT_PLANS: AlertPlan[] = [
         id: "al-marcus-hand-11d",
         key: "marcus-bag-11d",
         bodyRegion: "right_hand",
-        pattern: "Abrupt deceleration and guard drop after right-cross impact",
+        pattern: "Giảm tốc đột ngột và hạ thế thủ sau khi trúng đòn thẳng tay phải",
         description:
             "After a right cross lands on the bag in the final round, the right hand appears to decelerate abruptly and is held low; no further right-hand strikes follow.",
         confidence: 0.72,
@@ -1801,7 +1801,7 @@ const ALERT_PLANS: AlertPlan[] = [
         id: "al-diego-balance-6d",
         key: "diego-sparring-6d",
         bodyRegion: "head",
-        pattern: "Unsteady stance and delayed guard recovery after an exchange",
+        pattern: "Đứng không vững và chậm hồi thế thủ sau pha trao đổi đòn",
         description:
             "Following an exchange in round 3, guard recovery appears slower than earlier in the clip and several lateral steps appear unsteady with a narrowing base. Partner occlusion lowers confidence in this observation.",
         confidence: 0.61,
@@ -1809,7 +1809,7 @@ const ALERT_PLANS: AlertPlan[] = [
             const ctx = findingContext(analysis);
             const earlier = ctx.events.filter((e) => e.type === "guard_drop" && e.endMs < ctx.durationMs * 0.84);
             return {
-                label: "Guard recovery after the exchange",
+                label: "Hồi thế thủ sau pha trao đổi đòn",
                 observed: guardRecoveryAfter(ctx, "exchange"),
                 baseline: Math.round(average(earlier.map((e) => e.endMs - e.startMs))),
                 unit: "ms",
@@ -1824,7 +1824,7 @@ const ALERT_PLANS: AlertPlan[] = [
         review: {
             reviewerId: "u-thu-le",
             reviewedAt: daysAgo(6, 21, 35),
-            note: "Reviewed alongside the coach's report from the session. Concussion assessment completed; graded return-to-training protocol started — see the injury record.",
+            note: "Đã xem cùng báo cáo của HLV về buổi tập. Đã đánh giá chấn động; bắt đầu phác đồ trở lại tập theo bậc — xem hồ sơ chấn thương.",
         },
         linkedInjuryId: "inj-diego-concussion",
     },
@@ -1832,16 +1832,16 @@ const ALERT_PLANS: AlertPlan[] = [
         id: "al-linh-knee-5d",
         key: "linh-bag-5d",
         bodyRegion: "left_knee",
-        pattern: "Knee valgus on roundhouse-kick landing",
-        description: "On some left-leg roundhouse kicks the left knee appears to move inward as the foot lands back in stance.",
+        pattern: "Gối vẹo trong khi tiếp đất sau cú đá vòng",
+        description: "Ở một số cú đá vòng chân trái, gối trái có vẻ đổ vào trong khi chân tiếp đất về thế.",
         confidence: 0.58,
-        metric: () => ({ label: "Knee valgus angle on kick landing", observed: 11, baseline: 7, unit: "°" }),
+        metric: () => ({ label: "Góc vẹo trong của gối khi tiếp đất", observed: 11, baseline: 7, unit: "°" }),
         timestampsMs: (analysis) => ranked(strikesIn(findingContext(analysis), { type: "kick", limb: "left_leg" }), "peakSpeed", 3).map((d) => d.endMs),
         status: "dismissed",
         review: {
             reviewerId: "u-thu-le",
             reviewedAt: daysAgo(4, 11, 0),
-            note: "Reviewed the kick landings frame by frame — knee alignment is within normal landing mechanics for this kick. No action needed.",
+            note: "Đã xem từng khung hình lúc tiếp đất — trục gối nằm trong cơ học tiếp đất bình thường của cú đá này. Không cần xử trí.",
         },
         linkedInjuryId: null,
     },
@@ -1849,12 +1849,12 @@ const ALERT_PLANS: AlertPlan[] = [
         id: "al-hoang-trunk-7d",
         key: "hoang-shadow-7d",
         bodyRegion: "lower_back",
-        pattern: "Reduced trunk rotation on rear-hand strikes vs. baseline",
+        pattern: "Xoay thân giảm khi ra đòn tay sau so với mức nền",
         description:
             "Rear-hand strikes appear to rotate the trunk less than in Hoàng's pad session 30 days ago. Poor lighting reduces keypoint precision, so this observation should be confirmed on better footage.",
         confidence: 0.66,
         metric: (analysis) => ({
-            label: "Trunk rotation on rear-hand strikes",
+            label: "Độ xoay thân khi ra đòn tay sau",
             observed: meanOf(strikesIn(findingContext(analysis), { type: "cross" }), "hipRotationDeg"),
             baseline: meanOf(strikesIn(findingContext(analysisOf("hoang-pads-30d")), { type: "cross" }), "hipRotationDeg"),
             unit: "°",

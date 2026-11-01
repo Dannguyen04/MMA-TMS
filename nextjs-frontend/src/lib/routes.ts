@@ -104,6 +104,8 @@ export const routes = {
         grantClearance: "/doctor/medical-clearance/new",
         aiAlerts: "/doctor/ai-alerts",
         aiAlert: (alertId: string) => `/doctor/ai-alerts/${alertId}`,
+        reviewRequests: "/doctor/review-requests",
+        history: "/doctor/history",
     },
 
     admin: {

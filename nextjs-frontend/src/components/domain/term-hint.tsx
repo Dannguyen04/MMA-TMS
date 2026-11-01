@@ -25,7 +25,7 @@ export function TermHint({ term, side = "top", className }: { term: GlossaryTerm
         <Tooltip content={<Definition term={term} />} side={side}>
             <button
                 type="button"
-                aria-label={`What is ${GLOSSARY[term].term}?`}
+                aria-label={`${GLOSSARY[term].term} là gì?`}
                 className={cn(
                     "inline-flex size-5 items-center justify-center rounded-full text-fg-subtle transition-colors hover:text-fg",
                     "focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring",

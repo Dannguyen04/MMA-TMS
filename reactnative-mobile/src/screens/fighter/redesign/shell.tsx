@@ -1,6 +1,5 @@
 import { type ReactNode } from "react";
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -10,10 +9,14 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { FighterTabBar } from "@/screens/fighter/tab-bar";
+import { FighterRailFrame, FighterTabBar } from "@/screens/fighter/tab-bar";
+import { useNavRail } from "@/components/nav-rail";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { useTypography } from "@/theme";
 import { titleTextStyle } from "@/theme/typography";
+import { useReadableWidth } from "@/components/readable-width";
+import { ThemedRefreshControl, TopProgress, usePullRefresh } from "@/components/loading";
+import { ArenaTitle } from "@/components/arena/arena-title";
 
 export function HubHeader({ title, trailing }: { title: string; trailing?: ReactNode }) {
   const colors = useFighterPalette();
@@ -21,12 +24,7 @@ export function HubHeader({ title, trailing }: { title: string; trailing?: React
   const titleStyle = titleTextStyle(live);
   return (
     <View style={styles.header}>
-      <Text
-        accessibilityRole="header"
-        style={[titleStyle, styles.headerTitle, { color: colors.ink, textTransform: "none" }]}
-      >
-        {title}
-      </Text>
+      <ArenaTitle>{title}</ArenaTitle>
       {trailing}
     </View>
   );
@@ -36,24 +34,32 @@ export function FighterHub({
   children,
   keyboard,
   refreshing,
+  onRefresh,
 }: {
   children: ReactNode;
   keyboard?: boolean;
+  /** Đang tải lần đầu: thanh tiến trình mảnh trên cùng (không xoay đôi với kéo làm mới). */
   refreshing?: boolean;
+  /** Kéo để làm mới; reject khi lỗi → toast, giữ dữ liệu cũ. */
+  onRefresh?: () => Promise<unknown> | unknown;
 }) {
+  const pull = usePullRefresh(onRefresh ?? (() => undefined));
+  const readable = useReadableWidth();
   const colors = useFighterPalette();
   const insets = useSafeAreaInsets();
+  const rail = useNavRail();
   const body = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingTop: insets.top + 10, paddingBottom: 24 }}
+      refreshControl={onRefresh ? <ThemedRefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} /> : undefined}
+      contentContainerStyle={[{ paddingTop: insets.top + 10, paddingBottom: 24 }, readable]}
     >
-      {refreshing ? <ActivityIndicator color={colors.accent} style={styles.spinner} /> : null}
       {children}
     </ScrollView>
   );
 
   return (
+    <FighterRailFrame show background={colors.bg}>
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       {keyboard ? (
         <KeyboardAvoidingView
@@ -65,8 +71,12 @@ export function FighterHub({
       ) : (
         body
       )}
-      <FighterTabBar />
+      <View pointerEvents="none" style={[styles.progress, { top: insets.top }]}>
+        <TopProgress active={!!refreshing && !pull.refreshing} />
+      </View>
+      {!rail ? <FighterTabBar /> : null}
     </View>
+    </FighterRailFrame>
   );
 }
 
@@ -79,12 +89,13 @@ export function FighterStack({
   footer?: ReactNode;
   keyboard?: boolean;
 }) {
+  const readable = useReadableWidth();
   const colors = useFighterPalette();
   const insets = useSafeAreaInsets();
   const body = (
     <ScrollView
       keyboardShouldPersistTaps="handled"
-      contentContainerStyle={{ paddingBottom: 16 }}
+      contentContainerStyle={[{ paddingBottom: 16 }, readable]}
     >
       {children}
     </ScrollView>
@@ -109,7 +120,7 @@ export function FighterStack({
 const styles = StyleSheet.create({
   root: { flex: 1 },
   flex: { flex: 1 },
-  spinner: { marginBottom: 8 },
+  progress: { position: "absolute", left: 0, right: 0 },
   header: {
     flexDirection: "row",
     alignItems: "flex-start",

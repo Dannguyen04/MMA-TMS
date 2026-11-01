@@ -42,7 +42,7 @@ export interface ExaminationReviewProps {
 
 const SCAT6_STEP: Record<Scat6Step, string> = { history: "scat6-history", memory: "scat6-memory", balance: "scat6-balance" };
 
-const notEntered = <span className="font-normal text-fg-subtle">Not entered</span>;
+const notEntered = <span className="font-normal text-fg-subtle">Chưa nhập</span>;
 
 const when = (value: string) => (isDateTimeInputValue(value) ? formatDateTime(academyWallClockToIso(...(value.split("T") as [string, string]))) : null);
 const day = (value: string) => (isDateKey(value) ? formatDate(academyWallClockToIso(value, "12:00")) : null);
@@ -57,15 +57,15 @@ export function ExaminationReview(props: ExaminationReviewProps) {
     const lines = props.scat6 ? scat6ReviewLines(props.scat6) : [];
     return (
         <div className="flex flex-col divide-y divide-border">
-            <Group title="Visit and vitals" step="visit">
+            <Group title="Lần khám và sinh hiệu" step="visit">
                 <Facts
                     items={[
-                        ["Scope", EXAMINATION_SCOPE_LABELS[props.scope]],
-                        ["Type", props.type ? EXAMINATION_TYPE_LABELS[props.type] : null],
-                        ["Examined", when(props.examinedAt)],
-                        ...(props.correcting ? ([["Correction", "Corrects the current examination of this scope"]] as const) : []),
+                        ["Phạm vi", EXAMINATION_SCOPE_LABELS[props.scope]],
+                        ["Loại", props.type ? EXAMINATION_TYPE_LABELS[props.type] : null],
+                        ["Thời điểm khám", when(props.examinedAt)],
+                        ...(props.correcting ? ([["Đính chính", "Đính chính phiếu khám hiện hành của phạm vi này"]] as const) : []),
                         [
-                            "Vitals",
+                            "Sinh hiệu",
                             vitalsEntered
                                 ? [
                                       vitals.weightKg && `${vitals.weightKg} kg`,
@@ -83,15 +83,15 @@ export function ExaminationReview(props: ExaminationReviewProps) {
                 />
             </Group>
 
-            <Group title="Physical exam" step="physical">
+            <Group title="Khám thực thể" step="physical">
                 {props.rows.length === 0 ? (
-                    <p className="text-sm text-fg-subtle">No areas assessed.</p>
+                    <p className="text-sm text-fg-subtle">Không đánh giá vùng nào.</p>
                 ) : (
                     <ul className="flex flex-col gap-1.5 text-sm">
                         {props.rows.map((row) => (
                             <li key={row.key} className="flex min-w-0 flex-wrap gap-x-2">
-                                <span className="font-medium text-fg">{row.area.trim() || "Unnamed area"}</span>
-                                <span className={cn(row.result ? "text-fg-muted" : "text-danger-fg")}>{row.result ? ASSESSMENT_RESULT_LABELS[row.result] : "No result"}</span>
+                                <span className="font-medium text-fg">{row.area.trim() || "Vùng chưa đặt tên"}</span>
+                                <span className={cn(row.result ? "text-fg-muted" : "text-danger-fg")}>{row.result ? ASSESSMENT_RESULT_LABELS[row.result] : "Chưa có kết quả"}</span>
                                 {row.note.trim() && <span className="min-w-0 text-fg-muted">— {row.note.trim()}</span>}
                             </li>
                         ))}
@@ -108,18 +108,18 @@ export function ExaminationReview(props: ExaminationReviewProps) {
                         </Group>
                     ))}
 
-            <Group title="Decision" step="decision">
+            <Group title="Quyết định" step="decision">
                 <Facts
                     items={[
-                        ["Decision", props.decision ? EXAMINATION_DECISION_LABELS[props.decision] : null],
-                        ...(props.decision !== "NOT_ELIGIBLE" ? ([["Valid until", day(props.validUntil) ?? "No end date"]] as const) : []),
-                        ["Follow-up", day(props.followUpDate) ?? "None"],
-                        ...(props.restrictions ? ([["Restrictions", restrictionsText(props.restrictions)]] as const) : []),
-                        ...(props.reviewRequests.open > 0 ? ([["Review requests answered", `${props.reviewRequests.answered} of ${props.reviewRequests.open}`]] as const) : []),
+                        ["Quyết định", props.decision ? EXAMINATION_DECISION_LABELS[props.decision] : null],
+                        ...(props.decision !== "NOT_ELIGIBLE" ? ([["Hiệu lực đến", day(props.validUntil) ?? "Không thời hạn"]] as const) : []),
+                        ["Theo dõi", day(props.followUpDate) ?? "Không"],
+                        ...(props.restrictions ? ([["Hạn chế", restrictionsText(props.restrictions)]] as const) : []),
+                        ...(props.reviewRequests.open > 0 ? ([["Yêu cầu xem xét được trả lời", `${props.reviewRequests.answered}/${props.reviewRequests.open}`]] as const) : []),
                     ]}
                 />
-                <Prose label="Findings and reasoning" text={props.reason} />
-                <Prose label="Recommendations" text={props.recommendations} />
+                <Prose label="Kết quả và lập luận" text={props.reason} />
+                <Prose label="Khuyến nghị" text={props.recommendations} />
             </Group>
         </div>
     );
@@ -127,17 +127,17 @@ export function ExaminationReview(props: ExaminationReviewProps) {
 
 function scat6Title(step: Scat6Step, administered: boolean): string {
     if (!administered) return "SCAT6";
-    return step === "history" ? "SCAT6: history and symptoms" : step === "memory" ? "SCAT6: memory and concentration" : "SCAT6: balance and recall";
+    return step === "history" ? "SCAT6: tiền sử và triệu chứng" : step === "memory" ? "SCAT6: trí nhớ và tập trung" : "SCAT6: thăng bằng và nhớ lại";
 }
 
 function restrictionsText(restrictions: ReviewRestrictions): string {
     const parts = [
-        restrictions.sessions === null ? null : `sessions: ${restrictions.sessions.map((value) => SESSION_TYPE_LABELS[value as SessionType] ?? value).join(", ") || "none chosen"}`,
-        restrictions.techniques === null ? null : `techniques: ${restrictions.techniques.map((value) => TECHNIQUE_TYPE_LABELS[value as TechniqueType] ?? value).join(", ") || "none chosen"}`,
-        restrictions.joints.length > 0 ? `keep out: ${restrictions.joints.map((value) => BODY_JOINT_LABELS[value as BodyJoint] ?? value).join(", ")}` : null,
-        restrictions.notes.trim() ? `notes: ${restrictions.notes.trim()}` : null,
+        restrictions.sessions === null ? null : `buổi tập: ${restrictions.sessions.map((value) => SESSION_TYPE_LABELS[value as SessionType] ?? value).join(", ") || "chưa chọn"}`,
+        restrictions.techniques === null ? null : `kỹ thuật: ${restrictions.techniques.map((value) => TECHNIQUE_TYPE_LABELS[value as TechniqueType] ?? value).join(", ") || "chưa chọn"}`,
+        restrictions.joints.length > 0 ? `tránh: ${restrictions.joints.map((value) => BODY_JOINT_LABELS[value as BodyJoint] ?? value).join(", ")}` : null,
+        restrictions.notes.trim() ? `ghi chú: ${restrictions.notes.trim()}` : null,
     ].filter(Boolean);
-    return parts.length > 0 ? parts.join(" · ") : "None set yet";
+    return parts.length > 0 ? parts.join(" · ") : "Chưa đặt";
 }
 
 function Group({ title, step, children }: { title: string; step: string; children: ReactNode }) {
@@ -146,9 +146,9 @@ function Group({ title, step, children }: { title: string; step: string; childre
         <section className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0">
             <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-semibold text-fg">{title}</h3>
-                <Button variant="ghost" size="sm" onClick={() => goTo(step)} aria-label={`Edit ${title.toLowerCase()}`}>
+                <Button variant="ghost" size="sm" onClick={() => goTo(step)} aria-label={`Sửa ${title.toLowerCase()}`}>
                     <PenLine aria-hidden />
-                    Edit
+                    Sửa
                 </Button>
             </div>
             {children}

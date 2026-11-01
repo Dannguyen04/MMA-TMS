@@ -5,9 +5,9 @@ import { formatConfidence } from "@/lib/format";
 import { clamp, cn } from "@/lib/utils";
 
 const BAND_LABELS: Record<ConfidenceBand, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low – needs review",
+    high: "Cao",
+    medium: "Trung bình",
+    low: "Thấp – cần xem lại",
 };
 
 export interface ConfidenceMeterProps {
@@ -21,8 +21,8 @@ export interface ConfidenceMeterProps {
 }
 
 /** Horizontal 0–100% meter with the band label and a tick at the review threshold. */
-export function ConfidenceMeter({ confidence, label = "AI confidence", lowThreshold = LOW_CONFIDENCE_THRESHOLD, className }: ConfidenceMeterProps) {
-    if (confidence === null) return <p className={cn("text-sm text-fg-muted", className)}>{label}: unavailable — requires review</p>;
+export function ConfidenceMeter({ confidence, label = "Độ tin cậy AI", lowThreshold = LOW_CONFIDENCE_THRESHOLD, className }: ConfidenceMeterProps) {
+    if (confidence === null) return <p className={cn("text-sm text-fg-muted", className)}>{label}: không có — cần xem lại</p>;
     const value = clamp(confidence, 0, 1);
     const band = confidenceBand(value, lowThreshold);
     const isLow = band === "low";
@@ -37,7 +37,7 @@ export function ConfidenceMeter({ confidence, label = "AI confidence", lowThresh
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={pct}
-                aria-valuetext={`${formatConfidence(value)}, ${BAND_LABELS[band].toLowerCase()} (review threshold ${thresholdPct}%)`}
+                aria-valuetext={`${formatConfidence(value)}, ${BAND_LABELS[band].toLowerCase()} (ngưỡng xem lại ${thresholdPct}%)`}
                 className="relative h-2 min-w-16 flex-1 rounded-full bg-surface-hover"
             >
                 <div

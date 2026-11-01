@@ -54,11 +54,11 @@ export interface DualTrialDraft extends GaitTrialDraft {
 }
 
 export const BACKGROUND_CONDITIONS = [
-    ["hospitalisedForHeadInjury", "Hospitalised for a head injury"],
-    ["headacheDisorderOrMigraine", "Headache disorder or migraine"],
-    ["learningDisabilityOrDyslexia", "Learning disability or dyslexia"],
+    ["hospitalisedForHeadInjury", "Từng nhập viện vì chấn thương đầu"],
+    ["headacheDisorderOrMigraine", "Rối loạn đau đầu hoặc đau nửa đầu"],
+    ["learningDisabilityOrDyslexia", "Khuyết tật học tập hoặc chứng khó đọc"],
     ["adhd", "ADHD"],
-    ["depressionAnxietyOrOtherPsychological", "Depression, anxiety or other psychological disorder"],
+    ["depressionAnxietyOrOtherPsychological", "Trầm cảm, lo âu hoặc rối loạn tâm lý khác"],
 ] as const;
 
 export type BackgroundCondition = (typeof BACKGROUND_CONDITIONS)[number][0];
@@ -126,8 +126,8 @@ const gaitTrial = (): GaitTrialDraft => ({ completed: true, timeSeconds: "" });
 
 /** The reasons the quick fills write for the parts a healthy baseline usually skips. */
 export const BASELINE_SKIP_REASONS = {
-    immediateAssessment: "Baseline assessment, no injury.",
-    dualTaskGait: "Not done at this baseline.",
+    immediateAssessment: "Đánh giá nền, không chấn thương.",
+    dualTaskGait: "Không thực hiện ở lần khám nền này.",
 } as const;
 
 /**
@@ -370,24 +370,24 @@ export function toggleRows(draft: Scat6Draft): ToggleRow[] {
     if (draft.status !== "ADMINISTERED") return [];
     const rows: ToggleRow[] = [];
     if (draft.immediateAssessment.performed === true) {
-        rows.push(row("immediateAssessment.observableSigns.signs", "the observable signs present", "None present", "All present"));
-        rows.push(row("immediateAssessment.maddocks", "the Maddocks questions answered correctly", "None correct", "All correct"));
+        rows.push(row("immediateAssessment.observableSigns.signs", "các dấu hiệu quan sát được", "Không có dấu hiệu", "Có tất cả"));
+        rows.push(row("immediateAssessment.maddocks", "các câu hỏi Maddocks trả lời đúng", "Không câu nào đúng", "Đúng tất cả"));
     }
-    if (draft.orientation.performed) rows.push(row("orientation.answers", "the orientation answers given correctly", "None correct", "All correct"));
+    if (draft.orientation.performed) rows.push(row("orientation.answers", "các câu định hướng trả lời đúng", "Không câu nào đúng", "Đúng tất cả"));
     if (draft.immediateMemory.performed) {
-        draft.immediateMemory.trials.forEach((_, index) => rows.push(row(`immediateMemory.trials.${index}`, `the words recalled in trial ${index + 1}`, "None recalled", "All words recalled")));
+        draft.immediateMemory.trials.forEach((_, index) => rows.push(row(`immediateMemory.trials.${index}`, `các từ nhớ được ở lượt ${index + 1}`, "Không nhớ từ nào", "Nhớ tất cả các từ")));
     }
-    if (draft.monthsReverse.performed) rows.push(row("monthsReverse.correctResponses", "the months given correctly", "None correct", "All correct"));
+    if (draft.monthsReverse.performed) rows.push(row("monthsReverse.correctResponses", "các tháng nói đúng", "Không câu nào đúng", "Đúng tất cả"));
     const dual = draft.dualTaskGait;
     if (dual.performed === true) {
-        rows.push(row("dualTaskGait.practice.correctResponses", "the practice answers given correctly", "None correct", "All correct"));
+        rows.push(row("dualTaskGait.practice.correctResponses", "các câu luyện tập trả lời đúng", "Không câu nào đúng", "Đúng tất cả"));
         if (dual.kind === "PRINTED") {
             dual.printed.forEach((trial, index) => {
-                if (trial.completed) rows.push(row(`dualTaskGait.sequence.trials.${index}.correctResponses`, `the correct answers in trial ${index + 1}`, "None correct", "All correct"));
+                if (trial.completed) rows.push(row(`dualTaskGait.sequence.trials.${index}.correctResponses`, `các câu đúng ở lượt ${index + 1}`, "Không câu nào đúng", "Đúng tất cả"));
             });
         }
     }
-    if (draft.delayedRecall.performed) rows.push(row("delayedRecall.words", "the words recalled after the delay", "None recalled", "All words recalled"));
+    if (draft.delayedRecall.performed) rows.push(row("delayedRecall.words", "các từ nhớ được sau thời gian chờ", "Không nhớ từ nào", "Nhớ tất cả các từ"));
     return rows;
 }
 
@@ -419,7 +419,6 @@ export interface QuickFillResult {
 }
 
 const copy = (draft: Scat6Draft): Scat6Draft => structuredClone(draft);
-const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;
 
 /** Whether "No symptoms" applies: no rating above 0 yet, and something is still blank. */
 export function canFillNoSymptoms(draft: Scat6Draft): boolean {
@@ -438,8 +437,8 @@ export function fillNoSymptoms(draft: Scat6Draft): QuickFillResult | null {
     const worse = [next.symptoms.worseWithPhysicalActivity, next.symptoms.worseWithMentalActivity].filter((answer) => answer === null).length;
     next.symptoms.worseWithPhysicalActivity ??= false;
     next.symptoms.worseWithMentalActivity ??= false;
-    const parts = [blank > 0 ? `${plural(blank, "rating")} set to 0` : null, worse > 0 ? `“worse with activity” set to No` : null].filter(Boolean);
-    return { draft: next, filled: `${parts.join(", ")}. Percent of normal is still yours to ask.` };
+    const parts = [blank > 0 ? `${blank} mục đánh giá được đặt về 0` : null, worse > 0 ? `“nặng hơn khi vận động” đặt là Không` : null].filter(Boolean);
+    return { draft: next, filled: `${parts.join(", ")}. Bạn vẫn cần hỏi phần trăm so với bình thường.` };
 }
 
 /** Whether "None apply" applies: no condition answered Yes, and some still blank. */
@@ -454,7 +453,7 @@ export function fillNoBackground(draft: Scat6Draft): QuickFillResult | null {
     const next = copy(draft);
     const filled = BACKGROUND_CONDITIONS.filter(([key]) => next.background[key] === null);
     for (const [key] of filled) next.background[key] = false;
-    return { draft: next, filled: `${plural(filled.length, "condition")} set to No: ${filled.map(([, label]) => label.toLowerCase()).join(", ")}.` };
+    return { draft: next, filled: `${filled.length} tình trạng đặt là Không: ${filled.map(([, label]) => label.toLowerCase()).join(", ")}.` };
 }
 
 /** Ticks every item of an unmarked row (or none of them) and marks the row. A marked row is never changed. */
@@ -466,7 +465,7 @@ export function fillToggleRow(draft: Scat6Draft, path: string, value: boolean): 
     values.fill(value);
     next.marked[path] = true;
     const rule = toggleRows(draft).find((candidate) => candidate.path === path);
-    return { draft: next, filled: value ? `${values.length} of ${values.length} ticked.` : `${rule?.none ?? "None"}: 0 of ${values.length} ticked.` };
+    return { draft: next, filled: value ? `Đã đánh dấu ${values.length}/${values.length}.` : `${rule?.none ?? "Không"}: đã đánh dấu 0/${values.length}.` };
 }
 
 /** Ticks or unticks one item, which marks its row. */
@@ -494,7 +493,7 @@ export function stampNow(draft: Scat6Draft, field: StampField, now: Date | strin
         if (next.administeredAt) return null;
         next.administeredAt = value;
     }
-    return { draft: next, filled: `Stamped ${value.slice(11)}.` };
+    return { draft: next, filled: `Đã ghi giờ ${value.slice(11)}.` };
 }
 
 /** Records a part a baseline usually skips as not performed, with the usual reason when none was written. */
@@ -503,7 +502,7 @@ export function skipPart(draft: Scat6Draft, part: keyof typeof BASELINE_SKIP_REA
     const next = copy(draft);
     next[part].performed = false;
     if (!next[part].reason.trim()) next[part].reason = BASELINE_SKIP_REASONS[part];
-    return { draft: next, filled: `Recorded as not performed: “${next[part].reason}”` };
+    return { draft: next, filled: `Ghi là không thực hiện: “${next[part].reason}”` };
 }
 
 /* ─── Timing ──────────────────────────────────────────────────────────────── */
@@ -549,21 +548,21 @@ const PART_LABELS: Record<string, string> = {
     reason: "SCAT6",
     administeredAt: "SCAT6",
     examinerAttestation: "SCAT6",
-    athlete: "Athlete background",
-    concussionHistory: "Athlete background",
-    immediateAssessment: "Immediate assessment",
-    background: "Medical background",
-    symptoms: "Symptom evaluation",
-    orientation: "Orientation",
-    immediateMemory: "Immediate memory",
-    digitsBackward: "Digits backward",
-    monthsReverse: "Months in reverse",
+    athlete: "Thông tin vận động viên",
+    concussionHistory: "Thông tin vận động viên",
+    immediateAssessment: "Đánh giá tức thời",
+    background: "Tiền sử y khoa",
+    symptoms: "Đánh giá triệu chứng",
+    orientation: "Định hướng",
+    immediateMemory: "Trí nhớ tức thời",
+    digitsBackward: "Đọc ngược dãy số",
+    monthsReverse: "Đọc ngược các tháng",
     mbess: "mBESS",
-    tandemGait: "Tandem gait",
-    dualTaskGait: "Dual-task gait",
-    gaitIncompleteReason: "Gait",
-    delayedRecall: "Delayed recall",
-    differentFromUsualSelf: "SCAT6 decision",
+    tandemGait: "Đi nối gót",
+    dualTaskGait: "Đi kết hợp nhiệm vụ kép",
+    gaitIncompleteReason: "Dáng đi",
+    delayedRecall: "Nhớ lại có trì hoãn",
+    differentFromUsualSelf: "Kết luận SCAT6",
 };
 
 /** A problem with the part it's in, for a sentence that stands on its own: "Medical background: answer yes or no." */
@@ -598,7 +597,7 @@ export function scat6Problems(draft: Scat6Draft): Scat6Problem[] {
     const seen = new Set(problems.map((problem) => problem.path));
     for (const unmarked of toggleRows(draft).filter((candidate) => !draft.marked[candidate.path])) {
         if (seen.has(unmarked.path)) continue;
-        problems.push({ path: unmarked.path, message: `Tick ${unmarked.what}, or choose “${unmarked.none}”.`, step: scat6StepOf(unmarked.path) });
+        problems.push({ path: unmarked.path, message: `Đánh dấu ${unmarked.what}, hoặc chọn “${unmarked.none}”.`, step: scat6StepOf(unmarked.path) });
     }
     return problems;
 }
@@ -611,13 +610,13 @@ export interface Scat6ReviewLine {
     step: Scat6Step;
 }
 
-const HANDS: Record<string, string> = { LEFT: "Left", RIGHT: "Right", AMBIDEXTROUS: "Ambidextrous" };
-const ANSWERS: Record<string, string> = { YES: "Yes", NO: "No", NOT_APPLICABLE: "Not applicable", DEFERRED: "Deferred" };
-const blankAs = (value: string, fallback = "Not entered") => (value.trim() ? value.trim() : fallback);
-const clock = (value: string) => (isDateTimeInputValue(value) ? value.slice(11) : "not entered");
+const HANDS: Record<string, string> = { LEFT: "Trái", RIGHT: "Phải", AMBIDEXTROUS: "Thuận hai tay" };
+const ANSWERS: Record<string, string> = { YES: "Có", NO: "No", NOT_APPLICABLE: "Không áp dụng", DEFERRED: "Hoãn lại" };
+const blankAs = (value: string, fallback = "Chưa nhập") => (value.trim() ? value.trim() : fallback);
+const clock = (value: string) => (isDateTimeInputValue(value) ? value.slice(11) : "chưa nhập");
 const ticks = (draft: Scat6Draft, path: string) => {
     const values = toggleValues(draft, path) ?? [];
-    return draft.marked[path] ? `${values.filter(Boolean).length} of ${values.length} ticked` : "not marked";
+    return draft.marked[path] ? `đã đánh dấu ${values.filter(Boolean).length}/${values.length}` : "chưa đánh dấu";
 };
 
 /**
@@ -625,25 +624,25 @@ const ticks = (draft: Scat6Draft, path: string) => {
  * compute, so none is worked out here.
  */
 export function scat6ReviewLines(draft: Scat6Draft): Scat6ReviewLine[] {
-    if (draft.status === "NOT_ADMINISTERED") return [{ label: "SCAT6", value: `Not administered: ${blankAs(draft.notAdministeredReason, "no reason yet")}`, step: "history" }];
+    if (draft.status === "NOT_ADMINISTERED") return [{ label: "SCAT6", value: `Không thực hiện: ${blankAs(draft.notAdministeredReason, "chưa ghi lý do")}`, step: "history" }];
     const notPerformed = (part: { performed: boolean | null; reason: string }, performed: () => string) =>
-        part.performed === null ? "Not answered yet" : part.performed ? performed() : `Not performed: ${blankAs(part.reason, "no reason yet")}`;
+        part.performed === null ? "Chưa trả lời" : part.performed ? performed() : `Không thực hiện: ${blankAs(part.reason, "chưa ghi lý do")}`;
     const ratings = draft.symptoms.ratings;
     const rated = ratings.filter((rating) => rating.trim() !== "");
-    const aboveZero = ratings.flatMap((rating, index) => (rating.trim() !== "" && Number(rating) > 0 ? [`item ${index + 1}: ${rating}`] : []));
+    const aboveZero = ratings.flatMap((rating, index) => (rating.trim() !== "" && Number(rating) > 0 ? [`mục ${index + 1}: ${rating}`] : []));
     const conditions = BACKGROUND_CONDITIONS.map(([key, label]) => ({ label, answer: draft.background[key] }));
     const yes = conditions.filter((condition) => condition.answer === true).map((condition) => condition.label);
     const unanswered = conditions.filter((condition) => condition.answer === null).length;
     const memory = draft.immediateMemory;
     const stancesLine = (stances: StancesDraft) => [stances.doubleLeg, stances.singleLeg, stances.tandem].map((stance) => (stance.held ? blankAs(stance.errors, "–") : "not held")).join(", ");
     return [
-        { label: "Started", value: clock(draft.administeredAt), step: "history" },
-        { label: "Dominant hand", value: HANDS[draft.athlete.dominantHand] ?? "Not entered", step: "history" },
-        { label: "Earlier concussions", value: blankAs(draft.concussionHistory.priorDiagnosedConcussions), step: "history" },
-        { label: "Immediate assessment", value: notPerformed(draft.immediateAssessment, () => "Performed"), step: "history" },
-        { label: "Medical background", value: yes.length > 0 ? `Yes: ${yes.join(", ")}` : unanswered > 0 ? `${unanswered} not answered` : "No to all", step: "history" },
+        { label: "Bắt đầu", value: clock(draft.administeredAt), step: "history" },
+        { label: "Tay thuận", value: HANDS[draft.athlete.dominantHand] ?? "Chưa nhập", step: "history" },
+        { label: "Chấn động não trước đây", value: blankAs(draft.concussionHistory.priorDiagnosedConcussions), step: "history" },
+        { label: "Đánh giá tức thời", value: notPerformed(draft.immediateAssessment, () => "Đã thực hiện"), step: "history" },
+        { label: "Tiền sử y khoa", value: yes.length > 0 ? `Có: ${yes.join(", ")}` : unanswered > 0 ? `${unanswered} chưa trả lời` : "Không với tất cả", step: "history" },
         {
-            label: "Symptoms",
+            label: "Triệu chứng",
             value: notPerformed(draft.symptoms, () =>
                 [
                     `${rated.length} of ${ratings.length} rated`,
@@ -655,20 +654,20 @@ export function scat6ReviewLines(draft: Scat6Draft): Scat6ReviewLine[] {
             ),
             step: "history",
         },
-        { label: "Orientation", value: notPerformed(draft.orientation, () => ticks(draft, "orientation.answers")), step: "memory" },
+        { label: "Định hướng", value: notPerformed(draft.orientation, () => ticks(draft, "orientation.answers")), step: "memory" },
         {
-            label: "Immediate memory",
+            label: "Trí nhớ tức thời",
             value: notPerformed(memory, () => [`List ${memory.wordList || "not chosen"}`, ...memory.trials.map((_, index) => `trial ${index + 1}: ${ticks(draft, `immediateMemory.trials.${index}`)}`), `last trial ${clock(memory.lastTrialCompletedAt)}`].join(" · ")),
             step: "memory",
         },
         {
-            label: "Digits backward",
-            value: notPerformed(draft.digitsBackward, () => `List ${draft.digitsBackward.digitList || "not chosen"} · ${digitStrings(draft.digitsBackward.strings).length} lengths recorded`),
+            label: "Đọc ngược dãy số",
+            value: notPerformed(draft.digitsBackward, () => `Danh sách ${draft.digitsBackward.digitList || "chưa chọn"} · đã ghi ${digitStrings(draft.digitsBackward.strings).length} độ dài`),
             step: "memory",
         },
         {
-            label: "Months in reverse",
-            value: notPerformed(draft.monthsReverse, () => `${ticks(draft, "monthsReverse.correctResponses")} · ${blankAs(draft.monthsReverse.timeSeconds, "–")} s · ${blankAs(draft.monthsReverse.errors, "–")} errors`),
+            label: "Đọc ngược các tháng",
+            value: notPerformed(draft.monthsReverse, () => `${ticks(draft, "monthsReverse.correctResponses")} · ${blankAs(draft.monthsReverse.timeSeconds, "–")} giây · ${blankAs(draft.monthsReverse.errors, "–")} lỗi`),
             step: "memory",
         },
         {
@@ -680,11 +679,11 @@ export function scat6ReviewLines(draft: Scat6Draft): Scat6ReviewLine[] {
             ),
             step: "balance",
         },
-        { label: "Tandem gait", value: notPerformed(draft.tandemGait, () => draft.tandemGait.trials.map((trial) => (trial.completed ? `${blankAs(trial.timeSeconds, "–")} s` : "stopped early")).join(", ")), step: "balance" },
-        { label: "Dual-task gait", value: notPerformed(draft.dualTaskGait, () => "Performed"), step: "balance" },
-        { label: "Delayed recall", value: notPerformed(draft.delayedRecall, () => `started ${clock(draft.delayedRecall.startedAt)} · ${ticks(draft, "delayedRecall.words")}`), step: "balance" },
-        { label: "Different from usual self", value: ANSWERS[draft.differentFromUsualSelf] ?? "Not answered", step: "balance" },
-        { label: "Concussion diagnosed", value: ANSWERS[draft.concussionDiagnosed] ?? "Not recorded", step: "balance" },
+        { label: "Đi nối gót", value: notPerformed(draft.tandemGait, () => draft.tandemGait.trials.map((trial) => (trial.completed ? `${blankAs(trial.timeSeconds, "–")} s` : "stopped early")).join(", ")), step: "balance" },
+        { label: "Đi kết hợp nhiệm vụ kép", value: notPerformed(draft.dualTaskGait, () => "Đã thực hiện"), step: "balance" },
+        { label: "Nhớ lại có trì hoãn", value: notPerformed(draft.delayedRecall, () => `bắt đầu ${clock(draft.delayedRecall.startedAt)} · ${ticks(draft, "delayedRecall.words")}`), step: "balance" },
+        { label: "Khác với bình thường", value: ANSWERS[draft.differentFromUsualSelf] ?? "Chưa trả lời", step: "balance" },
+        { label: "Chẩn đoán chấn động não", value: ANSWERS[draft.concussionDiagnosed] ?? "Chưa ghi nhận", step: "balance" },
     ];
 }
 

@@ -23,9 +23,9 @@ export function ExaminationReadBack({ exam, weightLimitKg }: { exam: CurrentExam
         <>
             <Card>
                 <CardHeader
-                    title="Examination on record"
+                    title="Phiếu khám đã ghi"
                     icon={<ClipboardCheck />}
-                    description={`${EXAMINATION_SCOPE_LABELS[exam.scope]} · ${details?.type ? EXAMINATION_TYPE_LABELS[details.type] : "type not recorded"} · ${formatDateTime(exam.examinedAt)}`}
+                    description={`${EXAMINATION_SCOPE_LABELS[exam.scope]} · ${details?.type ? EXAMINATION_TYPE_LABELS[details.type] : "chưa ghi loại"} · ${formatDateTime(exam.examinedAt)}`}
                     action={
                         <Badge tone={restricted ? "warning" : "success"} icon={restricted ? ShieldAlert : CircleCheck}>
                             {EXAMINATION_DECISION_LABELS[exam.decision]}
@@ -34,16 +34,16 @@ export function ExaminationReadBack({ exam, weightLimitKg }: { exam: CurrentExam
                 />
                 <CardContent className="flex flex-col gap-5">
                     <div>
-                        <h3 className="text-[13px] font-semibold text-fg-muted">Findings and reasoning</h3>
+                        <h3 className="text-[13px] font-semibold text-fg-muted">Kết quả và lập luận</h3>
                         <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.reason}</p>
-                        <p className="mt-1.5 text-[13px] text-fg-muted">{exam.validUntil ? `Decision valid until ${formatDate(exam.validUntil)}.` : "The decision has no end date."}</p>
+                        <p className="mt-1.5 text-[13px] text-fg-muted">{exam.validUntil ? `Quyết định hiệu lực đến ${formatDate(exam.validUntil)}.` : "Quyết định không có thời hạn."}</p>
                     </div>
                     {details ? (
                         <>
                             {details.vitals ? (
                                 <VitalsGrid vitals={details.vitals} weightLimitKg={weightLimitKg ?? undefined} />
                             ) : (
-                                <p className="text-[13px] text-fg-muted">No vitals were recorded.</p>
+                                <p className="text-[13px] text-fg-muted">Không ghi sinh hiệu.</p>
                             )}
                             {details.assessments.length > 0 ? (
                                 <ul className="flex flex-col gap-2">
@@ -56,11 +56,11 @@ export function ExaminationReadBack({ exam, weightLimitKg }: { exam: CurrentExam
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="text-[13px] text-fg-muted">No areas were assessed.</p>
+                                <p className="text-[13px] text-fg-muted">Không đánh giá vùng nào.</p>
                             )}
                         </>
                     ) : (
-                        <InlineNote icon={ClipboardCheck}>This examination was recorded without details: no vitals, assessed areas or SCAT6 to show.</InlineNote>
+                        <InlineNote icon={ClipboardCheck}>Phiếu khám ghi không kèm chi tiết: không có sinh hiệu, vùng đánh giá hay SCAT6.</InlineNote>
                     )}
                 </CardContent>
             </Card>

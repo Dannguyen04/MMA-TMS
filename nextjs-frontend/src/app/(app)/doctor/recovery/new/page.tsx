@@ -20,7 +20,7 @@ import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "New recovery plan" };
+export const metadata: Metadata = { title: "Kế hoạch phục hồi mới" };
 
 export default async function NewRecoveryPlanPage(props: PageProps<"/doctor/recovery/new">) {
     if (usesMedicalServiceForms()) return <NewMilestonePlanPage {...props} />;
@@ -49,38 +49,38 @@ export default async function NewRecoveryPlanPage(props: PageProps<"/doctor/reco
     const requested = options.find((option) => option.injury.id === requestedInjuryId);
     const existingPlan = requestedInjuryId ? plans.find((plan) => plan.injuryId === requestedInjuryId && plan.status !== "completed") : undefined;
     const back = requested
-        ? { href: routes.doctor.injury(requested.injury.id), label: "Injury record" }
-        : { href: routes.doctor.recovery, label: "Recovery" };
+        ? { href: routes.doctor.injury(requested.injury.id), label: "Hồ sơ chấn thương" }
+        : { href: routes.doctor.recovery, label: "Phục hồi" };
 
     return (
         <>
             <PageHeader
                 back={back}
-                eyebrow="Recovery plan"
-                title="New recovery plan"
-                description="Plan the return to training in phases. Each phase has a goal and milestones you tick off as the fighter progresses."
+                eyebrow="Kế hoạch phục hồi"
+                title="Kế hoạch phục hồi mới"
+                description="Lập kế hoạch trở lại tập theo giai đoạn, mỗi giai đoạn có mục tiêu và các mốc."
             />
             {options.length === 0 ? (
                 <EmptyState
                     icon={<Bandage />}
-                    title="No injuries need a recovery plan"
+                    title="Không có chấn thương cần kế hoạch"
                     description={
                         existingPlan
-                            ? "That injury already has a recovery plan in progress, and every other open injury of your assigned fighters has one too."
-                            : "Every open injury of your assigned fighters already has a plan in progress. Record an injury first to plan its recovery."
+                            ? "Chấn thương đó đã có kế hoạch phục hồi đang chạy, và mọi chấn thương đang mở khác của võ sĩ bạn phụ trách cũng vậy."
+                            : "Mọi chấn thương đang mở của võ sĩ bạn phụ trách đều đã có kế hoạch. Hãy ghi chấn thương trước rồi lập kế hoạch phục hồi."
                     }
                     action={
                         <>
                             {existingPlan ? (
                                 <ButtonLink href={routes.doctor.recoveryPlan(existingPlan.id)} variant="secondary">
-                                    Open “{existingPlan.title}”
+                                    Mở “{existingPlan.title}”
                                 </ButtonLink>
                             ) : (
                                 <ButtonLink href={routes.doctor.recovery} variant="secondary">
-                                    View recovery plans
+                                    Xem kế hoạch phục hồi
                                 </ButtonLink>
                             )}
-                            <ButtonLink href={clinicalLinks.newInjuryFor({})}>Record injury</ButtonLink>
+                            <ButtonLink href={clinicalLinks.newInjuryFor({})}>Ghi nhận chấn thương</ButtonLink>
                         </>
                     }
                 />
@@ -88,11 +88,11 @@ export default async function NewRecoveryPlanPage(props: PageProps<"/doctor/reco
                 <div className="flex flex-col gap-4">
                     {existingPlan && (
                         <p role="status" className="rounded-lg bg-info-soft px-4 py-3 text-sm text-info-fg ring-1 ring-inset ring-info-border">
-                            That injury already has a recovery plan in progress —{" "}
+                            Chấn thương đó đã có kế hoạch phục hồi đang chạy —{" "}
                             <Link href={routes.doctor.recoveryPlan(existingPlan.id)} className="font-medium underline">
-                                open “{existingPlan.title}”
+                                mở “{existingPlan.title}”
                             </Link>
-                            . Choose another injury below.
+                            . Hãy chọn chấn thương khác bên dưới.
                         </p>
                     )}
                     <RecoveryPlanForm
@@ -118,39 +118,39 @@ async function NewMilestonePlanPage({ searchParams }: PageProps<"/doctor/recover
     const injuries = dossier?.activeInjuries.filter((injury) => !planned.has(injury.id)) ?? [];
     const requestedInjury = param(params.injury) ?? "";
     const existingPlan = dossier?.activeRecoveryPlans.find((plan) => plan.injuryId === requestedInjury);
-    const back = fighter ? { href: requestedInjury ? routes.doctor.injury(requestedInjury) : routes.doctor.fighter(fighter.id), label: requestedInjury ? "Injury record" : fighter.name } : { href: routes.doctor.recovery, label: "Recovery" };
+    const back = fighter ? { href: requestedInjury ? routes.doctor.injury(requestedInjury) : routes.doctor.fighter(fighter.id), label: requestedInjury ? "Hồ sơ chấn thương" : fighter.name } : { href: routes.doctor.recovery, label: "Phục hồi" };
 
     return (
         <>
             <PageHeader
                 back={back}
-                eyebrow="Recovery plan"
-                title={fighter ? `Recovery plan for ${fighter.name}` : "New recovery plan"}
-                description="Plan the return to training as milestones, each with how you'll know it's reached."
+                eyebrow="Kế hoạch phục hồi"
+                title={fighter ? `Kế hoạch phục hồi cho ${fighter.name}` : "Kế hoạch phục hồi mới"}
+                description="Lập kế hoạch trở lại tập theo các mốc, mỗi mốc có tiêu chí đạt."
             />
             {!fighter || !dossier ? (
                 <FighterChooser
                     fighters={fighters}
                     hrefFor={(fighterId) => hrefWith(clinicalLinks.newRecoveryPlan, {}, { fighter: fighterId })}
-                    title="Whose recovery is this?"
+                    title="Kế hoạch phục hồi cho võ sĩ nào?"
                     unreadable={fighter}
                 />
             ) : injuries.length === 0 ? (
                 <EmptyState
                     icon={<Bandage />}
-                    title={existingPlan ? "That injury already has a plan in progress" : "No injury needs a recovery plan"}
+                    title={existingPlan ? "Chấn thương đó đã có kế hoạch đang chạy" : "Không có chấn thương nào cần kế hoạch phục hồi"}
                     description={
                         existingPlan
-                            ? `Open “${existingPlan.title}” to track its milestones.`
-                            : `Every open injury of ${fighter.name} already has a plan in progress. Record an injury first to plan its recovery.`
+                            ? `Mở “${existingPlan.title}” để theo dõi các mốc.`
+                            : `Mọi chấn thương đang mở của ${fighter.name} đã có kế hoạch. Hãy ghi chấn thương trước.`
                     }
                     action={
                         existingPlan ? (
                             <ButtonLink href={routes.doctor.recoveryPlan(existingPlan.id)} variant="secondary">
-                                Open “{existingPlan.title}”
+                                Mở “{existingPlan.title}”
                             </ButtonLink>
                         ) : (
-                            <ButtonLink href={clinicalLinks.newInjuryFor({ fighterId: fighter.id })}>Record injury</ButtonLink>
+                            <ButtonLink href={clinicalLinks.newInjuryFor({ fighterId: fighter.id })}>Ghi nhận chấn thương</ButtonLink>
                         )
                     }
                 />

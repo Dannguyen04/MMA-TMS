@@ -1,5 +1,5 @@
-import { DashboardSkeleton } from "@/components/ui/skeleton";
+import { ListSkeleton } from "@/components/doctor/ui";
 
 export default function Loading() {
-    return <DashboardSkeleton label="Loading recovery plans" />;
+    return <ListSkeleton label="Đang tải dữ liệu y tế" />;
 }

@@ -93,7 +93,7 @@ describe("recording an examination the service didn't confirm", () => {
 
         const state = await recordExaminationDecisionAction(START, form(examFields));
         expect(state).toMatchObject({ status: "error", data: { unconfirmed: true } });
-        expect(state.message).toContain("try again");
+        expect(state.message).toContain("hãy thử lại");
         expect(state.message).not.toMatch(/reload/i);
     });
 
@@ -101,7 +101,7 @@ describe("recording an examination the service didn't confirm", () => {
         services.recordExaminationDecision.mockRejectedValue(timeout());
         services.rereadClinicalDossier.mockRejectedValue(timeout());
 
-        await expect(recordExaminationDecisionAction(START, form(examFields))).resolves.toMatchObject({ status: "error", data: { unconfirmed: true }, message: expect.stringContaining("couldn't check") });
+        await expect(recordExaminationDecisionAction(START, form(examFields))).resolves.toMatchObject({ status: "error", data: { unconfirmed: true }, message: expect.stringContaining("chưa kiểm tra được") });
     });
 
     it("on the retry, checks the record before sending and never sends a saved examination twice", async () => {
@@ -127,7 +127,7 @@ describe("recording an examination the service didn't confirm", () => {
         services.rereadClinicalDossier.mockResolvedValue(dossier({ currentExaminations: { TRAINING: exam({ id: "exam-other", reason: "Someone else's visit." }), COMPETITION: null } }));
 
         const state = await recordExaminationDecisionAction(START, form(examFields));
-        expect(state).toMatchObject({ status: "error", message: expect.stringContaining("recorded since you opened this form") });
+        expect(state).toMatchObject({ status: "error", message: expect.stringContaining("được ghi từ khi bạn mở biểu mẫu") });
         expect(state.data).toBeUndefined();
     });
 

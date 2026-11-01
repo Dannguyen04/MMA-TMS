@@ -58,11 +58,11 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 name="allowedSessionTypes"
                 switchName="limitSessions"
                 switchLabel="Limit the session types"
-                switchDescription={sessionsLocked ? "The examination limits session types, so this clearance must too." : "Off means every type of session is allowed."}
+                switchDescription={sessionsLocked ? "Phiếu khám giới hạn loại buổi tập nên giấy phép cũng phải giới hạn." : "Tắt nghĩa là mọi loại buổi tập đều được phép."}
                 on={limitSessions}
                 locked={sessionsLocked}
                 onToggle={setLimitSessions}
-                legend="Session types the fighter may do"
+                legend="Loại buổi tập võ sĩ được làm"
                 options={(bound?.allowedSessionTypes ?? SESSION_TYPES).map((value) => ({ value, label: SESSION_TYPE_LABELS[value] }))}
                 selected={sessions}
                 onSelect={setSessions}
@@ -73,11 +73,11 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 name="allowedTechniqueTypes"
                 switchName="limitTechniques"
                 switchLabel="Limit the techniques"
-                switchDescription={techniquesLocked ? "The examination limits techniques, so this clearance must too." : "Off means every technique is allowed."}
+                switchDescription={techniquesLocked ? "Phiếu khám giới hạn kỹ thuật nên giấy phép cũng phải giới hạn." : "Tắt nghĩa là mọi kỹ thuật đều được phép."}
                 on={limitTechniques}
                 locked={techniquesLocked}
                 onToggle={setLimitTechniques}
-                legend="Techniques the fighter may use"
+                legend="Kỹ thuật võ sĩ được dùng"
                 options={(bound?.allowedTechniqueTypes ?? TECHNIQUE_TYPES).map((value) => ({ value, label: TECHNIQUE_TYPE_LABELS[value] }))}
                 selected={techniques}
                 onSelect={setTechniques}
@@ -86,8 +86,8 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 form={form}
                 id={`${idPrefix}-joints`}
                 name="excludedJoints"
-                legend="Joints to keep out of training"
-                hint={lockedJoints.length > 0 ? "Joints the examination excluded stay excluded." : "Leave all unticked if no joint needs protecting."}
+                legend="Khớp cần tránh khi tập"
+                hint={lockedJoints.length > 0 ? "Khớp phiếu khám đã loại trừ vẫn bị loại trừ." : "Bỏ trống nếu không cần bảo vệ khớp nào."}
                 options={BODY_JOINTS.map((value) => ({ value, label: BODY_JOINT_LABELS[value], locked: lockedJoints.includes(value) }))}
                 selected={joints}
                 onSelect={setJoints}
@@ -205,7 +205,7 @@ function CheckboxChips<T extends string>({
                                 className="size-3.5 shrink-0 accent-[var(--primary)]"
                             />
                             {option.label}
-                            {option.locked && <Lock aria-label="Required by the examination" className="size-3 text-fg-subtle" />}
+                            {option.locked && <Lock aria-label="Bắt buộc theo phiếu khám" className="size-3 text-fg-subtle" />}
                         </label>
                     );
                 })}

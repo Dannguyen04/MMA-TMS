@@ -104,7 +104,7 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
             const missing = missingRequiredControls(current);
             if (missing.length > 0) {
                 const names = [...new Set(missing.map((item) => item.label).filter(Boolean))];
-                setStepError(names.length > 0 ? `Fill in ${names.join(", ")} to continue.` : "Fill in the required fields to continue.");
+                setStepError(names.length > 0 ? `Hãy điền ${names.join(", ")} để tiếp tục.` : "Hãy điền các trường bắt buộc để tiếp tục.");
                 missing[0].element.focus();
                 return;
             }
@@ -146,9 +146,9 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
     return (
         <StepsContext.Provider value={{ activeId: active.id, goTo }}>
             <div ref={rootRef} className={cn("flex scroll-mt-24 flex-col gap-6", className)} onKeyDown={onKeyDown}>
-                <nav aria-label="Form steps">
+                <nav aria-label="Các bước biểu mẫu">
                     <p className="mb-2 text-xs font-medium text-fg-subtle sm:hidden">
-                        Step {activeIndex + 1} of {steps.length}: <span className="text-fg">{active.label}</span>
+                        Bước {activeIndex + 1}/{steps.length}: <span className="text-fg">{active.label}</span>
                     </p>
                     <ol className="grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
                         {steps.map((step, index) => {
@@ -182,11 +182,11 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
                                         <span className="min-w-0 max-sm:sr-only">
                                             <span className={cn("block truncate text-sm font-semibold", current ? "text-fg" : "text-fg-muted")}>
                                                 {step.label}
-                                                {step.optional && <span className="ml-1 text-xs font-normal text-fg-subtle">(optional)</span>}
+                                                {step.optional && <span className="ml-1 text-xs font-normal text-fg-subtle">(không bắt buộc)</span>}
                                             </span>
                                             {step.description && <span className="block truncate text-xs text-fg-subtle max-md:hidden">{step.description}</span>}
                                         </span>
-                                        <span className="sr-only">{done && !current ? "(completed)" : current ? "(current step)" : ""}</span>
+                                        <span className="sr-only">{done && !current ? "(đã xong)" : current ? "(bước hiện tại)" : ""}</span>
                                     </button>
                                 </li>
                             );
@@ -209,19 +209,19 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
                             {activeIndex > 0 && (
                                 <Button variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" onClick={() => show(activeIndex - 1)}>
                                     <ArrowLeft aria-hidden />
-                                    Back
+                                    Quay lại
                                 </Button>
                             )}
                             {active.optional && !isLast && (
                                 <Button variant="ghost" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" onClick={() => show(steps.length - 1)}>
-                                    Skip
+                                    Bỏ qua
                                 </Button>
                             )}
                             {isLast ? (
                                 submit
                             ) : (
                                 <Button size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" onClick={next}>
-                                    Next
+                                    Tiếp
                                     <ArrowRight aria-hidden />
                                 </Button>
                             )}

@@ -10,6 +10,7 @@ import { clinicalLinks } from "@/components/clinical/clinical-links";
 import { ObservationEvidence } from "@/components/clinical/observation-evidence";
 import { CHART_MUTED } from "@/components/charts/colors";
 import { HorizontalBars } from "@/components/charts/horizontal-bars";
+import { RegionModel } from "@/components/doctor/region-model";
 import { AINotice } from "@/components/domain/ai-notice";
 import { ConfidenceMeter } from "@/components/domain/confidence-meter";
 import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
@@ -37,12 +38,12 @@ import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 const loadAlertDetail = cache(getAlertDetail);
 
 export async function generateMetadata({ params }: PageProps<"/doctor/ai-alerts/[alertId]">): Promise<Metadata> {
-    if (!medicalFeatureAvailable("aiObservations")) return { title: "AI movement observation" };
+    if (!medicalFeatureAvailable("aiObservations")) return { title: "Quan sát AI" };
     const [{ alertId }, user] = await Promise.all([params, getCurrentUser()]);
     const detail = await loadAlertDetail(alertId);
     // The title must not reveal an observation the viewer isn't assigned to.
     const visible = detail?.fighter && user && canAccessFighter(user, detail.alert.fighterId);
-    return { title: visible && detail.fighter ? `AI movement observation · ${detail.fighter.name}` : "AI movement observation" };
+    return { title: visible && detail.fighter ? `Quan sát AI · ${detail.fighter.name}` : "Quan sát chuyển động AI" };
 }
 
 const HISTORY_LIMIT = 6;
@@ -52,8 +53,8 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
     if (!medicalFeatureAvailable("aiObservations")) {
         return (
             <>
-                <PageHeader back={{ href: routes.doctor.aiAlerts, label: "AI movement observations" }} title="AI movement observation" />
-                <FeatureUnavailable title="AI movement observations aren't available yet" />
+                <PageHeader back={{ href: routes.doctor.aiAlerts, label: "Quan sát AI" }} title="Quan sát AI" />
+                <FeatureUnavailable title="Quan sát AI chưa khả dụng" />
             </>
         );
     }
@@ -84,17 +85,17 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
     return (
         <>
             <PageHeader
-                back={{ href: routes.doctor.aiAlerts, label: "AI movement observations" }}
-                eyebrow={`AI movement observation · ${BODY_REGION_LABELS[alert.bodyRegion]}`}
+                back={{ href: routes.doctor.aiAlerts, label: "Quan sát AI" }}
+                eyebrow={`Quan sát AI · ${BODY_REGION_LABELS[alert.bodyRegion]}`}
                 title={alert.pattern}
                 meta={
                     <>
-                        <AIGeneratedBadge label="AI observation" />
+                        <AIGeneratedBadge label="Quan sát AI" />
                         <ConfidenceBadge confidence={alert.confidence} />
                         <AlertStatusBadge status={alert.status} />
                         <span aria-hidden className="mx-1 h-4 w-px bg-border" />
                         <span className="text-sm text-fg-muted">
-                            Detected <time dateTime={alert.detectedAt}>{formatDateTime(alert.detectedAt)}</time>
+                            Phát hiện <time dateTime={alert.detectedAt}>{formatDateTime(alert.detectedAt)}</time>
                         </span>
                     </>
                 }
@@ -107,15 +108,15 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                     <section aria-labelledby="evidence-heading" className="flex min-w-0 flex-col gap-4">
                         <h2 id="evidence-heading" className="flex items-center gap-2 text-lg font-semibold text-fg">
                             <Sparkles aria-hidden className="size-4 text-ai-fg" />
-                            Evidence
-                            <span className="text-sm font-normal text-fg-muted">— produced by AI</span>
+                            Bằng chứng
+                            <span className="text-sm font-normal text-fg-muted">— do AI tạo</span>
                         </h2>
 
                         <Card className="border-ai-border">
                             <CardHeader
                                 as="h3"
-                                title="AI observation"
-                                description="The pattern as described by the movement model"
+                                title="Quan sát AI"
+                                description="Mẫu chuyển động theo mô hình AI"
                                 icon={<Sparkles />}
                                 action={<AIGeneratedBadge size="sm" />}
                             />
@@ -124,12 +125,11 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                     {alert.description}
                                 </p>
                                 <div>
-                                    <p className="mb-1.5 text-[13px] text-fg-muted">AI confidence in this observation</p>
-                                    <ConfidenceMeter confidence={alert.confidence} label="AI confidence in this observation" />
+                                    <p className="mb-1.5 text-[13px] text-fg-muted">Độ tin cậy của AI</p>
+                                    <ConfidenceMeter confidence={alert.confidence} label="Độ tin cậy của AI" />
                                     {lowConfidence && (
                                         <p className="mt-2 text-[13px] text-warning-fg">
-                                            Confidence is below the review threshold. Treat this as a prompt to look, and confirm on better footage or
-                                            at examination.
+                                            Độ tin cậy dưới ngưỡng xem lại. Hãy coi đây là gợi ý để xem kỹ, và xác nhận bằng Video rõ hơn hoặc khi khám.
                                         </p>
                                     )}
                                 </div>
@@ -137,17 +137,17 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                         </Card>
 
                         <Card>
-                            <CardHeader as="h3" title="Measurement vs baseline" description={alert.metric.label} icon={<Ruler />} />
+                            <CardHeader as="h3" title="Số đo so với mức nền" description={alert.metric.label} icon={<Ruler />} />
                             <CardContent className="flex flex-col gap-4">
                                 <HorizontalBars
                                     ariaLabel={`${alert.metric.label}: ${describeMetricComparison(alert.metric)}`}
                                     items={[
-                                        { label: "This session", value: alert.metric.observed, color: "var(--ai-solid)", hint: "AI measurement" },
+                                        { label: "Buổi này", value: alert.metric.observed, color: "var(--ai-solid)", hint: "Số đo AI" },
                                         {
-                                            label: `${fighter.name.split(" ")[0]}'s baseline`,
+                                            label: `Mức nền của ${fighter.name.split(" ")[0]}`,
                                             value: alert.metric.baseline,
                                             color: CHART_MUTED,
-                                            hint: "Earlier analysed footage",
+                                            hint: "Video đã phân tích trước đây",
                                         },
                                     ]}
                                     valueSuffix={suffix}
@@ -155,13 +155,12 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                     max={Math.max(alert.metric.observed, alert.metric.baseline) * 1.1}
                                 />
                                 <p className="text-[13px] text-fg-muted">
-                                    Difference:{" "}
+                                    Chênh lệch:{" "}
                                     <span className="font-medium text-fg">
                                         {formatDelta(delta, decimals)}
                                         {suffix}
                                     </span>
-                                    {deltaPct !== null && unit !== "%" && ` (${formatDelta(deltaPct)}% vs baseline)`}. A difference from baseline
-                                    describes movement, not its cause.
+                                    {deltaPct !== null && unit !== "%" && ` (${formatDelta(deltaPct)}% so với mức nền)`}. Chênh lệch so với mức nền chỉ mô tả chuyển động, không phải nguyên nhân.
                                 </p>
                             </CardContent>
                         </Card>
@@ -169,9 +168,9 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                         <Card>
                             <CardHeader
                                 as="h3"
-                                title="Source footage"
+                                title="Video nguồn"
                                 icon={<Film />}
-                                description={video ? video.title : "Footage no longer available"}
+                                description={video ? video.title : "Video không còn"}
                             />
                             <CardContent className="flex flex-col gap-5">
                                 {video ? (
@@ -179,7 +178,7 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                         columns={3}
                                         items={[
                                             {
-                                                label: "Training type",
+                                                label: "Loại buổi tập",
                                                 value: (
                                                     <span className="inline-flex items-center gap-1.5">
                                                         <TrainingTypeIcon type={video.trainingType} className="text-fg-muted" />
@@ -187,16 +186,16 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                                     </span>
                                                 ),
                                             },
-                                            { label: "Recorded", value: <time dateTime={video.uploadedAt}>{formatDate(video.uploadedAt)}</time> },
+                                            { label: "Đã ghi", value: <time dateTime={video.uploadedAt}>{formatDate(video.uploadedAt)}</time> },
                                             {
-                                                label: "Length · camera",
+                                                label: "Thời lượng · camera",
                                                 value: `${formatClock(video.durationSec)} · ${CAMERA_ANGLE_LABELS[video.cameraAngle]}`,
                                             },
                                         ]}
                                     />
                                 ) : (
                                     <p className="text-sm text-fg-muted">
-                                        The video was deleted after review. The flagged moments are kept for the record.
+                                        Video đã bị xóa sau khi xem xét. Các thời điểm được đánh dấu vẫn được lưu trong hồ sơ.
                                     </p>
                                 )}
 
@@ -211,14 +210,14 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                     />
                                 ) : (
                                     <div>
-                                        <h4 className="mb-2 text-[13px] font-semibold text-fg">Flagged moments</h4>
+                                        <h4 className="mb-2 text-[13px] font-semibold text-fg">Thời điểm bị đánh dấu</h4>
                                         <ol className="flex flex-wrap gap-2">
                                             {alert.timestampsMs.map((ms, index) => (
                                                 <li
                                                     key={`${ms}-${index}`}
                                                     className="rounded-md bg-surface-muted px-2.5 py-1 text-[13px] text-fg tabular-nums"
                                                 >
-                                                    Moment {index + 1} · {formatTimestamp(ms)}
+                                                    Thời điểm {index + 1} · {formatTimestamp(ms)}
                                                 </li>
                                             ))}
                                         </ol>
@@ -231,16 +230,23 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                     <section aria-labelledby="decision-heading" className="flex min-w-0 flex-col gap-4">
                         <h2 id="decision-heading" className="flex items-center gap-2 text-lg font-semibold text-fg">
                             <Stethoscope aria-hidden className="size-4 text-fg-muted" />
-                            Clinical decision
+                            Quyết định lâm sàng
                         </h2>
 
                         <Card>
-                            <CardHeader as="h3" title="Fighter health" icon={<HeartPulse />} />
+                            <CardHeader as="h3" title="Vùng được quan sát" description={BODY_REGION_LABELS[alert.bodyRegion]} icon={<Ruler />} />
+                            <CardContent>
+                                <RegionModel targets={[{ region: alert.bodyRegion }]} label="Vùng AI quan sát" status="RECOVERING" height={300} legend={false} />
+                            </CardContent>
+                        </Card>
+
+                        <Card>
+                            <CardHeader as="h3" title="Sức khỏe võ sĩ" icon={<HeartPulse />} />
                             <CardContent className="flex flex-col gap-4">
                                 <FighterIdentity fighter={fighter} href={routes.doctor.fighter(fighter.id)} />
                                 <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={summary.clearanceState} />
                                 <div>
-                                    <h4 className="mb-1.5 text-[13px] font-semibold text-fg">Open injuries</h4>
+                                    <h4 className="mb-1.5 text-[13px] font-semibold text-fg">Chấn thương đang mở</h4>
                                     {summary.activeInjuries.length > 0 ? (
                                         <ul className="flex flex-col gap-1.5">
                                             {summary.activeInjuries.map((injury) => (
@@ -253,13 +259,13 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-[13px] text-fg-muted">None recorded.</p>
+                                        <p className="text-[13px] text-fg-muted">Chưa ghi nhận.</p>
                                     )}
                                 </div>
                                 {summary.nextFollowUp && (
                                     <p className="flex items-center gap-2 text-[13px] text-fg-muted">
                                         <CalendarClock aria-hidden className="size-3.5" />
-                                        Follow-up examination {describeDaysUntil(summary.nextFollowUp.daysUntil)} (
+                                        Khám theo dõi {describeDaysUntil(summary.nextFollowUp.daysUntil)} (
                                         {formatDate(summary.nextFollowUp.date)})
                                     </p>
                                 )}
@@ -270,11 +276,11 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                             <Card>
                                 <CardHeader
                                     as="h3"
-                                    title="Your decision"
+                                    title="Quyết định của bạn"
                                     description={
                                         alert.doctorReview
-                                            ? "Recorded by a doctor — separate from the AI output"
-                                            : "How should this observation be handled?"
+                                            ? "Do bác sĩ ghi — tách biệt với kết quả AI"
+                                            : "Xử lý quan sát này thế nào?"
                                     }
                                     icon={<Stethoscope />}
                                 />
@@ -285,11 +291,11 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                         )}
 
                         <Card>
-                            <CardHeader as="h3" title="Next steps" icon={<ClipboardPlus />} />
+                            <CardHeader as="h3" title="Bước tiếp theo" icon={<ClipboardPlus />} />
                             <CardContent className="flex flex-col gap-3">
                                 {linkedInjury ? (
                                     <div className="flex flex-col gap-1.5 rounded-lg border border-border px-3 py-2.5">
-                                        <p className="text-xs text-fg-muted">Linked injury record</p>
+                                        <p className="text-xs text-fg-muted">Hồ sơ chấn thương liên kết</p>
                                         <p className="flex flex-wrap items-center gap-2">
                                             <Bandage aria-hidden className="size-4 text-fg-muted" />
                                             <Link
@@ -308,12 +314,12 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                         className="justify-start"
                                     >
                                         <Bandage aria-hidden />
-                                        Record injury from this observation
+                                        Ghi chấn thương từ quan sát này
                                     </ButtonLink>
                                 )}
                                 <ButtonLink href={clinicalLinks.newExaminationFor(fighter.id)} variant="secondary" className="justify-start">
                                     <Stethoscope aria-hidden />
-                                    Book examination
+                                    Đặt lịch khám
                                 </ButtonLink>
                             </CardContent>
                         </Card>
@@ -322,13 +328,13 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
 
                 <Card className="overflow-hidden">
                     <CardHeader
-                        title={`Earlier observations for ${fighter.name}`}
-                        description="Same body region first, then most recent"
+                        title={`Quan sát trước đây của ${fighter.name}`}
+                        description="Cùng vùng cơ thể trước, sau đó mới nhất"
                         icon={<History />}
                     />
                     {history.length === 0 ? (
                         <p className="border-t border-border px-5 py-4 text-sm text-fg-muted">
-                            No earlier AI movement observations for this fighter.
+                            Võ sĩ này chưa có quan sát AI nào trước đây.
                         </p>
                     ) : (
                         <ul className="divide-y divide-border border-t border-border">
@@ -352,7 +358,7 @@ function HistoryRow({ alert, sameRegion, now }: { alert: AbnormalMovementAlert; 
                     <span>{BODY_REGION_LABELS[alert.bodyRegion]}</span>
                     {sameRegion && (
                         <Badge tone="ai" size="sm">
-                            Same region
+                            Cùng vùng
                         </Badge>
                     )}
                     <span>
@@ -366,7 +372,7 @@ function HistoryRow({ alert, sameRegion, now }: { alert: AbnormalMovementAlert; 
                 </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {alert.confidence !== null && <span className="text-[13px] text-fg-muted tabular-nums">{formatConfidence(alert.confidence)} confidence</span>}
+                {alert.confidence !== null && <span className="text-[13px] text-fg-muted tabular-nums">độ tin cậy {formatConfidence(alert.confidence)}</span>}
                 <AlertStatusBadge status={alert.status} size="sm" />
                 <ArrowRight aria-hidden className="hidden size-4 text-fg-subtle sm:block" />
             </div>

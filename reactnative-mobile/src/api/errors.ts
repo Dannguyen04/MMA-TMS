@@ -1,3 +1,4 @@
+import { GENERIC_ERROR } from "@/i18n/backend-codes";
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;
@@ -42,7 +43,7 @@ export function apiErrorFromBody(status: number, body: unknown): ApiError {
               ? "TOO_MANY_REQUESTS"
               : `HTTP_${status}`;
   const message =
-    typeof nested?.message === "string" ? nested.message : "Request failed";
+    typeof nested?.message === "string" ? nested.message : GENERIC_ERROR;
   return new ApiError(status, code, message, nested?.details);
 }
 

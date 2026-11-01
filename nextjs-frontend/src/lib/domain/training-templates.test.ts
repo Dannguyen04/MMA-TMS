@@ -185,8 +185,8 @@ describe("session presets", () => {
     });
 
     it("suggests a title from the type and the plan", () => {
-        expect(suggestedSessionTitle("pad_work")).toBe("Pad work");
-        expect(suggestedSessionTitle("pad_work", "  Fight camp ")).toBe("Pad work — Fight camp");
+        expect(suggestedSessionTitle("pad_work")).toBe("Đánh đích");
+        expect(suggestedSessionTitle("pad_work", "  Fight camp ")).toBe("Đánh đích — Fight camp");
         const long = suggestedSessionTitle("strength_conditioning", "y".repeat(200));
         expect(long).toHaveLength(120);
         expect(long.endsWith("…")).toBe(true);

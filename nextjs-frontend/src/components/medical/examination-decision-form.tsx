@@ -103,7 +103,7 @@ export function ExaminationDecisionForm({
         // A last check before sending: a SCAT6 answer left on a step the doctor jumped past is marked there instead.
         prepare: () => {
             const problems = baseline ? scat6.validateAll() : null;
-            if (problems) return { status: "error", message: "Some SCAT6 answers still need attention. They're marked on their steps.", fieldErrors: problems };
+            if (problems) return { status: "error", message: "Một số câu trả lời SCAT6 cần xem lại. Đã đánh dấu ở từng bước.", fieldErrors: problems };
         },
     });
     const { control, error } = form;
@@ -131,19 +131,19 @@ export function ExaminationDecisionForm({
 
     const steps = useMemo<FormStepDefinition[]>(
         () => [
-            { id: "visit", label: "Vitals", description: "Visit and readings" },
-            { id: "physical", label: "Physical exam", description: "Areas assessed" },
+            { id: "visit", label: "Sinh hiệu", description: "Lần khám và chỉ số" },
+            { id: "physical", label: "Khám thực thể", description: "Vùng được đánh giá" },
             ...(baseline
                 ? administered
                     ? [
-                          { id: "scat6-history", label: "SCAT6: history", description: "History and symptoms" },
-                          { id: "scat6-memory", label: "SCAT6: memory", description: "Memory and concentration" },
-                          { id: "scat6-balance", label: "SCAT6: balance", description: "Balance and recall" },
+                          { id: "scat6-history", label: "SCAT6: tiền sử", description: "Tiền sử và triệu chứng" },
+                          { id: "scat6-memory", label: "SCAT6: trí nhớ", description: "Trí nhớ và tập trung" },
+                          { id: "scat6-balance", label: "SCAT6: thăng bằng", description: "Thăng bằng và nhớ lại" },
                       ]
-                    : [{ id: "scat6-history", label: "SCAT6", description: "Not administered" }]
+                    : [{ id: "scat6-history", label: "SCAT6", description: "Không thực hiện" }]
                 : []),
-            { id: "decision", label: "Decision", description: "Decision and follow-up" },
-            { id: "review", label: "Review", description: "Check and record" },
+            { id: "decision", label: "Quyết định", description: "Quyết định và theo dõi" },
+            { id: "review", label: "Đánh giá lại", description: "Kiểm tra và ghi" },
         ],
         [baseline, administered],
     );
@@ -172,7 +172,7 @@ export function ExaminationDecisionForm({
     const stepProblem = (stepId: string): string | null => {
         if (stepId === "visit") {
             const entered = Object.values(vitals).filter((value) => value.trim() !== "").length;
-            return !baseline && entered > 0 && entered < Object.keys(vitals).length ? "Enter every vital reading, or clear them all." : null;
+            return !baseline && entered > 0 && entered < Object.keys(vitals).length ? "Nhập đủ mọi chỉ số sinh hiệu, hoặc xóa hết." : null;
         }
         if (stepId === "physical") {
             setCheckRows(true);
@@ -180,12 +180,12 @@ export function ExaminationDecisionForm({
         }
         if (stepId in SCAT6_STEPS) return scat6.validate(SCAT6_STEPS[stepId]);
         if (stepId === "decision") {
-            if (reason.trim().length < 10) return "Explain your decision in a sentence or two.";
+            if (reason.trim().length < 10) return "Giải thích quyết định trong một hai câu.";
             const lists = readRestrictions();
             if (lists) {
-                if (lists.sessions?.length === 0) return "Choose at least one session type the fighter may do, or turn that limit off.";
-                if (lists.techniques?.length === 0) return "Choose at least one technique the fighter may use, or turn that limit off.";
-                if (lists.sessions === null && lists.techniques === null && lists.joints.length === 0 && !lists.notes.trim()) return "Set at least one limit or write the restrictions in the notes.";
+                if (lists.sessions?.length === 0) return "Chọn ít nhất một loại buổi tập võ sĩ được làm, hoặc tắt giới hạn này.";
+                if (lists.techniques?.length === 0) return "Chọn ít nhất một kỹ thuật võ sĩ được dùng, hoặc tắt giới hạn này.";
+                if (lists.sessions === null && lists.techniques === null && lists.joints.length === 0 && !lists.notes.trim()) return "Đặt ít nhất một giới hạn hoặc ghi hạn chế trong ghi chú.";
             }
         }
         return null;
@@ -199,12 +199,12 @@ export function ExaminationDecisionForm({
             scat6: baseline ? { status: scat6.draft.status, reason: scat6.draft.notAdministeredReason } : null,
         });
         if (!summary) {
-            setReasonNote("Nothing to summarise yet: enter the vitals and areas first.");
+            setReasonNote("Chưa có gì để tóm tắt: hãy nhập sinh hiệu và vùng khám trước.");
             return;
         }
         if (reason.includes(summary)) return;
         setReason(reason.trim() ? `${reason.trimEnd()}\n\n${summary}` : summary);
-        setReasonNote("Inserted from what you entered. Add your reasoning and edit it before you record.");
+        setReasonNote("Đã chèn từ dữ liệu bạn nhập. Bổ sung lập luận và chỉnh sửa trước khi ghi.");
         form.markEdited("reason");
     };
 
@@ -225,22 +225,22 @@ export function ExaminationDecisionForm({
                     }}
                     cancel={
                         <ButtonLink href={cancelHref} variant="ghost" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            Cancel
+                            Hủy
                         </ButtonLink>
                     }
                     message={<FormMessage {...form.message} />}
                     submit={
-                        <SubmitButton pending={form.pending} pendingLabel={unconfirmed ? "Checking the record…" : "Recording…"} size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                            {unconfirmed ? "Try again" : "Record examination"}
+                        <SubmitButton pending={form.pending} pendingLabel={unconfirmed ? "Đang kiểm tra hồ sơ…" : "Đang ghi…"} size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
+                            {unconfirmed ? "Thử lại" : "Ghi phiếu khám"}
                         </SubmitButton>
                     }
                 >
-                    <FormStep id="visit" title="Visit and vitals" description={`What this examination decides for ${fighter.name}, and the readings.`}>
-                        <FormSection title="Scope and visit" info={<TermHint term="examinationScope" />} description="What this examination decides, what kind of visit it was and when.">
+                    <FormStep id="visit" title="Lần khám và sinh hiệu" description={`Phiếu khám này quyết định gì cho ${fighter.name}, kèm các chỉ số.`}>
+                        <FormSection title="Phạm vi và lần khám" info={<TermHint term="examinationScope" />} description="Phiếu khám quyết định điều gì, loại lần khám và thời điểm.">
                             <ChoiceGroup
                                 id="exam-decision-scope"
                                 name="scope"
-                                legend="Scope"
+                                legend="Phạm vi"
                                 legendVisuallyHidden
                                 required
                                 columns={2}
@@ -262,7 +262,7 @@ export function ExaminationDecisionForm({
                                         rows.typeChanged(next);
                                     }}
                                 />
-                                <Field label="Examined" htmlFor={control("examinedAt").id} error={error("examinedAt")} required hint="Academy time (Ho Chi Minh City)">
+                                <Field label="Thời điểm khám" htmlFor={control("examinedAt").id} error={error("examinedAt")} required hint="Giờ học viện (TP. Hồ Chí Minh)">
                                     <Input
                                         {...control("examinedAt", { hint: true, required: true })}
                                         type="datetime-local"
@@ -274,17 +274,17 @@ export function ExaminationDecisionForm({
                                 </Field>
                             </div>
                             {baseline && scope === "COMPETITION" && (
-                                <Callout tone="warning" icon={TriangleAlert} title="A competition baseline doesn't count for training">
-                                    Record the baseline under Training so {fighter.name} can start training.
+                                <Callout tone="warning" icon={TriangleAlert} title="Khám nền cho thi đấu không tính cho tập luyện">
+                                    Hãy ghi khám nền ở phạm vi Tập luyện để {fighter.name} có thể bắt đầu tập.
                                 </Callout>
                             )}
                             {current && (
                                 <div className="flex flex-col gap-2 rounded-lg bg-surface-muted px-3.5 py-3 text-[13px]">
                                     <p className="text-fg-muted">
-                                        Current {EXAMINATION_SCOPE_LABELS[scope].toLowerCase()} examination:{" "}
-                                        <span className="font-medium text-fg">{EXAMINATION_DECISION_LABELS[current.decision]}</span> on{" "}
+                                        Hiện hành {EXAMINATION_SCOPE_LABELS[scope].toLowerCase()} examination:{" "}
+                                        <span className="font-medium text-fg">{EXAMINATION_DECISION_LABELS[current.decision]}</span> ngày{" "}
                                         <time dateTime={current.examinedAt}>{formatDateTime(current.examinedAt)}</time>
-                                        {current.validUntil && <>, valid until {formatDate(current.validUntil)}</>}
+                                        {current.validUntil && <>, hiệu lực đến {formatDate(current.validUntil)}</>}
                                     </p>
                                     <input type="hidden" name="supersedesId" value={current.id} />
                                     <Checkbox
@@ -292,67 +292,67 @@ export function ExaminationDecisionForm({
                                         name="correction"
                                         checked={correcting}
                                         onChange={(event) => setCorrecting(event.target.checked)}
-                                        label="This corrects that examination"
-                                        description="Only for a mistake in the record. A new visit is a new examination."
+                                        label="Phiếu này đính chính phiếu khám đó"
+                                        description="Chỉ dùng khi hồ sơ ghi sai. Lần khám mới là phiếu khám mới."
                                         info={<TermHint term="examinationCorrection" />}
                                     />
                                     {error("supersedesId") && <p className="font-medium text-danger-fg">{error("supersedesId")}</p>}
                                 </div>
                             )}
                         </FormSection>
-                        <FormSection title="Vitals" description={baseline ? "Required for a baseline. Readings outside athlete ranges are flagged, not blocked." : "Optional. Enter every reading, or none."}>
+                        <FormSection title="Sinh hiệu" description={baseline ? "Bắt buộc với khám nền. Chỉ số ngoài ngưỡng vận động viên được đánh dấu, không bị chặn." : "Không bắt buộc. Nhập đủ mọi chỉ số, hoặc bỏ trống hết."}>
                             <VitalsFields form={form} value={vitals} onChange={setVitals} weightLimitKg={weightLimitKg} required={baseline} />
                         </FormSection>
                     </FormStep>
 
-                    <FormStep id="physical" title="Physical exam" description={baseline ? "One row per area examined; a baseline needs at least one. Mark every result." : "One row per area examined, if any."}>
-                        <FormSection title="Assessments" info={<TermHint term="assessedArea" />}>
+                    <FormStep id="physical" title="Khám thực thể" description={baseline ? "Mỗi dòng một vùng khám; khám nền cần ít nhất một. Ghi kết quả từng dòng." : "Mỗi dòng một vùng khám (nếu có)."}>
+                        <FormSection title="Đánh giá" info={<TermHint term="assessedArea" />}>
                             <AssessmentsField form={form} type={type} rows={rows} checkMissing={checkRows} />
                         </FormSection>
                     </FormStep>
 
                     {baseline && (
-                        <FormStep id="scat6-history" title={administered ? "SCAT6 — history and symptoms" : "SCAT6"}>
+                        <FormStep id="scat6-history" title={administered ? "SCAT6 — tiền sử và triệu chứng" : "SCAT6"}>
                             <Scat6HistoryFields scat6={scat6} />
                         </FormStep>
                     )}
                     {baseline && administered && (
-                        <FormStep id="scat6-memory" title="SCAT6 — memory and concentration" description={<Term term="cognitiveScreening">Cognitive screening</Term>}>
+                        <FormStep id="scat6-memory" title="SCAT6 — trí nhớ và tập trung" description={<Term term="cognitiveScreening">Sàng lọc nhận thức</Term>}>
                             <Scat6MemoryFields scat6={scat6} />
                         </FormStep>
                     )}
                     {baseline && administered && (
-                        <FormStep id="scat6-balance" title="SCAT6 — balance and recall" description={<Term term="coordinationBalance">Coordination and balance</Term>}>
+                        <FormStep id="scat6-balance" title="SCAT6 — thăng bằng và nhớ lại" description={<Term term="coordinationBalance">Phối hợp và thăng bằng</Term>}>
                             <Scat6BalanceFields scat6={scat6} />
                         </FormStep>
                     )}
 
-                    <FormStep id="decision" title="Decision" description="Your clinical decision, the reasoning behind it and what happens next.">
-                        <FormSection title="Decision" info={<TermHint term="eligibleWithRestrictions" />}>
+                    <FormStep id="decision" title="Quyết định" description="Quyết định lâm sàng, lập luận và bước tiếp theo.">
+                        <FormSection title="Quyết định" info={<TermHint term="eligibleWithRestrictions" />}>
                             <ChoiceGroup
                                 id="exam-decision-decision"
                                 name="decision"
-                                legend="Decision"
+                                legend="Quyết định"
                                 required
                                 options={DECISION_OPTIONS}
                                 value={decision}
                                 onChange={setDecision}
                                 error={error("decision")}
-                                hint="An eligible decision still needs a Medical Clearance, issued in the next step."
+                                hint="Quyết định đủ điều kiện vẫn cần giấy phép, cấp ở bước tiếp theo."
                             />
                             {decision === "NOT_ELIGIBLE" && (
-                                <Callout tone="danger" icon={TriangleAlert} title={`Active ${EXAMINATION_SCOPE_LABELS[scope].toLowerCase()} clearances are revoked`}>
-                                    {fighter.name} stops {scope === "TRAINING" ? "training" : "competing"} as soon as you record this. A later examination is needed to change it.
+                                <Callout tone="danger" icon={TriangleAlert} title={`Giấy phép ${EXAMINATION_SCOPE_LABELS[scope].toLowerCase()} đang hiệu lực bị thu hồi`}>
+                                    {fighter.name} stops {scope === "TRAINING" ? "training" : "competing"} ngay khi bạn ghi phiếu này. Cần phiếu khám sau để thay đổi.
                                 </Callout>
                             )}
                             <div className="flex flex-col gap-2">
                                 <Field
-                                    label="Findings and reasoning"
+                                    label="Kết quả và lập luận"
                                     htmlFor={control("reason").id}
                                     error={error("reason")}
                                     required
                                     info={<TermHint term="findingsAndReasoning" />}
-                                    hint="The fighter can read this on their Health page. Coaches can't."
+                                    hint="Võ sĩ đọc được trên trang Sức khỏe. HLV không xem được."
                                 >
                                     <Textarea
                                         {...control("reason", { hint: true, required: true })}
@@ -362,17 +362,17 @@ export function ExaminationDecisionForm({
                                         onChange={(event) => setReason(event.target.value)}
                                     />
                                 </Field>
-                                <QuickFill label="Insert findings summary" icon={FileText} available note={reasonNote} onClick={insertSummary} />
+                                <QuickFill label="Chèn tóm tắt kết quả" icon={FileText} available note={reasonNote} onClick={insertSummary} />
                             </div>
                             {decision !== "NOT_ELIGIBLE" && (
                                 <div className="flex flex-col gap-2">
                                     <Field
-                                        label="Decision valid until"
+                                        label="Quyết định hiệu lực đến"
                                         htmlFor={control("validUntil").id}
                                         error={error("validUntil")}
                                         optional
                                         info={<TermHint term="validUntil" />}
-                                        hint="Leave empty for no end date. A clearance from this examination can't last longer."
+                                        hint="Để trống nếu không thời hạn. Giấy phép từ phiếu này không thể dài hơn."
                                     >
                                         <Input
                                             {...control("validUntil", { hint: true })}
@@ -386,8 +386,8 @@ export function ExaminationDecisionForm({
                                     {examDay && (
                                         <div className="flex flex-wrap items-center gap-2">
                                             <SuggestionChips
-                                                label="Valid for"
-                                                suggestions={VALIDITY_PICKS.map((months) => ({ label: `${months} months`, value: addMonthsToKey(examDay, months) }))}
+                                                label="Hiệu lực trong"
+                                                suggestions={VALIDITY_PICKS.map((months) => ({ label: `${months} tháng`, value: addMonthsToKey(examDay, months) }))}
                                                 onPick={(value) => {
                                                     setValidUntil(value);
                                                     form.markEdited("validUntil");
@@ -395,7 +395,7 @@ export function ExaminationDecisionForm({
                                             />
                                             {validUntil && (
                                                 <Button variant="ghost" size="sm" onClick={() => setValidUntil("")}>
-                                                    No end date
+                                                    Không thời hạn
                                                 </Button>
                                             )}
                                         </div>
@@ -405,9 +405,9 @@ export function ExaminationDecisionForm({
                         </FormSection>
 
                         {decision === "ELIGIBLE_WITH_RESTRICTIONS" && (
-                            <FormSection title="Restrictions" info={<TermHint term="restrictions" />} description="What the fighter may do. A clearance issued from this examination can only narrow it.">
+                            <FormSection title="Hạn chế" info={<TermHint term="restrictions" />} description="Những gì võ sĩ được làm. Giấy phép cấp từ phiếu này chỉ có thể hẹp hơn.">
                                 <RestrictionFields form={form} idPrefix="exam-decision" />
-                                <Field label="Restriction notes" htmlFor={control("restrictionNotes").id} error={error("restrictionNotes")} optional hint="Anything the lists can't say, e.g. intensity or duration.">
+                                <Field label="Ghi chú hạn chế" htmlFor={control("restrictionNotes").id} error={error("restrictionNotes")} optional hint="Những gì danh sách chưa thể hiện, VD cường độ hoặc thời lượng.">
                                     <Textarea {...control("restrictionNotes", { hint: true })} rows={3} maxLength={MEDICAL_TEXT_LIMITS.restrictionNotes} />
                                 </Field>
                                 {error("restrictions") && (
@@ -418,8 +418,8 @@ export function ExaminationDecisionForm({
                             </FormSection>
                         )}
 
-                        <FormSection title="Recommendations and follow-up" description="Next steps for the fighter and staff, and when to examine again.">
-                            <Field label="Recommendations" htmlFor={control("recommendations").id} error={error("recommendations")} optional hint="Visible to the fighter with the examination.">
+                        <FormSection title="Khuyến nghị và theo dõi" description="Bước tiếp theo cho võ sĩ và ban huấn luyện, và khi nào khám lại.">
+                            <Field label="Khuyến nghị" htmlFor={control("recommendations").id} error={error("recommendations")} optional hint="Võ sĩ xem được cùng phiếu khám.">
                                 <Textarea
                                     {...control("recommendations", { hint: true })}
                                     rows={3}
@@ -428,17 +428,17 @@ export function ExaminationDecisionForm({
                                     onChange={(event) => setRecommendations(event.target.value)}
                                 />
                             </Field>
-                            <FollowUpField form={form} examDay={examDay} value={followUpDate} onChange={setFollowUpDate} hint="Shows on your dashboard as the date approaches." />
+                            <FollowUpField form={form} examDay={examDay} value={followUpDate} onChange={setFollowUpDate} hint="Hiện trên trang Hôm nay khi gần đến ngày." />
                         </FormSection>
 
                         {answersRequests && (
                             <FormSection
-                                title="Review requests"
+                                title="Yêu cầu xem xét"
                                 info={<TermHint term="reviewRequest" />}
-                                description="Ticked requests are answered by this examination and stop pausing training. Untick any this visit doesn't answer."
+                                description="Yêu cầu được đánh dấu sẽ được phiếu khám này trả lời và không còn tạm dừng tập. Bỏ đánh dấu yêu cầu mà lần khám này chưa trả lời."
                             >
                                 <fieldset aria-invalid={error("reviewRequestIds") ? true : undefined} data-invalid={error("reviewRequestIds") ? "true" : undefined} className="flex flex-col gap-2.5">
-                                    <legend className="sr-only">Review requests answered</legend>
+                                    <legend className="sr-only">Yêu cầu xem xét được trả lời</legend>
                                     {openReviewRequests.map((request) => (
                                         <Checkbox
                                             key={request.id}
@@ -451,7 +451,7 @@ export function ExaminationDecisionForm({
                                                 form.markEdited("reviewRequestIds");
                                             }}
                                             label={`“${request.reason}”`}
-                                            description={`Requested ${formatRelative(request.requestedAt, now).toLowerCase()}`}
+                                            description={`Gửi ${formatRelative(request.requestedAt, now, "vi").toLowerCase()}`}
                                         />
                                     ))}
                                     {error("reviewRequestIds") && <p className="text-[13px] font-medium text-danger-fg">{error("reviewRequestIds")}</p>}
@@ -460,7 +460,7 @@ export function ExaminationDecisionForm({
                         )}
                     </FormStep>
 
-                    <FormStep id="review" title="Review" description="Check what you entered. The medical service calculates the SCAT6 scores once it's recorded.">
+                    <FormStep id="review" title="Đánh giá lại" description="Kiểm tra dữ liệu đã nhập. Dịch vụ y tế tính điểm SCAT6 sau khi ghi.">
                         <div className="flex flex-col gap-5">
                             <ExaminationReview
                                 scope={scope}
@@ -479,10 +479,10 @@ export function ExaminationDecisionForm({
                                 reviewRequests={{ answered: answersRequests ? answered.length : 0, open: answersRequests ? openReviewRequests.length : 0 }}
                             />
                             <InlineNote icon={Info}>
-                                Examinations can&apos;t be edited or deleted; a mistake is fixed with a correction.{" "}
+                                Phiếu khám không thể sửa hay xóa; sai sót được khắc phục bằng phiếu đính chính.{" "}
                                 {decision === "NOT_ELIGIBLE"
-                                    ? `${fighter.name} stops ${scope === "TRAINING" ? "training" : "competing"} once you record it.`
-                                    : `Next, step 2 of 2: issue the Medical Clearance so ${fighter.name} can ${scope === "TRAINING" ? "train" : "compete"}.`}
+                                    ? `${fighter.name} sẽ dừng ${scope === "TRAINING" ? "tập luyện" : "thi đấu"} ngay khi bạn ghi.`
+                                    : `Tiếp theo, bước 2/2: cấp giấy phép để ${fighter.name} được ${scope === "TRAINING" ? "tập luyện" : "thi đấu"}.`}
                             </InlineNote>
                         </div>
                     </FormStep>

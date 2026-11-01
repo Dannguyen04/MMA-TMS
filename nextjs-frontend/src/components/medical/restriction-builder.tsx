@@ -53,7 +53,7 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
         <div className="flex flex-col gap-4">
             <div className="flex flex-col gap-3 rounded-lg bg-surface-muted p-3">
                 <p id={`${baseId}-presets`} className="text-[13px] font-medium text-fg">
-                    Add a common restriction
+                    Thêm hạn chế thường dùng
                 </p>
                 <ul aria-labelledby={`${baseId}-presets`} className="flex flex-wrap gap-2">
                     {RESTRICTION_PRESETS.map(({ id, restriction }) => {
@@ -79,7 +79,7 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
                     <div className="flex items-end gap-2">
                         <div className="flex flex-col gap-1">
                             <label htmlFor={`${baseId}-rpe`} className="text-xs text-fg-muted">
-                                Intensity cap
+                                Trần cường độ
                             </label>
                             <Select id={`${baseId}-rpe`} value={rpe} onChange={(event) => setRpe(event.target.value)} className="w-28">
                                 {RPE_VALUES.map((value) => (
@@ -91,16 +91,16 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
                         </div>
                         <Button variant="secondary" onClick={() => add(maxRpeRestriction(Number(rpe)))} disabled={drafts.some((draft) => draft.maxRpe !== null)}>
                             <Gauge aria-hidden />
-                            Add max RPE
+                            Thêm RPE tối đa
                         </Button>
                     </div>
                     <div className="flex items-end gap-2">
                         <div className="flex flex-col gap-1">
                             <label htmlFor={`${baseId}-region`} className="text-xs text-fg-muted">
-                                Body region
+                                Vùng cơ thể
                             </label>
                             <Select id={`${baseId}-region`} value={region} onChange={(event) => setRegion(event.target.value as BodyRegion | "")} className="w-44">
-                                <option value="">Choose…</option>
+                                <option value="">Chọn…</option>
                                 {REGIONS.map((value) => (
                                     <option key={value} value={value}>
                                         {BODY_REGION_LABELS[value]}
@@ -118,12 +118,12 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
                             }}
                         >
                             <ShieldMinus aria-hidden />
-                            Add protect
+                            Thêm vùng bảo vệ
                         </Button>
                     </div>
                     <Button variant="ghost" onClick={() => add(customRestriction())}>
                         <Plus aria-hidden />
-                        Custom restriction
+                        Hạn chế tùy chỉnh
                     </Button>
                 </div>
             </div>
@@ -132,10 +132,10 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
 
             {drafts.length === 0 ? (
                 <p className="rounded-lg border border-dashed border-border-strong px-4 py-5 text-center text-sm text-fg-muted">
-                    No restrictions yet. Add at least one — coaches plan sessions against each of them.
+                    Chưa có hạn chế. Thêm ít nhất một — HLV lên lịch theo từng hạn chế.
                 </p>
             ) : (
-                <ol className="flex flex-col gap-3" aria-label="Restrictions on this clearance">
+                <ol className="flex flex-col gap-3" aria-label="Hạn chế của giấy phép này">
                     {drafts.map((draft, index) => (
                         <DraftEditor
                             key={draft.key}
@@ -168,7 +168,7 @@ function DraftEditor({
     onChange: (patch: Partial<RestrictionFields>) => void;
     onRemove: () => void;
 }) {
-    const name = draft.label.trim() || `restriction ${index + 1}`;
+    const name = draft.label.trim() || `hạn chế ${index + 1}`;
     const hasLimits = draft.blockedTrainingTypes.length + draft.blockedTechniques.length + draft.blockedRegions.length > 0 || draft.maxRpe !== null;
     const toggleList = <T extends string>(list: T[], value: T) => (list.includes(value) ? list.filter((item) => item !== value) : [...list, value]);
 
@@ -177,7 +177,7 @@ function DraftEditor({
             <div className="flex items-start gap-2">
                 <div className="flex min-w-0 flex-1 flex-col gap-1">
                     <label htmlFor={`${idPrefix}-label`} className="text-xs text-fg-muted">
-                        Label coaches will read
+                        Nội dung HLV sẽ đọc
                         <span className="ml-0.5 text-danger-fg" aria-hidden>
                             *
                         </span>
@@ -187,7 +187,7 @@ function DraftEditor({
                         required
                         value={draft.label}
                         onChange={(event) => onChange({ label: event.target.value })}
-                        placeholder="e.g. Protect left knee — no sharp cutting drills"
+                        placeholder="VD: Bảo vệ gối trái — không tập đổi hướng gắt"
                         aria-invalid={labelError ? true : undefined}
                         aria-describedby={labelError ? `${idPrefix}-label-error` : undefined}
                         className="font-medium"
@@ -198,24 +198,24 @@ function DraftEditor({
                         </p>
                     )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Remove ${name}`} className="mt-5">
+                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Xóa ${name}`} className="mt-5">
                     <X />
                 </Button>
             </div>
 
             <div className="mt-3 flex flex-col gap-2">
-                <p className="text-xs text-fg-muted">Checked when coaches plan sessions:</p>
+                <p className="text-xs text-fg-muted">Được kiểm tra khi HLV lên lịch:</p>
                 {hasLimits ? (
-                    <ul className="flex flex-wrap gap-1.5" aria-label={`Limits for ${name}`}>
+                    <ul className="flex flex-wrap gap-1.5" aria-label={`Giới hạn cho ${name}`}>
                         {draft.blockedTrainingTypes.map((type) => (
-                            <Chip key={type} tone="danger" icon={<Ban />} label={`No ${TRAINING_TYPE_LABELS[type].toLowerCase()}`} onRemove={() => onChange({ blockedTrainingTypes: toggleList(draft.blockedTrainingTypes, type) })} />
+                            <Chip key={type} tone="danger" icon={<Ban />} label={`Không ${TRAINING_TYPE_LABELS[type].toLowerCase()}`} onRemove={() => onChange({ blockedTrainingTypes: toggleList(draft.blockedTrainingTypes, type) })} />
                         ))}
                         {draft.blockedTechniques.map((technique) => (
                             <Chip
                                 key={technique}
                                 tone="danger"
                                 icon={<Ban />}
-                                label={`No ${TECHNIQUE_LABELS[technique].toLowerCase()}`}
+                                label={`Không ${TECHNIQUE_LABELS[technique].toLowerCase()}`}
                                 onRemove={() => onChange({ blockedTechniques: toggleList(draft.blockedTechniques, technique) })}
                             />
                         ))}
@@ -224,30 +224,30 @@ function DraftEditor({
                                 key={region}
                                 tone="neutral"
                                 icon={<ShieldMinus />}
-                                label={`Protect ${BODY_REGION_LABELS[region].toLowerCase()}`}
+                                label={`Bảo vệ ${BODY_REGION_LABELS[region].toLowerCase()}`}
                                 onRemove={() => onChange({ blockedRegions: toggleList(draft.blockedRegions, region) })}
                             />
                         ))}
-                        {draft.maxRpe !== null && <Chip tone="warning" icon={<Gauge />} label={`Max RPE ${draft.maxRpe}`} onRemove={() => onChange({ maxRpe: null })} />}
+                        {draft.maxRpe !== null && <Chip tone="warning" icon={<Gauge />} label={`RPE tối đa ${draft.maxRpe}`} onRemove={() => onChange({ maxRpe: null })} />}
                     </ul>
                 ) : (
                     <p className="flex items-start gap-1.5 text-[13px] text-fg-muted">
                         <Info aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-                        Nothing is checked automatically yet — coaches will only see the label. Add a limit below if planning should enforce it.
+                        Chưa có gì được kiểm tra tự động — HLV chỉ thấy nội dung. Thêm giới hạn bên dưới nếu muốn áp dụng khi lên lịch.
                     </p>
                 )}
                 <div className="flex flex-wrap gap-2">
                     <AddLimitSelect
                         id={`${idPrefix}-type`}
-                        label={`Block a training type for ${name}`}
-                        placeholder="+ Training type"
+                        label={`Chặn một loại buổi tập cho ${name}`}
+                        placeholder="+ Loại buổi tập"
                         options={TRAINING_TYPES.filter((type) => !draft.blockedTrainingTypes.includes(type)).map((type) => ({ value: type, label: TRAINING_TYPE_LABELS[type] }))}
                         onPick={(value) => onChange({ blockedTrainingTypes: [...draft.blockedTrainingTypes, value as TrainingType] })}
                     />
                     <AddLimitSelect
                         id={`${idPrefix}-technique`}
-                        label={`Block a technique for ${name}`}
-                        placeholder="+ Technique"
+                        label={`Chặn một kỹ thuật cho ${name}`}
+                        placeholder="+ Kỹ thuật"
                         options={TECHNIQUES.filter((technique) => !draft.blockedTechniques.includes(technique)).map((technique) => ({
                             value: technique,
                             label: TECHNIQUE_LABELS[technique],
@@ -256,16 +256,16 @@ function DraftEditor({
                     />
                     <AddLimitSelect
                         id={`${idPrefix}-region`}
-                        label={`Protect a body region for ${name}`}
-                        placeholder="+ Protect region"
+                        label={`Bảo vệ một vùng cơ thể cho ${name}`}
+                        placeholder="+ Vùng bảo vệ"
                         options={REGIONS.filter((region) => !draft.blockedRegions.includes(region)).map((region) => ({ value: region, label: BODY_REGION_LABELS[region] }))}
                         onPick={(value) => onChange({ blockedRegions: [...draft.blockedRegions, value as BodyRegion] })}
                     />
                     {draft.maxRpe === null && (
                         <AddLimitSelect
                             id={`${idPrefix}-rpe`}
-                            label={`Cap session intensity for ${name}`}
-                            placeholder="+ Max RPE"
+                            label={`Giới hạn cường độ buổi tập cho ${name}`}
+                            placeholder="+ RPE tối đa"
                             options={RPE_VALUES.map((value) => ({ value: String(value), label: `RPE ${value}` }))}
                             onPick={(value) => onChange({ maxRpe: Number(value) })}
                         />
@@ -330,7 +330,7 @@ function Chip({ tone, icon, label, onRemove }: { tone: "danger" | "warning" | "n
             <button
                 type="button"
                 onClick={onRemove}
-                aria-label={`Remove ${label}`}
+                aria-label={`Xóa ${label}`}
                 className="ml-0.5 inline-flex size-6 items-center justify-center rounded text-current opacity-70 hover:bg-surface-hover hover:opacity-100"
             >
                 <X aria-hidden className="size-3.5" />

@@ -20,7 +20,7 @@ import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "New examination" };
+export const metadata: Metadata = { title: "Phiếu khám mới" };
 
 const TYPES = Object.keys(EXAMINATION_TYPE_LABELS) as ExaminationType[];
 
@@ -72,11 +72,11 @@ export default async function NewExaminationPage(props: PageProps<"/doctor/exami
                 back={
                     preselected
                         ? { href: routes.doctor.fighter(preselected.id), label: preselected.name }
-                        : { href: routes.doctor.examinations, label: "Examinations" }
+                        : { href: routes.doctor.examinations, label: "Phiếu khám" }
                 }
-                eyebrow="Examination"
-                title="New examination"
-                description="Record vitals, assessments and your conclusion. Medical Clearance is updated separately — you'll be prompted if the outcome calls for it."
+                eyebrow="Phiếu khám"
+                title="Phiếu khám mới"
+                description="Ghi chỉ số sinh tồn, đánh giá và kết luận. Giấy phép được cập nhật riêng — hệ thống sẽ nhắc nếu cần."
             />
             <ExaminationForm
                 fighters={fighters}
@@ -102,10 +102,10 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
     return (
         <>
             <PageHeader
-                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.examinations, label: "Examinations" }}
-                eyebrow="Examination"
-                title={fighter ? `Examination for ${fighter.name}` : "New examination"}
-                description="Record what you found and whether the fighter may train or compete. Clearance is issued next, from this examination."
+                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.examinations, label: "Phiếu khám" }}
+                eyebrow="Phiếu khám"
+                title={fighter ? `Phiếu khám cho ${fighter.name}` : "Phiếu khám mới"}
+                description="Ghi kết quả khám và quyết định võ sĩ có được tập/thi đấu. Giấy phép được cấp ở bước tiếp theo từ phiếu khám này."
                 meta={fighter && dossier ? <ExamClearanceSteps current={1} /> : undefined}
             />
             {fighter && dossier ? (
@@ -124,7 +124,7 @@ async function NewExaminationDecisionPage({ searchParams }: PageProps<"/doctor/e
                 <FighterChooser
                     fighters={fighters}
                     hrefFor={(fighterId) => hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: defaultScope, type: param(params.type) })}
-                    title="Who did you examine?"
+                    title="Bạn đã khám võ sĩ nào?"
                     unreadable={fighter}
                 />
             )}

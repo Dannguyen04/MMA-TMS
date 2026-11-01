@@ -30,7 +30,7 @@ export interface ClearanceHistoryProps {
 }
 
 /** Timeline of every clearance issued: level, lifecycle, who issued it and when, why, and how it ended. */
-export function ClearanceHistory({ clearances, examinationsById, doctorNames, now, warningDays, locale = "en" }: ClearanceHistoryProps) {
+export function ClearanceHistory({ clearances, examinationsById, doctorNames, now, warningDays, locale = "vi" }: ClearanceHistoryProps) {
     const t = createTranslator(locale);
 
     if (clearances.length === 0) {

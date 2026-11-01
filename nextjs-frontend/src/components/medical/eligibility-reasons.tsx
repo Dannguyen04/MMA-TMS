@@ -22,7 +22,7 @@ const REASON_ICONS: Record<EligibilityReason, LucideIcon> = {
 export function EligibilityReasons({
     reasons,
     className,
-    locale = "en",
+    locale = "vi",
 }: {
     reasons: readonly EligibilityReason[];
     className?: string;

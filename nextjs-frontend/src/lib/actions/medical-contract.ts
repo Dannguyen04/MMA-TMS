@@ -63,7 +63,7 @@ const boundedText = (label: string, max: number, min = 0, minMessage = "", t?: T
         .string()
         .trim()
         .min(min, minMessage)
-        .max(max, t ? t("validation.maxChars", { label, max: max.toLocaleString("en-US") }) : `Keep the ${label} under ${max.toLocaleString("en-US")} characters.`);
+        .max(max, t ? t("validation.maxChars", { label, max: max.toLocaleString("en-US") }) : `${label} tối đa ${max.toLocaleString("vi-VN")} ký tự.`);
 
 /** A datetime-local value in academy time, as an ISO timestamp. */
 function wallClockIso(value: string): string {
@@ -103,10 +103,10 @@ const restrictionListsSchema = z
     })
     .superRefine((lists, ctx) => {
         if (lists.limitSessions && lists.allowedSessionTypes.length === 0) {
-            ctx.addIssue({ code: "custom", path: ["allowedSessionTypes"], message: "Choose at least one session type the fighter may do, or turn this limit off." });
+            ctx.addIssue({ code: "custom", path: ["allowedSessionTypes"], message: "Chọn ít nhất một loại buổi tập võ sĩ được làm, hoặc tắt giới hạn này." });
         }
         if (lists.limitTechniques && lists.allowedTechniqueTypes.length === 0) {
-            ctx.addIssue({ code: "custom", path: ["allowedTechniqueTypes"], message: "Choose at least one technique the fighter may use, or turn this limit off." });
+            ctx.addIssue({ code: "custom", path: ["allowedTechniqueTypes"], message: "Chọn ít nhất một kỹ thuật võ sĩ được dùng, hoặc tắt giới hạn này." });
         }
     });
 
@@ -140,8 +140,8 @@ const limitsSomething = (lists: RestrictionLists) => lists.allowedSessionTypes !
 
 const reviewRequestSchema = (t?: Translator) =>
     z.object({
-    fighterId: required("The fighter is missing. Reload the page and try again."),
-    reason: boundedText("reason", MEDICAL_TEXT_LIMITS.reviewReason, 10, "Say what happened or what worries you, in a sentence or two.", t),
+    fighterId: required("Thiếu thông tin võ sĩ. Hãy tải lại trang và thử lại."),
+    reason: boundedText("reason", MEDICAL_TEXT_LIMITS.reviewReason, 10, "Hãy nói điều đã xảy ra hoặc điều bạn lo lắng, trong một hai câu.", t),
 });
 
 /** A fighter (for themselves), their coach or their doctor asks for a medical review. */
@@ -171,33 +171,33 @@ export async function requestMedicalReviewAction(_prev: ActionState, formData: F
 const examinationSchema = (t?: Translator) =>
     z
     .object({
-        fighterId: required("Choose the fighter you examined."),
+        fighterId: required("Hãy chọn võ sĩ đã khám."),
         scope: z.enum(EXAMINATION_SCOPES, { error: "Choose what this examination decides." }),
         decision: z.enum(EXAMINATION_DECISIONS, { error: "Choose your decision." }),
-        examinedAt: z.string().refine(isDateTimeInputValue, "Enter the date and time of the examination."),
-        reason: boundedText("reasoning", MEDICAL_TEXT_LIMITS.examinationReason, 10, "Explain your decision in a sentence or two.", t),
+        examinedAt: z.string().refine(isDateTimeInputValue, "Hãy nhập ngày giờ khám."),
+        reason: boundedText("reasoning", MEDICAL_TEXT_LIMITS.examinationReason, 10, "Giải thích quyết định trong một hai câu.", t),
         lists: restrictionListsSchema,
-        restrictionNotes: boundedText("restriction notes", MEDICAL_TEXT_LIMITS.restrictionNotes, 0, "", t),
-        validUntil: optionalDate("Enter a valid date, or leave it empty."),
+        restrictionNotes: boundedText("ghi chú hạn chế", MEDICAL_TEXT_LIMITS.restrictionNotes, 0, "", t),
+        validUntil: optionalDate("Hãy nhập ngày hợp lệ, hoặc để trống."),
         supersedesId: z.string().trim(),
-        reviewRequestIds: z.array(z.string().min(1)).max(50, "Choose at most 50 review requests."),
+        reviewRequestIds: z.array(z.string().min(1)).max(50, "Chọn tối đa 50 yêu cầu xem xét."),
         type: z.enum(EXAMINATION_TYPES, { error: "Choose the examination type." }),
         assessments: jsonArray(assessmentSchema, "assessments", {
             max: EXAMINATION_DETAIL_LIMITS.assessments,
-            maxMessage: `Record at most ${EXAMINATION_DETAIL_LIMITS.assessments} assessments.`,
+            maxMessage: `Ghi tối đa ${EXAMINATION_DETAIL_LIMITS.assessments} đánh giá.`,
         }),
         recommendations: boundedText("recommendations", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
-        followUpDate: optionalDate("Enter a valid follow-up date, or leave it empty."),
+        followUpDate: optionalDate("Hãy nhập ngày tái khám hợp lệ, hoặc để trống."),
     })
     .superRefine((input, ctx) => {
         if (input.decision === "ELIGIBLE_WITH_RESTRICTIONS" && !limitsSomething(toLists(input.lists)) && !input.restrictionNotes) {
-            ctx.addIssue({ code: "custom", path: ["restrictions"], message: "Set at least one limit or write the restrictions in the notes." });
+            ctx.addIssue({ code: "custom", path: ["restrictions"], message: "Đặt ít nhất một giới hạn hoặc ghi hạn chế trong ghi chú." });
         }
         if (input.validUntil && isDateTimeInputValue(input.examinedAt) && input.validUntil <= input.examinedAt.slice(0, 10)) {
-            ctx.addIssue({ code: "custom", path: ["validUntil"], message: "The decision must stay valid past the examination day." });
+            ctx.addIssue({ code: "custom", path: ["validUntil"], message: "Quyết định phải còn hiệu lực sau ngày khám." });
         }
         if (input.type === "baseline" && input.assessments.length === 0) {
-            ctx.addIssue({ code: "custom", path: ["assessments"], message: "A baseline needs at least one assessed area." });
+            ctx.addIssue({ code: "custom", path: ["assessments"], message: "Khám nền cần ít nhất một vùng được đánh giá." });
         }
         checkFollowUpDate(input.followUpDate, input.examinedAt, ctx);
     });
@@ -231,8 +231,8 @@ function withData(message: string, data: MedicalWriteData, fieldErrors?: Record<
     return { status: "error", message, fieldErrors, data };
 }
 
-const EXAMINATION_UNCONFIRMED = unconfirmedWriteMessages("examination");
-const CLEARANCE_UNCONFIRMED = unconfirmedWriteMessages("clearance");
+const EXAMINATION_UNCONFIRMED = unconfirmedWriteMessages("phiếu khám");
+const CLEARANCE_UNCONFIRMED = unconfirmedWriteMessages("giấy phép");
 
 type ExaminationCheck = { found: "saved"; id: string } | { found: "other" } | { found: "none" } | { found: "unchecked" };
 
@@ -253,7 +253,7 @@ async function findRecordedExamination(fighterId: string, scope: ExaminationScop
 }
 
 const RECORDED_SINCE =
-    "Another examination of this scope was recorded since you opened this form, perhaps your earlier attempt. Open the fighter's record to check it before recording again.";
+    "Đã có phiếu khám khác cùng phạm vi được ghi từ khi bạn mở biểu mẫu, có thể là lần thử trước của bạn. Hãy mở hồ sơ võ sĩ để kiểm tra trước khi ghi lại.";
 
 export async function recordExaminationDecisionAction(_prev: ActionState<MedicalWriteData>, formData: FormData): Promise<ActionState<MedicalWriteData>> {
     const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
@@ -283,10 +283,10 @@ export async function recordExaminationDecisionAction(_prev: ActionState<Medical
         return restrictionFormError(new z.ZodError([...issuesOf(parsed), ...issuesOf(vitals), ...friendlyScat6Issues(scat6Issues(scat6))]));
     }
     const input = parsed.data;
-    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
+    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Hãy chọn một võ sĩ bạn phụ trách." });
 
     const examinedAt = wallClockIso(input.examinedAt);
-    if (isInFuture(examinedAt)) return actionError(FIX_FIELDS, { examinedAt: "The examination time can't be in the future." });
+    if (isInFuture(examinedAt)) return actionError(FIX_FIELDS, { examinedAt: "Thời điểm khám không thể ở tương lai." });
 
     const attempt: ExaminationAttempt = { decision: input.decision, examinedAt, reason: input.reason };
     const knownCurrentId = text(formData, "knownCurrentId");
@@ -342,17 +342,17 @@ export async function recordExaminationDecisionAction(_prev: ActionState<Medical
 const clearanceSchema = (t?: Translator) =>
     z
     .object({
-        fighterId: required("Choose the fighter this clearance is for."),
-        examinationId: required("Choose the examination this clearance comes from."),
+        fighterId: required("Hãy chọn võ sĩ được cấp giấy phép."),
+        examinationId: required("Hãy chọn phiếu khám làm căn cứ cấp giấy phép."),
         clearanceType: z.enum(CLEARANCE_TYPES, { error: "Choose the type of clearance." }),
-        validFrom: optionalDate("Enter a valid start date, or leave it empty to start now."),
-        validUntil: optionalDate("Enter a valid end date, or leave it empty to keep the examination's."),
+        validFrom: optionalDate("Hãy nhập ngày bắt đầu hợp lệ, hoặc để trống để bắt đầu ngay."),
+        validUntil: optionalDate("Hãy nhập ngày kết thúc hợp lệ, hoặc để trống để theo phiếu khám."),
         lists: restrictionListsSchema,
         notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clearanceNotes, 0, "", t),
     })
     .superRefine((input, ctx) => {
         if (input.validFrom && input.validUntil && input.validUntil <= input.validFrom) {
-            ctx.addIssue({ code: "custom", path: ["validUntil"], message: "The clearance must end after it starts." });
+            ctx.addIssue({ code: "custom", path: ["validUntil"], message: "Giấy phép phải kết thúc sau ngày bắt đầu." });
         }
     });
 
@@ -374,9 +374,9 @@ async function findIssuedClearance(fighterId: string, examinationId: string, cle
 /** "Already issued": the existing clearance, so the form can show it instead of issuing a duplicate. */
 function alreadyIssued(clearance: MedicalClearance, clearanceType: ClearanceType): ActionState<MedicalWriteData> {
     return withData(
-        `A ${CLEARANCE_TYPE_LABELS[clearanceType].toLowerCase()} clearance from this examination is already in place, so nothing new was issued.`,
+        `Giấy phép ${CLEARANCE_TYPE_LABELS[clearanceType].toLowerCase()} từ phiếu khám này đã có hiệu lực nên không cấp mới.`,
         { existingClearance: { id: clearance.id, clearanceType, issuedAt: clearance.issuedAt, validUntil: clearance.validUntil } },
-        { clearanceType: "Already issued from this examination." },
+        { clearanceType: "Đã cấp từ phiếu khám này." },
     );
 }
 
@@ -395,39 +395,39 @@ export async function issueClearanceAction(_prev: ActionState<MedicalWriteData>,
     });
     if (!parsed.success) return restrictionFormError(parsed.error);
     const input = parsed.data;
-    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
+    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Hãy chọn một võ sĩ bạn phụ trách." });
 
     // Check the rules the service applies, so the doctor sees which field to change instead of a bare refusal.
     let dossier: Awaited<ReturnType<typeof getClinicalDossier>>;
     try {
         dossier = await getClinicalDossier(input.fighterId);
     } catch {
-        return withData("The medical service didn't answer, so nothing was issued. Your choices are still here: try again in a moment.", {});
+        return withData("Dịch vụ y tế không phản hồi nên chưa cấp gì. Lựa chọn của bạn vẫn được giữ: hãy thử lại sau giây lát.", {});
     }
     const exam = dossier ? Object.values(dossier.currentExaminations).find((current) => current?.id === input.examinationId) : null;
     if (!exam || exam.decision === "NOT_ELIGIBLE") {
-        return actionError("A clearance can only come from the fighter's current positive examination. Reload the page and choose it again.", {
-            examinationId: "Choose the current examination.",
+        return actionError("Giấy phép chỉ được cấp từ phiếu khám đạt hiện hành của võ sĩ. Hãy tải lại trang và chọn lại.", {
+            examinationId: "Hãy chọn phiếu khám hiện hành.",
         });
     }
     if (!CLEARANCE_TYPES_BY_SCOPE[exam.scope].includes(input.clearanceType)) {
-        return actionError(FIX_FIELDS, { clearanceType: "This examination can't back that type of clearance." });
+        return actionError(FIX_FIELDS, { clearanceType: "Phiếu khám này không làm căn cứ cho loại giấy phép đó được." });
     }
     const lists = toLists(input.lists);
     const examLists: RestrictionLists = exam.restrictions ?? { allowedSessionTypes: null, allowedTechniqueTypes: null, excludedJoints: null };
     const widened = widenedLists(examLists, lists);
     if (widened.length > 0) {
         return actionError(
-            "A clearance can only narrow what the examination allows.",
-            Object.fromEntries(widened.map((name) => [name, name === "excludedJoints" ? "Keep out at least the joints the examination excluded." : "Allow only what the examination allows."])),
+            "Giấy phép chỉ có thể thu hẹp những gì phiếu khám cho phép.",
+            Object.fromEntries(widened.map((name) => [name, name === "excludedJoints" ? "Phải tránh ít nhất các khớp phiếu khám đã loại trừ." : "Chỉ cho phép những gì phiếu khám cho phép."])),
         );
     }
     // Starting on the examination day means starting once the examination was done.
     const validFrom = !input.validFrom ? null : input.validFrom === dayKey(exam.examinedAt) ? maxIso(dayIso(input.validFrom), exam.examinedAt) : dayIso(input.validFrom);
-    if (validFrom && validFrom < exam.examinedAt) return actionError(FIX_FIELDS, { validFrom: "The clearance can't start before the examination." });
+    if (validFrom && validFrom < exam.examinedAt) return actionError(FIX_FIELDS, { validFrom: "Giấy phép không thể bắt đầu trước ngày khám." });
     const validUntil = input.validUntil ? academyWallClockToIso(input.validUntil, "23:59") : null;
     if (validUntil && exam.validUntil && validUntil > exam.validUntil) {
-        return actionError(FIX_FIELDS, { validUntil: "The clearance can't outlast the examination's decision." });
+        return actionError(FIX_FIELDS, { validUntil: "Giấy phép không thể kéo dài hơn quyết định của phiếu khám." });
     }
 
     // One active clearance per examination and type. After a write the service didn't confirm, one found here is that
@@ -465,11 +465,11 @@ export async function issueClearanceAction(_prev: ActionState<MedicalWriteData>,
 
 const injurySchema = (t?: Translator) =>
     z.object({
-    fighterId: required("Choose the injured fighter."),
+    fighterId: required("Hãy chọn võ sĩ bị chấn thương."),
     affectedJoint: z.enum(BODY_JOINTS, { error: "Choose the affected joint." }),
-    injuryType: boundedText("injury type", MEDICAL_TEXT_LIMITS.injuryType, 2, "Name the injury, e.g. “Lateral ankle sprain”.", t),
+    injuryType: boundedText("loại chấn thương", MEDICAL_TEXT_LIMITS.injuryType, 2, "Hãy ghi tên chấn thương, VD “Bong gân cổ chân ngoài”.", t),
     severity: z.enum(API_INJURY_SEVERITIES, { error: "Choose a severity." }),
-    occurredAt: z.string().refine(isDateTimeInputValue, "Enter the date and time the injury happened."),
+    occurredAt: z.string().refine(isDateTimeInputValue, "Hãy nhập ngày giờ xảy ra chấn thương."),
     description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
 });
 
@@ -487,10 +487,10 @@ export async function recordInjuryAction(_prev: ActionState, formData: FormData)
     });
     if (!parsed.success) return validationError(parsed.error);
     const input = parsed.data;
-    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
+    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Hãy chọn một võ sĩ bạn phụ trách." });
 
     const occurredAt = wallClockIso(input.occurredAt);
-    if (isInFuture(occurredAt)) return actionError(FIX_FIELDS, { occurredAt: "The injury time can't be in the future." });
+    if (isInFuture(occurredAt)) return actionError(FIX_FIELDS, { occurredAt: "Thời điểm chấn thương không thể ở tương lai." });
 
     let injuryId: string;
     try {
@@ -513,17 +513,17 @@ export async function recordInjuryAction(_prev: ActionState, formData: FormData)
 const treatmentSchema = (t?: Translator) =>
     z
     .object({
-        injuryId: required("The injury is missing. Reload the page and try again."),
-        fighterId: required("The fighter is missing. Reload the page and try again."),
-        treatmentType: boundedText("treatment", MEDICAL_TEXT_LIMITS.treatmentType, 2, "Name the treatment, e.g. “Physiotherapy”.", t),
-        treatmentDate: z.string().refine(isDateKey, "Enter the date of the treatment."),
+        injuryId: required("Thiếu thông tin chấn thương. Hãy tải lại trang và thử lại."),
+        fighterId: required("Thiếu thông tin võ sĩ. Hãy tải lại trang và thử lại."),
+        treatmentType: boundedText("treatment", MEDICAL_TEXT_LIMITS.treatmentType, 2, "Hãy ghi tên điều trị, VD “Vật lý trị liệu”.", t),
+        treatmentDate: z.string().refine(isDateKey, "Hãy nhập ngày điều trị."),
         description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
-        outcomeNotes: boundedText("outcome notes", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
-        nextReviewAt: optionalDate("Enter a valid review date, or leave it empty."),
+        outcomeNotes: boundedText("ghi chú kết quả", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
+        nextReviewAt: optionalDate("Hãy nhập ngày đánh giá lại hợp lệ, hoặc để trống."),
     })
     .superRefine((input, ctx) => {
         if (input.nextReviewAt && isDateKey(input.treatmentDate) && input.nextReviewAt < input.treatmentDate) {
-            ctx.addIssue({ code: "custom", path: ["nextReviewAt"], message: "The review can't be before the treatment." });
+            ctx.addIssue({ code: "custom", path: ["nextReviewAt"], message: "Ngày đánh giá lại không thể trước ngày điều trị." });
         }
     });
 
@@ -543,7 +543,7 @@ export async function recordTreatmentAction(_prev: ActionState, formData: FormDa
     if (!parsed.success) return validationError(parsed.error);
     const input = parsed.data;
     if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED);
-    if (input.treatmentDate > dayKey(new Date())) return actionError(FIX_FIELDS, { treatmentDate: "The treatment date can't be in the future." });
+    if (input.treatmentDate > dayKey(new Date())) return actionError(FIX_FIELDS, { treatmentDate: "Ngày điều trị không thể ở tương lai." });
 
     try {
         await recordTreatment(
@@ -563,35 +563,35 @@ export async function recordTreatmentAction(_prev: ActionState, formData: FormDa
     }
 
     revalidateClinical();
-    return actionSuccess(`${input.treatmentType} recorded. Treatments can't be edited later, so add a new one if anything changes.`);
+    return actionSuccess(`Đã ghi ${input.treatmentType}. Điều trị không thể sửa sau, hãy thêm điều trị mới nếu có thay đổi.`);
 }
 
 /* ─── Recovery plans ──────────────────────────────────────────────────────── */
 
 const milestoneSchema = (t?: Translator) =>
     z.object({
-    title: boundedText("milestone", MEDICAL_TEXT_LIMITS.planTitle, 2, "Name this milestone.", t),
-    criteria: boundedText("criteria", MEDICAL_TEXT_LIMITS.clinicalText, 3, "Say how you'll know it's reached.", t),
-    targetDate: optionalDate("Enter a valid target date, or leave it empty."),
+    title: boundedText("milestone", MEDICAL_TEXT_LIMITS.planTitle, 2, "Hãy đặt tên mốc.", t),
+    criteria: boundedText("criteria", MEDICAL_TEXT_LIMITS.clinicalText, 3, "Hãy ghi tiêu chí đạt.", t),
+    targetDate: optionalDate("Hãy nhập ngày mục tiêu hợp lệ, hoặc để trống."),
     notes: boundedText("notes", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
 });
 
-const milestoneList = (t?: Translator) => jsonArray(milestoneSchema(t), "milestones", { max: RECOVERY_MILESTONES_MAX, maxMessage: `Use at most ${RECOVERY_MILESTONES_MAX} milestones.` });
+const milestoneList = (t?: Translator) => jsonArray(milestoneSchema(t), "milestones", { max: RECOVERY_MILESTONES_MAX, maxMessage: `Tối đa ${RECOVERY_MILESTONES_MAX} mốc.` });
 
 const recoveryPlanSchema = (t?: Translator) =>
     z
     .object({
-        fighterId: required("The fighter is missing. Reload the page and try again."),
-        injuryId: required("Choose the injury this plan is for."),
-        title: boundedText("title", MEDICAL_TEXT_LIMITS.planTitle, 3, "Give the plan a short title.", t),
+        fighterId: required("Thiếu thông tin võ sĩ. Hãy tải lại trang và thử lại."),
+        injuryId: required("Hãy chọn chấn thương cho kế hoạch."),
+        title: boundedText("title", MEDICAL_TEXT_LIMITS.planTitle, 3, "Hãy đặt tên ngắn cho kế hoạch.", t),
         description: boundedText("description", MEDICAL_TEXT_LIMITS.clinicalText, 0, "", t),
-        startDate: z.string().refine(isDateKey, "Enter the plan start date."),
-        estimatedEndDate: optionalDate("Enter a valid end date, or leave it empty."),
+        startDate: z.string().refine(isDateKey, "Hãy nhập ngày bắt đầu kế hoạch."),
+        estimatedEndDate: optionalDate("Hãy nhập ngày kết thúc hợp lệ, hoặc để trống."),
         milestones: milestoneList(t),
     })
     .superRefine((plan, ctx) => {
         if (plan.estimatedEndDate && isDateKey(plan.startDate) && plan.estimatedEndDate < plan.startDate) {
-            ctx.addIssue({ code: "custom", path: ["estimatedEndDate"], message: "The plan can't end before it starts." });
+            ctx.addIssue({ code: "custom", path: ["estimatedEndDate"], message: "Kế hoạch không thể kết thúc trước khi bắt đầu." });
         }
     });
 
@@ -660,14 +660,14 @@ export async function setPlanMilestoneAction(input: { fighterId: string; planId:
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
     const parsed = planRefSchema.extend({ milestoneId: z.string().min(1), done: z.boolean() }).safeParse(input);
-    if (!parsed.success) return actionError("That milestone couldn't be read. Reload the page and try again.");
+    if (!parsed.success) return actionError("Không đọc được mốc. Hãy tải lại trang và thử lại.");
     const { fighterId, planId, milestoneId, done } = parsed.data;
     if (!canAccessFighterClinically(auth.user, fighterId)) return actionError(NOT_ASSIGNED);
 
     try {
         const plan = await currentPlan(fighterId, planId);
-        if (!plan?.milestones) return actionError("This plan's milestones can't be changed here. Reload the page and try again.");
-        if (!plan.milestones.some((milestone) => milestone.id === milestoneId)) return actionError("That milestone no longer exists. Reload the page.");
+        if (!plan?.milestones) return actionError("Không thể đổi mốc của kế hoạch này tại đây. Hãy tải lại trang và thử lại.");
+        if (!plan.milestones.some((milestone) => milestone.id === milestoneId)) return actionError("Mốc này không còn tồn tại. Hãy tải lại trang.");
         const drafts = milestoneDrafts(plan.milestones).map((draft) => (draft.id === milestoneId ? { ...draft, isCompleted: done } : draft));
         await updateMilestonePlan(planId, { milestones: drafts });
     } catch (error) {
@@ -675,7 +675,7 @@ export async function setPlanMilestoneAction(input: { fighterId: string; planId:
     }
 
     revalidateClinical();
-    return actionSuccess(done ? "Milestone marked reached." : "Milestone marked not reached.");
+    return actionSuccess(done ? "Đã đánh dấu mốc đạt." : "Đã bỏ đánh dấu mốc.");
 }
 
 /** Adds a milestone to the end of the plan. */
@@ -683,7 +683,7 @@ export async function addPlanMilestoneAction(_prev: ActionState, formData: FormD
     const [auth, { t }] = await Promise.all([authorizeClinicalAction("medical:write"), getTranslator()]);
     if (!auth.ok) return actionError(auth.message);
     const ref = planRefSchema.safeParse({ fighterId: text(formData, "fighterId"), planId: text(formData, "planId") });
-    if (!ref.success) return actionError("The recovery plan is missing. Reload the page and try again.");
+    if (!ref.success) return actionError("Thiếu kế hoạch phục hồi. Hãy tải lại trang và thử lại.");
     const parsed = milestoneSchema(t).safeParse({
         title: text(formData, "title"),
         criteria: text(formData, "criteria"),
@@ -696,20 +696,20 @@ export async function addPlanMilestoneAction(_prev: ActionState, formData: FormD
 
     try {
         const plan = await currentPlan(fighterId, planId);
-        if (!plan?.milestones) return actionError("This plan's milestones can't be changed here. Reload the page and try again.");
-        if (plan.milestones.length >= RECOVERY_MILESTONES_MAX) return actionError(`A plan can have at most ${RECOVERY_MILESTONES_MAX} milestones.`);
+        if (!plan?.milestones) return actionError("Không thể đổi mốc của kế hoạch này tại đây. Hãy tải lại trang và thử lại.");
+        if (plan.milestones.length >= RECOVERY_MILESTONES_MAX) return actionError(`Mỗi kế hoạch tối đa ${RECOVERY_MILESTONES_MAX} mốc.`);
         await updateMilestonePlan(planId, { milestones: [...milestoneDrafts(plan.milestones), toDraft(parsed.data)] });
     } catch (error) {
         return failed(error, { fields: { "milestones.0.title": "title", "milestones.0.criteria": "criteria" } });
     }
 
     revalidateClinical();
-    return actionSuccess(`Milestone “${parsed.data.title}” added.`);
+    return actionSuccess(`Đã thêm mốc “${parsed.data.title}”.`);
 }
 
 const CLOSE_MESSAGES = {
-    COMPLETED: "Recovery plan completed. Review the injury and Medical Clearance next — completing a plan doesn't clear the fighter.",
-    CANCELLED: "Recovery plan cancelled.",
+    COMPLETED: "Đã hoàn tất kế hoạch phục hồi. Hãy xem lại chấn thương và giấy phép — hoàn tất kế hoạch không có nghĩa võ sĩ được tập.",
+    CANCELLED: "Đã hủy kế hoạch phục hồi.",
 } as const;
 
 /** Completes or cancels an active plan. Neither clears the fighter to train. */
@@ -717,7 +717,7 @@ export async function closeRecoveryPlanAction(input: { fighterId: string; planId
     const auth = await authorizeClinicalAction("medical:write");
     if (!auth.ok) return actionError(auth.message);
     const parsed = planRefSchema.extend({ status: z.enum(["COMPLETED", "CANCELLED"]) }).safeParse(input);
-    if (!parsed.success) return actionError("The recovery plan is missing. Reload the page and try again.");
+    if (!parsed.success) return actionError("Thiếu kế hoạch phục hồi. Hãy tải lại trang và thử lại.");
     if (!canAccessFighterClinically(auth.user, parsed.data.fighterId)) return actionError(NOT_ASSIGNED);
 
     try {

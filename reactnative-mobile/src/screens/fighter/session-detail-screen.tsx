@@ -14,6 +14,7 @@ import { EmptyCopy, FighterScreen, GlassCard, StatusLine } from "@/screens/fight
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import { type, useThemePreference } from "@/theme";
+import { SkeletonRows } from "@/components/loading";
 
 /** Fighter baseline reads Training only: no status changes, RPE or result writes here. */
 export function FighterSessionDetailScreen() {
@@ -27,12 +28,12 @@ export function FighterSessionDetailScreen() {
     return getTrainingSession(sessionId);
   }, [sessionId]);
 
-  const { data, error, loading, reload } = useLoad(canFetch && !!sessionId, sessionId, load);
+  const { data, error, loading, reload, refresh } = useLoad(canFetch && !!sessionId, sessionId, load);
 
   const row = data;
 
   return (
-    <FighterScreen title={fighter.tap.detailTitle} onBack refreshing={loading}>
+    <FighterScreen title={fighter.tap.detailTitle} onBack refreshing={loading} onRefresh={refresh}>
       <StatusLine message={error} onRetry={reload} />
       {row ? (
         <GlassCard>
@@ -40,6 +41,7 @@ export function FighterSessionDetailScreen() {
           <Fact label={fighter.tap.when} value={formatWhen(row.scheduledAt)} />
           <Fact label={fighter.tap.type} value={sessionTypeLabel(row.sessionType)} />
           <Fact label={fighter.tap.status} value={sessionStatusLabel(row.status)} />
+          {row.status === "PENDING" ? <Text style={[type.body, { color: colors.inkMuted }]}>{fighter.pendingLine}</Text> : null}
           <Fact label={fighter.tap.place} value={row.location ?? "—"} />
           <Fact label={fighter.tap.rounds} value={String(row.roundCount)} />
           <Fact label={fighter.tap.planned} value={formatMinutes(row.plannedDurationSec)} />
@@ -60,9 +62,11 @@ export function FighterSessionDetailScreen() {
         </GlassCard>
       ) : (
         <GlassCard>
-          <EmptyCopy
-            text={isDemo || !canFetch ? fighter.common.demoHint : loading ? fighter.common.loading : fighter.tap.empty}
-          />
+          {!isDemo && canFetch && loading ? (
+            <SkeletonRows rows={3} />
+          ) : (
+            <EmptyCopy text={isDemo || !canFetch ? fighter.common.demoHint : fighter.tap.empty} />
+          )}
         </GlassCard>
       )}
     </FighterScreen>

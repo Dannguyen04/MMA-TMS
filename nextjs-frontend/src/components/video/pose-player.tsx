@@ -37,10 +37,10 @@ import { drawJointAngle, drawMat, drawSkeleton, drawTrail, readStagePalette, typ
 type OverlayKey = "skeleton" | "trail" | "angle" | "label";
 
 const OVERLAYS: { key: OverlayKey; label: string; icon: LucideIcon }[] = [
-    { key: "skeleton", label: "Skeleton", icon: PersonStanding },
-    { key: "trail", label: "Trail", icon: Waypoints },
-    { key: "angle", label: "Joint angle", icon: Ruler },
-    { key: "label", label: "Strike label", icon: Tag },
+    { key: "skeleton", label: "Khung xương", icon: PersonStanding },
+    { key: "trail", label: "Vệt chuyển động", icon: Waypoints },
+    { key: "angle", label: "Góc khớp", icon: Ruler },
+    { key: "label", label: "Nhãn đòn", icon: Tag },
 ];
 
 const TRAIL_MS = 600;
@@ -307,13 +307,13 @@ export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, cl
     const hintId = `${analysis.id}-player-keys`;
 
     return (
-        <section aria-label={`Player: ${title}`} onKeyDown={onKeyDown} className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-card", className)}>
+        <section aria-label={`Trình phát: ${title}`} onKeyDown={onKeyDown} className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-card", className)}>
             <div
                 ref={stageRef}
                 tabIndex={0}
                 role="application"
                 aria-roledescription="video player"
-                aria-label={reconstruction ? "Pose reconstruction stage" : "Training footage with pose overlay"}
+                aria-label={reconstruction ? "Khung dựng tư thế" : "Video tập kèm lớp tư thế"}
                 aria-describedby={hintId}
                 className="relative aspect-video w-full bg-nav-bg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 onClick={() => {
@@ -326,24 +326,24 @@ export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, cl
                 <StageChips analysis={analysis} showLabel={overlays.label} detections={detections} />
                 <span className="absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-md bg-nav-surface/85 px-2 py-1 text-[11px] font-medium text-nav-fg ring-1 ring-nav-border">
                     {reconstruction ? <ScanLine aria-hidden className="size-3.5" /> : <VideoIcon aria-hidden className="size-3.5" />}
-                    <span className="max-sm:sr-only">{reconstruction ? "Pose reconstruction" : "Original footage"}</span>
+                    <span className="max-sm:sr-only">{reconstruction ? "Dựng lại tư thế" : "Video gốc"}</span>
                 </span>
                 {reconstruction && (
                     <p className="absolute bottom-2.5 left-3 max-w-[80%] text-[11px] leading-snug text-nav-fg/80 max-sm:hidden">
-                        Pose reconstruction · original footage not stored in this demo
+                        Dựng lại tư thế · bản Demo không lưu Video gốc
                     </p>
                 )}
                 {poseData.status === "unavailable" && (
                     <p role="status" className="absolute bottom-2.5 left-3 rounded-md bg-nav-surface/85 px-2 py-1 text-[11px] text-nav-fg">
-                        Pose data couldn&apos;t be loaded — showing footage without the overlay.
+                        Không tải được dữ liệu tư thế — đang hiển thị Video không có lớp phủ.
                     </p>
                 )}
             </div>
             {reconstruction && (
-                <p className="border-t border-border bg-surface-muted/60 px-3 py-1.5 text-[11px] text-fg-muted sm:hidden">Pose reconstruction · original footage not stored in this demo</p>
+                <p className="border-t border-border bg-surface-muted/60 px-3 py-1.5 text-[11px] text-fg-muted sm:hidden">Dựng lại tư thế · bản Demo không lưu Video gốc</p>
             )}
             <p id={hintId} className="sr-only">
-                Keyboard: Space plays or pauses, left and right arrows step one frame, Shift with an arrow steps one second, left and right square brackets jump to the previous or next detection.
+                Bàn phím: phím cách để phát/tạm dừng, mũi tên trái/phải lùi/tiến một khung hình, giữ Shift kèm mũi tên để nhảy một giây, ngoặc vuông trái/phải để chuyển tới lần phát hiện trước/sau.
             </p>
             <Transport
                 onStep={step}
@@ -383,8 +383,8 @@ function StageChips({ analysis, detections, showLabel }: { analysis: AIAnalysis;
                     ) : (
                         <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: TECHNIQUE_COLOR[detection.type] }} />
                     )}
-                    {strikeObservation(detection.type)} · {detection.confidenceAvailable === false ? "confidence unavailable" : formatConfidence(detection.confidence)}
-                    {low && <span className="font-medium">· needs review</span>}
+                    {strikeObservation(detection.type)} · {detection.confidenceAvailable === false ? "không có độ tin cậy" : formatConfidence(detection.confidence)}
+                    {low && <span className="font-medium">· cần xem lại</span>}
                     {detection.review && detection.review.decision !== "rejected" && (
                         <span className="inline-flex items-center gap-1 font-medium text-nav-fg">
                             <UserCheck className="size-3.5" />
@@ -396,12 +396,12 @@ function StageChips({ analysis, detections, showLabel }: { analysis: AIAnalysis;
             {eventKey.includes("guard_drop") && (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-warning-soft px-2 py-1 text-xs font-medium text-warning-fg ring-1 ring-warning-border">
                     <TriangleAlert className="size-3.5" />
-                    Guard appears to drop
+                    Thế thủ có vẻ hạ xuống
                 </span>
             )}
             {eventKey.includes("tracking_lost") && (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-nav-surface/90 px-2 py-1 text-xs font-medium text-nav-fg ring-1 ring-nav-border">
-                    Tracking lost — keypoints unreliable
+                    Mất theo dõi — điểm mốc không tin cậy
                 </span>
             )}
         </div>
@@ -432,27 +432,27 @@ function Transport({
             <Scrubber />
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <div className="flex items-center gap-1">
-                    <Button size="icon" onClick={() => store.toggle()} aria-label={playing ? "Pause" : "Play"} aria-keyshortcuts="Space">
+                    <Button size="icon" onClick={() => store.toggle()} aria-label={playing ? "Tạm dừng" : "Phát"} aria-keyshortcuts="Space">
                         {playing ? <Pause /> : <Play />}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onStep(-frameMs)} aria-label="Previous frame" aria-keyshortcuts="ArrowLeft">
+                    <Button variant="ghost" size="icon" onClick={() => onStep(-frameMs)} aria-label="Khung hình trước" aria-keyshortcuts="ArrowLeft">
                         <StepBack />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onStep(frameMs)} aria-label="Next frame" aria-keyshortcuts="ArrowRight">
+                    <Button variant="ghost" size="icon" onClick={() => onStep(frameMs)} aria-label="Khung hình sau" aria-keyshortcuts="ArrowRight">
                         <StepForward />
                     </Button>
                     <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-                    <Button variant="ghost" size="icon" onClick={() => onDetection("previous")} aria-label="Previous detection" aria-keyshortcuts="[">
+                    <Button variant="ghost" size="icon" onClick={() => onDetection("previous")} aria-label="Lần phát hiện trước" aria-keyshortcuts="[">
                         <ChevronLeft />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onDetection("next")} aria-label="Next detection" aria-keyshortcuts="]">
+                    <Button variant="ghost" size="icon" onClick={() => onDetection("next")} aria-label="Lần phát hiện sau" aria-keyshortcuts="]">
                         <ChevronRight />
                     </Button>
                 </div>
                 <TimeReadout />
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                     <SegmentedControl
-                        label="Playback speed"
+                        label="Tốc độ phát"
                         options={RATE_OPTIONS}
                         value={`${rate}`}
                         onChange={(value) => {
@@ -460,7 +460,7 @@ function Transport({
                             if (next) store.setRate(next);
                         }}
                     />
-                    <div role="group" aria-label="Overlays" className="flex items-center gap-1">
+                    <div role="group" aria-label="Lớp phủ" className="flex items-center gap-1">
                         {OVERLAYS.map(({ key, label, icon: Icon }) => (
                             <Button
                                 key={key}
@@ -474,8 +474,8 @@ function Transport({
                                 <span className="max-md:sr-only">{label}</span>
                             </Button>
                         ))}
-                        <Tooltip content="Space play/pause · ←/→ frame · Shift+←/→ 1 s · [ ] detections">
-                            <Button variant="ghost" size="icon-sm" onClick={onFocusStage} aria-label="Keyboard shortcuts: focus the player">
+                        <Tooltip content="Phím cách phát/dừng · ←/→ khung hình · Shift+←/→ 1 giây · [ ] lần phát hiện">
+                            <Button variant="ghost" size="icon-sm" onClick={onFocusStage} aria-label="Phím tắt: chọn trình phát trước">
                                 <Keyboard aria-hidden />
                             </Button>
                         </Tooltip>
@@ -499,8 +499,8 @@ function Scrubber() {
             step={100}
             value={Math.min(timeMs, durationMs)}
             onChange={(event) => store.seek(Number(event.target.value))}
-            aria-label="Seek"
-            aria-valuetext={`${formatTimestamp(timeMs)} of ${formatTimestamp(durationMs)}`}
+            aria-label="Tua"
+            aria-valuetext={`${formatTimestamp(timeMs)} / ${formatTimestamp(durationMs)}`}
             className="h-6 w-full cursor-pointer accent-[var(--primary)]"
         />
     );
@@ -513,7 +513,7 @@ function TimeReadout() {
         <p className="text-sm text-fg-muted tabular-nums">
             <span className="font-semibold text-fg">{formatTimestamp(tenth * 100)}</span>
             <span aria-hidden> / </span>
-            <span className="sr-only"> of </span>
+            <span className="sr-only"> / </span>
             {formatTimestamp(durationMs)}
         </p>
     );
