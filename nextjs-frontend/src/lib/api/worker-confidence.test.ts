@@ -21,7 +21,7 @@ describe("unknown confidence is not zero probability", () => {
         expect(analysis.coachingEligible).toBe(false);
     });
     it("distinguishes missing confidence from a measured zero", () => {
-        expect(formatConfidence(null)).toBe("Unavailable");
+        expect(formatConfidence(null)).toBe("Không khả dụng");
         expect(formatConfidence(0)).toBe("0%");
     });
     it("does not invent detector or combination confidence for legacy results", () => {

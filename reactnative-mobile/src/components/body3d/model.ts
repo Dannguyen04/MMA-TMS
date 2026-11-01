@@ -1,10 +1,12 @@
 /**
- * Mô hình 3D dùng cho sơ đồ cơ thể — ĐỔI MÔ HÌNH CHỈ Ở ĐÂY (file .glb + file vùng đi cùng nó).
- * Hiện dùng v6e (bản đầu cuối cùng).
+ * Mô hình 3D v6e và metadata vùng. model-asset(.web).ts chọn file theo nền tảng:
+ * native dùng buffer đã giải nén, web giữ Meshopt; hình học và kênh tô màu giống nhau.
  */
 /* eslint-disable @typescript-eslint/no-require-imports */
+import { BODY_MODEL_ASSET } from "./model-asset";
+
 export const BODY_MODEL = {
-  glb: require("../../../assets/models/muscular-v6e-meshopt.glb") as number,
+  glb: BODY_MODEL_ASSET,
   meta: require("./regions-v6e.json") as BodyModelMeta,
   /** Tâm + bán kính vùng mặt (toạ độ mô hình) và mặt cắt z: tắt viền fresnel ở mặt. */
   face: [0, -0.0005, 0.008, 0.0175, 0.0045] as const,
@@ -12,10 +14,14 @@ export const BODY_MODEL = {
 
 /** Ghi công mô hình (CC BY 4.0) — lấy từ metadata asset.extras của GLB gốc. */
 export const BODY_MODEL_CREDIT = {
-  title: "Male base muscular anatomy",
+  /** Chốt 31/10: tên hiển thị tiếng Việt. Tên gốc của tác phẩm giữ ở originalTitle (CC BY). */
+  title: "Mô hình cơ thể",
+  originalTitle: "Male base muscular anatomy",
   author: "Harshit Prajapati",
   site: "Sketchfab",
   license: "CC BY 4.0",
+  /** Trang giấy phép chính thức (chốt 31/10). */
+  licenseUrl: "https://creativecommons.org/licenses/by/4.0/",
   source: "https://sketchfab.com/3d-models/male-base-muscular-anatomy-0954aa04666d45aab9633009318f7b66",
 } as const;
 

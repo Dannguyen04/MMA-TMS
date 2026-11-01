@@ -8,6 +8,7 @@ import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterScreen } from "@/screens/fighter/screen";
 import { coachRo } from "@/i18n/coach-ro";
 import { initials, toneColors, type ChipSpec } from "./ro-format";
+import { ArenaFrame, ArenaSurface } from "@/components/arena/arena-frame";
 
 /** Nút đặt ở góc phải header của các màn gốc (không có nút back), vd. chuông thông báo của Coach. */
 export const RoHeaderAction = createContext<ReactNode>(null);
@@ -68,7 +69,7 @@ export function StatusChip({ spec }: { spec: ChipSpec }) {
   const p = useFighterPalette();
   const c = toneColors(p, spec.tone);
   return (
-    <View style={[styles.chip, { backgroundColor: c.bg }]} accessibilityLabel={spec.label}>
+    <View style={[styles.chip, { backgroundColor: "transparent", borderRadius: 0, paddingHorizontal: 0 }]} accessibilityLabel={spec.label}>
       <Icon name={spec.icon as IconName} size={16} color={c.fg} />
       <Text style={[TEXT.captionBold, { color: c.fg }]} numberOfLines={1}>
         {spec.label}
@@ -89,15 +90,10 @@ export function SectionTitle({ children }: { children: string }) {
 export function RoCard({ title, children, tone }: { title?: string; children: ReactNode; tone?: "error" }) {
   const p = useFighterPalette();
   return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: p.surface, borderColor: tone === "error" ? p.danger : p.line, borderWidth: tone === "error" ? 2 : 1 },
-      ]}
-    >
+    <ArenaFrame tone={tone === "error" ? "danger" : "neutral"}>
       {title ? <SectionTitle>{title}</SectionTitle> : null}
       {children}
-    </View>
+    </ArenaFrame>
   );
 }
 
@@ -138,13 +134,13 @@ export function RoRow({
       style={({ pressed, focused }: { pressed: boolean; focused?: boolean }) => [
         styles.row,
         {
-          backgroundColor: p.surface,
-          borderColor: focused ? p.ring : p.line,
-          borderWidth: focused ? 2 : 1,
+          backgroundColor: "transparent",
+          borderWidth: 0,
           opacity: pressed ? 0.85 : 1,
         },
       ]}
     >
+      <ArenaSurface/>
       {leading}
       <View style={styles.rowBody}>
         <Text style={[TEXT.bodyBold, { color: p.ink }]} numberOfLines={2}>
@@ -185,7 +181,8 @@ export function LoadMore({ onPress, loading }: { onPress: () => void; loading: b
 export function SearchBar({ value, onChangeText, placeholder }: { value: string; onChangeText: (v: string) => void; placeholder: string }) {
   const p = useFighterPalette();
   return (
-    <View style={[styles.search, { backgroundColor: p.surface, borderColor: p.line }]}>
+    <View style={[styles.search, { backgroundColor: "transparent", borderWidth: 0, borderRadius: 0 }]}>
+      <ArenaSurface/>
       <Icon name="search" size={24} color={p.ink} />
       <TextInput
         value={value}

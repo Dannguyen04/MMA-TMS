@@ -48,6 +48,8 @@ import type { EvidenceWindow, ResultFinding } from "@/components/video/pose-mode
 import { EvidencePlayer, type EvidencePlayerHandle } from "@/screens/media/evidence/evidence-player";
 import { useJobResult } from "@/screens/media/evidence/use-job-result";
 import { useSessionRole } from "@/session/session-context";
+import { errorCodeText } from "@/i18n/backend-codes";
+import { videoTitle } from "@/i18n/server-text";
 
 export type EvidenceRole = "fighter" | "coach" | "doctor";
 
@@ -65,7 +67,7 @@ function messageFor(error: unknown): string {
   if (error.status === 0 || error.code === "NETWORK_ERROR") return media.network;
   if (error.status === 403) return media.forbidden;
   if (error.status === 404) return media.notFound;
-  if (error.code === "VIDEO_JOB_EXISTS") return error.message;
+  if (errorCodeText[error.code]) return errorCodeText[error.code];
   return media.generic;
 }
 
@@ -409,7 +411,7 @@ export function VideoDetailContent({
         {video ? (
           <>
             <View style={styles.identity}>
-              <Text style={[styles.title, { color: colors.ink, fontFamily: live.faces.bold }]}>{video.title}</Text>
+              <Text style={[styles.title, { color: colors.ink, fontFamily: live.faces.bold }]}>{videoTitle(video.title)}</Text>
               {when ? <Text style={{ color: colors.muted, fontSize: 13 }}>{when}</Text> : null}
             </View>
             <View style={[styles.meta, { borderBottomColor: colors.line }]}>

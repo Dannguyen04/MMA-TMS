@@ -16,6 +16,7 @@ import { useLoad } from "@/screens/fighter/use-load";
 import { useAiEnabled, useAiNames, useJobs, useOpenVideo } from "./ai-data";
 import { durationShort, jobChip, latestJobFor, trainingText } from "./ai-model";
 import { VideoThumb } from "./ai-ui";
+import { videoTitle } from "@/i18n/server-text";
 
 const PAGE = 30;
 
@@ -105,7 +106,7 @@ export function AiVideoLibrary({
           <RoRow
             key={v.id}
             leading={<VideoThumb />}
-            title={v.title || vai.untitled}
+            title={videoTitle(v.title) || vai.untitled}
             lines={libraryLines(v, names)}
             chip={jobChip(job?.status)}
             onPress={() => open(v.id, job?.id)}

@@ -62,7 +62,7 @@ export function RecoveryPlanCard({ plan, fighter, injury, now, className }: Reco
                             {current ? (
                                 <>
                                     <span className="text-fg-muted">
-                                        Phase {currentIndex + 1} of {plan.phases.length} ·{" "}
+                                        Giai đoạn {currentIndex + 1}/{plan.phases.length} ·{" "}
                                     </span>
                                     <span className="font-medium">{current.name}</span>
                                 </>

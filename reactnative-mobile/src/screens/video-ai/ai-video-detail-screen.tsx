@@ -44,6 +44,7 @@ import {
   type ReviewItem,
 } from "./ai-model";
 import { StepProgress } from "./ai-ui";
+import { videoTitle } from "@/i18n/server-text";
 
 type Phase<T> = { data: T | null; error: unknown; loading: boolean };
 const idle = <T,>(): Phase<T> => ({ data: null, error: null, loading: true });
@@ -230,7 +231,7 @@ export function AiVideoDetail({ videoId, jobId, focus }: { videoId: string; jobI
           <Icon name="back" size={24} color={p.ink} />
         </Pressable>
         <Text accessibilityRole="header" style={[TEXT.screenTitle, { color: p.ink, flex: 1 }]} numberOfLines={1} ellipsizeMode="tail">
-          {v?.title || vai.detailTitle}
+          {videoTitle(v?.title) || vai.detailTitle}
         </Text>
         <MoreMenu items={more} />
       </View>
@@ -249,7 +250,7 @@ export function AiVideoDetail({ videoId, jobId, focus }: { videoId: string; jobI
               stream={stream}
               height={mini ? 64 : playerH}
               mini={mini}
-              miniTitle={fighter || v?.title || ""}
+              miniTitle={fighter || videoTitle(v?.title) || ""}
               pose={pose}
               durationMs={durationMs}
               markers={markers}

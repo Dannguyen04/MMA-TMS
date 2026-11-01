@@ -25,7 +25,13 @@ export const bodyText = {
   frameA11y: "Mô hình cơ thể 3D. Kéo ngang để xoay",
   info: "Về mô hình 3D",
   creditTitle: "Nguồn mô hình 3D",
-  credit: (c: typeof BODY_MODEL_CREDIT) => `Mô hình “${c.title}” của ${c.author} trên ${c.site}, giấy phép ${c.license}.`,
+  /** Chốt 31/10 (phương án 1): dòng ngắn ở trên, ghi công CC BY ở dòng riêng. Tên gốc và tên giấy phép giữ nguyên. */
+  credit: (c: typeof BODY_MODEL_CREDIT) => c.title,
+  attributionTitle: "Nguồn và giấy phép",
+  /** Câu ghi công tách 3 phần để tên giấy phép là liên kết riêng (vùng chạm ≥ 48). */
+  attributionBefore: (c: typeof BODY_MODEL_CREDIT) => `Dựa trên "${c.originalTitle}" của ${c.author},`,
+  attributionAfter: ", đã được chỉnh sửa.",
+  licenseA11y: (c: typeof BODY_MODEL_CREDIT) => `Mở giấy phép ${c.license}`,
   changes: "Đã chỉnh sửa cho ứng dụng: lược giản lưới, thêm dữ liệu vùng khớp để tô màu.",
   openSource: "Mở trang mô hình",
   close: "Đóng",
@@ -84,6 +90,7 @@ export function BodyMapSection({
   const reduced = useReducedMotion();
   const rows = useMemo(() => buildJointRows(injuries, jointStates, stateText, severityText), [injuries, jointStates, stateText, severityText]);
   const paint = useMemo(() => paintRegions(rows), [rows]);
+  const hasBackRegions = !!paint.SPINE;
   const body = useBodyMode(!!reduced);
   const [fps, setFps] = useState<number | null>(null);
   const [info, setInfo] = useState(false);
@@ -138,6 +145,19 @@ export function BodyMapSection({
           >
             <Icon name="info" size={20} />
           </Pressable>
+          {hasBackRegions ? (
+            <View style={{ position: "absolute", bottom: 10, left: 12, right: 12, alignItems: "center" }}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Có vùng ở phía sau. Xoay để xem"
+                onPress={() => { view.current.target = view.current.angle + Math.PI; }}
+                style={{ minHeight: 44, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, borderWidth: 1, borderColor: colors.line, backgroundColor: withAlpha(colors.surface, 0.85) }}
+              >
+                <Icon name="retry" size={14} color={colors.ink}/>
+                <Text style={{ fontSize: 12, lineHeight: 18, color: colors.ink, flexShrink: 1 }}>Có vùng ở phía sau · Xoay để xem</Text>
+              </Pressable>
+            </View>
+          ) : null}
         </View>
       ) : (
         <View testID="body-fallback" style={{ gap: 8 }}>
@@ -153,7 +173,19 @@ export function BodyMapSection({
       ) : null}
       <BottomSheet visible={info} onClose={() => setInfo(false)} title={bodyText.creditTitle}>
         <View style={{ gap: 12 }}>
-          <Text style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}>{bodyText.credit(BODY_MODEL_CREDIT)}</Text>
+          <Text style={{ fontSize: 16, lineHeight: 24, fontWeight: "600", color: colors.ink }}>{bodyText.credit(BODY_MODEL_CREDIT)}</Text>
+          <View testID="body-attribution" style={{ gap: 4 }}>
+            <Text accessibilityRole="header" style={{ fontSize: 14, lineHeight: 20, fontWeight: "600", color: colors.inkMuted }}>{bodyText.attributionTitle}</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 4 }}>
+              <Text selectable style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}>{bodyText.attributionBefore(BODY_MODEL_CREDIT)}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Pressable testID="license-link" accessibilityRole="link" accessibilityLabel={bodyText.licenseA11y(BODY_MODEL_CREDIT)} onPress={() => void Linking.openURL(BODY_MODEL_CREDIT.licenseUrl)} style={{ minHeight: 48, justifyContent: "center" }}>
+                  <Text style={{ fontSize: 16, lineHeight: 24, fontWeight: "600", color: p.link, textDecorationLine: "underline" }}>{BODY_MODEL_CREDIT.license}</Text>
+                </Pressable>
+                <Text style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}>{bodyText.attributionAfter}</Text>
+              </View>
+            </View>
+          </View>
           <Text style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}>{bodyText.changes}</Text>
           <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(BODY_MODEL_CREDIT.source)} style={{ minHeight: 48, justifyContent: "center" }}>
             <Text style={{ fontSize: 16, fontWeight: "600", color: p.link }}>{bodyText.openSource}</Text>

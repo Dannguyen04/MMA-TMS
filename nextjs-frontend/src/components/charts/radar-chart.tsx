@@ -70,7 +70,7 @@ export function RadarChart({ ariaLabel, axes, series, max = 100, size = 300, val
             <ChartSurface
                 ariaLabel={ariaLabel}
                 height={size}
-                keyboardHint="Use the left and right arrow keys to read the values on each axis."
+                keyboardHint="Dùng phím mũi tên trái/phải để đọc giá trị từng trục."
                 announcement={announcement}
                 handlers={handlers}
             >

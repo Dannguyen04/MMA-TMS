@@ -28,6 +28,7 @@ import { mapApiMessage } from "@/session/map-api-message";
 import { useSession } from "@/session/session-context";
 import { radius, spacing, type, useThemePreference, type ColorTokens } from "@/theme";
 import { CONTRAST_BODY, ensureContrast } from "@/theme/appearance/color-math";
+import { ArenaSurface } from "@/components/arena/arena-frame";
 
 import { useDoctorInbox } from "./inbox-context";
 import { useSelectedFighter } from "./selected-fighter";
@@ -340,7 +341,8 @@ export function FighterSwitchSheet({
 export function DoctorCard({ children }: { children: ReactNode }) {
   const { colors } = useThemePreference();
   return (
-    <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+    <View style={[styles.card, { backgroundColor: "transparent", borderWidth: 0, borderRadius: 0 }]}>
+      <ArenaSurface/>
       {children}
     </View>
   );

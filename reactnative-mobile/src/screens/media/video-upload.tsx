@@ -33,6 +33,7 @@ import {
 } from "@/screens/media/video-model";
 import { useTypography } from "@/theme";
 import { useReadableWidth } from "@/components/readable-width";
+import { errorCodeText } from "@/i18n/backend-codes";
 
 function issueLabel(issue: UploadIssue): string {
   if (issue === "title") return media.needTitle;
@@ -49,7 +50,7 @@ function messageFor(error: unknown): string {
   if (!isApiError(error)) return media.generic;
   if (error.status === 0 || error.code === "NETWORK_ERROR") return media.network;
   if (error.status === 403) return media.forbidden;
-  return error.message || media.generic;
+  return errorCodeText[error.code] ?? media.generic;
 }
 
 export function VideoUploadContent({

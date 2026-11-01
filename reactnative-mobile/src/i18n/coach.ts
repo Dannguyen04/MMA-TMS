@@ -155,6 +155,7 @@ export const coach = {
     SKIPPED: "Bỏ buổi",
     CANCELLED: "Hủy",
     ABANDONED: "Dở",
+    PENDING: "Chờ xếp lại",
   },
   planStatus: {
     DRAFT: "Nháp",

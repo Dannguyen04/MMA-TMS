@@ -26,12 +26,12 @@ export function FighterChooser({ fighters, hrefFor, title, unreadable }: Fighter
     return (
         <Card className="max-w-2xl overflow-hidden">
             <CardHeader
-                title={unreadable ? `${unreadable.name}'s medical record couldn't be read` : title}
-                description={unreadable ? "You may no longer be assigned to this fighter. Choose again." : "Only your assigned fighters are listed."}
+                title={unreadable ? `Không đọc được hồ sơ y tế của ${unreadable.name}` : title}
+                description={unreadable ? "Có thể bạn không còn phụ trách võ sĩ này. Hãy chọn lại." : "Chỉ hiện võ sĩ bạn phụ trách."}
                 icon={<Users />}
             />
             {fighters.length === 0 ? (
-                <EmptyState compact icon={<Users />} title="No assigned fighters" description="An admin assigns fighters to you. Ask them if someone is missing." className="border-t border-border" />
+                <EmptyState compact icon={<Users />} title="Chưa có võ sĩ được phân công" description="Quản trị viên phân công võ sĩ cho bạn. Hãy hỏi nếu thiếu ai." className="border-t border-border" />
             ) : (
                 <ul className="divide-y divide-border border-t border-border">
                     {[...fighters]

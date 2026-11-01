@@ -122,7 +122,7 @@ describe("default-theme-v2: Đỏ võ đài là mặc định", () => {
     expect(PRESET_IDS).toContain("synthetic");
     expect(THEME_SPECS.synthetic.name).toBe("Synthetic Lime");
     expect(appearanceVi.presets.system).toBe("Đỏ võ đài (mặc định)");
-    expect(appearanceVi.presets.synthetic).toBe("Synthetic Lime");
+    expect(appearanceVi.presets.synthetic).toBe("Xanh chanh");
     const labels = Object.values(appearanceVi.presets);
     expect(labels.filter((l) => /Figma|Cổ điển/.test(l))).toEqual([]);
     expect(new Set(labels).size).toBe(labels.length);

@@ -43,6 +43,8 @@ export type PaintInput = {
   colors: THREE.Color[];
   spine: { y0: number; y1: number; end: number };
   maskIndex: number;
+  /** Vùng phụ (Euclid): 4 vùng × 2 tâm. */
+  extra: { on: number[]; a: THREE.Vector3[]; b: THREE.Vector3[]; R: number[]; colors: THREE.Color[]; core: number[] };
 };
 
 export function makePaint(p: PaintInput, occluded: boolean): THREE.ShaderMaterial {
@@ -64,17 +66,26 @@ export function makePaint(p: PaintInput, occluded: boolean): THREE.ShaderMateria
       uEm: { value: PAINT.emissive },
       uOcc: { value: occluded ? PAINT.occluded : 1 },
       uSp: { value: new THREE.Vector3(p.spine.y0, p.spine.y1, p.spine.end) },
+      uXOn: { value: p.extra.on },
+      uXA: { value: p.extra.a },
+      uXB: { value: p.extra.b },
+      uXR: { value: p.extra.R },
+      uXC: { value: p.extra.colors },
+      uXCore: { value: p.extra.core },
     },
-    vertexShader: `attribute vec4 _geo0;attribute vec4 _geo1;attribute vec4 _geo2;attribute vec4 _geo3;varying vec4 vA;varying vec4 vB;varying vec4 vC;varying vec4 vD;varying float vY;
-void main(){vA=_geo0;vB=_geo1;vC=_geo2;vD=_geo3;vec4 w=modelMatrix*vec4(position,1.);vY=w.y;gl_Position=projectionMatrix*viewMatrix*w;}`,
+    vertexShader: `attribute vec4 _geo0;attribute vec4 _geo1;attribute vec4 _geo2;attribute vec4 _geo3;varying vec4 vA;varying vec4 vB;varying vec4 vC;varying vec4 vD;varying float vY;varying vec3 vP;
+void main(){vA=_geo0;vB=_geo1;vC=_geo2;vD=_geo3;vec4 w=modelMatrix*vec4(position,1.);vY=w.y;vP=w.xyz;gl_Position=projectionMatrix*viewMatrix*w;}`,
     fragmentShader: `#define NR ${NR}
 uniform float uOn[NR];uniform float uR[NR];uniform vec3 uC[NR];uniform float uCore[NR];uniform float uPk,uEm,uOcc;uniform vec3 uSp;
-varying vec4 vA;varying vec4 vB;varying vec4 vC;varying vec4 vD;varying float vY;
+uniform float uXOn[4];uniform vec3 uXA[4];uniform vec3 uXB[4];uniform float uXR[4];uniform vec3 uXC[4];uniform float uXCore[4];
+varying vec4 vA;varying vec4 vB;varying vec4 vC;varying vec4 vD;varying float vY;varying vec3 vP;
 float dist(int i){vec4 p=i<4?vA:(i<8?vB:(i<12?vC:vD));int c=i-4*(i/4);return c==0?p.x:(c==1?p.y:(c==2?p.z:p.w));}
 void main(){float A=0.;vec3 col=vec3(0.);
 for(int i=0;i<NR;i++){if(uOn[i]<.5)continue;float R=uR[i];
 if(i==NR-1){float e=min(uSp.x-vY,vY-uSp.y);if(e<-uSp.z*.25)continue;float tp=smoothstep(-uSp.z*.25,uSp.z,e);R*=mix(.25,1.,tp);}
 float w=1.-smoothstep(uCore[i]*R,R,dist(i));if(w>A){A=w;col=uC[i];}}
-A*=1.-${maskExpr};float al=A*uPk*uOcc;if(al<.003)discard;gl_FragColor=vec4(min(col*(1.+uEm),vec3(1.)),al);}`,
+A*=1.-${maskExpr};
+for(int i=0;i<4;i++){if(uXOn[i]<.5)continue;float d=min(distance(vP,uXA[i]),distance(vP,uXB[i]));float w=1.-smoothstep(uXCore[i]*uXR[i],uXR[i],d);if(w>A){A=w;col=uXC[i];}}
+float al=A*uPk*uOcc;if(al<.003)discard;gl_FragColor=vec4(min(col*(1.+uEm),vec3(1.)),al);}`,
   });
 }

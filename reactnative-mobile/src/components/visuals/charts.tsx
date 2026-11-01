@@ -270,6 +270,11 @@ const JOINT_POS: Record<string, [number, number]> = {
   LEFT_KNEE: [184, 212],
   RIGHT_ANKLE: [130, 256],
   LEFT_ANKLE: [188, 256],
+  // Vùng phụ (khớp với body3d EXTRA_REGIONS).
+  HEAD: [159, 30],
+  NECK: [159, 52],
+  CHEST: [159, 80],
+  RIBS: [188, 106],
 };
 
 /** One number per distinct joint, in the order the joint records arrive. */

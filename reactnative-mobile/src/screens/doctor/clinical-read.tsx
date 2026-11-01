@@ -44,6 +44,8 @@ import { StatusBadge } from "./status-badge";
 import { SkeletonList } from "@/components/motion";
 import { useRequestGuard } from "./request-guard";
 import { useSelectedFighter } from "./selected-fighter";
+import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { assessmentAreaLabel } from "@/i18n/server-text";
 
 const EXAM_PAGE = { page: 1, limit: 50 } as const;
 
@@ -300,8 +302,8 @@ export function ExaminationReadScreen() {
                     {assessments.every((row) => row.result === "NORMAL") ? <Text style={[t.meta, { color: t.colors.success }]}>{doctorUi.allNormal}</Text> : null}
                     <KeyValueList
                       rows={assessments.map((row) => ({
-                        label: row.area,
-                        value: `${doctor.exam.assessment[row.result] ?? row.result}${row.note ? ` — ${row.note}` : ""}`,
+                        label: assessmentAreaLabel(row.area),
+                        value: `${doctor.exam.assessment[row.result] ?? UNKNOWN_VALUE}${row.note ? ` — ${row.note}` : ""}`,
                         tone: row.result === "ABNORMAL" ? "danger" : row.result === "NORMAL" ? "ok" : undefined,
                       }))}
                     />

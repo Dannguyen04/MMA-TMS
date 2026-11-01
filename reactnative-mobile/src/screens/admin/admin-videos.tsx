@@ -16,6 +16,7 @@ import { mapApiMessage } from "@/session/map-api-message";
 import { radius, spacing, useThemePreference } from "@/theme";
 import { FilterSelect } from "@/components/filter-sheet";
 import { SkeletonFooter } from "@/components/loading";
+import { videoTitle } from "@/i18n/server-text";
 
 const t = manager.videos;
 type TypeFilter = "ALL" | VideoTrainingType;
@@ -91,7 +92,7 @@ export function AdminVideosScreen() {
   }, [load]);
 
   const remove = (video: VideoRecord) => {
-    void confirmDestructive({ title: t.deleteTitle, message: t.deleteBody(video.title), confirmLabel: t.delete, cancelLabel: t.cancel }).then((ok) => {
+    void confirmDestructive({ title: t.deleteTitle, message: t.deleteBody(videoTitle(video.title)), confirmLabel: t.delete, cancelLabel: t.cancel }).then((ok) => {
       if (!ok) return;
       setBusyId(video.id);
       void deleteVideo(video.id)
@@ -123,12 +124,12 @@ export function AdminVideosScreen() {
           {items.map((video, index) => (
             <FadeInView key={video.id} index={index}>
               <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}>
-                <View accessible accessibilityLabel={video.title} style={styles.cardMain}>
+                <View accessible accessibilityLabel={videoTitle(video.title)} style={styles.cardMain}>
                   <View style={[styles.thumb, { backgroundColor: colors.surfaceMuted }]}>
                     <Icon name="film" size={22} tone="accent" />
                   </View>
                   <View style={styles.body}>
-                    <Text style={[at.rowTitle, { color: colors.ink }]} numberOfLines={2}>{video.title}</Text>
+                    <Text style={[at.rowTitle, { color: colors.ink }]} numberOfLines={2}>{videoTitle(video.title)}</Text>
                     <Text style={[at.meta, { color: colors.inkMuted }]} numberOfLines={1}>
                       {formatDay(video.createdAt)} · {formatDuration(video.durationMs)} · {formatBytes(video.fileSizeBytes)}
                     </Text>
@@ -140,7 +141,7 @@ export function AdminVideosScreen() {
                 </View>
                 <PressableScale
                   accessibilityRole="button"
-                  accessibilityLabel={`${t.delete}: ${video.title}`}
+                  accessibilityLabel={`${t.delete}: ${videoTitle(video.title)}`}
                   disabled={busyId === video.id}
                   onPress={() => remove(video)}
                   hitSlop={6}

@@ -1,8 +1,9 @@
+import { vi } from "./vi";
 /** Chuỗi giao diện vai trò Quản lý (Figma page 9:131, frame "Manager · …"). */
 export const manager = {
   hubTitle: "Quản lý",
   brand: "MMA VISION",
-  academy: "Lotus Combat Academy",
+  academy: vi.brand.academy,
   back: "Quay lại",
   backHome: "Về Quản lý",
   logout: "Đăng xuất",
@@ -275,9 +276,9 @@ export const manager = {
   },
 
   missing: {
-    roles: "Xem danh sách vai trò và quyền cần API backend chưa có.",
-    models: "Quản lý mô hình AI cần API backend chưa có.",
-    audit: "Nhật ký hệ thống cần API backend chưa có.",
+    roles: "Xem danh sách vai trò và quyền cần chức năng máy chủ chưa có.",
+    models: "Quản lý mô hình AI cần chức năng máy chủ chưa có.",
+    audit: "Nhật ký hệ thống cần chức năng máy chủ chưa có.",
     system: "Các tùy chọn hệ thống chưa thể chỉnh sửa tại đây.",
   },
 } as const;

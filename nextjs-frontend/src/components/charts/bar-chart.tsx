@@ -90,7 +90,7 @@ export function BarChart({
             <ChartSurface
                 ariaLabel={ariaLabel}
                 height={height}
-                keyboardHint={`Use the left and right arrow keys to read the value of each ${grouped ? "bar" : "column"}.`}
+                keyboardHint={`Dùng phím mũi tên trái/phải để đọc giá trị từng ${grouped ? "thanh" : "cột"}.`}
                 announcement={active?.source === "keyboard" && readout ? readout.announcement : ""}
                 handlers={handlers}
             >

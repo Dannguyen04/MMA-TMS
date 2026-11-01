@@ -56,7 +56,7 @@ export type MedicalReviewRequestResult = { id: string; fighterId: string; reason
 /* ── batch42: trạng thái buổi/giáo án, thu hồi giấy phép, kết thúc phân công ── */
 
 /** UpdateSessionStatusDto: cancellationReason (≤500) bắt buộc khi CANCELLED, bị từ chối (422) với trạng thái khác. */
-export const SESSION_STATUSES = ["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED"] as const;
+export const SESSION_STATUSES = ["SCHEDULED", "IN_PROGRESS", "COMPLETED", "SKIPPED", "CANCELLED", "ABANDONED", "PENDING"] as const;
 export type SessionStatusValue = (typeof SESSION_STATUSES)[number];
 export type UpdateSessionStatusBody = { status: SessionStatusValue; cancellationReason?: string };
 /** ALLOWED_SESSION_TRANSITIONS (training.constants.ts). */

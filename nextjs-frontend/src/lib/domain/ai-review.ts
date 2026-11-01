@@ -1,4 +1,4 @@
-import { pluralize } from "@/lib/format";
+import { pluralizeVi } from "@/lib/format";
 import { isLowConfidence } from "./rules";
 import type { AIAnalysis, AIFeedback, CoachReview, ReviewDecision, User } from "./types";
 
@@ -10,9 +10,9 @@ import type { AIAnalysis, AIFeedback, CoachReview, ReviewDecision, User } from "
  * - low confidence: the filter and count label for those needs-review items.
  */
 export const AI_REVIEW_TERMS = {
-    unreviewed: "Unreviewed",
-    needsReview: "Needs review",
-    lowConfidence: "Low confidence",
+    unreviewed: "Chưa duyệt",
+    needsReview: "Cần xem lại",
+    lowConfidence: "Độ tin cậy thấp",
 } as const;
 
 /** Unreviewed and below the low-confidence threshold. */
@@ -40,11 +40,11 @@ export function reviewCounts(analysis: Pick<AIAnalysis, "findings" | "detections
 /** Non-zero counts as unit-named parts, e.g. ["7 unreviewed findings", "5 low-confidence detections"]. Findings and detections are never summed. */
 export function formatReviewCounts(counts: Partial<ReviewCounts>): string[] {
     const parts: [number | undefined, string][] = [
-        [counts.unreviewedFindings, "unreviewed finding"],
-        [counts.lowConfidenceFindings, "low-confidence finding"],
-        [counts.lowConfidenceDetections, "low-confidence detection"],
+        [counts.unreviewedFindings, "kết quả chưa duyệt"],
+        [counts.lowConfidenceFindings, "kết quả độ tin cậy thấp"],
+        [counts.lowConfidenceDetections, "nhận dạng độ tin cậy thấp"],
     ];
-    return parts.flatMap(([count, unit]) => (count ? [pluralize(count, unit)] : []));
+    return parts.flatMap(([count, unit]) => (count ? [pluralizeVi(count, unit)] : []));
 }
 
 /* ─── Recording a review ──────────────────────────────────────────────────── */
@@ -71,7 +71,7 @@ type Reviewer = Pick<User, "id" | "name">;
 export function reviewFeedback(input: AIReviewInput, reviewer: Reviewer, reviewedAt: string): AIFeedback | Refusal<"correction_label_required"> {
     const correctedLabel = input.correctedLabel?.trim() || null;
     if (input.decision === "corrected" && !correctedLabel) {
-        return { ok: false, code: "correction_label_required", message: "Enter the correct label for this AI output." };
+        return { ok: false, code: "correction_label_required", message: "Hãy nhập nhãn đúng cho kết quả AI này." };
     }
     return {
         decision: input.decision,
@@ -86,9 +86,9 @@ export function reviewFeedback(input: AIReviewInput, reviewer: Reviewer, reviewe
 /** The overall review as it's kept, for demo and pipeline analyses alike: a 1–5 rating and a summary. */
 export function coachReviewFrom(input: CoachReviewInput, reviewer: Reviewer, reviewedAt: string): CoachReview | Refusal<"invalid_rating" | "summary_required"> {
     if (!Number.isInteger(input.rating) || input.rating < 1 || input.rating > 5) {
-        return { ok: false, code: "invalid_rating", message: "Rate the footage from 1 to 5." };
+        return { ok: false, code: "invalid_rating", message: "Hãy chấm Video từ 1 đến 5." };
     }
     const summary = input.summary.trim();
-    if (!summary) return { ok: false, code: "summary_required", message: "Add a short summary for the fighter." };
+    if (!summary) return { ok: false, code: "summary_required", message: "Hãy thêm tóm tắt ngắn cho võ sĩ." };
     return { reviewerId: reviewer.id, reviewerName: reviewer.name, reviewedAt, rating: input.rating, summary };
 }

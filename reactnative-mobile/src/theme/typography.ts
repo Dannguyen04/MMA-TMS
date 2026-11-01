@@ -109,6 +109,16 @@ function buildLiveStyles(live: LiveTypography): LiveStyles {
 }
 
 let liveStyles = buildLiveStyles(DEFAULT_LIVE_TYPOGRAPHY);
+let currentTypography = DEFAULT_LIVE_TYPOGRAPHY;
+
+/** Legacy role components use getters so reading preferences are never snapshotted. */
+export function readableTextStyle(base: number, bold = false): ContentTextStyle {
+  const live = currentTypography;
+  const fontSize = scaledSize(base, live.sizeFactor);
+  return { fontFamily: live.faces[bold ? "bold" : "regular"], fontSize,
+    lineHeight: Math.max(viLineHeight(fontSize), Math.ceil(fontSize * live.lineHeight)),
+    letterSpacing: live.letterSpacingEm * fontSize };
+}
 
 /**
  * Called by the appearance provider during render, before its children render,
@@ -116,6 +126,7 @@ let liveStyles = buildLiveStyles(DEFAULT_LIVE_TYPOGRAPHY);
  * their next render. Module-level `StyleSheet.create` snapshots are not updated.
  */
 export function setLiveTypography(live: LiveTypography) {
+  currentTypography = live;
   liveStyles = buildLiveStyles(live);
 }
 

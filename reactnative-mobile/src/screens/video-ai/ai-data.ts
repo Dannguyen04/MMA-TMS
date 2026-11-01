@@ -10,6 +10,7 @@ import { useLoad } from "@/screens/fighter/use-load";
 import { useSession, useSessionRole } from "@/session/session-context";
 
 import { hasCoachReview } from "./ai-model";
+import { videoTitle } from "@/i18n/server-text";
 
 export type AiRole = "coach" | "admin" | "doctor";
 
@@ -67,7 +68,7 @@ export function useAiNames(enabled: boolean): Record<string, string> {
 export function useVideoTitles(enabled: boolean) {
   const run = useCallback(async () => {
     const page = await videoAiApi.listVideos({ limit: 100 });
-    return Object.fromEntries(page.items.map((v) => [v.id, v.title]));
+    return Object.fromEntries(page.items.map((v) => [v.id, videoTitle(v.title)]));
   }, []);
   return useLoad(enabled, "vai-titles", run, { keepOnError: true });
 }

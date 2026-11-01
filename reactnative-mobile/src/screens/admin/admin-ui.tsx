@@ -24,6 +24,8 @@ import { useAdminType } from "@/screens/admin/admin-page";
 import { radius, spacing, useThemePreference, type ColorTokens } from "@/theme";
 import { mixHex } from "@/theme/appearance/color-math";
 import { ThemedRefreshControl, usePullRefresh } from "@/components/loading";
+import { ArenaFrame, ArenaSurface } from "@/components/arena/arena-frame";
+import { ArenaTitle } from "@/components/arena/arena-title";
 
 /** Khung màn Quản lý theo Figma: tiêu đề + nút quay lại, nội dung cuộn, thanh nút cố định dưới. */
 export function AdminScreen({
@@ -68,9 +70,7 @@ export function AdminScreen({
             <Icon name="back" size={24} />
           </PressableScale>
         ) : null}
-        <Text accessibilityRole="header" style={[at.name, styles.flex, { color: colors.ink }]} numberOfLines={1}>
-          {title}
-        </Text>
+        <ArenaTitle compact>{title}</ArenaTitle>
         {action ? (
           <PressableScale accessibilityRole="button" hitSlop={8} onPress={action.onPress}>
             <Text style={[at.metaStrong, { color: colors.lotus }]}>{action.label}</Text>
@@ -117,7 +117,7 @@ export function AdminSection({ title, hint, children, style }: { title: string; 
 
 export function AdminCard({ children, style }: { children?: ReactNode; style?: StyleProp<ViewStyle> }) {
   const { colors } = useThemePreference();
-  return <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }, style]}>{children}</View>;
+  return <ArenaFrame style={style}>{children}</ArenaFrame>;
 }
 
 export function AdminField({ label, value }: { label: string; value: string }) {
@@ -281,8 +281,9 @@ export function AdminButton({
       accessibilityState={{ disabled: !!off, busy: !!loading }}
       disabled={off}
       onPress={onPress}
-      style={[styles.button, { backgroundColor: bg, borderColor: border }, style]}
+      style={[styles.button, { backgroundColor: "transparent", borderWidth: 0, borderRadius: 0 }, style]}
     >
+      <ArenaSurface fill={bg === "transparent" ? colors.surface : bg} stroke={border === "transparent" ? bg : border}/>
       {loading ? <ActivityIndicator color={ink} /> : icon ? <Icon name={icon} size={20} color={ink} /> : null}
       <Text style={[at.rowTitle, { color: ink }]} numberOfLines={1}>{title}</Text>
     </PressableScale>
@@ -299,6 +300,8 @@ export function AdminInput({ label, style, ...rest }: TextInputProps & { label: 
   return (
     <View style={styles.field}>
       <Text style={[at.metaStrong, { color: colors.ink }]}>{label}</Text>
+      <View>
+      <ArenaSurface/>
       <TextInput
         accessibilityLabel={label}
         placeholderTextColor={colors.inkSubtle}
@@ -307,10 +310,11 @@ export function AdminInput({ label, style, ...rest }: TextInputProps & { label: 
           at.body,
           styles.input,
           rest.multiline && styles.inputMulti,
-          { color: colors.ink, backgroundColor: colors.surfaceMuted, borderColor: colors.line },
+          { color: colors.ink, backgroundColor: "transparent", borderWidth: 0, borderRadius: 0 },
           style,
         ]}
       />
+      </View>
     </View>
   );
 }
@@ -413,7 +417,7 @@ export function ApplicationStatusPill({ status }: { status: ApplicationStatus })
   const at = useAdminType();
   const ink = statusColor(colors, status);
   return (
-    <View style={[styles.pill, { backgroundColor: mixHex(colors.surface, ink, 0.14) }]}>
+    <View style={[styles.pill, { backgroundColor: "transparent", borderRadius: 0, paddingHorizontal: 0 }]}>
       <Icon name={STATUS_ICON[status]} size={14} color={ink} />
       <Text style={[at.metaStrong, { color: ink, fontSize: 13 }]} numberOfLines={1}>
         {vi.admission.status[status]}
@@ -428,7 +432,7 @@ export function AdminTag({ label, tone = "muted" }: { label: string; tone?: "mut
   const at = useAdminType();
   const ink = tone === "accent" ? colors.lotus : tone === "danger" ? colors.danger : tone === "success" ? colors.success : colors.inkMuted;
   return (
-    <View style={[styles.pill, { backgroundColor: tone === "muted" ? colors.surfaceMuted : mixHex(colors.surface, ink, 0.14) }]}>
+    <View style={[styles.pill, { backgroundColor: "transparent", borderRadius: 0, paddingHorizontal: 0 }]}>
       <Text style={[at.metaStrong, { color: ink, fontSize: 13 }]} numberOfLines={1}>{label}</Text>
     </View>
   );

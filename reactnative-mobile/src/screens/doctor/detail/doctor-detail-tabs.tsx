@@ -29,6 +29,7 @@ import { BodyMapSection, bodyText } from "@/components/body3d/body-map-section";
 import { jointStateLabel } from "@/components/medical/medical-format";
 import { AiAlertsBlock } from "@/screens/video-ai/ai-ui";
 import { RevokeClearanceButton } from "@/screens/one-tap/status-actions";
+import { assessmentAreaLabel } from "@/i18n/server-text";
 
 const jointStateText = (s: string) => jointStateLabel(s);
 
@@ -44,10 +45,19 @@ function Divider() {
 
 /* ───────────── Tổng quan ───────────── */
 
+/** Keyed by fighterId: a previous fighter's highlights must never survive a switch. */
+function MedicalBodyMap({ fighterId, enabled, wide }: { fighterId: string; enabled: boolean; wide: boolean }) {
+  const summary = useLoad(enabled && !!fighterId, `summary:${fighterId}`, useCallback(() => doctorRoApi.getMedicalSummary(fighterId), [fighterId]), { keepOnError: true });
+  return <SectionCard title={bodyText.title} loading={summary.loading && !summary.data}
+    error={summary.data ? "" : detailError(summary.error)} onRetry={() => void summary.reload()} empty={false} emptyText="">
+    {summary.data ? <BodyMapSection injuries={summary.data.activeInjuries} jointStates={summary.data.jointStates}
+      stateText={jointStateText} severityText={severityText} height={wide ? 460 : 380}/> : null}
+  </SectionCard>;
+}
+
 export function OverviewTab({ fighterId, dossier, enabled, onSeeAllAi }: { fighterId: string; dossier: Load<MedicalDossier>; enabled: boolean; onSeeAllAi?: () => void }) {
   const p = useFighterPalette();
   const wide = useWindowDimensions().width >= WIDE_MIN;
-  const summary = useLoad(enabled && !!fighterId, `summary:${fighterId}`, useCallback(() => doctorRoApi.getMedicalSummary(fighterId), [fighterId]), { keepOnError: true });
   const doctors = useLoad(enabled && !!fighterId, `doctors:${fighterId}`, useCallback(() => doctorRoApi.listDoctors(fighterId, { limit: 50 }), [fighterId]), { keepOnError: true });
   const d = dossier.data;
   const dl = dossier.loading && !d;
@@ -104,24 +114,7 @@ export function OverviewTab({ fighterId, dossier, enabled, onSeeAllAi }: { fight
           : null}
       </SectionCard>
 
-      <SectionCard
-        title={bodyText.title}
-        loading={summary.loading && !summary.data}
-        error={summary.data ? "" : detailError(summary.error)}
-        onRetry={() => void summary.reload()}
-        empty={false}
-        emptyText=""
-      >
-        {summary.data ? (
-          <BodyMapSection
-            injuries={summary.data.activeInjuries}
-            jointStates={summary.data.jointStates}
-            stateText={jointStateText}
-            severityText={severityText}
-            height={wide ? 460 : 380}
-          />
-        ) : null}
-      </SectionCard>
+      <MedicalBodyMap key={fighterId} fighterId={fighterId} enabled={enabled} wide={wide}/>
 
       <SectionCard title={t.clearance} {...common} empty={clear.length === 0} emptyText={t.noClearance}>
         {clear.map((c) => (
@@ -243,7 +236,7 @@ function ExamCard({ e }: { e: MedicalExamination }) {
           {r?.notes ? <Line label={t.restrictionNotes}>{r.notes}</Line> : null}
           {vitals.length ? <Line label={doctor.exam.vitals}>{vitals.join(" · ")}</Line> : null}
           {det?.assessments?.map((a, i) => (
-            <Line key={i} label={a.area}>{[(doctor.exam.assessment as Record<string, string>)[a.result] ?? "", a.note ?? ""].filter(Boolean).join(" · ")}</Line>
+            <Line key={i} label={assessmentAreaLabel(a.area)}>{[(doctor.exam.assessment as Record<string, string>)[a.result] ?? "", a.note ?? ""].filter(Boolean).join(" · ")}</Line>
           ))}
           {det?.recommendations ? <Line label={doctor.exam.recommendations}>{det.recommendations}</Line> : null}
         </View>

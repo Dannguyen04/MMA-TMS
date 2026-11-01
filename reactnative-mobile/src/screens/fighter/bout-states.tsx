@@ -6,6 +6,8 @@ import { Skeleton } from "@/components/motion";
 import { fighter } from "@/i18n/fighter";
 import { fighterBout as t } from "@/i18n/fighter-bout";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { readableTextStyle } from "@/theme/typography";
+import { ArenaFrame, ArenaSurface } from "@/components/arena/arena-frame";
 
 /**
  * Thước đo chung cho Trận của tôi / Ghi cân / thẻ cân nặng trang chủ (Designer FINAL).
@@ -25,15 +27,15 @@ export const SPEC = {
 
 /** Cỡ chữ / chiều cao dòng. */
 export const TEXT = {
-  screenTitle: { fontSize: 24, lineHeight: 32, fontWeight: "700" },
-  cardTitle: { fontSize: 18, lineHeight: 24, fontWeight: "700" },
-  body: { fontSize: 16, lineHeight: 24, fontWeight: "400" },
-  bodyBold: { fontSize: 16, lineHeight: 24, fontWeight: "700" },
-  caption: { fontSize: 12, lineHeight: 16, fontWeight: "400" },
-  captionBold: { fontSize: 12, lineHeight: 16, fontWeight: "700" },
-  bigNumber: { fontSize: 40, lineHeight: 48, fontWeight: "700", fontVariant: ["tabular-nums"] },
-  kg: { fontSize: 16, lineHeight: 24, fontWeight: "400" },
-  detail: { fontSize: 14, lineHeight: 20, fontWeight: "400" },
+  get screenTitle() { return readableTextStyle(24, true); },
+  get cardTitle() { return readableTextStyle(18, true); },
+  get body() { return readableTextStyle(16); },
+  get bodyBold() { return readableTextStyle(16, true); },
+  get caption() { return readableTextStyle(12); },
+  get captionBold() { return readableTextStyle(12, true); },
+  get bigNumber(): TextStyle { return { ...readableTextStyle(40, true), fontVariant: ["tabular-nums"] }; },
+  get kg() { return readableTextStyle(16); },
+  get detail() { return readableTextStyle(14); },
 } satisfies Record<string, TextStyle>;
 
 /** `true` khi `on` kéo dài quá `ms` (mặc định 1 giây). */
@@ -100,12 +102,13 @@ export function ActionButton({
         fullWidth && !flex && { alignSelf: "stretch" },
         flex && { flex: 1 },
         primary
-          ? { backgroundColor: colors.accent }
-          : { backgroundColor: colors.surface, borderWidth: 2, borderColor: colors.ring },
+          ? { backgroundColor: "transparent", borderRadius: 0 }
+          : { backgroundColor: "transparent", borderRadius: 0 },
         disabled && !loading && { opacity: SPEC.disabledOpacity },
         focused && { outlineWidth: 2, outlineStyle: "solid", outlineColor: colors.ring, outlineOffset: 2 } as object,
       ]}
     >
+      <ArenaSurface fill={primary ? colors.accent : colors.surface} active={focused}/>
       {loading ? <ActivityIndicator size="small" color={fg} /> : icon ? <Icon name={icon} size={24} color={fg} /> : null}
       <Text style={[TEXT.bodyBold, styles.buttonText, { color: fg }]}>{loading && loadingLabel ? loadingLabel : label}</Text>
     </Pressable>
@@ -150,13 +153,7 @@ export function MessageCard({
   const colors = useFighterPalette();
   const error = tone === "error";
   return (
-    <View
-      accessibilityRole={error ? "alert" : undefined}
-      style={[
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: error ? colors.danger : colors.line, borderWidth: error ? 2 : 1 },
-      ]}
-    >
+    <ArenaFrame tone={error ? "danger" : "neutral"}>
       <View style={styles.cardHead}>
         <Icon name={icon} size={24} color={error ? colors.danger : colors.link} />
         <Text accessibilityRole="header" style={[TEXT.cardTitle, styles.flex, { color: colors.ink }]}>
@@ -165,7 +162,7 @@ export function MessageCard({
       </View>
       {description ? <Text style={[TEXT.body, { color: colors.ink }]}>{description}</Text> : null}
       {children}
-    </View>
+    </ArenaFrame>
   );
 }
 

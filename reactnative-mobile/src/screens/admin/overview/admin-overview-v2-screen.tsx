@@ -18,6 +18,7 @@ import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { useLoad } from "@/screens/fighter/use-load";
 import { videoAiApi } from "@/api/video-ai";
 import { vai } from "@/i18n/video-ai";
+import { ArenaSurface } from "@/components/arena/arena-frame";
 
 import { CHART_COLORS } from "./overview-colors";
 import { ColumnChart, Donut, HBarRow, LegendRow, StackedBar, type Segment } from "./overview-charts";
@@ -480,7 +481,8 @@ function BlockCard({
   const p = useFighterPalette();
   const hasData = load.data != null;
   return (
-    <View style={[styles.card, { backgroundColor: p.surface, borderColor: p.line, borderWidth: 1 }, grow && styles.flex]}>
+    <View style={[styles.card, { backgroundColor: "transparent", borderRadius: 0, borderWidth: 0 }, grow && styles.flex]}>
+      <ArenaSurface/>
       <Text style={[TEXT.cardTitle, { color: p.ink }]} accessibilityRole="header">
         {title}
       </Text>
@@ -538,7 +540,7 @@ function StatTile({ icon, label, load, onPress, wide }: { icon: IconName; label:
         <Skeleton height={14} width="80%" />
       </View>
     );
-  const style = [styles.tile, wide ? styles.tileWide : styles.tileHalf, { backgroundColor: p.surface, borderColor: p.line }];
+  const style = [styles.tile, wide ? styles.tileWide : styles.tileHalf, { backgroundColor: "transparent", borderRadius: 0, borderWidth: 0 }];
   const head = (tap: boolean) => (
     <View style={styles.tileHead}>
       <Icon name={icon} size={20} color={p.ink} />
@@ -548,6 +550,7 @@ function StatTile({ icon, label, load, onPress, wide }: { icon: IconName; label:
   if (!onPress || value == null) {
     return (
       <View style={style} accessible={value != null} accessibilityLabel={value != null ? `${label}: ${num(value)}` : undefined}>
+        <ArenaSurface/>
         {head(false)}
         {content}
       </View>
@@ -559,8 +562,9 @@ function StatTile({ icon, label, load, onPress, wide }: { icon: IconName; label:
       accessibilityLabel={`${label}: ${num(value)}`}
       accessibilityHint={t.block.open}
       onPress={onPress}
-      style={({ pressed }) => [...style, pressed && { backgroundColor: p.surface2, borderColor: p.accent }]}
+      style={({ pressed }) => [...style, pressed && { opacity: 0.85 }]}
     >
+      <ArenaSurface/>
       {head(true)}
       {content}
     </Pressable>

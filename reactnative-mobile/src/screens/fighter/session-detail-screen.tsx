@@ -41,6 +41,7 @@ export function FighterSessionDetailScreen() {
           <Fact label={fighter.tap.when} value={formatWhen(row.scheduledAt)} />
           <Fact label={fighter.tap.type} value={sessionTypeLabel(row.sessionType)} />
           <Fact label={fighter.tap.status} value={sessionStatusLabel(row.status)} />
+          {row.status === "PENDING" ? <Text style={[type.body, { color: colors.inkMuted }]}>{fighter.pendingLine}</Text> : null}
           <Fact label={fighter.tap.place} value={row.location ?? "—"} />
           <Fact label={fighter.tap.rounds} value={String(row.roundCount)} />
           <Fact label={fighter.tap.planned} value={formatMinutes(row.plannedDurationSec)} />

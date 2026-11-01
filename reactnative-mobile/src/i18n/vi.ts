@@ -4,7 +4,8 @@ export const vi = {
     wordmarkAcronym: "MMA",
     wordmarkLockup: "Vision",
     wordmarkExpansion: "",
-    academy: "Lotus Combat Academy",
+    /** Chốt 31/10: tên học viện bằng tiếng Việt (agent đề xuất, chờ duyệt). */
+    academy: "Học viện Võ thuật Lotus",
     slogan: "Tầm nhìn võ đài",
   },
   theme: {
@@ -13,7 +14,7 @@ export const vi = {
     system: "Theo hệ thống",
   },
   login: {
-    kicker: "Lotus Combat",
+    kicker: "Võ thuật Lotus",
     title: "Đăng nhập",
     subtitle: "Chào mừng trở lại.",
     email: "Địa chỉ email",
@@ -93,10 +94,10 @@ export const vi = {
     backToStep1: "Quay lại bước 1",
     backToStep2: "Quay lại bước 2",
     profileImageUrl: "Link ảnh đại diện",
-    profileImageUrlHint: "Dán link ảnh nếu có. Có thể bỏ trống.",
+    profileImageUrlHint: "Dán liên kết ảnh nếu có. Có thể bỏ trống.",
     numberInvalid: "Hãy nhập số lớn hơn 0.",
     numberTooBig: "Số lớn quá.",
-    urlInvalid: "Link ảnh chưa đúng. Hãy dán link bắt đầu bằng http.",
+    urlInvalid: "Liên kết ảnh chưa đúng. Hãy dán liên kết bắt đầu bằng http.",
     email: "Email",
     password: "Mật khẩu",
     confirm: "Xác nhận mật khẩu",
@@ -159,12 +160,12 @@ export const vi = {
   resetPassword: {
     title: "Đặt mật khẩu",
     subtitle:
-      "Dùng link trong email. Sau khi hồ sơ được duyệt, đây là lần đặt mật khẩu để kích hoạt tài khoản võ sĩ, không phải quên mật khẩu.",
-    missingLink: "Link đặt lại mật khẩu không hợp lệ. Hãy mở đúng link trong email.",
+      "Dùng liên kết trong email. Sau khi hồ sơ được duyệt, đây là lần đặt mật khẩu để kích hoạt tài khoản võ sĩ, không phải quên mật khẩu.",
+    missingLink: "Liên kết đặt lại mật khẩu không hợp lệ. Hãy mở đúng liên kết trong email.",
     submit: "Cập nhật mật khẩu",
     success: "Mật khẩu đã được cập nhật.",
     activationReady:
-      "Mật khẩu đã được thiết lập. Bước tiếp theo là kích hoạt tài khoản, rồi chờ quản trị phân công bác sĩ và khám baseline. Chưa được tập.",
+      "Mật khẩu đã được thiết lập. Bước tiếp theo là kích hoạt tài khoản, rồi chờ quản trị phân công bác sĩ và khám ban đầu. Chưa được tập.",
     toLogin: "Đăng nhập",
     back: "Quay lại đăng nhập",
   },
@@ -182,7 +183,7 @@ export const vi = {
     empty: "Chưa có hồ sơ nhập học.",
     activate: "Kích hoạt tài khoản võ sĩ",
     activated:
-      "Tài khoản võ sĩ đã được kích hoạt. Bước tiếp theo: Admin phân công bác sĩ, rồi khám baseline và cấp giấy. Chưa được tập.",
+      "Tài khoản võ sĩ đã được kích hoạt. Bước tiếp theo: quản trị phân công bác sĩ, rồi khám ban đầu và cấp giấy. Chưa được tập.",
     waitPassword: "Hãy mở email thiết lập mật khẩu để kích hoạt tài khoản võ sĩ. Đây không phải quên mật khẩu.",
     intakeCoachNotTraining: "Huấn luyện viên kiểm tra đầu vào không tự thành huấn luyện viên tập luyện.",
     failedNoExam: "Hồ sơ không đạt hoặc bị từ chối không vào khám onboarding.",

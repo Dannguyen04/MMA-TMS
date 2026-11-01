@@ -32,12 +32,12 @@ describe("batch31: danh sách chủ đề + chế độ riêng", () => {
     ]);
     expect(THEME_LIST_IDS.map((id) => appearance.presets[id])).toEqual([
       "Đỏ võ đài (mặc định)",
-      "Synthetic Lime",
-      "Toxic Violet",
-      "Warm Lime / Olive Ink",
-      "Chrome Violet / Glass Blue",
-      "Carbon Teal / Mint Foam",
-      "Hyper Cobalt / Skin Sand",
+      "Xanh chanh",
+      "Tím rực",
+      "Chanh ấm / Mực ô liu",
+      "Tím crôm / Xanh kính",
+      "Xanh két than / Bọt bạc hà",
+      "Xanh coban / Cát da",
       "Bạc hà",
       "Giấy",
     ]);

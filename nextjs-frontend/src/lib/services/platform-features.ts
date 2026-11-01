@@ -66,4 +66,4 @@ export function usesTrainingServiceForms(): boolean {
 }
 
 /** Message returned by server actions for a feature that isn't available in this mode. */
-export const PLATFORM_FEATURE_UNAVAILABLE_MESSAGE = "This isn't available yet. The service will add it in a later release.";
+export const PLATFORM_FEATURE_UNAVAILABLE_MESSAGE = "Tính năng này chưa khả dụng. Dịch vụ sẽ bổ sung ở bản sau.";

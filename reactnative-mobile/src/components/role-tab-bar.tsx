@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "expo-router/build/layouts/Tabs";
 
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { navSideWidth, useNavKind } from "@/components/nav-rail";
 
 /** Chiều cao tối thiểu của vùng nút (không tính vùng an toàn phía dưới). */
 export const TAB_BAR_MIN_HEIGHT = 56;
@@ -21,14 +22,21 @@ export function isHiddenTab(style: StyleProp<ViewStyle> | undefined): boolean {
  * Thanh tab dùng chung cho Coach và Admin (Expo Tabs), cùng kiểu với `FighterTabBar`:
  * nền = nền màn hình, viên thuốc xanh chanh nhạt cho mục đang chọn, chữ/biểu tượng `activeInk`,
  * cao tối thiểu 56dp + vùng an toàn, nhãn luôn hiện đủ.
+ * Từ bề rộng 900 (Phase 5 F): thành thanh điều hướng dọc bên trái, cùng biểu tượng, nhãn và huy hiệu;
+ * trên iPad là thanh bên rộng 240 (biểu tượng và nhãn cùng hàng); layout đặt `tabBarPosition: "left"` cùng ngưỡng.
  */
 export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps) {
   const p = useFighterPalette();
   const insets = useSafeAreaInsets();
+  const kind = useNavKind(); const rail = kind !== "bar"; const sidebar = kind === "sidebar";
   return (
     <View
       accessibilityRole="tablist"
-      style={[
+      testID={sidebar ? "nav-sidebar" : rail ? "nav-rail" : "tab-bar"}
+      style={rail ? [
+        sidebar ? styles.sidebar : styles.rail,
+        { backgroundColor: p.bg, borderRightColor: p.line, paddingTop: insets.top + 12, paddingBottom: Math.max(insets.bottom, 12), paddingLeft: insets.left + (sidebar ? 12 : 0), width: navSideWidth(kind) + insets.left },
+      ] : [
         styles.bar,
         { backgroundColor: p.bg, borderTopColor: p.line, paddingBottom: tabBarBottomPadding(insets.bottom) },
       ]}
@@ -51,7 +59,7 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
               const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
               if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
             }}
-            style={styles.item}
+            style={sidebar ? [styles.sidebarItem, focused && { backgroundColor: p.accentSoft }] : rail ? styles.railItem : styles.item}
           >
             <View>
               {options.tabBarIcon?.({ focused, color, size: 24 })}
@@ -67,7 +75,7 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
                 </View>
               ) : null}
             </View>
-            <Text style={[styles.label, { color, fontWeight: focused ? "700" : "500" }]} maxFontSizeMultiplier={1.4} numberOfLines={1}>
+            <Text style={[sidebar ? styles.sidebarLabel : rail ? styles.railLabel : styles.label, { color, fontWeight: focused ? "700" : "500" }]} maxFontSizeMultiplier={1.4} numberOfLines={rail && !sidebar ? 2 : 1}>
               {label}
             </Text>
           </Pressable>
@@ -81,6 +89,12 @@ const styles = StyleSheet.create({
   bar: { flexDirection: "row", borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, paddingHorizontal: 8, minHeight: TAB_BAR_MIN_HEIGHT },
   item: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 4 },
   label: { fontSize: 10, lineHeight: 14 },
+  rail: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 12 },
+  railItem: { minHeight: 64, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", gap: 4 },
+  railLabel: { fontSize: 12, lineHeight: 16, textAlign: "center" },
+  sidebar: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 4, paddingRight: 12 },
+  sidebarItem: { flexDirection: "row", minHeight: 48, paddingHorizontal: 12, alignItems: "center", justifyContent: "flex-start", gap: 14, borderRadius: 12 },
+  sidebarLabel: { fontSize: 15, lineHeight: 20, flex: 1, textAlign: "left" },
   badge: {
     position: "absolute",
     top: -6,

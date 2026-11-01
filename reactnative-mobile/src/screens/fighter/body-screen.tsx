@@ -22,6 +22,8 @@ import { FighterHub, HubHeader } from "@/screens/fighter/redesign/shell";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import { HealthDossierSkeleton } from "@/components/screen-skeletons";
+import { FighterSuspensionCard, useFighterSuspensions } from "@/screens/fight-camp/fighter-suspension";
+import { limitsTrainingToday } from "@/screens/fight-camp/camp-rules";
 
 export function FighterBodyScreen() {
   const colors = useFighterPalette();
@@ -40,6 +42,9 @@ export function FighterBodyScreen() {
   const pendingCount = data?.openReviewRequests.length ?? 0;
   const showHealth = chrome.section === "health";
   const toExam = () => setChrome((current) => selectBodySection(current, "exam"));
+  const suspensions = useFighterSuspensions(canFetch);
+  const suspended = limitsTrainingToday(suspensions.items);
+  const suspensionCard = <FighterSuspensionCard items={suspensions.items} error={suspensions.error} onRetry={() => void suspensions.reload()} />;
 
   return (
     <FighterHub keyboard refreshing={dossier.loading && !data} onRefresh={dossier.refresh}>
@@ -68,8 +73,10 @@ export function FighterBodyScreen() {
 
           {data ? (
             <>
-              <TodayCard dossier={data} onRequest={toExam} />
-              <EligibilityTiles dossier={data} onRequest={toExam} />
+              <TodayCard dossier={data} onRequest={toExam} suspended={suspended} />
+              <EligibilityTiles dossier={data} onRequest={toExam} suspended={suspended} />
+              {/* T-048: after the medical clearance block. */}
+              {suspensionCard}
               <Profile data={data} onHistory={() => router.push("/suc-khoe/lich-su" as Href)} />
             </>
           ) : dossier.loading && !dossier.error ? (
@@ -77,6 +84,8 @@ export function FighterBodyScreen() {
           ) : !dossier.error ? (
             <Text style={[styles.meta, { color: colors.muted }]}>{t.empty}</Text>
           ) : null}
+          {/* A dossier failure must not hide the suspension. */}
+          {!data ? suspensionCard : null}
           {/* Yêu cầu khám lại: ẩn khi dossier có yêu cầu đang mở; không đọc được dossier thì 409 từ máy chủ vẫn ra chip. */}
           {fighterId && (data || !dossier.loading) ? (
             <MedicalReviewAction fighterId={fighterId} openCount={pendingCount} onSent={dossier.reload} />

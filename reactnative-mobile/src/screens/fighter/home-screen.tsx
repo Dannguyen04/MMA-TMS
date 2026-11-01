@@ -22,6 +22,7 @@ import { FadeInView, PressableScale } from "@/components/motion";
 import { Skeleton } from "@/components/motion";
 import { FighterHomeSkeleton } from "@/components/screen-skeletons";
 import { HomeBoutCard } from "@/screens/fighter/home-bout-card";
+import { FighterSuspensionCard, useFighterSuspensions } from "@/screens/fight-camp/fighter-suspension";
 
 type HomeData = {
   firstName: string;
@@ -103,8 +104,11 @@ export function FighterHomeScreen() {
   const weekStart = startOfWeek(now);
   const days = weekDays(now);
   const sessions = data?.sessions;
-  const weekSessions =
-    sessions?.filter((row) => isInWeek(row.scheduledAt, weekStart)) ?? [];
+  const inWeek = sessions?.filter((row) => isInWeek(row.scheduledAt, weekStart)) ?? [];
+  // T-048 11A: PENDING waits for the coach, so it is its own count and never part of the week's sessions.
+  const weekSessions = inWeek.filter((row) => row.status !== "PENDING");
+  const weekPending = inWeek.length - weekSessions.length;
+  const suspensions = useFighterSuspensions(canFetch);
   const recent = sessions
     ? [...sessions].sort((a, b) => +new Date(b.scheduledAt) - +new Date(a.scheduledAt)).slice(0, 3)
     : [];
@@ -142,6 +146,9 @@ export function FighterHomeScreen() {
         </View>
       ) : (
         <>
+      <View style={styles.suspension}>
+        <FighterSuspensionCard items={suspensions.items} error={suspensions.error} onRetry={() => void suspensions.reload()} />
+      </View>
       <View style={[styles.agenda, { backgroundColor: colors.agenda }]}>
           <View style={styles.rowBetween}>
             <Text style={[styles.agendaTitle, { color: colors.agendaInk }]}>Tuần của bạn</Text>
@@ -200,6 +207,15 @@ export function FighterHomeScreen() {
               </View>
             </View>
           )}
+          {weekPending > 0 ? (
+            <View accessible accessibilityLabel={`Chờ xếp lại: ${weekPending} buổi`} style={styles.countRow} testID="week-pending">
+              <Text style={[styles.count, { color: colors.agendaInk }]}>{String(weekPending)}</Text>
+              <View style={styles.flex}>
+                <Text style={[styles.agendaTitle, { color: colors.agendaInk }]}>Chờ xếp lại</Text>
+                <Text style={[styles.agendaMeta, { color: colors.agendaMuted }]}>HLV sẽ xếp lại các buổi này.</Text>
+              </View>
+            </View>
+          ) : null}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Mở danh sách buổi tập"
@@ -366,6 +382,7 @@ function LinkChip({
 }
 
 const styles = StyleSheet.create({
+  suspension: { paddingHorizontal: 20, paddingBottom: 12 },
   skeleton: { paddingHorizontal: 20 },
   header: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 20, paddingBottom: 16 },
   flex: { flex: 1 },

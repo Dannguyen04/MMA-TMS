@@ -151,7 +151,7 @@ export const PREVIEW_FIXTURE = {
   sessionKind: "BUỔI TẬP MẪU",
   time: "18:00–19:30",
   sessionTitle: "Kỹ thuật & thể lực",
-  place: "Phòng tập · Lotus Combat Academy",
+  place: "Phòng tập · Học viện Võ thuật Lotus",
   weekLabel: "Buổi tập tuần này",
   weekValue: "4/5",
   weekDone: 4,

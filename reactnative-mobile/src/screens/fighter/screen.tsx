@@ -14,12 +14,15 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useToastMessage } from "@/components/toast/app-toast";
 import { fighter } from "@/i18n/fighter";
-import { FighterTabBar } from "@/screens/fighter/tab-bar";
+import { FighterRailFrame, FighterTabBar } from "@/screens/fighter/tab-bar";
+import { useNavRail } from "@/components/nav-rail";
 import { radius, spacing, type, useThemePreference } from "@/theme";
 import { StateView } from "@/components/state-view";
 import { states } from "@/i18n/unavailable";
 import { useReadableWidth } from "@/components/readable-width";
 import { ThemedRefreshControl, TopProgress, usePullRefresh } from "@/components/loading";
+import { ArenaFrame } from "@/components/arena/arena-frame";
+import { ArenaTitle } from "@/components/arena/arena-title";
 
 type FighterScreenProps = {
   title: string;
@@ -62,6 +65,7 @@ export function FighterScreen({
   const { colors } = useThemePreference();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const rail = useNavRail();
 
   const body = (
     <ScrollView
@@ -80,6 +84,7 @@ export function FighterScreen({
   );
 
   return (
+    <FighterRailFrame show={tabBar} background={colors.bg}>
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
       <View
         style={[
@@ -104,17 +109,7 @@ export function FighterScreen({
         ) : (
           <View style={styles.back} />
         )}
-        <Text
-          accessibilityRole="header"
-          style={[
-            type.title,
-            styles.title,
-            specLayout && { fontSize: 24, lineHeight: 32, fontWeight: "700" },
-            { color: colors.ink },
-          ]}
-        >
-          {title}
-        </Text>
+        <ArenaTitle compact>{title}</ArenaTitle>
         {trailing ? <View style={styles.back}>{trailing}</View> : <View style={styles.back} />}
       </View>
       <TopProgress active={!!refreshing && !pull.refreshing} />
@@ -130,23 +125,14 @@ export function FighterScreen({
         body
       )}
       {footer}
-      {tabBar ? <FighterTabBar /> : null}
+      {tabBar && !rail ? <FighterTabBar /> : null}
     </View>
+    </FighterRailFrame>
   );
 }
 
 export function GlassCard({ children }: { children: ReactNode }) {
-  const { colors } = useThemePreference();
-  return (
-    <View
-      style={[
-        styles.card,
-        { backgroundColor: colors.surface, borderColor: colors.line },
-      ]}
-    >
-      {children}
-    </View>
-  );
+  return <ArenaFrame>{children}</ArenaFrame>;
 }
 
 export function StatusLine({ message, onRetry }: { message: string; onRetry?: () => void }) {

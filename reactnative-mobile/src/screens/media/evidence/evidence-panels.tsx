@@ -7,6 +7,8 @@ import { ev } from "@/i18n/video-evidence";
 import { useFighterPalette, type FighterPalette } from "@/screens/fighter/redesign/palette";
 import { filterFindings, formatPrecise, metricsOf, type FindingFilter } from "@/screens/media/evidence/evidence-model";
 import { useTypography } from "@/theme";
+import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { guidanceLine } from "@/i18n/server-text";
 
 type Seek = (ms: number) => void;
 
@@ -102,12 +104,14 @@ export function TimelinePanel({
       <Section title={ev.windows} aside={me ? ev.usable(me.usableFrames, me.totalFrames) : undefined}>
         {me ? (
           <Text style={{ color: me.status === "review_ready" ? c.success : c.warning, fontSize: 13 }}>
-            {ev.evidenceStatus[me.status] ?? me.status}
+            {ev.evidenceStatus[me.status] ?? UNKNOWN_VALUE}
           </Text>
         ) : null}
-        {me?.guidance.map((g) => (
-          <Text key={g.code} style={{ color: c.muted, fontSize: 13 }}>{g.message}</Text>
-        ))}
+        {me?.guidance.map((g) => {
+          // Phase 5 C: Vietnamese by code; an unknown code is hidden, never the English message.
+          const line = guidanceLine(g.code);
+          return line ? <Text key={g.code} style={{ color: c.muted, fontSize: 13 }}>{line}</Text> : null;
+        })}
         {!me || me.windows.length === 0 ? <Text style={{ color: c.muted }}>{ev.noWindows}</Text> : null}
         {me?.windows.map((w, i) => (
           <View key={w.id}>

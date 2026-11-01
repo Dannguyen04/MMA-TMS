@@ -92,7 +92,7 @@ describe("accounts in the user service's terms", () => {
     it("checks the profile fields before asking the service", async () => {
         const state = await createAccountAction(IDLE, form({ ...fighter, password: "short", "profile.dateOfBirth": "2999-01-01", "profile.weightClass": "" }));
 
-        expect(state.fieldErrors).toMatchObject({ password: expect.any(String), "profile.dateOfBirth": expect.stringContaining("future"), "profile.weightClass": "Choose a weight class." });
+        expect(state.fieldErrors).toMatchObject({ password: expect.any(String), "profile.dateOfBirth": expect.stringContaining("tương lai"), "profile.weightClass": "Choose a weight class." });
         expect(accountServices.createAccount).not.toHaveBeenCalled();
     });
 
@@ -154,7 +154,7 @@ describe("care team actions", () => {
     it("asks for a reason before ending an assignment", async () => {
         const state = await endAssignmentAction(IDLE, form({ fighterId: "fighter-1", role: "doctor", assignmentId: "a-1", reason: "   " }));
 
-        expect(state.fieldErrors).toEqual({ reason: "Enter the reason." });
+        expect(state.fieldErrors).toEqual({ reason: "Hãy nhập reason." });
         expect(careTeam.endAssignment).not.toHaveBeenCalled();
     });
 

@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useNavRail } from "@/components/nav-rail";
 
 import { RoleTabBar } from "@/components/role-tab-bar";
 import { TabIcon } from "@/components/tab-icon";
@@ -34,6 +35,7 @@ export default function DoctorLayout() {
 
 function DoctorTabs() {
   const { colors } = useThemePreference();
+  const rail = useNavRail();
   const unread = useDoctorUnread();
   const badge = badgeText(unread.count);
 
@@ -45,6 +47,7 @@ function DoctorTabs() {
         screenOptions={{
           headerShown: false,
           title: "",
+          tabBarPosition: rail ? "left" : "bottom",
           tabBarActiveTintColor: activeInkOn(colors),
           tabBarInactiveTintColor: colors.inkSubtle,
           tabBarStyle: {

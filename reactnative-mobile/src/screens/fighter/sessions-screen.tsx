@@ -15,6 +15,7 @@ import { listPlansForFighter, listSessionsForFighter } from "@/screens/fighter/a
 import { fighter } from "@/i18n/fighter";
 import { mapFighterError } from "@/screens/fighter/errors";
 import { formatWhen, sessionStatusLabel, sessionTypeLabel } from "@/screens/fighter/format";
+import { PendingBadge } from "@/screens/fighter/pending-session";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterHub, HubHeader } from "@/screens/fighter/redesign/shell";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
@@ -135,8 +136,9 @@ export function FighterSessionsScreen() {
             >
               <Text style={[styles.sessionTitle, { color: colors.ink }]}>{row.title}</Text>
               <Text style={[styles.meta, { color: colors.muted }]}>
-                {formatWhen(row.scheduledAt)} · {sessionTypeLabel(row.sessionType)} · {sessionStatusLabel(row.status)}
+                {formatWhen(row.scheduledAt)} · {sessionTypeLabel(row.sessionType)}{row.status === "PENDING" ? "" : ` · ${sessionStatusLabel(row.status)}`}
               </Text>
+              {row.status === "PENDING" ? <PendingBadge /> : null}
             </PressableScale>
           </FadeInView>
         ))}
@@ -155,14 +157,14 @@ export function FighterSessionsScreen() {
               />
               <View style={styles.flex}>
                 <Text style={[styles.sessionTitle, { color: colors.ink }]}>
-                  {training?.eligible ? "Đủ điều kiện tập luyện" : training ? "Chưa đủ điều kiện tập luyện" : "Điều kiện tập luyện"}
+                  {training?.eligible ? "Bác sĩ: đủ điều kiện tập luyện" : training ? "Bác sĩ: chưa đủ điều kiện tập luyện" : "Kết luận của bác sĩ"}
                 </Text>
                 {loading && !data ? (
                   <Skeleton width="60%" height={14} />
                 ) : (
                   <Text style={[styles.meta, { color: colors.muted }]}>
                     {training?.eligible
-                      ? "Điều kiện còn tùy loại buổi tập."
+                      ? "Đình chỉ (nếu có) và giới hạn từng loại buổi xem ở Cơ thể."
                       : training
                         ? "Xem lý do trên Cơ thể. Không bắt đầu buổi tập từ nhãn này."
                         : "Chưa có kết luận của hệ thống."}

@@ -5,7 +5,7 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import { BODY_MODEL } from "./model";
 import { makeBody, makePaint, makePrePass } from "./materials";
 import { resolveModelSource, useFrame, useGLTF, useThree } from "./r3f";
-import { PAINT } from "./regions";
+import { EXTRA_REGIONS, PAINT } from "./regions";
 
 export type ViewState = {
   /** Góc xoay hiện tại quanh trục đứng (rad), 0 = mặt trước. */
@@ -56,7 +56,18 @@ export function BodyScene({ paint, view, light, background, onReady, onFps, zoom
     const R = names.map((n) => (paint[n] ? (paint[n]!.R * H) / meta.DMAX : 1));
     const core = names.map((n) => paint[n]?.core ?? PAINT.core);
     const colors = names.map((n) => new THREE.Color(paint[n]?.color ?? "#000000"));
-    const input = { names, on, R, core, colors, spine: { ...meta.spine, end: PAINT.spineEnd * H }, maskIndex: meta.mask.slot * 4 + meta.mask.ch };
+    // Vùng phụ (Euclid): tâm theo toạ độ thế giới; lớp tô là con của lưới nên modelMatrix gồm cả phép giải lượng tử.
+    const xs = Object.values(EXTRA_REGIONS);
+    const v3 = (c: readonly number[]) => new THREE.Vector3(c[0], c[1], c[2]);
+    const extra = {
+      on: xs.map((x) => (paint[x.region] ? 1 : 0)),
+      a: xs.map((x) => v3(x.centres[0]!)),
+      b: xs.map((x) => v3(x.centres[1] ?? x.centres[0]!)),
+      R: xs.map((x) => paint[x.region]?.R ?? x.R),
+      colors: xs.map((x) => new THREE.Color(paint[x.region]?.color ?? "#000000")),
+      core: xs.map((x) => paint[x.region]?.core ?? PAINT.core),
+    };
+    const input = { names, on, R, core, colors, spine: { ...meta.spine, end: PAINT.spineEnd * H }, maskIndex: meta.mask.slot * 4 + meta.mask.ch, extra };
 
     m.material = makePrePass();
     const body = new THREE.Mesh(geo, makeBody(BODY_MODEL.face, light));

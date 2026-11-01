@@ -23,7 +23,7 @@ export function RoleChip({ role, label: override }: { role: Role; /** Nhãn riê
   const { colors } = useThemePreference();
   const label = override ?? doctorRo.roles[role];
   return (
-    <View accessible accessibilityLabel={label} style={[styles.chip, { backgroundColor: colors.surfaceMuted }]}>
+    <View accessible accessibilityLabel={label} style={[styles.chip, { backgroundColor: "transparent", borderRadius: 0, height: undefined, minHeight: 28 }]}>
       <MaterialCommunityIcons name={ICON[role]} size={14} color={colors.ink} />
       <Text style={[styles.text, { color: colors.ink }]}>{label}</Text>
     </View>

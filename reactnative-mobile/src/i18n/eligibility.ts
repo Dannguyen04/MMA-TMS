@@ -24,7 +24,7 @@ export const eligibilityText = {
   openSheet: (scope: string) => `Xem căn cứ điều kiện ${scope.toLocaleLowerCase("vi-VN")}`,
   /** Ánh xạ mã lý do của máy chủ (MEDICAL_ELIGIBILITY_REASON) — không in mã thô. */
   reason: {
-    EXAMINATION_REQUIRED: "Chưa có kết luận khám tập luyện hiện hành (cần khám baseline).",
+    EXAMINATION_REQUIRED: "Chưa có kết luận khám tập luyện hiện hành (cần khám ban đầu).",
     REVIEW_REQUEST_PENDING: "Còn yêu cầu khám lại chưa được xử lý.",
     EXAMINATION_NOT_ELIGIBLE: "Kết luận khám hiện hành: chưa đủ điều kiện.",
     CLEARANCE_REQUIRED: "Chưa có giấy phép từ kết luận hiện hành, hoặc giấy phép đã bị thu hồi / chưa đến ngày hiệu lực.",

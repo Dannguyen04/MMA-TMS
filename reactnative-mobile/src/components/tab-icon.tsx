@@ -42,7 +42,7 @@ export function TabIcon({
         style={[
           StyleSheet.absoluteFill,
           styles.pill,
-          { backgroundColor: pillColor ?? paletteFromTokens(colors).accentSoft },
+          { backgroundColor: colors.lotus, height: 2, top: undefined, bottom: 0, left: 14, right: 14, borderRadius: 0 },
           pill,
         ]}
       />

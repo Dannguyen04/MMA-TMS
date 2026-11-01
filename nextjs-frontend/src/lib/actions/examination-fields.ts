@@ -13,25 +13,25 @@ export const EXAMINATION_TYPES = keysOf(EXAMINATION_TYPE_LABELS);
 
 /** A required numeric measurement within a plausible clinical range. */
 export function measurement(label: string, min: number, max: number, unit: string, integer = false) {
-    const range = `${label} must be between ${min} and ${max}${unit ? ` ${unit}` : ""}.`;
-    let schema = z.number({ error: `Enter the ${label.toLowerCase()} as a number.` }).min(min, range).max(max, range);
-    if (integer) schema = schema.int(`Enter the ${label.toLowerCase()} as a whole number.`);
+    const range = `${label} phải từ ${min} đến ${max}${unit ? ` ${unit}` : ""}.`;
+    let schema = z.number({ error: `Hãy nhập ${label.toLowerCase()} dạng số.` }).min(min, range).max(max, range);
+    if (integer) schema = schema.int(`Hãy nhập ${label.toLowerCase()} dạng số nguyên.`);
     return z
         .string()
         .trim()
-        .min(1, `Enter the ${label.toLowerCase()}.`)
+        .min(1, `Hãy nhập ${label.toLowerCase()}.`)
         .transform((value) => Number(value))
         .pipe(schema);
 }
 
 /** The seven readings, as top-level form fields. */
 export const VITAL_FIELDS = {
-    weightKg: measurement("Weight", 35, 180, "kg"),
-    restingHeartRate: measurement("Resting heart rate", 25, 150, "bpm", true),
-    bloodPressureSystolic: measurement("Systolic pressure", 70, 220, "mmHg", true),
-    bloodPressureDiastolic: measurement("Diastolic pressure", 40, 140, "mmHg", true),
-    temperatureC: measurement("Temperature", 33, 42, "°C"),
-    spo2Pct: measurement("SpO₂", 70, 100, "%", true),
+    weightKg: measurement("Cân nặng", 35, 180, "kg"),
+    restingHeartRate: measurement("Mạch nghỉ", 25, 150, "bpm", true),
+    bloodPressureSystolic: measurement("Huyết áp tâm thu", 70, 220, "mmHg", true),
+    bloodPressureDiastolic: measurement("Huyết áp tâm trương", 40, 140, "mmHg", true),
+    temperatureC: measurement("Nhiệt độ", 33, 42, "°C"),
+    spo2Pct: measurement("SpO2", 70, 100, "%", true),
     hydration: z.enum(["good", "fair", "poor"], { error: "Choose the hydration status." }),
 };
 
@@ -52,7 +52,7 @@ export function readVitals(formData: FormData): Record<keyof typeof VITAL_FIELDS
 /** The diastolic reading sits below the systolic one. */
 export function checkBloodPressure(vitals: Pick<VitalFieldValues, "bloodPressureSystolic" | "bloodPressureDiastolic">, ctx: z.RefinementCtx) {
     if (vitals.bloodPressureDiastolic >= vitals.bloodPressureSystolic) {
-        ctx.addIssue({ code: "custom", path: ["bloodPressureDiastolic"], message: "Diastolic pressure must be lower than systolic." });
+        ctx.addIssue({ code: "custom", path: ["bloodPressureDiastolic"], message: "Huyết áp tâm trương phải thấp hơn tâm thu." });
     }
 }
 
@@ -74,24 +74,24 @@ export const assessmentSchema = z
         area: z
             .string()
             .trim()
-            .min(1, "Name the area assessed.")
-            .max(EXAMINATION_DETAIL_LIMITS.area, `Keep the area under ${EXAMINATION_DETAIL_LIMITS.area} characters.`),
+            .min(1, "Hãy ghi tên vùng được đánh giá.")
+            .max(EXAMINATION_DETAIL_LIMITS.area, `Tên vùng tối đa ${EXAMINATION_DETAIL_LIMITS.area} ký tự.`),
         result: z.enum(keysOf(ASSESSMENT_RESULT_LABELS), { error: "Choose a result." }),
         note: z
             .string()
             .trim()
-            .max(EXAMINATION_DETAIL_LIMITS.note, `Keep the note under ${EXAMINATION_DETAIL_LIMITS.note.toLocaleString("en")} characters.`),
+            .max(EXAMINATION_DETAIL_LIMITS.note, `Ghi chú tối đa ${EXAMINATION_DETAIL_LIMITS.note.toLocaleString("vi")} ký tự.`),
     })
     .superRefine((assessment, ctx) => {
         if (assessment.result === "abnormal" && !assessment.note) {
-            ctx.addIssue({ code: "custom", path: ["note"], message: "Describe the abnormal finding." });
+            ctx.addIssue({ code: "custom", path: ["note"], message: "Mô tả dấu hiệu bất thường." });
         }
     });
 
 /** A follow-up is booked for a day after the examination. */
 export function checkFollowUpDate(followUpDate: string, examinedAt: string, ctx: z.RefinementCtx) {
     if (followUpDate && isDateTimeInputValue(examinedAt) && followUpDate <= examinedAt.slice(0, 10)) {
-        ctx.addIssue({ code: "custom", path: ["followUpDate"], message: "Schedule the follow-up after the examination day." });
+        ctx.addIssue({ code: "custom", path: ["followUpDate"], message: "Hãy hẹn theo dõi sau ngày khám." });
     }
 }
 

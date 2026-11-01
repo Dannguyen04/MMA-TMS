@@ -68,8 +68,8 @@ export const mockUsers: User[] = [
         lastActiveAt: daysAgo(47, 18, 5),
     },
     // Sports doctors
-    user("u-thu-le", "Dr. Thu Lê", "doctor", "Sports Medicine Physician", "d-thu-le", 1400, 0),
-    user("u-samuel-brooks", "Dr. Samuel Brooks", "doctor", "Sports Physiotherapist", "d-samuel-brooks", 870, 0),
+    user("u-thu-le", "Dr. Thu Lê", "doctor", "Bác sĩ y học thể thao", "d-thu-le", 1400, 0),
+    user("u-samuel-brooks", "BS. Samuel Brooks", "doctor", "Sports Physiotherapist", "d-samuel-brooks", 870, 0),
     // Administrators
     user("u-nora-whitfield", "Nora Whitfield", "admin", "System Administrator", null, 1900, 0),
     user("u-quang-vu", "Quang Vũ", "admin", "Platform Engineer", null, 710, 2),
@@ -462,7 +462,7 @@ export const mockDoctors: Doctor[] = [
         id: "d-thu-le",
         userId: "u-thu-le",
         name: "Dr. Thu Lê",
-        specialty: "Sports Medicine Physician",
+        specialty: "Bác sĩ y học thể thao",
         licenseNumber: "VN-SM-048213",
         fighterIds: [
             "f-minh-tran",
@@ -478,7 +478,7 @@ export const mockDoctors: Doctor[] = [
     {
         id: "d-samuel-brooks",
         userId: "u-samuel-brooks",
-        name: "Dr. Samuel Brooks",
+        name: "BS. Samuel Brooks",
         specialty: "Sports Physiotherapist",
         licenseNumber: "HCPC-PH-119874",
         fighterIds: ["f-lucas-ferreira", "f-aigerim-sadykova", "f-marcus-hale", "f-sofia-kowalski", "f-tariq-haddad", "f-bao-nguyen"],

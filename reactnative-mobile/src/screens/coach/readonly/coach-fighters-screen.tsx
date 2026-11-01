@@ -17,6 +17,7 @@ import { fighterName, MEDICAL_CHIP } from "./ro-format";
 import { Avatar, LoadMore, RoRow, RoScreen, RowSkeletons, SearchBar, Stack, useGo } from "./ro-ui";
 import { useCoachEnabled, useDebounced } from "./use-coach";
 import { usePagedList } from "./use-paged-list";
+import { pendingVi } from "@/i18n/pending-vi";
 
 const weightLabels = vi.weightClass as Record<string, string>;
 
@@ -74,7 +75,7 @@ export function CoachFightersScreen({
   return (
     <RoScreen title={title} onRefresh={list.refresh} refreshing={list.loading && list.items.length === 0}>
       <Stack>
-        {gate === "coach" ? <ActionButton label="Trận thi đấu · Fight Camp" variant="secondary" onPress={() => router.push("/(coach)/fight-camp" as never)} /> : null}
+        {gate === "coach" ? <ActionButton label={`Trận thi đấu · ${pendingVi.fightCamp}`} variant="secondary" onPress={() => router.push("/(coach)/fight-camp" as never)} /> : null}
         <SearchBar value={search} onChangeText={setSearch} placeholder={coachRo.fighters.search} />
         {statusFilter ? (
           <ScrollView ref={chipRow} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips} style={styles.chipRow}>

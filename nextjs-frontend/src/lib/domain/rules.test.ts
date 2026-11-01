@@ -208,7 +208,7 @@ describe("checkTrainingAgainstClearance", () => {
         expect(conflicts[0].code).toBe("restricted_technique");
         expect(clearanceConflictMessage(t, conflicts[0])).toContain("Kick");
         expect(conflicts[1].code).toBe("protected_region");
-        expect(clearanceConflictMessage(t, conflicts[1])).toContain("Left hamstring");
+        expect(clearanceConflictMessage(t, conflicts[1])).toContain("Cơ đùi sau trái");
     });
 
     it("reports every restriction that applies", () => {

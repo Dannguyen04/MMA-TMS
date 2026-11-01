@@ -1,6 +1,6 @@
 import type { Analysis, CampDetail, CampRound, CornerCard, RoundInput, RoundsResponse } from "@/api/fight-camp";
 
-/** Sample mode only. Mirrors Nest bout-analysis.model R20–R24; never used for live advice. */
+/** Sample mode only. Mirrors Nest bout-analysis.model R20–R24 and T-037; never used for live advice. */
 const INEFFECTIVE_STREAK_TO_DROP = 2;
 const NOT_SEEN_STREAK_TO_DEMOTE = 2;
 const KNOCKDOWN_WARN_TOTAL = 2;
@@ -38,21 +38,28 @@ function unseenStreak(rounds: readonly RecordedRound[], id: string) {
 }
 export function previewRoundAdvice(analysis: Analysis, input: readonly RecordedRound[], scheduledRounds: number): NonNullable<RoundsResponse["advice"]> {
   const rounds = [...input].sort((a, b) => a.roundNo - b.roundNo);
-  const tactics = analysis.tactics ?? [];
+  const added = rounds.flatMap(r => (r.nextRoundPlan?.addedTactics ?? []).map(t => ({ ...t, sessionIds: [], round: null, partnerBrief: null, addedRound: r.roundNo })));
+  const tactics = [...(analysis.tactics ?? []), ...added];
+  const latest = rounds.at(-1);
+  const latestPlan = latest?.nextRoundPlan ?? { focusTacticIds: [], addedTactics: [], instructions: [] };
+  const hasPlan = latestPlan.focusTacticIds.length + latestPlan.addedTactics.length + latestPlan.instructions.length > 0;
+  const focusIds = latestPlan.focusTacticIds;
   const used = new Set(tactics.filter(t => rounds.some(r => ["EFFECTIVE", "INEFFECTIVE"].includes(r.tacticMarks?.[t.id] ?? ""))).map(t => t.id));
   const usedBasis = new Set(tactics.filter(t => used.has(t.id)).flatMap(t => t.observationIds));
   const demoted = new Set((analysis.observations ?? []).filter(o => unseenStreak(rounds, o.id) >= NOT_SEEN_STREAK_TO_DEMOTE).map(o => o.id));
-  const ranked = previewCornerCard(analysis, rounds).tactics.map(t => {
+  const ranked = previewCornerCard({ ...analysis, tactics }, rounds).tactics.map(t => {
     const source = tactics.find(s => s.id === t.id)!;
     const changed = source.observationIds.length > 0 && source.observationIds.every(id => demoted.has(id));
     return {
       ...t,
+      focus: focusIds.includes(t.id),
+      addedRound: added.find(a => a.id === t.id)?.addedRound ?? null,
       score: rounds.reduce((sum, r) => sum + (r.tacticMarks?.[t.id] === "EFFECTIVE" ? 1 : r.tacticMarks?.[t.id] === "INEFFECTIVE" ? -1 : 0), 0),
       dropped: ineffectiveStreak(rounds, t.id) >= INEFFECTIVE_STREAK_TO_DROP,
       ...(changed ? { note: "OPPONENT_MAY_HAVE_CHANGED" as const } : {}),
       promote: !used.has(t.id) && source.observationIds.some(id => usedBasis.has(id)),
     };
-  }).sort((a, b) => Number(a.dropped || !!a.note) - Number(b.dropped || !!b.note) || b.score - a.score || Number(b.promote) - Number(a.promote));
+  }).sort((a, b) => (focusIds.includes(a.id) ? focusIds.indexOf(a.id) : focusIds.length) - (focusIds.includes(b.id) ? focusIds.indexOf(b.id) : focusIds.length) || Number(a.dropped || !!a.note) - Number(b.dropped || !!b.note) || b.score - a.score || Number(b.promote) - Number(a.promote));
   const wins = rounds.filter(r => r.selfScore === "WIN").length;
   const losses = rounds.filter(r => r.selfScore === "LOSS").length;
   const remaining = scheduledRounds - rounds.length;
@@ -66,7 +73,14 @@ export function previewRoundAdvice(analysis: Analysis, input: readonly RecordedR
     stunned++;
   }
   if (stunned >= STUNNED_STREAK_WARN) reasons.push("STUNNED_STREAK");
-  return { tactics: ranked.map(({ promote: _promote, ...t }) => t), standing, safety: reasons.length ? { level: "RED", reasons } : null };
+  const suggested: NonNullable<RoundsResponse["advice"]>["nextRound"]["suggested"] = [];
+  if (reasons.length) suggested.push({ code: "SAFETY_CHECK" });
+  for (const t of ranked) if (t.dropped && ineffectiveStreak(rounds.slice(0, -1), t.id) < INEFFECTIVE_STREAK_TO_DROP) suggested.push({ code: "STOP_TACTIC", tacticId: t.id });
+  for (const t of ranked.filter(t => !t.dropped && !t.note).slice(0, 2)) suggested.push({ code: "USE_TACTIC", tacticId: t.id });
+  for (const t of ranked.filter(t => t.note)) suggested.push({ code: "RECHECK_OPPONENT", tacticId: t.id });
+  if (standing.kind === "NEED_WINS") suggested.push({ code: "MUST_WIN_ROUND" });
+  if (standing.kind === "HARD_TO_WIN_ON_POINTS") suggested.push({ code: "HARD_TO_WIN_ON_POINTS" });
+  return { nextRound: { roundNo: (latest?.roundNo ?? 0) + 1, suggested: suggested.slice(0, 5), plan: hasPlan ? latestPlan : null }, tactics: ranked.map(({ promote: _promote, ...t }) => t), standing, safety: reasons.length ? { level: "RED", reasons } : null };
 }
 export function previewRoundsResponse(bout: CampDetail, rounds: readonly CampRound[]): RoundsResponse {
   const sorted = [...rounds].sort((a, b) => a.roundNo - b.roundNo);

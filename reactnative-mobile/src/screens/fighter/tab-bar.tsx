@@ -1,4 +1,5 @@
 import { type Href, usePathname, useRouter } from "expo-router";
+import { type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -6,6 +7,7 @@ import { type IconName } from "@/components/icon";
 import { TabIcon } from "@/components/tab-icon";
 import { fighter } from "@/i18n/fighter";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { navSideWidth, useNavKind, useNavRail } from "@/components/nav-rail";
 
 export type FighterTab = "home" | "tap" | "plans" | "body" | "me";
 
@@ -37,11 +39,24 @@ export function FighterTabBar() {
   const router = useRouter();
   const path = usePathname();
   const active = tabFromPath(path);
+  // Phase 5 F: from 900 wide the same tabs sit in a left rail (iPad: a sidebar); the shells put it beside the content.
+  const kind = useNavKind(); const rail = kind !== "bar"; const sidebar = kind === "sidebar";
 
   return (
     <View
       accessibilityRole="tablist"
-      style={[
+      testID={sidebar ? "nav-sidebar" : rail ? "nav-rail" : "tab-bar"}
+      style={rail ? [
+        sidebar ? styles.sidebar : styles.rail,
+        {
+          backgroundColor: colors.bg,
+          borderRightColor: colors.line,
+          paddingTop: insets.top + 12,
+          paddingBottom: Math.max(insets.bottom, 12),
+          paddingLeft: insets.left + (sidebar ? 12 : 0),
+          width: navSideWidth(kind) + insets.left,
+        },
+      ] : [
         styles.bar,
         {
           backgroundColor: colors.bg,
@@ -64,10 +79,10 @@ export function FighterTabBar() {
               if (selected && !onHomeChild && tab.key !== "tap" && tab.key !== "plans") return;
               router.replace(tab.href);
             }}
-            style={styles.item}
+            style={sidebar ? [styles.sidebarItem, selected && { backgroundColor: colors.accentSoft }] : rail ? styles.railItem : styles.item}
           >
             <TabIcon name={tab.icon} focused={selected} color={color} pillColor={colors.accentSoft} />
-            <Text style={[styles.label, { color, fontWeight: selected ? "700" : "500" }]} maxFontSizeMultiplier={1.4}>
+            <Text style={[sidebar ? styles.sidebarLabel : rail ? styles.railLabel : styles.label, { color, fontWeight: selected ? "700" : "500" }]} maxFontSizeMultiplier={1.4} numberOfLines={sidebar ? 1 : rail ? 2 : undefined}>
               {tab.label}
             </Text>
           </Pressable>
@@ -98,4 +113,25 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   label: { fontSize: 10, lineHeight: 14 },
+  rail: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 12 },
+  railItem: { minHeight: 64, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", gap: 4 },
+  railLabel: { fontSize: 12, lineHeight: 16, textAlign: "center" },
+  sidebar: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 4, paddingRight: 12 },
+  sidebarItem: { flexDirection: "row", minHeight: 48, paddingHorizontal: 12, alignItems: "center", justifyContent: "flex-start", gap: 14, borderRadius: 12 },
+  sidebarLabel: { fontSize: 15, lineHeight: 20, flex: 1, textAlign: "left" },
 });
+
+/**
+ * From 900 wide: the fighter rail on the left, the screen beside it. Below that the shell keeps
+ * rendering `<FighterTabBar />` at its bottom exactly as before, and this frame passes through.
+ */
+export function FighterRailFrame({ show, children, background }: { show: boolean; children: ReactNode; background: string }) {
+  const rail = useNavRail();
+  if (!show || !rail) return <>{children}</>;
+  return (
+    <View style={{ flex: 1, flexDirection: "row", backgroundColor: background }}>
+      <FighterTabBar />
+      <View style={{ flex: 1 }}>{children}</View>
+    </View>
+  );
+}

@@ -82,7 +82,7 @@ export function AdminInboxScreen() {
             <FadeInView key={row.id} index={index}>
               <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel={`${row.title}. ${row.message}`}
+                accessibilityLabel={row.message ? `${row.title}. ${row.message}` : row.title}
                 onPress={() => open(row)}
                 scaleTo={0.985}
                 style={[styles.row, { borderBottomColor: colors.line }]}
@@ -90,7 +90,7 @@ export function AdminInboxScreen() {
                 <Icon name={TYPE_ICON[row.type] ?? "notifications"} size={22} tone="accent" />
                 <View style={styles.body}>
                   <Text style={[at.rowTitle, { color: colors.ink, opacity: reads.isRead(row) ? 0.8 : 1 }]}>{row.title}</Text>
-                  <Text style={[at.meta, { color: colors.inkMuted }]}>{row.message}</Text>
+                  {row.message ? <Text style={[at.meta, { color: colors.inkMuted }]}>{row.message}</Text> : null}
                 </View>
                 {!reads.isRead(row) ? <View style={[styles.dot, { backgroundColor: colors.lotus }]} /> : null}
                 {notificationHref(row) ? <Icon name="chevron" size={20} tone="muted" /> : null}

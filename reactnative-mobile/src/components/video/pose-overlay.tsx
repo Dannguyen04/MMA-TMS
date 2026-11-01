@@ -32,7 +32,7 @@ type Props = {
 export function strikeName(strike: ResultStrike): string {
   const base = ev.technique[strike.technique] ?? ev.technique[strike.family] ?? ev.technique.other!;
   const side = ev.side[strike.side];
-  return side ? `${base} ${side}` : base;
+  return side ? ev.withSide(base, side) : base;
 }
 
 /** Pose drawn over a `contain`-fitted video. Re-renders only when the frame index or layers change. */

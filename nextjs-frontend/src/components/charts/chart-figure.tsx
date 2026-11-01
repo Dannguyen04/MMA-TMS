@@ -59,7 +59,7 @@ export function ChartFigure({ title, description, children, table, tableCaption,
                     className="-mr-2"
                 >
                     <Table2 aria-hidden />
-                    {showTable ? "Hide data table" : "Show data table"}
+                    {showTable ? "Ẩn bảng dữ liệu" : "Hiện bảng dữ liệu"}
                 </Button>
             </div>
 
@@ -81,7 +81,7 @@ export function ChartFigure({ title, description, children, table, tableCaption,
                             {table.rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={Math.max(1, table.columns.length)} className="px-5 py-3 text-fg-muted">
-                                        No data
+                                        Chưa có dữ liệu
                                     </td>
                                 </tr>
                             ) : (

@@ -34,8 +34,8 @@ import { clampPastToday, daysAgo, daysFromNow, fromToday } from "./time";
 const THU_LE = "d-thu-le";
 const SAMUEL_BROOKS = "d-samuel-brooks";
 const THU_LE_NAME = "Dr. Thu Lê";
-const SAMUEL_BROOKS_NAME = "Dr. Samuel Brooks";
-const LOTUS_PHYSIO = "Lotus Physio Clinic";
+const SAMUEL_BROOKS_NAME = "BS. Samuel Brooks";
+const LOTUS_PHYSIO = "Phòng khám vật lý trị liệu Lotus";
 
 const fighterMap = new Map(mockFighters.map((f) => [f.id, f]));
 
@@ -122,7 +122,7 @@ function weightNote(fighterId: string, weightKg: number): string {
     const f = fighter(fighterId);
     const above = round(weightKg - f.targetWeightKg, 1);
     return above > 0
-        ? `Walking weight ${weightKg} kg — ${above} kg above the ${f.targetWeightKg} kg class limit.`
+        ? `Cân nặng thường ngày ${weightKg} kg — vượt ${above} kg so với giới hạn hạng cân ${f.targetWeightKg} kg.`
         : `Walking weight ${weightKg} kg — within the ${f.targetWeightKg} kg class limit.`;
 }
 
@@ -143,9 +143,9 @@ function baselineExam(fighterId: string, dayOffset: number, notes: BaselineNotes
         label: "baseline",
         hour: 9,
         assessments: [
-            { area: "Cardiovascular", result: "normal", note: "Regular rhythm, no murmurs. Resting ECG within normal limits for a trained athlete." },
+            { area: "Tim mạch", result: "normal", note: "Regular rhythm, no murmurs. Resting ECG within normal limits for a trained athlete." },
             {
-                area: "Respiratory",
+                area: "Hô hấp",
                 result: "normal",
                 note: notes.respiratory ?? "Clear breath sounds bilaterally; no exercise-related symptoms reported.",
             },
@@ -157,7 +157,7 @@ function baselineExam(fighterId: string, dayOffset: number, notes: BaselineNotes
             },
             { area: "Vision", result: "normal", note: "Visual acuity 6/6 in both eyes; full visual fields." },
             {
-                area: "Musculoskeletal screen",
+                area: "Sàng lọc cơ xương khớp",
                 result: "normal",
                 note: notes.musculoskeletal ?? `Full, pain-free range at all major joints. Functional movement screen ${rng.int(15, 18)}/21.`,
             },
@@ -167,25 +167,25 @@ function baselineExam(fighterId: string, dayOffset: number, notes: BaselineNotes
                 note: notes.bloodwork ?? "Full blood count, ferritin, vitamin D, renal function and electrolytes within reference ranges.",
             },
         ],
-        summary: notes.summary ?? "Annual baseline physical. No contraindications to full-contact training or competition.",
+        summary: notes.summary ?? "Khám nền hằng năm. Không có chống chỉ định tập va chạm toàn phần hay thi đấu.",
         recommendations: "Baseline values stored for comparison after any head impact or injury. Repeat the baseline in 12 months.",
     });
 }
 
 const ROUTINE_SUMMARIES = [
-    "Routine check. No new health concerns; current training load is well tolerated.",
-    "Routine check. Feels well, sleeping 7–8 hours, no pain complaints.",
-    "Routine check. No interval injuries or illness; recovery markers look good.",
-    "Routine check. Training and recovery are well balanced; no issues raised.",
+    "Khám định kỳ. Không có vấn đề sức khỏe mới; chịu tốt khối lượng tập hiện tại.",
+    "Khám định kỳ. Cảm thấy khỏe, ngủ 7–8 giờ, không than đau.",
+    "Khám định kỳ. Không chấn thương hay bệnh trong thời gian qua; chỉ số hồi phục tốt.",
+    "Khám định kỳ. Tập luyện và hồi phục cân bằng; không có vấn đề.",
 ] as const;
 
 const ROUTINE_RECOMMENDATIONS = [
-    "Continue the current training plan. Keep hydration and sleep routine consistent.",
+    "Tiếp tục giáo án hiện tại. Duy trì đủ nước và giấc ngủ đều đặn.",
     "No changes needed. Next routine check in 6–8 weeks.",
     "Continue the current load. Report any new joint pain or head knocks promptly.",
 ] as const;
 
-const RENEWAL_SUMMARY = "Routine check and Medical Clearance renewal. No interval injuries or illness.";
+const RENEWAL_SUMMARY = "Khám định kỳ và gia hạn giấy phép. Không chấn thương hay bệnh trong thời gian qua.";
 const RENEWAL_RECOMMENDATIONS = "Clearance renewed without restrictions. Next routine check in 6–8 weeks.";
 
 interface RoutineOptions {
@@ -212,15 +212,15 @@ function routineExam(fighterId: string, dayOffset: number, options: RoutineOptio
         followUpInDays: options.followUpInDays,
         vitals: options.vitals,
         assessments: (v) => [
-            { area: "Cardiovascular", result: "normal", note: "Regular rhythm, no murmurs." },
-            { area: "Respiratory", result: "normal", note: "Clear breath sounds bilaterally." },
+            { area: "Tim mạch", result: "normal", note: "Nhịp đều, không có tiếng thổi." },
+            { area: "Hô hấp", result: "normal", note: "Rì rào phế nang rõ hai bên." },
             options.musculoskeletal ?? {
-                area: "Musculoskeletal screen",
+                area: "Sàng lọc cơ xương khớp",
                 result: "normal",
-                note: "No new joint or soft-tissue complaints; full, pain-free range.",
+                note: "Không có than phiền mới về khớp hay mô mềm; đủ biên độ, không đau.",
             },
-            { area: "Skin", result: "normal", note: "No signs of skin infection; no open wounds." },
-            options.weight?.(v) ?? { area: "Weight & hydration", result: "normal", note: `${weightNote(fighterId, v.weightKg)} Hydration good.` },
+            { area: "Da", result: "normal", note: "Không có dấu hiệu nhiễm trùng da; không có vết thương hở." },
+            options.weight?.(v) ?? { area: "Cân nặng & mức nước", result: "normal", note: `${weightNote(fighterId, v.weightKg)} Đủ nước.` },
             ...(options.extra ?? []),
         ],
         summary: options.summary ?? rng.pick(ROUTINE_SUMMARIES),
@@ -236,14 +236,14 @@ function preFightExam(fighterId: string, dayOffset: number): MedicalExamination 
         label: "prefight",
         hour: 9,
         assessments: (v) => [
-            { area: "Cardiovascular", result: "normal", note: "Regular rhythm, no murmurs; blood pressure within competition limits." },
+            { area: "Tim mạch", result: "normal", note: "Regular rhythm, no murmurs; blood pressure within competition limits." },
             { area: "Neurological screen", result: "normal", note: "No neurological symptoms; SCAT6 symptom score at baseline." },
             { area: "Ophthalmic screen", result: "normal", note: "Visual acuity 6/6; fundoscopy normal." },
-            { area: "Musculoskeletal screen", result: "normal", note: "No current injuries." },
+            { area: "Sàng lọc cơ xương khớp", result: "normal", note: "No current injuries." },
             { area: "Weight check", result: "normal", note: `${v.weightKg} kg at check; on track for a safe weigh-in.` },
             { area: "Infectious disease screen", result: "normal", note: "Hepatitis B, hepatitis C and HIV results current and negative." },
         ],
-        summary: "Pre-fight medical. Fit to compete.",
+        summary: "Khám trước trận. Đủ điều kiện thi đấu.",
         recommendations: "Cleared to compete. Rehydrate gradually after the weigh-in; post-fight check within 48 hours.",
     });
 }
@@ -267,7 +267,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
             { area: "Compartment check", result: "normal", note: "Soft compartments, pain-free passive toe stretch, normal distal pulses and sensation." },
             { area: "Neurological screen", result: "normal", note: "Post-bout SCAT6 symptom score at baseline." },
         ],
-        summary: "Post-bout review after repeated checked kicks. Right shin contusion with a small haematoma; no signs of fracture or compartment syndrome.",
+        summary: "Khám sau trận do bị chặn đá nhiều lần. Đụng dập cẳng chân phải kèm tụ máu nhỏ; không có dấu hiệu gãy xương hay hội chứng chèn ép khoang.",
         recommendations:
             "Ice and compression for 48–72 hours during the planned post-bout rest week, then a pain-guided return to kicking. Review if swelling increases or pain wakes him at night.",
     }),
@@ -276,7 +276,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
     routineExam("f-minh-tran", 20, {
         hour: 15,
         summary:
-            "Pre-camp physical and Medical Clearance renewal ahead of Saigon Warriors MMA 04. Previous shin contusion fully resolved; weight-cut plan reviewed and on track for a gradual cut.",
+            "Khám trước Fight Camp và gia hạn giấy phép trước Saigon Warriors MMA 04. Đụng dập cẳng chân trước đây đã khỏi hẳn; kế hoạch giảm cân đã xem lại, đang giảm từ từ đúng tiến độ.",
         recommendations:
             "Clearance renewed without restrictions. Aim for about 0.5 kg per week through diet; no dehydration-based cutting before fight week. Pre-fight medical in fight week.",
     }),
@@ -307,7 +307,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
             { area: "Neural tension (slump test)", result: "normal", note: "Negative; no sciatic nerve involvement." },
         ],
         summary:
-            "Acute left hamstring injury sustained in sparring yesterday evening. Findings consistent with a moderate strain of the biceps femoris; MRI requested to confirm the grade.",
+            "Chấn thương cấp cơ đùi sau trái khi đấu tập tối qua. Dấu hiệu phù hợp căng cơ nhị đầu đùi mức vừa; đã chỉ định MRI để xác định mức độ.",
         recommendations:
             "Not cleared to train. Protect the muscle for 3–5 days with relative rest, compression and pain-free walking. Start physiotherapy-led isometrics once walking is pain-free.",
     }),
@@ -327,7 +327,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
             { area: "Explosive hip extension", result: "inconclusive", note: "Mild tightness on sprint starts and fast hip-extension drills." },
         ],
         summary:
-            "Return-to-training assessment two weeks after the strain. Pain-free daily activity, near-full range and improving strength; not yet ready for high-speed or explosive loading.",
+            "Đánh giá trở lại tập hai tuần sau căng cơ. Sinh hoạt không đau, biên độ gần đầy đủ, sức mạnh cải thiện; chưa sẵn sàng cho tải tốc độ cao hay bùng nổ.",
         recommendations:
             "Cleared with restrictions: no sparring, no kicks, session intensity capped at RPE 7. Continue progressive loading and the running progression. Review at the end of rehabilitation phase 3.",
     }),
@@ -401,10 +401,10 @@ export const mockMedicalExaminations: MedicalExamination[] = [
             { area: "Empty can", result: "normal", note: "5/5 strength bilaterally; no pain." },
             { area: "Painful arc", result: "abnormal", note: "Mild painful arc between 80° and 110° of abduction on the right." },
             { area: "Scapular control", result: "inconclusive", note: "Subtle early elevation of the right scapula with repeated overhead reaching." },
-            { area: "Cervical spine", result: "normal", note: "Full, pain-free range; no referred symptoms." },
+            { area: "Cột sống cổ", result: "normal", note: "Full, pain-free range; no referred symptoms." },
         ],
         summary:
-            "Focused right shoulder assessment following an AI movement observation of shoulder elevation asymmetry on the cross. Findings suggest mild subacromial impingement; no signs of rotator cuff tear or instability. No injury recorded at this stage.",
+            "Đánh giá trọng tâm vai phải sau quan sát AI về vai nâng lệch khi đấm thẳng tay sau. Dấu hiệu gợi ý chèn ép dưới mỏm cùng vai mức nhẹ; không có dấu hiệu rách chóp xoay hay mất vững. Chưa ghi nhận chấn thương ở giai đoạn này.",
         recommendations:
             "Cleared with restrictions: session intensity capped at RPE 8 and protect the right shoulder (limit high-volume power punching and overhead loading). Start scapular control and rotator cuff exercises. Consider ultrasound if symptoms have not settled at follow-up.",
     }),
@@ -434,16 +434,16 @@ export const mockMedicalExaminations: MedicalExamination[] = [
                 note: "No red flags: GCS 15, no worsening headache, repeated vomiting, seizure or focal neurological signs.",
             },
             {
-                area: "Symptom evaluation",
+                area: "Đánh giá triệu chứng",
                 result: "abnormal",
                 note: "Symptom score 9/22, severity 21 (baseline 1/22): headache, dizziness, feeling 'in a fog', light sensitivity.",
             },
-            { area: "Cognitive screening (SAC)", result: "abnormal", note: "SAC 36/50 (baseline 43/50); reduced delayed recall and concentration." },
-            { area: "Balance (mBESS)", result: "abnormal", note: "8 errors (baseline 2), mainly in tandem and single-leg stance." },
-            { area: "Cervical spine", result: "normal", note: "Full, pain-free range; no midline tenderness." },
+            { area: "Sàng lọc nhận thức (SAC)", result: "abnormal", note: "SAC 36/50 (baseline 43/50); reduced delayed recall and concentration." },
+            { area: "Thăng bằng (mBESS)", result: "abnormal", note: "8 errors (baseline 2), mainly in tandem and single-leg stance." },
+            { area: "Cột sống cổ", result: "normal", note: "Full, pain-free range; no midline tenderness." },
         ],
         summary:
-            "Assessed within an hour of a head impact in sparring. Presentation consistent with a sports-related concussion. No red flags; imaging not indicated.",
+            "Đánh giá trong vòng một giờ sau va chạm đầu khi đấu tập. Biểu hiện phù hợp chấn động não do thể thao. Không có dấu hiệu nguy hiểm; không cần chẩn đoán hình ảnh.",
         recommendations:
             "Not cleared to train. Relative rest for 24–48 hours with someone at home overnight; avoid alcohol and driving, limit screens while symptomatic. Paracetamol for headache as needed. Begin the graded return-to-training protocol as symptoms settle. Seek urgent care if symptoms worsen.",
     }),
@@ -457,25 +457,25 @@ export const mockMedicalExaminations: MedicalExamination[] = [
         followUpInDays: 2,
         vitals: { restingHeartRate: 60 },
         assessments: [
-            { area: "Symptom evaluation", result: "abnormal", note: "Symptom score 3/22, severity 5: mild headache late in the day and mild fatigue." },
-            { area: "Cognitive screening (SAC)", result: "normal", note: "SAC 42/50 — back within baseline range." },
-            { area: "Balance (mBESS)", result: "abnormal", note: "4 errors (baseline 2); improving." },
-            { area: "Cervical spine", result: "normal", note: "Full, pain-free range." },
-            { area: "Exertional tolerance", result: "normal", note: "30-minute walk without symptom increase." },
+            { area: "Đánh giá triệu chứng", result: "abnormal", note: "Điểm triệu chứng 3/22, mức độ 5: đau đầu nhẹ cuối ngày và mệt nhẹ." },
+            { area: "Sàng lọc nhận thức (SAC)", result: "normal", note: "SAC 42/50 — đã trở về mức nền." },
+            { area: "Thăng bằng (mBESS)", result: "abnormal", note: "4 lỗi (mức nền 2); đang cải thiện." },
+            { area: "Cột sống cổ", result: "normal", note: "Đủ biên độ, không đau." },
+            { area: "Khả năng chịu gắng sức", result: "normal", note: "Đi bộ 30 phút không tăng triệu chứng." },
         ],
-        summary: "Day-3 follow-up. Steady improvement; symptoms are mild and not provoked by light activity.",
+        summary: "Tái khám ngày thứ 3. Cải thiện đều; triệu chứng nhẹ, không tăng khi vận động nhẹ.",
         recommendations:
-            "Remains Not Cleared. Progress to stage 2 of the protocol (light aerobic exercise, no resistance training). Re-screen before moving to sport-specific exercise.",
+            "Vẫn chưa được tập. Chuyển sang bậc 2 của phác đồ (aerobic nhẹ, không tập kháng lực). Tầm soát lại trước khi chuyển sang bài tập chuyên môn.",
     }),
 
     /* Linh Phạm — healthy */
     baselineExam("f-linh-pham", 298, {
-        summary: "Baseline physical on joining the academy. No contraindications to full-contact training or competition.",
+        summary: "Khám nền khi gia nhập học viện. Không có chống chỉ định tập va chạm toàn phần hay thi đấu.",
     }),
     routineExam("f-linh-pham", 240),
     routineExam("f-linh-pham", 178),
     routineExam("f-linh-pham", 113, {
-        summary: "Routine check and Medical Clearance renewal after the previous clearance lapsed. No interval injuries or illness.",
+        summary: "Khám định kỳ và gia hạn giấy phép sau khi giấy phép trước hết hạn. Không chấn thương hay bệnh trong thời gian qua.",
         recommendations: RENEWAL_RECOMMENDATIONS,
     }),
     routineExam("f-linh-pham", 55),
@@ -499,11 +499,11 @@ export const mockMedicalExaminations: MedicalExamination[] = [
             { area: "Palpation", result: "abnormal", note: "Point tenderness over the 5th metacarpal neck." },
             { area: "Rotational alignment", result: "normal", note: "No finger scissoring on composite fist; nail plates aligned." },
             { area: "Neurovascular status", result: "normal", note: "Sensation and capillary refill intact in all digits." },
-            { area: "Skin", result: "normal", note: "Skin intact over the knuckle; no wound." },
+            { area: "Da", result: "normal", note: "Skin intact over the knuckle; no wound." },
             { area: "Imaging review", result: "abnormal", note: "X-ray: 5th metacarpal neck fracture, 15° volar angulation, no intra-articular extension." },
         ],
         summary:
-            "Review the morning after a heavy bag injury. Closed, minimally angulated right 5th metacarpal neck fracture suitable for non-operative management.",
+            "Khám sáng hôm sau chấn thương khi đánh bao. Gãy kín cổ xương bàn tay V phải, di lệch gập góc ít, phù hợp điều trị bảo tồn.",
         recommendations:
             "Ulnar gutter splint for 4 weeks with a repeat X-ray at 1 week. Cleared with restrictions: no striking with the right hand and no heavy bag, pad work or sparring; footwork, lower-body strength and conditioning are fine. Review with X-ray at 4 weeks.",
     }),
@@ -526,7 +526,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
                 note: "Localised tenderness over the 9th–10th ribs in the mid-axillary line; no crepitus or step.",
             },
             { area: "Rib springing", result: "normal", note: "Anterior–posterior compression does not reproduce sharp pain." },
-            { area: "Respiratory", result: "normal", note: "Breath sounds equal and clear; SpO2 99%." },
+            { area: "Hô hấp", result: "normal", note: "Breath sounds equal and clear; SpO2 99%." },
             { area: "Pain on movement", result: "abnormal", note: "Pain on deep breathing and trunk rotation (4/10)." },
         ],
         summary:
@@ -550,17 +550,17 @@ export const mockMedicalExaminations: MedicalExamination[] = [
         followUpInDays: 2,
         vitals: { hydration: "fair", restingHeartRate: 61 },
         musculoskeletal: {
-            area: "Musculoskeletal screen",
+            area: "Sàng lọc cơ xương khớp",
             result: "abnormal",
             note: "Paraspinal tightness L3–L5 bilaterally; full lumbar flexion with end-range discomfort. No radicular signs; neurological examination normal.",
         },
         weight: (v) => ({
-            area: "Weight & hydration",
+            area: "Cân nặng & mức nước",
             result: "abnormal",
             note: `${weightNote("f-hoang-long", v.weightKg)} Urine specific gravity 1.026 — fair hydration.`,
         }),
         summary:
-            "Routine check during his weight cut. Reports low-back tightness after long sessions; no neurological signs. Hydration only fair on arrival.",
+            "Khám định kỳ trong giai đoạn giảm cân. Cảm thấy căng thắt lưng sau buổi tập dài; không có dấu hiệu thần kinh. Mức nước khi đến chỉ ở mức trung bình.",
         recommendations:
             "Fit to train. Keep the cut to about 1% of body weight per week and avoid fluid restriction outside fight week. Daily lumbar mobility routine. Weight and hydration check in 2 weeks.",
     }),
@@ -602,8 +602,8 @@ export const mockMedicalExaminations: MedicalExamination[] = [
         outcome: "fit_with_restrictions",
         assessments: [
             { area: "Valgus stress test (30°)", result: "normal", note: "Pain-free with a firm end-feel." },
-            { area: "Range of motion", result: "normal", note: "0–140°, symmetrical." },
-            { area: "Strength", result: "abnormal", note: "Quadriceps strength 82% of the right side." },
+            { area: "Biên độ vận động", result: "normal", note: "0–140°, symmetrical." },
+            { area: "Sức mạnh", result: "abnormal", note: "Quadriceps strength 82% of the right side." },
             { area: "Single-leg squat", result: "inconclusive", note: "Mild dynamic valgus with fatigue." },
         ],
         summary: "Two-week review. Ligament pain-free on stress testing with full range; strength and control still building.",
@@ -620,7 +620,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
         followUpInDays: 6,
         assessments: [
             { area: "Valgus stress test (30°)", result: "normal", note: "Stable and pain-free." },
-            { area: "Strength", result: "normal", note: "Quadriceps 93% and hamstrings 95% of the right side." },
+            { area: "Sức mạnh", result: "normal", note: "Quadriceps 93% and hamstrings 95% of the right side." },
             { area: "Single-leg hop tests", result: "normal", note: "Hop for distance 91% and triple hop 90% of the right side." },
             { area: "Change of direction", result: "inconclusive", note: "Pain-free but cautious on sharp cuts to the left." },
             { area: "Footwork under fatigue", result: "normal", note: "Pivots and lateral movement on pads without symptoms." },
@@ -645,16 +645,16 @@ export const mockMedicalExaminations: MedicalExamination[] = [
         assessments: [
             { area: "Inspection", result: "abnormal", note: "Moderate swelling and bruising around the lateral malleolus." },
             {
-                area: "Ottawa ankle rules",
+                area: "Tiêu chuẩn Ottawa cổ chân",
                 result: "normal",
                 note: "No bony tenderness at the malleoli, navicular or 5th metatarsal base; able to weight-bear. X-ray not indicated.",
             },
             { area: "Anterior drawer", result: "abnormal", note: "Increased laxity with a soft end-point compared with the right." },
             { area: "Talar tilt", result: "normal", note: "No calcaneofibular ligament laxity." },
-            { area: "Range of motion", result: "abnormal", note: "Dorsiflexion limited by pain and swelling." },
+            { area: "Biên độ vận động", result: "abnormal", note: "Dorsiflexion limited by pain and swelling." },
         ],
         summary:
-            "Review the morning after an inversion injury in sparring. Findings consistent with a grade II anterior talofibular ligament sprain; no signs of fracture.",
+            "Khám sáng hôm sau chấn thương lật cổ chân khi đấu tập. Dấu hiệu phù hợp bong gân dây chằng sên mác trước độ II; không có dấu hiệu gãy xương.",
         recommendations:
             "Cleared with restrictions: no sparring, no kicks and no jumping or cutting; upper-body and seated conditioning allowed. Compression, elevation and early protected weight-bearing. Start physiotherapy this week.",
     }),
@@ -670,7 +670,7 @@ export const mockMedicalExaminations: MedicalExamination[] = [
             { area: "Single-leg hop tests", result: "normal", note: "Hop for distance 96% of the right side." },
             { area: "Sport-specific drills", result: "normal", note: "Full-intensity kicks and switch kicks on pads without symptoms." },
         ],
-        summary: "Return-to-training assessment after the left ankle sprain. All return criteria met.",
+        summary: "Đánh giá trở lại tập sau bong gân cổ chân trái. Đạt mọi tiêu chí trở lại.",
         recommendations:
             "Cleared for full training including sparring. Continue balance work twice a week for 3 months; a lace-up brace is optional for sparring.",
     }),
@@ -711,7 +711,7 @@ export const mockInjuries: Injury[] = [
         occurredAt: daysAgo(6, 18, 24),
         diagnosedAt: daysAgo(6, 19, 20),
         description:
-            "Took a clean right hand on a clinch break in round 3 of sparring. No loss of consciousness; slow to recover his guard, then reported headache, dizziness and feeling 'in a fog'. Session stopped by the coach. Evening SCAT6 showed symptom, cognitive and balance scores below his baseline; no red flags.",
+            "Trúng đòn tay phải gọn khi tách ôm ở hiệp 3 đấu tập. Không mất ý thức; chậm hồi thế thủ, sau đó đau đầu, chóng mặt và cảm giác 'mơ hồ'. HLV dừng buổi tập. SCAT6 buổi tối cho điểm triệu chứng, nhận thức và thăng bằng thấp hơn mức nền; không có dấu hiệu nguy hiểm.",
         expectedReturnAt: daysFromNow(10, 9, 0),
         resolvedAt: null,
         linkedAlertId: "al-diego-balance-6d",
@@ -779,7 +779,7 @@ export const mockInjuries: Injury[] = [
         occurredAt: daysAgo(210, 18, 45),
         diagnosedAt: daysAgo(209, 10, 0),
         description:
-            "Rolled the left ankle landing from a checked switch kick in sparring. Swelling and tenderness over the anterior talofibular ligament with increased anterior drawer laxity; Ottawa ankle rules negative. Consistent with a grade II lateral ankle sprain.",
+            "Lật cổ chân trái khi tiếp đất sau cú đá đổi chân bị chặn lúc đấu tập. Sưng và đau tại dây chằng sên mác trước, nghiệm pháp ngăn kéo trước lỏng hơn; tiêu chuẩn Ottawa âm tính. Phù hợp bong gân cổ chân ngoài độ II.",
         expectedReturnAt: daysAgo(172, 9, 0),
         resolvedAt: daysAgo(172, 12, 0),
         linkedAlertId: null,
@@ -857,7 +857,7 @@ export const mockTreatments: Treatment[] = [
         providerName: SAMUEL_BROOKS_NAME,
         type: "physiotherapy",
         description: "Physiotherapy — progressive loading (Nordic curls, isometrics)",
-        frequency: "3× per week",
+        frequency: "3 lần/tuần",
         startDate: daysAgo(20, 10, 0),
         endDate: null,
         status: "ongoing",
@@ -897,12 +897,12 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-diego-alvarez",
         providerName: THU_LE_NAME,
         type: "rest",
-        description: "Relative rest (cognitive & physical)",
-        frequency: "Continuous for the first 48 hours",
+        description: "Nghỉ tương đối (trí óc & thể chất)",
+        frequency: "Liên tục trong 48 giờ đầu",
         startDate: daysAgo(6, 20, 0),
         endDate: daysAgo(4, 20, 0),
         status: "completed",
-        notes: "Reduced screen time, short walks as tolerated, two days off work.",
+        notes: "Giảm thời gian dùng màn hình, đi bộ ngắn theo khả năng, nghỉ làm hai ngày.",
     },
     {
         id: "tr-diego-analgesia",
@@ -910,12 +910,12 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-diego-alvarez",
         providerName: THU_LE_NAME,
         type: "medication",
-        description: "Analgesia — paracetamol as required for headache",
-        frequency: "Up to 4× daily",
+        description: "Giảm đau — paracetamol khi đau đầu",
+        frequency: "Tối đa 4 lần/ngày",
         startDate: daysAgo(6, 20, 0),
         endDate: daysAgo(3, 10, 0),
         status: "completed",
-        notes: "NSAIDs and aspirin avoided for the first 48 hours.",
+        notes: "Tránh NSAID và aspirin trong 48 giờ đầu.",
     },
     {
         id: "tr-diego-monitoring",
@@ -923,12 +923,12 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-diego-alvarez",
         providerName: THU_LE_NAME,
         type: "rest",
-        description: "Symptom monitoring",
-        frequency: "Daily symptom checklist; re-screen before each stage",
+        description: "Theo dõi triệu chứng",
+        frequency: "Bảng kiểm triệu chứng hằng ngày; tầm soát lại trước mỗi bậc",
         startDate: daysAgo(5, 9, 0),
         endDate: null,
         status: "ongoing",
-        notes: "Symptoms trending down; no red flags reported.",
+        notes: "Triệu chứng giảm dần; không có dấu hiệu nguy hiểm.",
     },
     {
         id: "tr-diego-protocol",
@@ -936,12 +936,12 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-diego-alvarez",
         providerName: THU_LE_NAME,
         type: "physiotherapy",
-        description: "Graded return-to-training protocol",
-        frequency: "Daily; each stage at least 24 hours without symptoms",
+        description: "Phác đồ trở lại tập theo bậc",
+        frequency: "Hằng ngày; mỗi bậc ít nhất 24 giờ không triệu chứng",
         startDate: daysAgo(3, 11, 0),
         endDate: null,
         status: "ongoing",
-        notes: "Currently at stage 2 — light aerobic exercise.",
+        notes: "Hiện ở bậc 2 — aerobic nhẹ.",
     },
 
     // Marcus — right 5th metacarpal fracture
@@ -951,7 +951,7 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-marcus-hale",
         providerName: THU_LE_NAME,
         type: "medication",
-        description: "Analgesia — paracetamol as required",
+        description: "Giảm đau — paracetamol khi cần",
         frequency: "Up to 4× daily for the first week",
         startDate: daysAgo(11, 19, 30),
         endDate: daysAgo(4, 9, 0),
@@ -1045,7 +1045,7 @@ export const mockTreatments: Treatment[] = [
         providerName: LOTUS_PHYSIO,
         type: "strength_rehab",
         description: "Strength rehab — quadriceps, hip and adductor strengthening",
-        frequency: "3× per week",
+        frequency: "3 lần/tuần",
         startDate: daysAgo(30, 10, 0),
         endDate: null,
         status: "ongoing",
@@ -1058,7 +1058,7 @@ export const mockTreatments: Treatment[] = [
         providerName: SAMUEL_BROOKS_NAME,
         type: "physiotherapy",
         description: "Agility progression",
-        frequency: "3× per week",
+        frequency: "3 lần/tuần",
         startDate: daysAgo(10, 10, 0),
         endDate: null,
         status: "ongoing",
@@ -1100,8 +1100,8 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-emma-lindqvist",
         providerName: THU_LE_NAME,
         type: "ice_compression",
-        description: "Compression, elevation and protected weight-bearing",
-        frequency: "Compression daily; elevate 3× daily",
+        description: "Băng ép, kê cao và chịu lực có bảo vệ",
+        frequency: "Băng ép hằng ngày; kê cao 3 lần/ngày",
         startDate: daysAgo(209, 10, 30),
         endDate: daysAgo(203, 10, 0),
         status: "completed",
@@ -1113,12 +1113,12 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-emma-lindqvist",
         providerName: LOTUS_PHYSIO,
         type: "physiotherapy",
-        description: "Physiotherapy — balance and proprioception programme",
-        frequency: "3× per week",
+        description: "Vật lý trị liệu — chương trình thăng bằng và cảm thụ bản thể",
+        frequency: "3 lần/tuần",
         startDate: daysAgo(205, 15, 0),
         endDate: daysAgo(174, 15, 0),
         status: "completed",
-        notes: "Y-balance composite reach 97% of the right side at discharge.",
+        notes: "Chỉ số Y-balance tổng hợp đạt 97% bên phải khi kết thúc.",
     },
     {
         id: "tr-emma-strength",
@@ -1126,8 +1126,8 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-emma-lindqvist",
         providerName: LOTUS_PHYSIO,
         type: "strength_rehab",
-        description: "Strength rehab — calf and peroneal strengthening",
-        frequency: "3× per week",
+        description: "Phục hồi sức mạnh — tăng sức cơ bắp chân và cơ mác",
+        frequency: "3 lần/tuần",
         startDate: daysAgo(200, 15, 0),
         endDate: daysAgo(172, 15, 0),
         status: "completed",
@@ -1141,8 +1141,8 @@ export const mockTreatments: Treatment[] = [
         fighterId: "f-sofia-kowalski",
         providerName: SAMUEL_BROOKS_NAME,
         type: "medication",
-        description: "Analgesia — paracetamol as required",
-        frequency: "Up to 4× daily",
+        description: "Giảm đau — paracetamol khi cần",
+        frequency: "Tối đa 4 lần/ngày",
         startDate: daysAgo(94, 10, 30),
         endDate: daysAgo(88, 10, 0),
         status: "completed",
@@ -1183,7 +1183,7 @@ export const mockTreatments: Treatment[] = [
         providerName: SAMUEL_BROOKS_NAME,
         type: "rest",
         description: "No sparring or head contact until wound review",
-        frequency: "10 days",
+        frequency: "10 ngày",
         startDate: daysAgo(59, 11, 0),
         endDate: daysAgo(49, 11, 0),
         status: "completed",
@@ -1252,7 +1252,7 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
         injuryId: "inj-lucas-hamstring",
         fighterId: "f-lucas-ferreira",
         doctorId: SAMUEL_BROOKS,
-        title: "Left hamstring strain — return to grappling",
+        title: "Căng cơ đùi sau trái — trở lại tập vật",
         startDate: daysAgo(23, 10, 45),
         targetReturnDate: daysFromNow(18, 18, 0),
         status: "active",
@@ -1281,7 +1281,7 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
                 ],
             },
             {
-                name: "Progressive strengthening",
+                name: "Tăng sức mạnh dần",
                 goal: "Build eccentric hamstring strength and restore running mechanics.",
                 from: -10,
                 to: 4,
@@ -1306,7 +1306,7 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
                 ],
             },
             {
-                name: "Return to full training",
+                name: "Trở lại tập đầy đủ",
                 goal: "Tolerate full training weeks, including live rounds, before restrictions are lifted.",
                 from: 12,
                 to: 18,
@@ -1314,7 +1314,7 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
                 milestones: [
                     ["Live grappling rounds without symptoms", false],
                     ["Hamstring strength ≥ 95% of the right side", false],
-                    ["Return-to-training assessment passed", false],
+                    ["Đạt đánh giá trở lại tập", false],
                 ],
             },
         ]),
@@ -1323,12 +1323,12 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
             [
                 [22, "Pain on stairs and when bending; short walks comfortable. Compression and gentle isometrics."],
                 [19, "Walking pain-free. Isometric holds at 90° and 60° tolerated well."],
-                [17, "Bridges and isometrics at 30° pain-free; no flare-up after the phase 2 exercises. Stationary bike 20 min.", 18, 10],
+                [17, "Bài cầu mông và đẳng trường ở 30° không đau; không bùng phát sau bài tập giai đoạn 2. Đạp xe tại chỗ 20 phút.", 18, 10],
                 [13, "Started eccentric slider curls. Mild tightness next morning, settled by midday."],
                 [10, "Return-to-training review passed with restrictions. Jogging and strides at 60% pain-free."],
                 [7, "Nordic curls 3×5 introduced. Running at 70% effort without symptoms."],
                 [4, "Nordic curls 3×6 pain-free. Technical grappling drills (no live rolling) at RPE 6."],
-                [1, "Slight tightness after 80% sprints, gone by the evening. Strength retest due at the phase review.", 13, 42],
+                [1, "Hơi căng sau chạy nước rút 80%, hết vào buổi tối. Kiểm tra lại sức mạnh khi đánh giá giai đoạn.", 13, 42],
             ],
             { pain: 5, mobility: 58, strength: 45 },
             { pain: 1, mobility: 93, strength: 86 },
@@ -1339,87 +1339,87 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
         injuryId: "inj-diego-concussion",
         fighterId: "f-diego-alvarez",
         doctorId: THU_LE,
-        title: "Graded return-to-training protocol",
+        title: "Phác đồ trở lại tập theo bậc",
         startDate: daysAgo(6, 20, 0),
         targetReturnDate: daysFromNow(10, 18, 0),
         status: "active",
         phases: phases("rp-diego-concussion", [
             {
-                name: "Symptom-limited activity",
-                goal: "Relative rest for the first 24–48 hours, then daily activities that do not provoke symptoms.",
+                name: "Hoạt động giới hạn theo triệu chứng",
+                goal: "Nghỉ tương đối 24–48 giờ đầu, sau đó sinh hoạt hằng ngày không gây triệu chứng.",
                 from: -6,
                 to: -3,
                 status: "completed",
                 milestones: [
-                    ["24–48 hours of relative rest completed", true],
-                    ["Daily activities without worsening symptoms", true],
+                    ["Hoàn tất 24–48 giờ nghỉ tương đối", true],
+                    ["Sinh hoạt hằng ngày không làm nặng triệu chứng", true],
                 ],
             },
             {
-                name: "Light aerobic exercise",
-                goal: "Walking or stationary cycling at a slow to moderate pace to raise heart rate; no resistance training.",
+                name: "Tập aerobic nhẹ",
+                goal: "Đi bộ hoặc đạp xe tại chỗ nhịp chậm đến vừa để tăng nhịp tim; không tập kháng lực.",
                 from: -3,
                 to: 1,
                 status: "current",
                 milestones: [
-                    ["30-minute walk without symptom increase", true],
-                    ["Stationary bike 20 min at ≤ 55% HRmax", true],
-                    ["Moderate aerobic session (≤ 70% HRmax) tolerated", false],
-                    ["No symptoms at rest", false],
+                    ["Đi bộ 30 phút không tăng triệu chứng", true],
+                    ["Đạp xe tại chỗ 20 phút ở ≤ 55% nhịp tim tối đa", true],
+                    ["Chịu được buổi aerobic vừa (≤ 70% nhịp tim tối đa)", false],
+                    ["Không triệu chứng khi nghỉ", false],
                 ],
             },
             {
-                name: "Sport-specific exercise (no contact)",
-                goal: "Individual drills away from contact — running, skipping and shadow boxing.",
+                name: "Bài tập chuyên môn (không va chạm)",
+                goal: "Bài tập cá nhân không va chạm — chạy, nhảy dây và đánh gió.",
                 from: 1,
                 to: 3,
                 status: "upcoming",
                 milestones: [
-                    ["Running and skipping drills without symptoms", false],
-                    ["Shadow boxing and footwork drills without symptoms", false],
+                    ["Chạy và nhảy dây không triệu chứng", false],
+                    ["Đánh gió và tập bộ pháp không triệu chứng", false],
                 ],
             },
             {
-                name: "Non-contact training drills",
-                goal: "Harder training drills with no head-impact risk, plus resistance training. Must be symptom-free.",
+                name: "Bài tập không va chạm",
+                goal: "Bài tập nặng hơn không có nguy cơ va chạm đầu, kèm tập kháng lực. Phải hết triệu chứng.",
                 from: 3,
                 to: 6,
                 status: "upcoming",
                 milestones: [
-                    ["Pad work and technical wrestling drills (no live rounds) without symptoms", false],
-                    ["Resistance training resumed", false],
-                    ["SCAT6 back to baseline", false],
+                    ["Đánh đích và tập kỹ thuật vật (không đấu thật) không triệu chứng", false],
+                    ["Đã tập lại kháng lực", false],
+                    ["SCAT6 trở về mức nền", false],
                 ],
             },
             {
-                name: "Full-contact practice (after medical clearance)",
-                goal: "Normal training including controlled contact, only after the doctor's clearance.",
+                name: "Tập va chạm toàn phần (sau khi có giấy phép)",
+                goal: "Tập bình thường kể cả va chạm có kiểm soát, chỉ sau khi bác sĩ cấp phép.",
                 from: 6,
                 to: 9,
                 status: "upcoming",
                 milestones: [
-                    ["Medical clearance for contact training", false],
-                    ["Controlled sparring and live wrestling without symptoms", false],
+                    ["Giấy phép tập va chạm", false],
+                    ["Đấu tập có kiểm soát và vật thật không triệu chứng", false],
                 ],
             },
             {
-                name: "Return to competition",
-                goal: "Unrestricted training and eligibility to compete.",
+                name: "Trở lại thi đấu",
+                goal: "Tập không hạn chế và đủ điều kiện thi đấu.",
                 from: 9,
                 to: 10,
                 status: "upcoming",
                 milestones: [
-                    ["Full training week without symptoms", false],
-                    ["Medical Clearance updated to full", false],
+                    ["Một tuần tập đầy đủ không triệu chứng", false],
+                    ["Giấy phép được nâng lên đầy đủ", false],
                 ],
             },
         ]),
         checkIns: checkIns(
             "rp-diego-concussion",
             [
-                [5, "Headache and light sensitivity on waking; slept poorly. Continuing relative rest."],
-                [3, "Symptoms easing; 30-minute walk without worsening. Moving to light aerobic stage after review."],
-                [1, "Stationary bike 20 min at ≤ 55% HRmax tolerated. Mild headache late in the day only."],
+                [5, "Đau đầu và nhạy cảm ánh sáng khi thức dậy; ngủ kém. Tiếp tục nghỉ tương đối."],
+                [3, "Triệu chứng giảm; đi bộ 30 phút không nặng hơn. Chuyển sang bậc aerobic nhẹ sau khi đánh giá."],
+                [1, "Chịu được đạp xe tại chỗ 20 phút ở ≤ 55% nhịp tim tối đa. Chỉ đau đầu nhẹ cuối ngày."],
             ],
             { pain: 5, mobility: 90, strength: 90 },
             { pain: 2, mobility: 98, strength: 95 },
@@ -1430,13 +1430,13 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
         injuryId: "inj-marcus-hand",
         fighterId: "f-marcus-hale",
         doctorId: THU_LE,
-        title: "Right 5th metacarpal fracture — return to striking",
+        title: "Gãy xương bàn tay V phải — trở lại ra đòn",
         startDate: daysAgo(10, 9, 30),
         targetReturnDate: daysFromNow(31, 18, 0),
         status: "active",
         phases: phases("rp-marcus-hand", [
             {
-                name: "Protection & immobilisation",
+                name: "Bảo vệ & bất động",
                 goal: "Protect the fracture in the splint while maintaining lower-body strength and conditioning.",
                 from: -10,
                 to: 18,
@@ -1478,7 +1478,7 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
                 status: "upcoming",
                 milestones: [
                     ["Full-power bag rounds without pain", false],
-                    ["Return-to-training assessment passed", false],
+                    ["Đạt đánh giá trở lại tập", false],
                 ],
             },
         ]),
@@ -1487,7 +1487,7 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
             [
                 [9, "Splint fitted yesterday; throbbing at night eased with elevation. Fingers warm with normal sensation."],
                 [6, "Swelling reducing. Lower-body strength and bike conditioning without hand pain."],
-                [3, "1-week X-ray: alignment maintained. Pain 2/10 with daily tasks."],
+                [3, "X-quang sau 1 tuần: xương giữ thẳng trục. Đau 2/10 khi sinh hoạt."],
                 [1, "Comfortable in the splint. Footwork drills and running without hand symptoms."],
             ],
             { pain: 4, mobility: 30, strength: 20 },
@@ -1505,7 +1505,7 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
         status: "active",
         phases: phases("rp-tariq-knee", [
             {
-                name: "Protection & swelling control",
+                name: "Bảo vệ & kiểm soát sưng",
                 goal: "Settle swelling and protect the ligament in a hinged brace.",
                 from: -37,
                 to: -30,
@@ -1539,13 +1539,13 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
                 ],
             },
             {
-                name: "Running & agility",
+                name: "Chạy & nhanh nhẹn",
                 goal: "Tolerate lateral movement, hopping and pivoting.",
                 from: -10,
                 to: -5,
                 status: "completed",
                 milestones: [
-                    ["Hop test ≥ 90% of the right side", true],
+                    ["Bài bật nhảy ≥ 90% bên phải", true],
                     ["Pain-free lateral shuffles and pivots", true],
                 ],
             },
@@ -1588,80 +1588,80 @@ export const mockRecoveryPlans: RecoveryPlan[] = [
         injuryId: "inj-emma-ankle",
         fighterId: "f-emma-lindqvist",
         doctorId: THU_LE,
-        title: "Left ankle sprain — return to kickboxing",
+        title: "Bong gân cổ chân trái — trở lại Kickboxing",
         startDate: daysAgo(209, 10, 30),
         targetReturnDate: daysAgo(172, 18, 0),
         status: "completed",
         phases: phases("rp-emma-ankle", [
             {
-                name: "Protection & swelling control",
-                goal: "Control swelling and restore normal walking.",
+                name: "Bảo vệ & kiểm soát sưng",
+                goal: "Kiểm soát sưng và phục hồi dáng đi bình thường.",
                 from: -209,
                 to: -204,
                 status: "completed",
                 milestones: [
-                    ["Swelling controlled", true],
-                    ["Full weight-bearing without a limp", true],
+                    ["Đã kiểm soát sưng", true],
+                    ["Chịu lực hoàn toàn, không đi khập khiễng", true],
                 ],
             },
             {
-                name: "Range of motion & balance",
-                goal: "Restore ankle range and single-leg balance.",
+                name: "Biên độ vận động & thăng bằng",
+                goal: "Phục hồi biên độ cổ chân và thăng bằng một chân.",
                 from: -204,
                 to: -195,
                 status: "completed",
                 milestones: [
-                    ["Dorsiflexion within 5° of the right side", true],
-                    ["Single-leg balance 30 s, eyes open", true],
+                    ["Gập mu chênh không quá 5° so với bên phải", true],
+                    ["Thăng bằng một chân 30 giây, mở mắt", true],
                 ],
             },
             {
-                name: "Strength & proprioception",
-                goal: "Build calf and peroneal strength and ankle control.",
+                name: "Sức mạnh & cảm thụ bản thể",
+                goal: "Tăng sức cơ bắp chân, cơ mác và kiểm soát cổ chân.",
                 from: -195,
                 to: -186,
                 status: "completed",
                 milestones: [
-                    ["Single-leg calf raises 3×15", true],
-                    ["Pain-free jogging", true],
+                    ["Nhón gót một chân 3×15", true],
+                    ["Chạy chậm không đau", true],
                 ],
             },
             {
-                name: "Running & agility",
-                goal: "Tolerate cutting, hopping and landing.",
+                name: "Chạy & nhanh nhẹn",
+                goal: "Chịu được đổi hướng, bật nhảy và tiếp đất.",
                 from: -186,
                 to: -179,
                 status: "completed",
                 milestones: [
-                    ["Lateral movement and hopping pain-free", true],
-                    ["Hop test ≥ 90% of the right side", true],
+                    ["Di chuyển ngang và bật nhảy không đau", true],
+                    ["Bài bật nhảy ≥ 90% bên phải", true],
                 ],
             },
             {
-                name: "Return to full training",
-                goal: "Full-intensity kicking and sparring readiness.",
+                name: "Trở lại tập đầy đủ",
+                goal: "Đá hết cường độ và sẵn sàng đấu tập.",
                 from: -179,
                 to: -172,
                 status: "completed",
                 milestones: [
-                    ["Full-intensity kicks on pads", true],
-                    ["Return-to-training assessment passed", true],
+                    ["Đá đích hết cường độ", true],
+                    ["Đạt đánh giá trở lại tập", true],
                 ],
             },
         ]),
         checkIns: checkIns(
             "rp-emma-ankle",
             [
-                [208, "Swelling and bruising around the outer ankle; walking with compression, slight limp."],
-                [205, "Swelling down. Full weight-bearing, mild limp on stairs."],
-                [201, "Started balance board and resistance-band eversion work."],
-                [197, "Dorsiflexion improving; stationary bike and upper-body pad rounds."],
-                [193, "Jogging on flat ground pain-free. Single-leg balance 30 s."],
-                [189, "Single-leg calf raises 3×15. Straight-line running at 70%."],
-                [185, "Lateral movement and skipping drills without pain."],
-                [181, "Kicks on pads at 60% with no symptoms. Hop test 90% of the right side."],
-                [177, "Full-intensity pad rounds and switch kicks pain-free."],
-                [173, "Confident cutting and landing. Ready for the return-to-training assessment."],
+                [208, "Sưng và bầm quanh mắt cá ngoài; đi lại có băng ép, hơi khập khiễng."],
+                [205, "Đã giảm sưng. Chịu lực hoàn toàn, hơi khập khiễng khi lên cầu thang."],
+                [201, "Bắt đầu tập ván thăng bằng và bài xoay ngoài với dây kháng lực."],
+                [197, "Gập mu cải thiện; đạp xe tại chỗ và đánh đích thân trên."],
+                [193, "Chạy chậm trên nền phẳng không đau. Thăng bằng một chân 30 giây."],
+                [189, "Nhón gót một chân 3×15. Chạy thẳng ở 70%."],
+                [185, "Di chuyển ngang và nhảy dây không đau."],
+                [181, "Đá đích ở 60% không triệu chứng. Bài bật nhảy đạt 90% bên phải."],
+                [177, "Đánh đích hết cường độ và đá đổi chân không đau."],
+                [173, "Đổi hướng và tiếp đất tự tin. Sẵn sàng đánh giá trở lại tập."],
             ],
             { pain: 6, mobility: 60, strength: 50 },
             { pain: 0, mobility: 98, strength: 96 },
@@ -1715,8 +1715,8 @@ function clearance(seed: ClearanceSeed): MedicalClearance {
     };
 }
 
-const BASELINE_REASON = "Baseline physical satisfactory. Cleared for full-contact training and competition.";
-const RENEWAL_REASON = "Routine examination satisfactory. Clearance renewed without restrictions.";
+const BASELINE_REASON = "Khám nền đạt. Được tập va chạm toàn phần và thi đấu.";
+const RENEWAL_REASON = "Khám định kỳ đạt. Gia hạn giấy phép không hạn chế.";
 
 export const mockMedicalClearances: MedicalClearance[] = [
     /* Minh Trần */
@@ -1738,7 +1738,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         issuedAt: daysAgo(151, 11, 0),
         validUntil: endOfDay(31),
         examinationId: "ex-minh-prefight-151d",
-        reason: "Pre-fight medical satisfactory. Cleared to compete and to train without restrictions.",
+        reason: "Khám trước trận đạt. Được thi đấu và tập không hạn chế.",
     }),
     clearance({
         id: "cl-minh-current",
@@ -1748,7 +1748,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         issuedAt: daysAgo(20, 16, 5),
         validUntil: endOfDay(120),
         examinationId: "ex-minh-routine-20d",
-        reason: "Pre-camp physical satisfactory. Cleared for full training and competition without restrictions.",
+        reason: "Khám trước Fight Camp đạt. Được tập đầy đủ và thi đấu không hạn chế.",
     }),
 
     /* Lucas Ferreira */
@@ -1772,7 +1772,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         examinationId: "ex-lucas-routine-128d",
         reason: RENEWAL_REASON,
         revokedAt: daysAgo(24, 19, 46),
-        revokedReason: "Left hamstring injury sustained in sparring. Full clearance withdrawn pending medical assessment.",
+        revokedReason: "Chấn thương cơ đùi sau trái khi đấu tập. Thu hồi giấy phép đầy đủ chờ đánh giá y tế.",
     }),
     clearance({
         id: "cl-lucas-notcleared-23d",
@@ -1782,7 +1782,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         issuedAt: daysAgo(23, 11, 0),
         validUntil: null,
         examinationId: "ex-lucas-injury-23d",
-        reason: "Moderate left hamstring strain. Not cleared to train until the early rehabilitation phase is complete.",
+        reason: "Căng cơ đùi sau trái mức vừa. Chưa được tập cho đến khi xong giai đoạn phục hồi sớm.",
     }),
     clearance({
         id: "cl-lucas-current",
@@ -1793,12 +1793,12 @@ export const mockMedicalClearances: MedicalClearance[] = [
         validUntil: endOfDay(18),
         examinationId: "ex-lucas-review-10d",
         reason:
-            "Recovering from a left hamstring strain and progressing well on the rehabilitation plan. Cleared for technical training and conditioning within the restrictions below.",
+            "Đang hồi phục sau căng cơ đùi sau trái, tiến triển tốt theo kế hoạch. Được tập kỹ thuật và thể lực trong các hạn chế dưới đây.",
         restrictions: [
-            restriction("rst-lucas-current-no-sparring", "No sparring", { blockedTrainingTypes: ["sparring"] }),
-            restriction("rst-lucas-current-no-kicks", "No kicks", { blockedTechniques: ["kick"] }),
-            restriction("rst-lucas-current-max-rpe", "Max session intensity RPE 7", { maxRpe: 7 }),
-            restriction("rst-lucas-current-hamstring", "Protect left hamstring — no explosive hip extension", {
+            restriction("rst-lucas-current-no-sparring", "Không đấu tập", { blockedTrainingTypes: ["sparring"] }),
+            restriction("rst-lucas-current-no-kicks", "Không đá", { blockedTechniques: ["kick"] }),
+            restriction("rst-lucas-current-max-rpe", "Cường độ buổi tập tối đa RPE 7", { maxRpe: 7 }),
+            restriction("rst-lucas-current-hamstring", "Bảo vệ cơ đùi sau trái — không duỗi hông bùng nổ", {
                 blockedRegions: ["left_hamstring"],
             }),
         ],
@@ -1835,7 +1835,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         examinationId: "ex-aigerim-brow-59d",
         reason: "Sutured left eyebrow laceration from competition. Contact restricted until the wound has healed.",
         restrictions: [
-            restriction("rst-aigerim-59d-no-sparring", "No sparring", { blockedTrainingTypes: ["sparring"] }),
+            restriction("rst-aigerim-59d-no-sparring", "Không đấu tập", { blockedTrainingTypes: ["sparring"] }),
             restriction("rst-aigerim-59d-head", "Protect the healing eyebrow wound — no head contact", { blockedRegions: ["head"] }),
         ],
     }),
@@ -1880,10 +1880,10 @@ export const mockMedicalClearances: MedicalClearance[] = [
         validUntil: endOfDay(5),
         examinationId: "ex-kenji-shoulder-7d",
         reason:
-            "Mild right shoulder impingement signs on examination; no confirmed injury. Cleared to train at reduced intensity with shoulder protection until the follow-up examination.",
+            "Khám thấy dấu hiệu chèn ép vai phải nhẹ; chưa xác định chấn thương. Được tập cường độ giảm, bảo vệ vai đến lần tái khám.",
         restrictions: [
-            restriction("rst-kenji-current-max-rpe", "Max session intensity RPE 8", { maxRpe: 8 }),
-            restriction("rst-kenji-current-shoulder", "Protect right shoulder — limit high-volume power punching and overhead loading", {
+            restriction("rst-kenji-current-max-rpe", "Cường độ buổi tập tối đa RPE 8", { maxRpe: 8 }),
+            restriction("rst-kenji-current-shoulder", "Bảo vệ vai phải — hạn chế đấm mạnh khối lượng lớn và tải trên đầu", {
                 blockedRegions: ["right_shoulder"],
             }),
         ],
@@ -1910,7 +1910,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         examinationId: "ex-diego-routine-93d",
         reason: RENEWAL_REASON,
         revokedAt: daysAgo(6, 19, 30),
-        revokedReason: "Head impact in sparring with concussion symptoms. Removed from training pending medical assessment.",
+        revokedReason: "Va chạm đầu khi đấu tập, có triệu chứng chấn động. Dừng tập chờ đánh giá y tế.",
     }),
     clearance({
         id: "cl-diego-current",
@@ -1921,7 +1921,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         validUntil: null,
         examinationId: "ex-diego-concussion-6d",
         reason:
-            "Sports-related concussion. Not cleared for academy training; supervised return-to-training protocol activity only until re-examined.",
+            "Chấn động não do thể thao. Chưa được tập tại học viện; chỉ thực hiện phác đồ trở lại tập có giám sát cho đến khi khám lại.",
     }),
 
     /* Linh Phạm */
@@ -1933,7 +1933,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         issuedAt: daysAgo(298, 11, 0),
         validUntil: endOfDay(-116),
         examinationId: "ex-linh-baseline-298d",
-        reason: "Baseline physical on joining the academy satisfactory. Cleared for full-contact training and competition.",
+        reason: "Khám nền khi gia nhập học viện đạt. Được tập va chạm toàn phần và thi đấu.",
     }),
     clearance({
         id: "cl-linh-current",
@@ -1967,7 +1967,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         examinationId: "ex-marcus-routine-84d",
         reason: RENEWAL_REASON,
         revokedAt: daysAgo(11, 18, 31),
-        revokedReason: "Suspected right hand injury on the heavy bag. Full clearance withdrawn pending X-ray.",
+        revokedReason: "Nghi chấn thương bàn tay phải khi đánh bao. Thu hồi giấy phép đầy đủ chờ chụp X-quang.",
     }),
     clearance({
         id: "cl-marcus-current",
@@ -1978,15 +1978,15 @@ export const mockMedicalClearances: MedicalClearance[] = [
         validUntil: endOfDay(18),
         examinationId: "ex-marcus-hand-10d",
         reason:
-            "Closed right 5th metacarpal fracture managed in a splint. Cleared for footwork, lower-body strength and conditioning only until the 4-week X-ray review.",
+            "Gãy kín xương bàn tay V phải, cố định nẹp. Chỉ được tập bộ pháp, sức mạnh thân dưới và thể lực đến lần chụp X-quang tuần thứ 4.",
         restrictions: [
-            restriction("rst-marcus-current-impact", "No heavy bag, pad work or sparring", {
+            restriction("rst-marcus-current-impact", "Không đánh bao, đánh đích hay đấu tập", {
                 blockedTrainingTypes: ["heavy_bag", "pad_work", "sparring"],
             }),
-            restriction("rst-marcus-current-punching", "No punching drills (jab, cross, hook or combinations)", {
+            restriction("rst-marcus-current-punching", "Không tập đấm (jab, đấm thẳng, móc hay tổ hợp)", {
                 blockedTechniques: ["jab", "cross", "hook", "combination"],
             }),
-            restriction("rst-marcus-current-right-hand", "No striking with the right hand", { blockedRegions: ["right_hand"] }),
+            restriction("rst-marcus-current-right-hand", "Không ra đòn tay phải", { blockedRegions: ["right_hand"] }),
         ],
     }),
 
@@ -2065,8 +2065,8 @@ export const mockMedicalClearances: MedicalClearance[] = [
         examinationId: "ex-tariq-injury-37d",
         reason: "Grade I left knee MCL sprain. Cleared for upper-body technique and conditioning while the ligament heals.",
         restrictions: [
-            restriction("rst-tariq-37d-no-sparring", "No sparring", { blockedTrainingTypes: ["sparring"] }),
-            restriction("rst-tariq-37d-no-kicks", "No kicks", { blockedTechniques: ["kick"] }),
+            restriction("rst-tariq-37d-no-sparring", "Không đấu tập", { blockedTrainingTypes: ["sparring"] }),
+            restriction("rst-tariq-37d-no-kicks", "Không đá", { blockedTechniques: ["kick"] }),
             restriction("rst-tariq-37d-knee", "Protect left knee — no running, jumping or footwork drills", {
                 blockedTechniques: ["footwork"],
                 blockedRegions: ["left_knee"],
@@ -2085,10 +2085,10 @@ export const mockMedicalClearances: MedicalClearance[] = [
         reason:
             "Final sport-specific phase after a grade I left knee MCL sprain. Meets strength and hop criteria; cleared for pad, bag and footwork training within the restrictions below until the final review.",
         restrictions: [
-            restriction("rst-tariq-current-no-sparring", "No sparring", { blockedTrainingTypes: ["sparring"] }),
-            restriction("rst-tariq-current-no-kicks", "No kicks", { blockedTechniques: ["kick"] }),
+            restriction("rst-tariq-current-no-sparring", "Không đấu tập", { blockedTrainingTypes: ["sparring"] }),
+            restriction("rst-tariq-current-no-kicks", "Không đá", { blockedTechniques: ["kick"] }),
             restriction("rst-tariq-current-knee", "Protect left knee — no full-speed sharp cutting drills", { blockedRegions: ["left_knee"] }),
-            restriction("rst-tariq-current-max-rpe", "Max session intensity RPE 8", { maxRpe: 8 }),
+            restriction("rst-tariq-current-max-rpe", "Cường độ buổi tập tối đa RPE 8", { maxRpe: 8 }),
         ],
     }),
 
@@ -2111,10 +2111,10 @@ export const mockMedicalClearances: MedicalClearance[] = [
         issuedAt: daysAgo(209, 11, 0),
         validUntil: endOfDay(-170),
         examinationId: "ex-emma-ankle-209d",
-        reason: "Grade II left ankle sprain. Cleared for upper-body and seated conditioning while the ligament heals.",
+        reason: "Bong gân cổ chân trái độ II. Được tập thân trên và thể lực tư thế ngồi trong khi dây chằng lành.",
         restrictions: [
-            restriction("rst-emma-209d-no-sparring", "No sparring", { blockedTrainingTypes: ["sparring"] }),
-            restriction("rst-emma-209d-no-kicks", "No kicks", { blockedTechniques: ["kick"] }),
+            restriction("rst-emma-209d-no-sparring", "Không đấu tập", { blockedTrainingTypes: ["sparring"] }),
+            restriction("rst-emma-209d-no-kicks", "Không đá", { blockedTechniques: ["kick"] }),
             restriction("rst-emma-209d-ankle", "Protect left ankle — no jumping or cutting drills", {
                 blockedTechniques: ["footwork"],
                 blockedRegions: ["left_ankle"],
@@ -2129,7 +2129,7 @@ export const mockMedicalClearances: MedicalClearance[] = [
         issuedAt: daysAgo(172, 12, 0),
         validUntil: endOfDay(-80),
         examinationId: "ex-emma-rtp-172d",
-        reason: "All return-to-training criteria met after the left ankle sprain. Cleared without restrictions.",
+        reason: "Đạt mọi tiêu chí trở lại tập sau bong gân cổ chân trái. Được tập không hạn chế.",
     }),
     clearance({
         id: "cl-emma-current",
@@ -2445,7 +2445,7 @@ export const mockMedicalRecords: MedicalRecord[] = [
     medicalRecord("f-emma-lindqvist", {
         bloodType: "O-",
         allergies: [],
-        chronicConditions: ["Mild exercise-induced asthma"],
+        chronicConditions: ["Hen do gắng sức mức nhẹ"],
         medications: ["Salbutamol inhaler 100 mcg — 2 puffs as required before intense sessions"],
         surgicalHistory: [],
         emergencyContact: { name: "Erik Lindqvist", relation: "Father", phone: "+46 70 318 2254" },

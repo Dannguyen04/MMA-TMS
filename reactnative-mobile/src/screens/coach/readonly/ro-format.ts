@@ -21,6 +21,7 @@ export const SESSION_CHIP: Record<SessionStatus, ChipSpec> = {
   SKIPPED: { label: coachRo.sessionStatus.SKIPPED, tone: "attention", icon: "ban" },
   CANCELLED: { label: coachRo.sessionStatus.CANCELLED, tone: "danger", icon: "xCircle" },
   ABANDONED: { label: coachRo.sessionStatus.ABANDONED, tone: "danger", icon: "alertCircle" },
+  PENDING: { label: coachRo.sessionStatus.PENDING, tone: "attention", icon: "schedule" },
 };
 
 export const PLAN_CHIP: Record<TrainingPlanStatus, ChipSpec> = {

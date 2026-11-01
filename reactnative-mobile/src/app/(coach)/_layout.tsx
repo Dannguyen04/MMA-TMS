@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useNavRail } from "@/components/nav-rail";
 import { RoleTabBar } from "@/components/role-tab-bar";
 import { TabIcon } from "@/components/tab-icon";
 
@@ -9,6 +10,7 @@ import { coachRo } from "@/i18n/coach-ro";
 import { useThemePreference } from "@/theme";
 import { RoHeaderAction } from "@/screens/coach/readonly/ro-ui";
 import { CoachBell, CoachUnreadProvider } from "@/screens/coach/nav/coach-unread";
+import { pendingVi } from "@/i18n/pending-vi";
 
 export default function CoachTabsLayout() {
   return (
@@ -25,6 +27,7 @@ export default function CoachTabsLayout() {
 /** coach-nav-v3: 4 tab Võ sĩ · Lịch · Giáo án · Tôi; Thông báo mở từ chuông ở header; Video mở từ chi tiết võ sĩ / thông báo / thẻ Cần duyệt. */
 function CoachTabs() {
   const { colors } = useThemePreference();
+  const rail = useNavRail();
 
   return (
     <Tabs
@@ -33,6 +36,7 @@ function CoachTabs() {
       initialRouteName="fighters"
       screenOptions={{
         headerShown: false,
+        tabBarPosition: rail ? "left" : "bottom",
         tabBarActiveTintColor: activeInkOn(colors),
         tabBarInactiveTintColor: colors.inkSubtle,
         tabBarStyle: {
@@ -76,7 +80,7 @@ function CoachTabs() {
         }}
       />
       <Tabs.Screen name="thong-bao" options={{ href: null, title: coachRo.tabs.notifications }} />
-      <Tabs.Screen name="fight-camp" options={{ href: null, title: "Fight Camp" }} />
+      <Tabs.Screen name="fight-camp" options={{ href: null, title: pendingVi.fightCamp }} />
       <Tabs.Screen name="goals" options={{ href: null, title: "Mục tiêu" }} />
       <Tabs.Screen name="performance" options={{ href: null, title: "Hiệu suất" }} />
       <Tabs.Screen name="clearance" options={{ href: null, title: "Giấy phép" }} />

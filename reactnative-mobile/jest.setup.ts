@@ -74,6 +74,7 @@ jest.mock("react-native-worklets", () => ({
 jest.mock("react-native-reanimated", () => {
   const { View, Text } = require("react-native");
   const identity = (value: unknown) => value;
+  const layoutAnimation = { duration: (_ms: number) => layoutAnimation, easing: (_curve: unknown) => layoutAnimation, delay: (_ms: number) => layoutAnimation };
   return {
     __esModule: true,
     default: {
@@ -81,10 +82,13 @@ jest.mock("react-native-reanimated", () => {
       Text,
       createAnimatedComponent: (component: unknown) => component,
     },
-    FadeIn: { duration: () => ({}) },
+    FadeIn: layoutAnimation,
+    FadeInDown: layoutAnimation,
+    LinearTransition: layoutAnimation,
+    cubicBezier: () => "ease-out",
     FadeInLeft: { duration: () => ({}) },
     FadeInRight: { duration: () => ({}) },
-    FadeOut: { duration: () => ({}) },
+    FadeOut: layoutAnimation,
     FadeOutLeft: { duration: () => ({}) },
     FadeOutRight: { duration: () => ({}) },
     useReducedMotion: () => false,

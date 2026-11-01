@@ -17,7 +17,7 @@ export interface InjuryHistoryProps {
 }
 
 /** Every injury recorded for a fighter, open and resolved, most recent first. */
-export function InjuryHistory({ injuries, locale = "en" }: InjuryHistoryProps) {
+export function InjuryHistory({ injuries, locale = "vi" }: InjuryHistoryProps) {
     const t = createTranslator(locale);
 
     if (injuries.length === 0) {

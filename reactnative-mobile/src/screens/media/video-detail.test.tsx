@@ -157,7 +157,7 @@ describe("VideoDetailContent", () => {
       </SafeAreaProvider>,
     );
     expect(await view.findByTestId("tab-timeline")).toBeTruthy();
-    expect(view.getAllByText("Cross phải").length).toBeGreaterThan(0);
+    expect(view.getAllByText("Đấm thẳng tay sau, bên phải").length).toBeGreaterThan(0);
     expect(view.queryByTestId("tab-review")).toBeNull();
   });
 });

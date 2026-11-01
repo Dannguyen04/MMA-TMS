@@ -13,6 +13,7 @@ import { useFighterPalette, type FighterPalette } from "@/screens/fighter/redesi
 import { useThemePreference } from "@/theme";
 import { formatKg } from "@/utils/weight-input";
 import { vnShortDate } from "@/utils/vn-date";
+import { ArenaSurface } from "@/components/arena/arena-frame";
 
 /** Màu + biểu tượng theo trạng thái cân. Hổ phách lấy từ token `warning` của theme. */
 export function weightStatusTone(colors: FighterPalette, status: WeightTrackStatus) {
@@ -40,7 +41,7 @@ export function WeightStatusBadge({ status }: { status: WeightTrackStatus }) {
   const colors = useFighterPalette();
   const tone = weightStatusTone(colors, status);
   return (
-    <View style={[styles.badge, { backgroundColor: tone.bg }]}>
+    <View style={[styles.badge, { backgroundColor: "transparent", borderRadius: 0, paddingHorizontal: 0 }]}>
       <Icon name={tone.icon} size={16} color={tone.fg} />
       <Text style={[TEXT.captionBold, { color: tone.fg }]} numberOfLines={1}>
         {t.status[status]}
@@ -114,10 +115,10 @@ export function BoutWeightCard({
     <View
       style={[
         styles.card,
-        { backgroundColor: colors.surface, borderColor: isOver ? colors.danger : colors.line },
-        isOver && { borderWidth: 2 },
+        { backgroundColor: "transparent", borderRadius: 0, borderWidth: 0 },
       ]}
     >
+      <ArenaSurface tone={isOver ? "danger" : "neutral"}/>
       <View style={styles.head}>
         {isOver ? <Icon name="warning" size={24} color={colors.danger} /> : null}
         <Text style={[TEXT.cardTitle, styles.flex, { color: colors.ink }]} numberOfLines={1}>

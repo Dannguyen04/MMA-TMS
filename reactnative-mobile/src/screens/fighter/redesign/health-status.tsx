@@ -22,18 +22,19 @@ function useTone(level: EligibilityLevel) {
       : { fg: c.warning, bg: c.warningSoft };
 }
 
-export function LevelChip({ level }: { level: EligibilityLevel }) {
-  const tone = useTone(level);
+export function LevelChip({ level, suspended = false }: { level: EligibilityLevel; suspended?: boolean }) {
+  const tone = useTone(suspended && level !== "notEligible" ? "restricted" : level);
   return (
     <View style={[styles.chip, { backgroundColor: tone.bg }]}>
       <View style={[styles.dot, { backgroundColor: tone.fg }]} />
-      <Text style={[styles.chipText, { color: tone.fg }]}>{t.chip[level]}</Text>
+      <Text style={[styles.chipText, { color: tone.fg }]}>{suspended && level !== "notEligible" ? t.chip.suspended : t.chip[level]}</Text>
     </View>
   );
 }
 
 /** Thẻ "Hôm nay": một câu trả lời + việc cần làm tiếp. */
-export function TodayCard({ dossier, onRequest }: { dossier: MedicalDossier; onRequest: () => void }) {
+/** Phase 5 B: `suspended` (a suspension limits training today) keeps the card from reading as a free pass. */
+export function TodayCard({ dossier, onRequest, suspended = false }: { dossier: MedicalDossier; onRequest: () => void; suspended?: boolean }) {
   const c = useFighterPalette();
   const training = scopeState(dossier, "training");
   const competition = scopeState(dossier, "competition");
@@ -45,7 +46,9 @@ export function TodayCard({ dossier, onRequest }: { dossier: MedicalDossier; onR
       ? firstReason
         ? reasonLine(firstReason)
         : t.reasonUnknown
-      : training.level === "restricted"
+      : suspended
+        ? t.today.suspendedNext
+        : training.level === "restricted"
         ? t.today.restrictedNext
         : competition.level === "notEligible"
           ? t.today.competitionNo
@@ -81,13 +84,13 @@ export function TodayCard({ dossier, onRequest }: { dossier: MedicalDossier; onR
 }
 
 /** 2 ô Tập luyện / Thi đấu, cao cố định; chạm mở sheet. */
-export function EligibilityTiles({ dossier, onRequest }: { dossier: MedicalDossier; onRequest: () => void }) {
+export function EligibilityTiles({ dossier, onRequest, suspended = false }: { dossier: MedicalDossier; onRequest: () => void; suspended?: boolean }) {
   const [open, setOpen] = useState<EligibilityScope | null>(null);
   return (
     <>
       <View style={styles.tiles}>
         {(["training", "competition"] as const).map((scope) => (
-          <Tile key={scope} scope={scope} state={scopeState(dossier, scope)} onPress={() => setOpen(scope)} />
+          <Tile key={scope} scope={scope} state={scopeState(dossier, scope)} suspended={suspended && scope === "training"} onPress={() => setOpen(scope)} />
         ))}
       </View>
       <ScopeSheet dossier={dossier} scope={open} onClose={() => setOpen(null)} onRequest={onRequest} />
@@ -95,12 +98,12 @@ export function EligibilityTiles({ dossier, onRequest }: { dossier: MedicalDossi
   );
 }
 
-function Tile({ scope, state, onPress }: { scope: EligibilityScope; state: ScopeState; onPress: () => void }) {
+function Tile({ scope, state, onPress, suspended = false }: { scope: EligibilityScope; state: ScopeState; onPress: () => void; suspended?: boolean }) {
   const c = useFighterPalette();
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`${t.scope[scope]}: ${t.chip[state.level]}`}
+      accessibilityLabel={`${t.scope[scope]}: ${suspended && state.level !== "notEligible" ? t.chip.suspended : t.chip[state.level]}`}
       onPress={onPress}
       style={({ pressed }) => [styles.tile, { backgroundColor: c.surface, borderColor: c.line, opacity: pressed ? 0.8 : 1 }]}
     >
@@ -108,7 +111,7 @@ function Tile({ scope, state, onPress }: { scope: EligibilityScope; state: Scope
         <Text style={[styles.tileLabel, { color: c.ink }]}>{t.scope[scope]}</Text>
         <MaterialCommunityIcons name="chevron-right" size={18} color={c.muted} />
       </View>
-      <LevelChip level={state.level} />
+      <LevelChip level={state.level} suspended={suspended} />
     </Pressable>
   );
 }

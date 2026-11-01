@@ -5,16 +5,18 @@ export const fighterBody = {
   tabExam: "Yêu cầu khám",
   tabExamCount: (n: number) => `Yêu cầu khám, ${n} đang chờ`,
   today: {
-    eligible: "Bạn có thể tập luyện",
-    restricted: "Bạn có thể tập, có giới hạn",
-    notEligible: "Bạn chưa thể tập luyện",
+    // Phase 5 B: the card is the doctor's conclusion; a suspension is shown on its own card.
+    eligible: "Bác sĩ: đủ điều kiện tập luyện",
+    restricted: "Bác sĩ: tập được, có giới hạn",
+    notEligible: "Bác sĩ: chưa đủ điều kiện tập luyện",
+    suspendedNext: "Đang có đình chỉ. Hôm nay được tập gì, xem thẻ đình chỉ bên dưới.",
     restrictedNext: "Xem giới hạn ở ô Tập luyện.",
     competitionNo: "Chưa được thi đấu.",
     allClear: "Được tập luyện và thi đấu.",
     request: "Gửi yêu cầu khám",
     pending: "Đang chờ bác sĩ",
   },
-  chip: { eligible: "Được", restricted: "Có giới hạn", notEligible: "Chưa được" },
+  chip: { eligible: "Được", restricted: "Có giới hạn", notEligible: "Chưa được", suspended: "Theo đình chỉ" },
   scope: { training: "Tập luyện", competition: "Thi đấu" },
   /** Mã lý do của máy chủ → lời cho võ sĩ. */
   reason: {

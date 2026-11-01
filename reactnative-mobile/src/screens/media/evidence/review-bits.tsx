@@ -7,6 +7,7 @@ import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { formatPrecise } from "@/screens/media/evidence/evidence-model";
 import type { FindingReview, WindowReview } from "@/screens/media/evidence/review-model";
 import { useTypography } from "@/theme";
+import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 
 export function StatusLine({ text, tone, action, onAction, testID }: { text: string; tone: "done" | "wait" | "no"; action?: string; onAction?: () => void; testID?: string }) {
   const c = useFighterPalette();
@@ -25,7 +26,7 @@ export function StatusLine({ text, tone, action, onAction, testID }: { text: str
 
 export function findingStatusText(r: FindingReview | null): { text: string; tone: "done" | "wait" | "no" } {
   if (!r) return { text: ev.waitingReview, tone: "wait" };
-  const base = ev.decisionDone[r.status] ?? r.status;
+  const base = ev.decisionDone[r.status] ?? UNKNOWN_VALUE;
   return { text: r.status === "corrected" && r.correctedLabel ? `${base}: ${r.correctedLabel}` : base, tone: r.status === "rejected" ? "no" : "done" };
 }
 
@@ -33,7 +34,7 @@ export function windowStatusText(r: WindowReview | null): { text: string; tone: 
   if (!r) return { text: ev.waitingReview, tone: "wait" };
   const who = ev.reviewedBy[r.reviewerRole] ?? "";
   const range = r.decision === "corrected" && r.startMs != null && r.endMs != null ? ` ${formatPrecise(r.startMs)}–${formatPrecise(r.endMs)}` : "";
-  return { text: `${ev.windowDone[r.decision] ?? r.decision}${range}${who ? ` · ${who}` : ""}`, tone: r.decision === "rejected" ? "no" : "done" };
+  return { text: `${ev.windowDone[r.decision] ?? UNKNOWN_VALUE}${range}${who ? ` · ${who}` : ""}`, tone: r.decision === "rejected" ? "no" : "done" };
 }
 
 export function SummaryCard({ rating, text, canEdit, onEdit }: { rating: number | null; text: string | null; canEdit: boolean; onEdit: () => void }) {

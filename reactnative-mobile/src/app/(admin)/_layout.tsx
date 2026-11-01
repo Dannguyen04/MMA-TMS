@@ -1,4 +1,5 @@
 import { Tabs } from "expo-router";
+import { useNavRail } from "@/components/nav-rail";
 
 import { RoleTabBar } from "@/components/role-tab-bar";
 import { TabIcon } from "@/components/tab-icon";
@@ -9,6 +10,7 @@ import { useThemePreference } from "@/theme";
 
 export default function AdminLayout() {
   const { colors } = useThemePreference();
+  const rail = useNavRail();
   return (
     <RoleLayoutGate allow="admin">
       <Tabs
@@ -16,6 +18,7 @@ export default function AdminLayout() {
       initialRouteName="index"
         screenOptions={{
           headerShown: false,
+          tabBarPosition: rail ? "left" : "bottom",
           tabBarActiveTintColor: activeInkOn(colors),
           tabBarInactiveTintColor: colors.inkSubtle,
           tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.line },

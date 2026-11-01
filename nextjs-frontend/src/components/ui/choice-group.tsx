@@ -81,7 +81,7 @@ export function ChoiceGroup<T extends string>({
                         <span className="ml-0.5 text-danger-fg" aria-hidden>
                             *
                         </span>
-                        <span className="sr-only"> (required)</span>
+                        <span className="sr-only"> (bắt buộc)</span>
                     </>
                 )}
             </legend>

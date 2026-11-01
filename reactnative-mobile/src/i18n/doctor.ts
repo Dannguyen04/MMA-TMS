@@ -9,7 +9,7 @@ export const doctor = {
   loading: "Đang tải…",
   retry: "Thử lại",
   pickFighter: "Chọn võ sĩ",
-  pickFighterHint: "Hãy chọn một võ sĩ ở tab Võ sĩ trước.",
+  pickFighterHint: "Hãy chọn một võ sĩ ở mục Võ sĩ trước.",
   roleOnly: "Màn này dành cho bác sĩ. Hãy đăng xuất rồi đăng nhập bằng tài khoản bác sĩ.",
   loginHint: "Đăng nhập để xem danh sách võ sĩ.",
   fighters: {
@@ -167,9 +167,9 @@ export const doctor = {
       "no-project":
         "Điện thoại đã cho phép thông báo. Ứng dụng chưa có mã dự án Expo nên chưa lấy được mã thiết bị, và máy chủ chưa có chỗ lưu mã. Tin chưa tới khi ứng dụng đóng.",
       "no-backend":
-        "Điện thoại đã cho phép thông báo và đã lấy mã thiết bị, nhưng máy chủ chưa có API nhận mã. Tin chưa tới khi ứng dụng đóng.",
+        "Điện thoại đã cho phép thông báo và đã lấy mã thiết bị, nhưng máy chủ chưa có chức năng nhận mã. Tin chưa tới khi ứng dụng đóng.",
       "token-failed":
-        "Điện thoại đã cho phép thông báo. Chưa lấy được mã thiết bị, và máy chủ chưa có API nhận mã. Tin chưa tới khi ứng dụng đóng.",
+        "Điện thoại đã cho phép thông báo. Chưa lấy được mã thiết bị, và máy chủ chưa có chức năng nhận mã. Tin chưa tới khi ứng dụng đóng.",
     },
   },
   me: {

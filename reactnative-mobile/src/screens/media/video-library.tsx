@@ -19,6 +19,7 @@ import {
 } from "@/screens/media/video-model";
 import { useTypography } from "@/theme";
 import { SkeletonRows } from "@/components/loading";
+import { videoTitle } from "@/i18n/server-text";
 
 function messageFor(error: unknown): string {
   if (!isApiError(error)) return media.generic;
@@ -137,7 +138,7 @@ export function VideoLibraryContent({
                 key={video.id}
                 testID={`video-row-${video.id}`}
                 accessibilityRole="button"
-                accessibilityLabel={`${video.title}, ${when}, ${listMeta(video)}, ${badge.label}${score == null ? "" : `, ${media.score} ${score}`}`}
+                accessibilityLabel={`${videoTitle(video.title)}, ${when}, ${listMeta(video)}, ${badge.label}${score == null ? "" : `, ${media.score} ${score}`}`}
                 onPress={() => onOpen(video.id)}
                 style={[styles.card, { borderColor: colors.line, backgroundColor: colors.surface }]}
               >
@@ -147,7 +148,7 @@ export function VideoLibraryContent({
                   </View>
                   <View style={styles.identityText}>
                     <Text style={[styles.cardTitle, { color: colors.ink, fontFamily: live.faces.semibold }]}>
-                      {video.title}
+                      {videoTitle(video.title)}
                     </Text>
                     {when ? <Text style={[styles.date, { color: colors.muted }]}>{when}</Text> : null}
                   </View>

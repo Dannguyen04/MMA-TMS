@@ -13,6 +13,7 @@ import { AdminScreen, AdminTag } from "@/screens/admin/admin-ui";
 import { mapApiMessage } from "@/session/map-api-message";
 import { radius, spacing, useThemePreference } from "@/theme";
 import { FilterSelect } from "@/components/filter-sheet";
+import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 
 const t = manager.jobs;
 type Filter = "ALL" | (typeof ANALYSIS_JOB_STATUSES)[number];
@@ -77,7 +78,7 @@ export function AdminJobsScreen() {
             <FadeInView key={job.id} index={index}>
               <View
                 accessible
-                accessibilityLabel={`${t.status[job.status] ?? job.status}, ${formatTime(job.createdAt)}`}
+                accessibilityLabel={`${t.status[job.status] ?? UNKNOWN_VALUE}, ${formatTime(job.createdAt)}`}
                 style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.line }]}
               >
                 <View style={styles.top}>
@@ -85,7 +86,7 @@ export function AdminJobsScreen() {
                   <Text style={[at.metaStrong, styles.flex, { color: colors.ink }]} numberOfLines={1}>
                     #{job.id.slice(0, 8)}
                   </Text>
-                  <AdminTag label={t.status[job.status] ?? job.status} tone={statusTone(job.status)} />
+                  <AdminTag label={t.status[job.status] ?? UNKNOWN_VALUE} tone={statusTone(job.status)} />
                 </View>
                 <Text style={[at.meta, { color: colors.inkMuted }]}>
                   {t.created}: {formatTime(job.createdAt)}

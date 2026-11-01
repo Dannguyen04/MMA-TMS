@@ -118,9 +118,9 @@ const jobById = (id: string) => record(mockAIJobs, id, "AI job");
 const alertById = (id: string) => record(mockAbnormalMovementAlerts, id, "AI alert");
 const clearanceById = (id: string) => record(mockMedicalClearances, id, "clearance");
 const examinationById = (id: string) => record(mockMedicalExaminations, id, "examination");
-const recoveryPlanById = (id: string) => record(mockRecoveryPlans, id, "recovery plan");
+const recoveryPlanById = (id: string) => record(mockRecoveryPlans, id, "kế hoạch phục hồi");
 const sessionById = (id: string) => record(mockTrainingSessions, id, "training session");
-const planById = (id: string) => record(mockTrainingPlans, id, "training plan");
+const planById = (id: string) => record(mockTrainingPlans, id, "giáo án");
 
 function analysisOf(videoId: string): AIAnalysis {
     const video = videoById(videoId);
@@ -206,8 +206,8 @@ export const mockBroadcasts: NotificationBroadcast[] = [
     }),
     broadcast({
         id: "brd-gym-maintenance",
-        title: "Gym closed for maintenance — Sunday",
-        body: "The mats, cage and bag area are closed all day Sunday while the flooring is replaced. The physio room stays open 09:00–13:00 for booked appointments only. Training resumes Monday at 06:00.",
+        title: "Phòng tập đóng cửa bảo trì — Chủ nhật",
+        body: "Thảm, lồng đấu và khu bao cát đóng cả ngày Chủ nhật để thay sàn. Phòng vật lý trị liệu mở 09:00–13:00 cho lịch hẹn trước. Tập lại từ 06:00 thứ Hai.",
         audience: ["fighter", "coach", "doctor", "admin"],
         channel: "in_app_email",
         status: "sent",
@@ -411,7 +411,7 @@ function clearanceForCoach(clearanceId: string, title?: string): NotificationSee
         title ?? `${name} ${clearance.level === "restricted" ? "cleared with restrictions" : "cleared for full training"}`,
         clearance.level === "restricted"
             ? `${doctor}: ${restrictionSummary(clearance)}.${validity(clearance)}`
-            : `${doctor} cleared ${name} without restrictions.${validity(clearance)}`,
+            : `${doctor} đã cấp phép cho ${name} không hạn chế.${validity(clearance)}`,
         routes.coach.clearance,
     );
 }
@@ -425,8 +425,8 @@ function alertForDoctor(alertId: string): NotificationSeed {
         minutesAfter(alert.detectedAt, 1),
         "ai_alert",
         low ? "info" : "warning",
-        `New AI movement observation — ${fighterName(alert.fighterId)}, ${BODY_REGION_LABELS[alert.bodyRegion].toLowerCase()}`,
-        `${alert.pattern} (${formatConfidence(confidence)} confidence${low ? " — below the review threshold, check the clip" : ""}).`,
+        `Quan sát AI mới — ${fighterName(alert.fighterId)}, ${BODY_REGION_LABELS[alert.bodyRegion].toLowerCase()}`,
+        `${alert.pattern} (độ tin cậy ${formatConfidence(confidence)}${low ? " — dưới ngưỡng xem lại, hãy kiểm tra đoạn video" : ""}).`,
         routes.doctor.aiAlert(alertId),
     );
 }
@@ -441,8 +441,8 @@ function checkInLogged(planId: string, days: number): NotificationSeed {
         minutesAfter(checkIn.date, 1),
         "medical",
         "info",
-        `Recovery check-in logged — ${fighterName(plan.fighterId)}`,
-        `Pain ${checkIn.painLevel}/10 · mobility ${checkIn.mobilityPct}% · strength ${checkIn.strengthPct}%. “${checkIn.note}”`,
+        `Đã ghi kiểm tra phục hồi — ${fighterName(plan.fighterId)}`,
+        `Đau ${checkIn.painLevel}/10 · vận động ${checkIn.mobilityPct}% · sức mạnh ${checkIn.strengthPct}%. “${checkIn.note}”`,
         routes.doctor.recoveryPlan(planId),
     );
 }
@@ -713,8 +713,8 @@ const INBOXES: Inbox[] = [
                 minutesAfter(record(mockInjuries, "inj-diego-concussion", "injury").occurredAt, 6),
                 "medical",
                 "danger",
-                "Sparring stopped — Diego Alvarez",
-                "Rafael Costa stopped Diego's sparring in round 3 after he looked unsteady and asked for a medical assessment before he leaves the gym.",
+                "Dừng đấu tập — Diego Alvarez",
+                "Rafael Costa dừng buổi đấu tập của Diego ở hiệp 3 vì Diego đứng không vững và đề nghị đánh giá y tế trước khi rời phòng tập.",
                 routes.doctor.fighter("f-diego-alvarez"),
             ),
             alertForDoctor("al-diego-balance-6d"),
@@ -749,8 +749,8 @@ const INBOXES: Inbox[] = [
                           pastToday(6, 45),
                           "medical",
                           "info",
-                          `Follow-up due in ${daysBetween(TODAY_START, KENJI_EXAM.followUpDate)} days — Kenji Morita`,
-                          `Kenji's restricted clearance ends on ${formatDate(clearanceById("cl-kenji-current").validUntil ?? KENJI_EXAM.followUpDate)}. Re-examine the right shoulder before renewing or changing it.`,
+                          `Tái khám sau ${daysBetween(TODAY_START, KENJI_EXAM.followUpDate)} ngày — Kenji Morita`,
+                          `Giấy phép có hạn chế của Kenji hết hạn ngày ${formatDate(clearanceById("cl-kenji-current").validUntil ?? KENJI_EXAM.followUpDate)}. Hãy khám lại vai phải trước khi gia hạn hoặc thay đổi.`,
                           routes.doctor.fighter("f-kenji-morita"),
                       ),
                   ]
@@ -759,8 +759,8 @@ const INBOXES: Inbox[] = [
                 pastToday(7, 0),
                 "medical",
                 "warning",
-                "Concussion protocol review — Diego Alvarez",
-                `Diego is at stage ${DIEGO_CURRENT_PHASE + 1} of ${DIEGO_PROTOCOL.phases.length} (${DIEGO_PROTOCOL.phases[DIEGO_CURRENT_PHASE]?.name ?? "in progress"}). Review his symptom check-ins${DIEGO_NEXT_EXAM?.followUpDate ? ` before the follow-up examination on ${formatWeekdayDate(DIEGO_NEXT_EXAM.followUpDate)}` : ""}.`,
+                "Xem lại phác đồ chấn động — Diego Alvarez",
+                `Diego is at stage ${DIEGO_CURRENT_PHASE + 1} of ${DIEGO_PROTOCOL.phases.length} (${DIEGO_PROTOCOL.phases[DIEGO_CURRENT_PHASE]?.name ?? "đang thực hiện"}). Review his symptom check-ins${DIEGO_NEXT_EXAM?.followUpDate ? ` trước lần tái khám ngày ${formatWeekdayDate(DIEGO_NEXT_EXAM.followUpDate)}` : ""}.`,
                 routes.doctor.recoveryPlan(DIEGO_PROTOCOL.id),
             ),
         ],
@@ -1395,7 +1395,7 @@ function aiAudit(): AuditSeed[] {
     for (const alert of mockAbnormalMovementAlerts) {
         const review = alert.doctorReview;
         if (!review || review.reviewedAt < AUDIT_WINDOW_START) continue;
-        const decision = review.decision === "follow_up" ? "Follow-up" : review.decision === "acknowledged" ? "Acknowledged" : "Dismissed";
+        const decision = review.decision === "follow_up" ? "Theo dõi" : review.decision === "acknowledged" ? "Acknowledged" : "Dismissed";
         entries.push(
             audit(
                 review.reviewedAt,

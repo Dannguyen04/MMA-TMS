@@ -147,6 +147,8 @@ export const SESSION_STATUSES = [
   "SKIPPED",
   "CANCELLED",
   "ABANDONED",
+  /** T-036 A: chờ HLV xếp lại vì đình chỉ; chỉ sang SCHEDULED hoặc CANCELLED (training.constants.ts:25). */
+  "PENDING",
 ] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 

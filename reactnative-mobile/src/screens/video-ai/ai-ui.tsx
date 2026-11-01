@@ -12,6 +12,7 @@ import { useLoad } from "@/screens/fighter/use-load";
 
 import { useOpenVideo } from "./ai-data";
 import { currentStep, durationShort, impairmentRows, jobChip, jointText, latestJobFor, newestFirst, severityChip, trainingText } from "./ai-model";
+import { videoTitle } from "@/i18n/server-text";
 
 /** Khung 16:9 nhỏ 96×54: nền surfaceMuted + icon phát (API không có ảnh thu nhỏ). */
 export function VideoThumb({ durationMs }: { durationMs?: number | null }) {
@@ -95,14 +96,14 @@ export function RecentVideosBlock({ fighterId, enabled, onSeeAll }: { fighterId:
           <Pressable
             key={v.id}
             accessibilityRole="button"
-            accessibilityLabel={[v.title || vai.untitled, meta, chip.label].join(", ")}
+            accessibilityLabel={[videoTitle(v.title) || vai.untitled, meta, chip.label].join(", ")}
             onPress={() => open(v.id, job?.id)}
             style={({ pressed }) => [styles.mini, { opacity: pressed ? 0.85 : 1 }]}
           >
             <VideoThumb durationMs={v.durationMs} />
             <View style={{ flex: 1, gap: 4 }}>
               <Text style={[TEXT.bodyBold, { color: p.ink }]} numberOfLines={2}>
-                {v.title || vai.untitled}
+                {videoTitle(v.title) || vai.untitled}
               </Text>
               {meta ? <Text style={[TEXT.detail, { color: p.ink }]}>{meta}</Text> : null}
               <StatusChip spec={chip} />

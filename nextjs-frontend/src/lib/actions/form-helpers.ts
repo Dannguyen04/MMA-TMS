@@ -11,7 +11,7 @@ import { dayKey, isDateKey } from "@/lib/format";
  * may only export actions.
  */
 
-export const NOT_ASSIGNED = "You aren't assigned to this fighter, so you can't change their medical information.";
+export const NOT_ASSIGNED = "Bạn không phụ trách võ sĩ này nên không thể thay đổi thông tin y tế.";
 
 /** Clock skew tolerated when checking that a time isn't in the future. */
 const FUTURE_TOLERANCE_MS = 5 * 60_000;
@@ -49,23 +49,23 @@ export const passwordText = (message: string) =>
 
 /** Free text that must be filled in, trimmed and within `max` characters. */
 export const requiredText = (label: string, max: number) =>
-    z.string(`Enter the ${label}.`).trim().min(1, `Enter the ${label}.`).max(max, `Keep the ${label} under ${max} characters.`);
+    z.string(`Hãy nhập ${label}.`).trim().min(1, `Hãy nhập ${label}.`).max(max, `${label} tối đa ${max} ký tự.`);
 
 /** Free text that may be left empty, trimmed and within `max` characters; empty or missing becomes null. */
 export const nullableText = (label: string, max: number) =>
     z
         .string()
         .trim()
-        .max(max, `Keep the ${label} under ${max} characters.`)
+        .max(max, `${label} tối đa ${max} ký tự.`)
         .optional()
         .transform((value) => value || null);
 
 /** A YYYY-MM-DD date that has already come, such as a date of birth. */
 export const pastDate = (label: string) =>
     z
-        .string(`Enter the ${label}.`)
-        .refine(isDateKey, `Enter the ${label}.`)
-        .refine((value) => value <= dayKey(new Date()), `The ${label} can't be in the future.`);
+        .string(`Hãy nhập ${label}.`)
+        .refine(isDateKey, `Hãy nhập ${label}.`)
+        .refine((value) => value <= dayKey(new Date()), `${label} không thể ở tương lai.`);
 
 /** A YYYY-MM-DD date, or "" when the field was left empty. */
 export const optionalDate = (message: string) =>
@@ -82,7 +82,7 @@ export function jsonField<T extends z.ZodType>(schema: T, label: string, empty =
             try {
                 return JSON.parse(value || empty) as unknown;
             } catch {
-                ctx.addIssue({ code: "custom", message: `The ${label} couldn't be read. Reload the page and try again.` });
+                ctx.addIssue({ code: "custom", message: `Không đọc được ${label}. Hãy tải lại trang và thử lại.` });
                 return z.NEVER;
             }
         })

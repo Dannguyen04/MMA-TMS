@@ -626,7 +626,7 @@ export function applySuspensionSideEffects(
         }
         if (proposal.action === "cancel") {
             session.status = "cancelled";
-            session.cancellationReason = "Suspension in force";
+            session.cancellationReason = "Đang bị đình chỉ";
             affectedSessions.push({ sessionId: session.id, action: "cancel" });
         } else {
             session.status = "pending";
@@ -646,7 +646,7 @@ export function applySuspensionSideEffects(
                         )
                     ) {
                     session.status = "cancelled";
-                    session.cancellationReason = "Suspension in force";
+                    session.cancellationReason = "Đang bị đình chỉ";
                     affectedSessions.push({ sessionId: session.id, action: "cancel" });
                     mutatedSessionIds.add(session.id);
                 }

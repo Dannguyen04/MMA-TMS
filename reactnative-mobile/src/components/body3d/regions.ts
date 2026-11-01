@@ -23,6 +23,32 @@ export const JOINT_REGIONS: Record<string, RegionCfg> = {
   SPINE_CORE: { region: "SPINE", R: 0.05, core: 0.1 },
 };
 
+/**
+ * Vùng phụ: đầu, cổ, ngực, xương sườn (port từ web doctor, body3d/regions.ts EXTRA_REGIONS).
+ * Mô hình có hình học các vùng này nhưng regions-v6e.json và _geo0–3 chỉ nướng 13 khớp của API
+ * (slot 3 ch 2–3 trống), nên tô theo khoảng cách Euclid tới tâm, toạ độ thế giới của mô hình
+ * (cùng hệ "centre" trong regions json; GLB native và Meshopt có cùng phép dời/tỉ lệ ở node lưới).
+ * R là bán kính tuyệt đối (đơn vị mô hình). Màu, falloff, nhịp như 13 khớp.
+ */
+export type ExtraCfg = { region: string; centres: [number, number, number][]; R: number };
+export const EXTRA_REGIONS: Record<string, ExtraCfg> = {
+  HEAD: { region: "HEAD", centres: [[0, 0.001, 0.0005]], R: 0.0155 },
+  NECK: { region: "NECK", centres: [[0, -0.0105, 0]], R: 0.0085 },
+  CHEST: { region: "CHEST", centres: [[0.0085, -0.027, 0.011], [-0.0085, -0.027, 0.011]], R: 0.011 },
+  RIBS: { region: "RIBS", centres: [[0.0155, -0.046, 0.007], [-0.0155, -0.046, 0.007]], R: 0.0095 },
+};
+const EXTRA_VI: Record<string, string> = { HEAD: "Đầu", NECK: "Cổ", CHEST: "Ngực", RIBS: "Xương sườn" };
+/** Cách viết khác (bodyRegion kiểu web "head", FACE…) → mã vùng phụ. */
+const EXTRA_ALIAS: Record<string, string> = { FACE: "HEAD", SKULL: "HEAD", RIB: "RIBS", LEFT_RIBS: "RIBS", RIGHT_RIBS: "RIBS" };
+/** Chuẩn hoá mã: "head" → "HEAD", "FACE" → "HEAD"; 13 mã khớp và mã lạ giữ nguyên. */
+export function normaliseJoint(code: string): string {
+  if (code in JOINT_REGIONS) return code;
+  const u = code.trim().toUpperCase().replace(/[\s-]+/g, "_");
+  const a = EXTRA_ALIAS[u] ?? u;
+  return a in EXTRA_REGIONS ? a : code;
+}
+export const isMappedJoint = (j: string) => j in JOINT_REGIONS || j in EXTRA_REGIONS;
+
 /** Thông số tô (Bản 6). */
 export const PAINT = {
   peak: 0.5,
@@ -57,8 +83,10 @@ export function humaniseCode(code: string): string {
 
 export function jointLabelVi(code: string): string {
   if (code === "SPINE_CORE") return "Cột sống";
+  if (EXTRA_VI[code]) return EXTRA_VI[code]!;
   const j = (medical.joint as Record<string, string>)[code];
-  return j ?? `Vùng khác (${humaniseCode(code)})`;
+  // Never show the raw joint code (31/10).
+  return j ?? "Vùng khác";
 }
 
 function injuryStatus(s: string): PaintStatus | null {
@@ -80,11 +108,12 @@ export function buildJointRows(
   severityText: (s: string) => string = (s) => s,
 ): JointRow[] {
   const map = new Map<string, JointRow>();
-  const put = (joint: string, status: PaintStatus | null, statusText: string, detail: string) => {
+  const put = (raw: string, status: PaintStatus | null, statusText: string, detail: string) => {
+    const joint = normaliseJoint(raw);
     const prev = map.get(joint);
     const better = !prev || (status && (!prev.status || RANK[status] > RANK[prev.status]));
     if (!better) return;
-    map.set(joint, { joint, label: jointLabelVi(joint), status, statusText, mapped: joint in JOINT_REGIONS, detail });
+    map.set(joint, { joint, label: jointLabelVi(joint), status, statusText, mapped: isMappedJoint(joint), detail });
   };
   for (const i of injuries) {
     const st = injuryStatus(i.status);
@@ -95,7 +124,7 @@ export function buildJointRows(
     put(s.joint, s.currentState === "CONFIRMED_IMPAIRMENT" ? "injury" : null, stateText(s.currentState), "");
   }
   // Vùng có trên mô hình trước, theo thứ tự cấu hình; mã lạ cuối danh sách.
-  const order = Object.keys(JOINT_REGIONS);
+  const order = [...Object.keys(EXTRA_REGIONS), ...Object.keys(JOINT_REGIONS)];
   return [...map.values()].sort((a, b) => {
     const ia = order.indexOf(a.joint);
     const ib = order.indexOf(b.joint);
@@ -107,9 +136,9 @@ export function buildJointRows(
 export function paintRegions(rows: readonly JointRow[]): Record<string, { color: string; R: number; core: number }> {
   const out: Record<string, { color: string; R: number; core: number }> = {};
   for (const r of rows) {
-    const cfg = JOINT_REGIONS[r.joint];
+    const cfg: RegionCfg | ExtraCfg | undefined = JOINT_REGIONS[r.joint] ?? EXTRA_REGIONS[r.joint];
     if (!cfg || !r.status) continue;
-    out[cfg.region] = { color: STATUS_COLOR[r.status], R: cfg.R, core: cfg.core ?? PAINT.core };
+    out[cfg.region] = { color: STATUS_COLOR[r.status], R: cfg.R, core: ("core" in cfg && cfg.core) || PAINT.core };
   }
   return out;
 }

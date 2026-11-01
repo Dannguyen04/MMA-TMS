@@ -79,7 +79,7 @@ export const adminRo = {
     role: "Vai trò",
     roleAdmin: "Quản trị viên",
     appearance: "Giao diện",
-    appearanceDesc: "Chế độ sáng, tối và bảng màu",
+    appearanceDesc: "Sáng, tối, hệ thống và khoảng cách chữ",
     logout: "Đăng xuất",
   },
   active: "Đang hoạt động",

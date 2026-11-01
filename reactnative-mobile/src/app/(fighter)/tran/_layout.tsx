@@ -9,8 +9,7 @@ export default function TranStack() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.bg },
-        animation: "fade",
-        animationDuration: 160,
+        // Platform default push (iOS slide with edge-swipe back, Android Material transition).
       }}
     />
   );

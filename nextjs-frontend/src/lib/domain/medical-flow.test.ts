@@ -9,7 +9,7 @@ describe("suggestClearanceType", () => {
 
     it("only suggests a return from injury, for the doctor to confirm, when an injury is active", () => {
         expect(suggestClearanceType({ scope: "TRAINING", examinationType: "baseline", activeInjuries: 1 })).toMatchObject({ type: "RETURN_FROM_INJURY", preselect: false });
-        expect(suggestClearanceType({ scope: "TRAINING", examinationType: "routine", activeInjuries: 2 }).reason).toContain("2 active injuries");
+        expect(suggestClearanceType({ scope: "TRAINING", examinationType: "routine", activeInjuries: 2 }).reason).toContain("2 chấn thương đang điều trị");
     });
 
     it("suggests a return from injury after an injury-related examination, and leaves other examinations to the doctor", () => {

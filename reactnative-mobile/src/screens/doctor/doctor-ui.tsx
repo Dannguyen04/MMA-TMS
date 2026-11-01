@@ -8,6 +8,7 @@ import { doctorUi } from "@/i18n/doctor-ui";
 import { radius, spacing, type, useThemePreference } from "@/theme";
 
 import { cleanInitials, doctorMuted } from "./doctor-chrome";
+import { ArenaFrame } from "@/components/arena/arena-frame";
 
 export { cleanInitials };
 
@@ -78,7 +79,7 @@ export function SummaryCard({
 }) {
   const t = useDoctorText();
   const body = (
-    <View style={[styles.card, { backgroundColor: t.colors.surface, borderColor: t.colors.line }]}>
+    <ArenaFrame>
       <View style={styles.cardHead}>
         <Text style={[t.heading, styles.flex]}>{title}</Text>
         {onPress ? <Icon name="chevron" size={18} color={t.muted} /> : null}
@@ -92,7 +93,7 @@ export function SummaryCard({
       ) : null}
       {children}
       {onPress && actionLabel ? <Text style={t.link}>{actionLabel}</Text> : null}
-    </View>
+    </ArenaFrame>
   );
   if (!onPress) return body;
   return (

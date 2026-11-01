@@ -1,50 +1,159 @@
 import { ApiError } from "@/api/errors";
-import type { AnalysisInput, CampStatus } from "@/api/fight-camp";
+import type { AnalysisInput, CampDetail, CampStatus, Suspension } from "@/api/fight-camp";
+import { CampInputError } from "./camp-input-error";
+import { backendErrorText, GENERIC_ERROR } from "@/i18n/backend-codes";
+import { campText } from "@/i18n/fight-camp";
 
 export const statusLabel: Record<CampStatus, string> = {
-  SCHEDULED: "Đã lên lịch", CAMP: "Trong trại tập", FIGHT_WEEK: "Tuần thi đấu",
-  WEIGHED_IN: "Đã cân chính thức", COMPLETED: "Đã kết thúc", CANCELLED: "Đã huỷ",
+  SCHEDULED: campText.campRules.daLenLich, CAMP: campText.campRules.trongTraiTap, FIGHT_WEEK: campText.campRules.tuanThiDau,
+  WEIGHED_IN: campText.campRules.daCanChinhThuc, COMPLETED: campText.campRules.daKetThuc, CANCELLED: campText.campRules.daHuy,
 };
-export const outcomeLabel = { EFFECTIVE: "Hiệu quả", INEFFECTIVE: "Không hiệu quả", NOT_USED: "Chưa dùng" };
+export const outcomeLabel = { EFFECTIVE: campText.campRules.hieuQua, INEFFECTIVE: campText.campRules.khongHieuQua, NOT_USED: campText.campRules.chuaDung };
 export const kg = (value: number | null | undefined) => value == null ? "—" : value.toFixed(1).replace(".", ",");
 export const dateLabel = (value: string) => new Date(value.length === 10 ? `${value}T12:00:00+07:00` : value).toLocaleDateString("vi-VN", { timeZone: "Asia/Ho_Chi_Minh", day: "2-digit", month: "2-digit", year: "numeric" });
 export function readKg(text: string): number {
-  if (!/^\d{1,3}([.,]\d)?$/.test(text.trim())) throw new Error("Nhập số kg, tối đa một chữ số sau dấu phẩy.");
+  if (!/^\d{1,3}([.,]\d)?$/.test(text.trim())) throw new CampInputError(campText.campRules.nhapSoKgToiDa);
   const value = Number(text.trim().replace(",", "."));
-  if (value < 30 || value > 200) throw new Error("Cân nặng phải từ 30 đến 200 kg.");
+  if (value < 30 || value > 200) throw new CampInputError(campText.campRules.canNangPhaiTu30);
   return value;
 }
 export function campError(error: unknown): string {
-  if (!(error instanceof ApiError)) return error instanceof Error ? error.message : "Không tải được dữ liệu. Hãy thử lại.";
+  // Only our own Vietnamese validation messages are shown verbatim; JS/server messages never are.
+  if (!(error instanceof ApiError)) return error instanceof CampInputError ? error.message : GENERIC_ERROR;
   const details = error.details as { earliestOn?: string } | undefined;
-  if (error.code === "BOUT_WEIGH_IN_TOO_EARLY") return `Chưa đến ngày cân chính thức${details?.earliestOn ? `. Có thể ghi từ ${dateLabel(details.earliestOn)}` : ""}. Số đã nhập được giữ lại.`;
-  const labels: Record<string, string> = {
-    NETWORK_ERROR: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại; dữ liệu đang nhập được giữ nguyên.",
-    BOUT_INVALID_TRANSITION: "Trạng thái trận chưa cho phép thao tác này. Hãy tải lại chi tiết trận.",
-    BOUT_STATE_CONFLICT: "Trận vừa được cập nhật ở nơi khác. Tải lại trước khi tiếp tục; nội dung đang nhập vẫn được giữ.",
-    BOUT_WEIGH_IN_NOT_FAILED: "Trận chưa có lần cân không đạt để thoả thuận catchweight.",
-    BOUT_INVALID_CATCHWEIGHT: "Giới hạn thoả thuận không được thấp hơn số cân chính thức.",
-    BOUT_ROUNDS_NOT_SET: "Trận chưa được đặt số hiệp. HLV cần cập nhật trận trước khi ghi hiệp.",
-    BOUT_ROUND_OUT_OF_RANGE: "Hiệp này vượt số hiệp đã đặt cho trận.",
-    BOUT_ROUND_MARK_UNKNOWN: "Chiến thuật hoặc quan sát đã thay đổi. Tải lại trận trước khi ghi.",
-    BOUT_NOT_FOUND: "Không tìm thấy trận hoặc bạn không có quyền xem.",
-  };
-  if (labels[error.code]) return labels[error.code];
-  if (error.status === 401) return "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại.";
-  if (error.status === 403) return "Tài khoản không có quyền thực hiện thao tác này hoặc chưa phụ trách võ sĩ.";
-  if (error.status === 422) return "Thông tin chưa hợp lệ. Kiểm tra các ô nhập trước khi lưu.";
-  return "Không thực hiện được thao tác. Hãy thử lại.";
+  if (error.code === "BOUT_REQUIREMENTS_INCOMPLETE") {
+    const gate = error.details as { missing?: Gate1Item[]; expiring?: Gate1Item[] } | undefined;
+    const parts = [
+      gate?.missing?.length ? campText.campRules.conThieu(gate.missing.map(i => i.label).join(", ")) : "",
+      gate?.expiring?.length ? campText.campRules.hetHanTruocNgayThi(gate.expiring.map(i => i.label).join(", ")) : "",
+    ].filter(Boolean);
+    return campText.campRules.chuaDuHoSoThi(parts.length ? ` ${parts.join(". ")}.` : "");
+  }
+  if (error.code === "BOUT_REQUIREMENTS_LOCKED") return campText.campRules.hoSoThiDauDang;
+  if (error.code === "BOUT_WEIGH_IN_TOO_EARLY") return campText.campRules.chuaDenNgayCanChinh(details?.earliestOn ? campText.campRules.coTheGhiTu(dateLabel(details.earliestOn)) : "");
+  return backendErrorText(error);
 }
 export function validateAnalysis(a: AnalysisInput, maxRounds: number | null): void {
-  if (a.observations.length > 6 || a.tactics.length > 5) throw new Error("Tối đa 6 quan sát và 5 chiến thuật.");
+  if (a.observations.length > 6 || a.tactics.length > 5) throw new CampInputError(campText.campRules.toiDa6QuanSat);
   for (const o of a.observations) {
-    if (!o.text.trim()) throw new Error("Mỗi quan sát cần có nội dung.");
-    if (!o.evidenceNote?.trim() && !o.evidenceUrl?.trim()) throw new Error("Mỗi quan sát cần đường dẫn hoặc ghi chú bằng chứng.");
-    if (o.evidenceUrl && !/^https?:\/\/\S+$/i.test(o.evidenceUrl)) throw new Error("Đường dẫn bằng chứng phải bắt đầu bằng http:// hoặc https://.");
+    if (!o.text.trim()) throw new CampInputError(campText.campRules.moiQuanSatCanCo);
+    if (!o.evidenceNote?.trim() && !o.evidenceUrl?.trim()) throw new CampInputError(campText.campRules.moiQuanSatCanDuong);
+    if (o.evidenceUrl && !/^https?:\/\/\S+$/i.test(o.evidenceUrl)) throw new CampInputError(campText.campRules.duongDanBangChungPhai);
   }
   for (const t of a.tactics) {
-    if (!t.text.trim()) throw new Error("Mỗi chiến thuật cần có nội dung.");
-    if (!t.observationIds.length) throw new Error("Chọn ít nhất một quan sát làm căn cứ cho mỗi chiến thuật.");
-    if (t.round != null && (!Number.isInteger(t.round) || t.round < 1 || t.round > (maxRounds ?? 12))) throw new Error("Hiệp áp dụng phải nằm trong số hiệp của trận.");
+    if (!t.text.trim()) throw new CampInputError(campText.campRules.moiChienThuatCanCo);
+    if (!t.observationIds.length) throw new CampInputError(campText.campRules.chonItNhatMotQuan);
+    if (t.round != null && (!Number.isInteger(t.round) || t.round < 1 || t.round > (maxRounds ?? 12))) throw new CampInputError(campText.campRules.hiepApDungPhaiNam);
   }
+}
+
+/** Requirement status words, shared by coach and fighter. */
+export const requirementLabel: Record<string, string> = { CONFIRMED: campText.campRules.daXacNhan, PROVIDED: campText.campRules.daCungCap, MISSING: campText.campRules.conThieu2, REJECTED: campText.campRules.chuaHopLe, EXPIRED: campText.campRules.hetHan };
+export type Gate1Item = { code: string; label: string; status: string; validUntil: string | null };
+/**
+ * Mirrors the server's Gate 1 check (nestjs-api bouts.model.ts:204-216) for display only:
+ * a required item blocks when it is not PROVIDED/CONFIRMED, or when it has no validity date
+ * or expires before the bout date. The server stays the authority.
+ */
+export function gate1(requirements: CampDetail["requirements"], boutAt: string): { missing: Gate1Item[]; expiring: Gate1Item[]; passed: boolean } {
+  const boutDate = dayKey(boutAt);
+  const missing: Gate1Item[] = [], expiring: Gate1Item[] = [];
+  for (const r of requirements) {
+    if (!r.required) continue;
+    const item = { code: r.code, label: r.label, status: r.status, validUntil: r.validUntil };
+    if (r.status !== "PROVIDED" && r.status !== "CONFIRMED") missing.push(item);
+    else if (r.validUntil === null || r.validUntil < boutDate) expiring.push(item);
+  }
+  return { missing, expiring, passed: !missing.length && !expiring.length };
+}
+/** Bout states where Gate 1 still decides whether fight week can start. */
+export const gateDecides = (status: CampStatus) => status === "SCHEDULED" || status === "CAMP";
+/** YYYY-MM-DD on the academy calendar (Asia/Ho_Chi_Minh). */
+export function dayKey(value: string | Date): string {
+  const d = typeof value === "string" ? new Date(value.length === 10 ? `${value}T12:00:00+07:00` : value) : value;
+  return d.toLocaleDateString("en-CA", { timeZone: "Asia/Ho_Chi_Minh" });
+}
+export const isToday = (value: string | null | undefined, now = new Date()) => !!value && dayKey(value) === dayKey(now);
+
+export const sessionNames: Record<string, string> = { SHADOW_BOXING: campText.campRules.danhGio, PAD_WORK: campText.campRules.danhDich, HEAVY_BAG: campText.campRules.danhBao, SPARRING: campText.campRules.doiLuyen, GRAPPLING: campText.campRules.vatKhoaSiet, STRENGTH_CONDITIONING: campText.campRules.theLucVaSucManh, RECOVERY: campText.campRules.phucHoi, PHYSICAL_THERAPY: campText.campRules.vatLyTriLieu };
+export const suspensionStatusLabel: Record<Suspension["status"], string> = { UPCOMING: campText.campRules.sapApDung, ACTIVE: campText.campRules.dangDinhChi, AWAITING_CLEARANCE: campText.campRules.choXacNhanTapLai, ENDED: campText.campRules.daKetThuc2 };
+export const suspensionReasonLabel: Record<string, string> = { KO: campText.campRules.knockOutKo, TKO: campText.campRules.knockOutKyThuatTko, DQ: campText.campRules.truatQuyenThiDau, MANDATORY_REST: campText.campRules.nghiBatBuoc, MEDICAL: campText.campRules.yTe, OTHER: campText.campRules.khac };
+export const blockedSessionNames = (s: Suspension) => s.blockedSessionTypes.map(t => sessionNames[t] ?? t);
+export const openSessionNames = (s: Suspension) => Object.keys(sessionNames).filter(t => !s.blockedSessionTypes.includes(t)).map(t => sessionNames[t]);
+const graded = (s: Suspension) => s.status === "ENDED" && !!s.gradedReturn;
+/**
+ * Suspensions that limit training now or soon, most restrictive first. T-048 1A: `active=true` never returns
+ * graded return (T-049 J1), so ENDED rows whose gradedReturn is still running are kept here on the device.
+ */
+export function liveSuspensions(items: readonly Suspension[]): Suspension[] {
+  const rank = (s: Suspension) => s.status === "ACTIVE" ? 0 : s.status === "AWAITING_CLEARANCE" ? 1 : graded(s) ? 2 : 3;
+  return items.filter(s => s.status === "UPCOMING" || s.status === "ACTIVE" || s.status === "AWAITING_CLEARANCE" || graded(s)).sort((a, b) => rank(a) - rank(b));
+}
+/**
+ * T-048 line 47: without gradedReturn first, then the latest endsOn. UPCOMING does not limit training yet, so it
+ * comes after every suspension in force (decision 1A keeps UPCOMING, which `active=true` never returned).
+ */
+export function strictestSuspension(items: readonly Suspension[]): { main: Suspension; others: number } | null {
+  const live = liveSuspensions(items);
+  if (!live.length) return null;
+  const group = (s: Suspension) => s.status === "UPCOMING" ? 2 : s.gradedReturn ? 1 : 0;
+  const [main] = [...live].sort((a, b) => group(a) - group(b) || b.endsOn.localeCompare(a.endsOn));
+  return { main, others: live.length - 1 };
+}
+/** Intensity tiers (suspensions.constants.ts:27-39). Tier numbers stay out of the visible text (8B). */
+export const intensityTiers = [
+  { tier: 1, group: campText.campRules.nheKhongGangSuc, types: ["RECOVERY", "PHYSICAL_THERAPY"] },
+  { tier: 2, group: campText.campRules.gangSucKhongDanh, types: ["STRENGTH_CONDITIONING"] },
+  { tier: 3, group: campText.campRules.kyThuatKhongVaCham, types: ["SHADOW_BOXING", "HEAVY_BAG", "PAD_WORK"] },
+  { tier: 4, group: campText.campRules.vaChamCoKiemSoat, types: ["GRAPPLING"] },
+  { tier: 5, group: campText.campRules.doiKhangToanPhan, types: ["SPARRING"] },
+] as const;
+export const tierTypesText = (t: (typeof intensityTiers)[number]) => t.types.map(x => sessionNames[x]).join(", ");
+/** Session types in tier order (lightest first). */
+const TIER_ORDER: string[] = intensityTiers.flatMap(t => [...t.types]);
+/**
+ * Phase 5 B (1A): what the server gate lets the fighter do, from the same fields it reads
+ * (suspension.gate.ts:38-57). In force (ACTIVE, AWAITING_CLEARANCE): every type NOT in
+ * `blockedSessionTypes`, even when the free list skips a tier. Graded return (ENDED with
+ * `gradedReturn`): every type up to the day's ceiling (3, then 4; full from fullReturnOn, when the
+ * server sends no gradedReturn). UPCOMING: what will be allowed from startsOn. Otherwise `null`.
+ * `maxAllowedTier` is not used: it is derived from the record and goes stale in graded return (T-051 U1).
+ */
+export function allowedTypes(s: Suspension): string[] | null {
+  if (s.status === "ACTIVE" || s.status === "AWAITING_CLEARANCE" || s.status === "UPCOMING") return TIER_ORDER.filter(t => !s.blockedSessionTypes.includes(t));
+  if (s.gradedReturn) { const ceiling = s.gradedReturn.ceiling; return intensityTiers.filter(t => t.tier <= ceiling).flatMap(t => [...t.types]); }
+  return null;
+}
+/** The single allowed line on suspension cards (1A): "Hôm nay được tập: …", or from startsOn for UPCOMING. */
+export function allowedTodayLine(s: Suspension): string | null {
+  const types = allowedTypes(s);
+  if (!types) return null;
+  const when = s.status === "UPCOMING" ? campText.campRules.tu(dayMonth(s.startsOn)) : campText.campRules.homNay;
+  if (!types.length) return campText.campRules.chuaDuocTapLoaiNao(when);
+  if (types.length === TIER_ORDER.length) return campText.campRules.duocTapTatCaCac(when);
+  return campText.campRules.duocTap(when, types.map(x => sessionNames[x].toLocaleLowerCase("vi")).join(", "));
+}
+/** True while a suspension limits training today (in force or graded return); UPCOMING does not yet. */
+export function limitsTrainingToday(items: readonly Suspension[] | null | undefined): boolean {
+  return !!items && liveSuspensions(items).some(s => s.status !== "UPCOMING");
+}
+/** dd/MM on the academy calendar. */
+export const dayMonth = (value: string) => dateLabel(value).slice(0, 5);
+const addDays = (day: string, n: number) => { const d = new Date(`${day}T12:00:00+07:00`); d.setDate(d.getDate() + n); return dayKey(d); };
+/** Ticket lines 39-42, plus 6B for UPCOMING. */
+export function suspensionHeadline(s: Suspension): string {
+  if (s.gradedReturn) return campText.campRules.dangTapLaiTheoBac(dayMonth(s.gradedReturn.fullReturnOn));
+  if (s.status === "AWAITING_CLEARANCE") return campText.campRules.choBacSiXacNhan;
+  if (s.status === "ACTIVE") return campText.campRules.dangDinhChiDen(dayMonth(s.endsOn));
+  if (s.status === "UPCOMING") return campText.campRules.sapDinhChiTu(dayMonth(s.startsOn));
+  return campText.campRules.trangThaiDinhChiChua;
+}
+/** Graded return as 3 days: ceiling 3, ceiling 4, then full training from fullReturnOn. */
+export function gradedSteps(g: NonNullable<Suspension["gradedReturn"]>): { date: string; text: string; current: boolean }[] {
+  const t3 = intensityTiers[2].group, t4 = intensityTiers[3].group;
+  return [
+    { date: dayMonth(addDays(g.fullReturnOn, -2)), text: campText.campRules.tapDenNhom(t3.toLocaleLowerCase("vi")), current: g.ceiling === 3 },
+    { date: dayMonth(addDays(g.fullReturnOn, -1)), text: campText.campRules.tapDenNhom2(t4.toLocaleLowerCase("vi")), current: g.ceiling === 4 },
+    { date: dayMonth(g.fullReturnOn), text: campText.campRules.tapDayDu, current: false },
+  ];
 }

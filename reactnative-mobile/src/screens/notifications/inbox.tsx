@@ -76,7 +76,7 @@ export function NotificationInbox({ title, showWhen = false }: { title: string; 
           <Text style={[type.body, { color: colors.ink, fontWeight: showWhen && !reads.isRead(row) ? "600" : "400" }]}>
             {row.title}
           </Text>
-          <Text style={[type.caption, { color: muted }]}>{row.message}</Text>
+          {row.message ? <Text style={[type.caption, { color: muted }]}>{row.message}</Text> : null}
           {showWhen ? (
             <Text style={[type.caption, { color: muted }]}>
               {new Date(row.createdAt).toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short" })}
