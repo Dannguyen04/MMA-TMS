@@ -330,13 +330,13 @@ export const enHealth = {
     "reviewRequest.unauthorized": "You can only request a review for yourself or a fighter you're assigned to.",
 
     /* ─── Care Team Card ─── */
+    "careTeam.noDoctor": "No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page.",
+    "careTeam.noCoach": "No coach yet. The academy assigns your coach, and you get a notification when they do.",
     "careTeam.title": "Your care team",
     "careTeam.sportsMedicine": "Sports medicine",
     "careTeam.coaching": "Coaching",
     "careTeam.primaryCoach": "Primary coach",
     "careTeam.primaryDoctor": "Primary doctor",
-    "careTeam.noDoctor": "No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page.",
-    "careTeam.noCoach": "No coach yet. The academy assigns your coach, and you get a notification when they do.",
 
     /* ─── Examination Summary Card ─── */
     "examSummary.lastCheck": "Last medical check",
@@ -433,11 +433,11 @@ export const enHealth = {
     "fighterHistory.resolved": "resolved",
     "fighterHistory.expected": "expected {when}",
     "fighterHistory.toBeAssessed": "To be assessed",
-    "fighterHistory.eventCount": "{count} events",
+    "fighterHistory.eventCount": "{n} events",
     "fighterHistory.eventCount.one": "1 event",
-    "fighterHistory.examCount": "{count} examinations",
+    "fighterHistory.examCount": "{n} examinations",
     "fighterHistory.examCount.one": "1 examination",
-    "fighterHistory.injuryCount": "{count} injuries",
+    "fighterHistory.injuryCount": "{n} injuries",
     "fighterHistory.injuryCount.one": "1 injury",
 
     /* ─── Fighter Injury Details Page ─── */
@@ -461,7 +461,7 @@ export const enHealth = {
     "fighterInjury.checkInsDesc": "How you've reported feeling at each check-in",
     "fighterInjury.trendChartsHint": "Trend charts appear after your second check-in.",
     "fighterInjury.treatments": "Treatments",
-    "fighterInjury.treatmentCount": "{count} treatments",
+    "fighterInjury.treatmentCount": "{n} treatments",
     "fighterInjury.treatmentCount.one": "1 treatment",
     "fighterInjury.noTreatmentsTitle": "No treatments recorded",
     "fighterInjury.noTreatmentsDesc": "Your doctor adds treatments here as your care progresses.",

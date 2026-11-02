@@ -210,10 +210,11 @@ export function formatTimestamp(ms: number): string {
     return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}.${tenths}`;
 }
 
-/** 90 → "1h 30m", 45 → "45 min". */
-export function formatMinutes(minutes: number): string {
+/** 90 → "1h 30m", 45 → "45 min"; in Vietnamese always minutes ("90 phút"), as the week summary shows them. */
+export function formatMinutes(minutes: number, locale: Locale = "en"): string {
     const m = Math.round(minutes);
-    if (m < 60) return `${m} phút`;
+    if (locale === "vi") return `${m} phút`;
+    if (m < 60) return `${m} min`;
     const h = Math.floor(m / 60);
     const rest = m % 60;
     return rest === 0 ? `${h}h` : `${h}h ${rest}m`;

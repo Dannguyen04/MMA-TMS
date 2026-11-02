@@ -6,11 +6,12 @@ import { Filter, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/form";
-import type { CompetitionRuleset } from "@/lib/domain/types";
+/** What the filter needs from a ruleset; both the bouts service and the readiness service provide it. */
+type RulesetOption = { id: string; name: string; weightClasses: { code: string; label: string; limitKg: number | null }[] };
 import { routes } from "@/lib/routes";
 
 export interface ReadinessFilterBarProps {
-    rulesets: CompetitionRuleset[];
+    rulesets: RulesetOption[];
     initialRulesetId?: string;
     initialWeightLimitKg?: number;
     initialBoutOn?: string;
@@ -75,8 +76,8 @@ export function ReadinessFilterBar({
                             disabled={!selectedRulesetId || weightClasses.length === 0}
                         >
                             <option value="">{labels.allWeightClasses}</option>
-                            {weightClasses.map((wc) => (
-                                <option key={wc.code} value={wc.limitKg}>
+                            {weightClasses.filter((wc) => wc.limitKg !== null).map((wc) => (
+                                <option key={wc.code} value={wc.limitKg ?? ""}>
                                     {wc.label} ({wc.limitKg} kg)
                                 </option>
                             ))}

@@ -59,7 +59,8 @@ export type ClearanceConflictCode =
     | "blocked_type"
     | "exceeds_rpe"
     | "restricted_technique"
-    | "protected_region";
+    | "protected_region"
+    | "suspended";
 
 export interface ClearanceConflict {
     code: ClearanceConflictCode;
@@ -72,6 +73,8 @@ export interface ClearanceConflict {
     techniques?: Technique[];
     regions?: BodyRegion[];
     date?: string;
+    /** "suspended" only: who is suspended. Its `date` is the last suspended day, absent once only a clearance can end it. */
+    fighterName?: string;
     /** Optional fallback message */
     message?: string;
 }
@@ -175,6 +178,12 @@ export function clearanceConflictMessage(t: Translator, conflict: ClearanceConfl
             return t("training.conflict.protectedRegion", {
                 regions: (conflict.regions ?? []).map((reg) => BODY_REGION_LABELS[reg] ?? reg).join(", "),
                 label: conflict.label ?? "",
+            });
+        case "suspended":
+            return t("training.gate2.suspended", {
+                name: conflict.fighterName ?? "",
+                type: conflict.type ? trainingTypeLabel(t, conflict.type).toLowerCase() : "",
+                until: conflict.date ? t("training.gate2.through", { date: formatDate(conflict.date, locale) }) : t("training.gate2.untilCleared"),
             });
         default:
             return conflict.message ?? "";

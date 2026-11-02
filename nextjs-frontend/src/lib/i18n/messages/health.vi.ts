@@ -332,13 +332,13 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "reviewRequest.unauthorized": "Bạn chỉ có thể yêu cầu xem xét cho chính mình hoặc võ sĩ được phân công.",
 
     /* ─── Care Team Card ─── */
+    "careTeam.noDoctor": "Chưa có bác sĩ thể thao. Học viện sẽ phân công bác sĩ khám ban đầu; thông tin sẽ xuất hiện ở đây và trên trang Hôm nay.",
+    "careTeam.noCoach": "Chưa có huấn luyện viên. Học viện sẽ phân công và thông báo cho bạn.",
     "careTeam.title": "Đội ngũ chăm sóc",
     "careTeam.sportsMedicine": "Y học thể thao",
     "careTeam.coaching": "Ban huấn luyện",
     "careTeam.primaryCoach": "HLV chính",
     "careTeam.primaryDoctor": "Bác sĩ chính",
-    "careTeam.noDoctor": "Chưa có bác sĩ thể thao. Học viện sẽ phân công một bác sĩ cho buổi khám ban đầu, và bác sĩ sẽ hiện ở đây cũng như trên trang Hôm nay của bạn.",
-    "careTeam.noCoach": "Chưa có HLV. Học viện sẽ phân công HLV cho bạn, và bạn sẽ nhận được thông báo khi có.",
 
     /* ─── Examination Summary Card ─── */
     "examSummary.lastCheck": "Lần kiểm tra y tế gần nhất",
@@ -435,11 +435,11 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "fighterHistory.resolved": "đã khỏi",
     "fighterHistory.expected": "dự kiến {when}",
     "fighterHistory.toBeAssessed": "Chờ đánh giá",
-    "fighterHistory.eventCount": "{count} sự kiện",
+    "fighterHistory.eventCount": "{n} sự kiện",
     "fighterHistory.eventCount.one": "1 sự kiện",
-    "fighterHistory.examCount": "{count} lần khám",
+    "fighterHistory.examCount": "{n} lần khám",
     "fighterHistory.examCount.one": "1 lần khám",
-    "fighterHistory.injuryCount": "{count} chấn thương",
+    "fighterHistory.injuryCount": "{n} chấn thương",
     "fighterHistory.injuryCount.one": "1 chấn thương",
 
     /* ─── Fighter Injury Details Page ─── */
@@ -463,7 +463,7 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "fighterInjury.checkInsDesc": "Cảm nhận của bạn ở từng lần kiểm tra",
     "fighterInjury.trendChartsHint": "Biểu đồ xu hướng sẽ xuất hiện sau lần kiểm tra thứ hai.",
     "fighterInjury.treatments": "Phác đồ điều trị",
-    "fighterInjury.treatmentCount": "{count} phác đồ",
+    "fighterInjury.treatmentCount": "{n} phác đồ",
     "fighterInjury.treatmentCount.one": "1 phác đồ",
     "fighterInjury.noTreatmentsTitle": "Chưa ghi nhận phác đồ điều trị",
     "fighterInjury.noTreatmentsDesc": "Bác sĩ sẽ bổ sung phác đồ điều trị tại đây theo tiến trình chăm sóc.",

@@ -5,34 +5,33 @@ import { PerformanceOverview } from "@/components/performance/performance-overvi
 import { ButtonLink } from "@/components/ui/button";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
 export async function generateMetadata({ params }: PageProps<"/coach/fighters/[fighterId]/performance">): Promise<Metadata> {
     const user = await requireRole("coach");
-    const fighter = await requireFighterAccess(user, (await params).fighterId);
-    return { title: `Performance · ${fighter.name}` };
+    const [fighter, { t }] = await Promise.all([requireFighterAccess(user, (await params).fighterId), getTranslator()]);
+    return { title: t("screens.performance.fighterTab.performanceMeta", { name: fighter.name }) };
 }
 
 export default async function CoachFighterPerformancePage({ params }: PageProps<"/coach/fighters/[fighterId]/performance">) {
     const user = await requireRole("coach");
-    const fighter = await requireFighterAccess(user, (await params).fighterId);
+    const [fighter, { t }] = await Promise.all([requireFighterAccess(user, (await params).fighterId), getTranslator()]);
 
     return (
         <section aria-labelledby="performance-heading" className="flex flex-col gap-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                 <div className="min-w-0">
                     <h2 id="performance-heading" className="text-lg font-semibold text-fg">
-                        Performance
+                        {t("screens.performance.title")}
                     </h2>
-                    <p className="mt-0.5 text-sm text-fg-muted">
-                        Weekly technique scores, volume, speed and training load for {fighter.name}.
-                    </p>
+                    <p className="mt-0.5 text-sm text-fg-muted">{t("screens.performance.fighterTab.performanceDesc", { name: fighter.name })}</p>
                 </div>
                 {platformFeatureAvailable("goals") && (
                     <ButtonLink href={routes.coach.fighterGoals(fighter.id)} variant="secondary">
                         <Target aria-hidden />
-                        Manage goals
+                        {t("screens.performance.fighterTab.manageGoals")}
                     </ButtonLink>
                 )}
             </div>
@@ -44,7 +43,7 @@ export default async function CoachFighterPerformancePage({ params }: PageProps<
                 emptyAction={
                     <ButtonLink href={routes.coach.uploadVideo}>
                         <Upload aria-hidden />
-                        Upload a training video
+                        {t("screens.performance.uploadVideo")}
                     </ButtonLink>
                 }
             />

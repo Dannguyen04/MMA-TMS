@@ -1,4 +1,5 @@
 import { academyWallClockToIso, addDaysToKey, dayKey, daysBetweenKeys, formatTime, isDateKey } from "@/lib/format";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { TRAINING_TYPE_LABELS } from "./labels";
 import { exerciseNameKey, type ServiceExerciseCategory } from "./training-contract";
 import type { TrainingPhase, TrainingType } from "./types";
@@ -277,18 +278,18 @@ export function copyTitle(title: string): string {
 export interface SessionPreset {
     durationMin: number;
     /** Offered as a one-tap note, never filled in on its own. */
-    notes: string;
+    notes: MessageKey;
 }
 
 /** Defaults per training type the training service can schedule. Technical drilling (demo only) has none. */
 export const SESSION_PRESETS: Partial<Record<TrainingType, SessionPreset>> = {
-    shadow_boxing: { durationMin: 45, notes: "Bring wraps. 3-minute rounds on the clock." },
-    pad_work: { durationMin: 60, notes: "Bring wraps and gloves." },
-    heavy_bag: { durationMin: 45, notes: "Bring wraps and bag gloves." },
-    sparring: { durationMin: 60, notes: "Full gear: headgear, mouthguard, shin guards and sparring gloves." },
-    grappling: { durationMin: 75, notes: "Bring a rash guard and grappling shorts." },
-    strength_conditioning: { durationMin: 60, notes: "Bring training shoes and a water bottle." },
-    recovery_mobility: { durationMin: 40, notes: "Light session. Wear comfortable clothes." },
+    shadow_boxing: { durationMin: 45, notes: "training.preset.shadowBoxing" },
+    pad_work: { durationMin: 60, notes: "training.preset.padWork" },
+    heavy_bag: { durationMin: 45, notes: "training.preset.heavyBag" },
+    sparring: { durationMin: 60, notes: "training.preset.sparring" },
+    grappling: { durationMin: 75, notes: "training.preset.grappling" },
+    strength_conditioning: { durationMin: 60, notes: "training.preset.strengthConditioning" },
+    recovery_mobility: { durationMin: 40, notes: "training.preset.recoveryMobility" },
 };
 
 /** Duration used when a type has no preset. */

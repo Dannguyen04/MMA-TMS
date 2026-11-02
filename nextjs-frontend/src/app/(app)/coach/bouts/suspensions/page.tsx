@@ -14,14 +14,13 @@ import { EmptyState } from "@/components/ui/states";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { academyDateOf, daysBetweenDates, suspensionReasonLabel } from "@/lib/domain/suspension-rules";
-import type { Bout, Suspension } from "@/lib/domain/types";
+import type { Suspension } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural, type MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
-import { listBouts } from "@/lib/services/bouts";
 import { listFighters } from "@/lib/services/people";
-import { listSuspensions } from "@/lib/services/suspensions";
+import { listSuspensions, suspensionBoutNames } from "@/lib/services/suspensions";
 import { param } from "@/lib/utils";
 import { ClearSuspensionButton } from "./clear-suspension-button";
 import { CreateSuspensionTrigger } from "./create-suspension-trigger";
@@ -50,14 +49,14 @@ export default async function CoachSuspensionsPage({
     const [suspensions, fighters, bouts, { t, locale }] = await Promise.all([
         listSuspensions({}, user),
         listFighters(user),
-        listBouts({ fighterIds: accessibleFighterIds(user) }),
+        suspensionBoutNames(accessibleFighterIds(user)),
         getTranslator(),
     ]);
 
     const todayKey = academyDateOf(new Date());
     const fightersById = new Map(fighters.map((f) => [f.id, f]));
-    const boutsById = new Map<string, Bout>();
-    for (const b of bouts) boutsById.set(b.id, b);
+    // The page only names the bout a suspension came from.
+    const boutsById = new Map([...bouts].map(([id, eventName]) => [id, { eventName }]));
 
     const filterItems: SegmentedLinkItem[] = Object.entries(FILTERS).map(([status, { labelKey, matches }]) => ({
         href: status === "ALL" ? routes.coach.suspensions : `${routes.coach.suspensions}?status=${status}`,

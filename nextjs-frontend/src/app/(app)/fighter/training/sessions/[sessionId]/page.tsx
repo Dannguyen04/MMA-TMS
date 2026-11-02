@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: PageProps<"/fighter/training/
 
 export default async function FighterSessionPage({ params }: PageProps<"/fighter/training/sessions/[sessionId]">) {
     const user = await requireRole("fighter");
-    const [{ sessionId }, { t }] = await Promise.all([params, getTranslator()]);
+    const [{ sessionId }, { t, locale }] = await Promise.all([params, getTranslator()]);
     // Reference lookups start with the session read; everything about the session waits for the access check.
     const [session, coachNames, exercises] = await Promise.all([loadSession(sessionId), getCoachNames(), getExerciseLibrary()]);
     if (!session || session.fighterId !== user.profileId) notFound();
@@ -49,9 +49,10 @@ export default async function FighterSessionPage({ params }: PageProps<"/fighter
                 eyebrow={t("training.sessionPage.eyebrowFighter")}
                 title={session.title}
                 back={past ? { href: routes.fighter.history, label: t("training.sessionPage.backHistory") } : { href: routes.fighter.schedule, label: t("training.sessionPage.backSchedule") }}
-                meta={<SessionHeaderMeta session={session} />}
+                meta={<SessionHeaderMeta session={session} locale={locale} />}
             />
             <SessionDetail
+                locale={locale}
                 session={session}
                 audience="fighter"
                 now={now}

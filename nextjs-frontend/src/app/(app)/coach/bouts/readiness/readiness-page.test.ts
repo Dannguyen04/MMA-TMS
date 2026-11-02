@@ -258,7 +258,8 @@ describe("T-030 Phần B6: Màn /coach/bouts/readiness", () => {
 
         // Kiểm tra nhãn hiển thị trong tiếng Việt
         const tabLabels = readinessHub!.tabs.map((tab) => navLabel(tVi, tab.label));
-        expect(tabLabels).toEqual(["Trận đấu", "Đình chỉ", "Sẵn sàng"]);
+        // The bout list tab reads "Sắp tới" since the demo fixes (T-032); merged in T-040 A.
+        expect(tabLabels).toEqual(["Sắp tới", "Đình chỉ", "Sẵn sàng"]);
 
         // Kiểm tra hub tabs khi ở trang bouts và suspensions cũng đồng bộ có đủ 3 tab
         const boutsHub = hubTabsFor("coach", routes.coach.bouts);

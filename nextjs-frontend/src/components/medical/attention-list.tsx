@@ -34,6 +34,8 @@ export interface AttentionListProps {
     items: AttentionItem[];
     /** What an empty list says; defaults to the doctor's wording. */
     empty?: { title: string; description: string };
+    /** Screen-reader suffix that names the fighter on the action ("for Linh Phạm"); English when omitted. */
+    forFighter?: (name: string) => string;
     className?: string;
 }
 
@@ -43,7 +45,7 @@ const DEFAULT_EMPTY = {
 };
 
 /** Prioritised to-do list: each row says what, why, and links straight to the next step. */
-export function AttentionList({ items, empty = DEFAULT_EMPTY, className }: AttentionListProps) {
+export function AttentionList({ items, empty = DEFAULT_EMPTY, forFighter = (name) => `for ${name}`, className }: AttentionListProps) {
     if (items.length === 0) {
         return <EmptyState compact icon={<CircleCheck />} title={empty.title} description={empty.description} className={className} />;
     }
@@ -85,7 +87,7 @@ export function AttentionList({ items, empty = DEFAULT_EMPTY, className }: Atten
                         </div>
                         <ButtonLink href={item.action.href} variant="secondary" size="sm" className="self-start sm:self-center">
                             {item.action.label}
-                            {who && <span className="sr-only"> for {who.name}</span>}
+                            {who && <span className="sr-only"> {forFighter(who.name)}</span>}
                             <ArrowRight aria-hidden />
                         </ButtonLink>
                     </li>

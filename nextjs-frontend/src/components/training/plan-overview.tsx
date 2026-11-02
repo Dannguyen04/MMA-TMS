@@ -59,7 +59,7 @@ export function PlanOverview({ plan, now, coachName, fighter, fighterHref, adher
                             </Link>
                         </TitleHeading>
                     )}
-                    {fighter && <FighterIdentity fighter={fighter} href={fighterHref} showHealth />}
+                    {fighter && <FighterIdentity fighter={fighter} href={fighterHref} showHealth locale={locale} />}
                     <div>
                         <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{t("training.plan.objective")} </p>
                         <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-pretty text-fg">{plan.objective}</p>

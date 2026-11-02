@@ -1,6 +1,23 @@
+import type {
+    BoutMethod,
+    BoutPhase,
+    BoutResult,
+    BoutSport,
+    CancelReason,
+    HydrationCheck,
+    LossOfConsciousness,
+    NutritionPhaseKey,
+    RequirementState,
+    SuspensionReason,
+} from "./bout";
+import type { Gate1Reason } from "./bout-rules";
+import type { SuspensionState } from "./bout-suspension-rules";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate";
+
 import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
+import type { PlanAdherence, WeightStatus } from "./weight-chart";
 import type {
     AIJobStatus,
     Injury,
@@ -50,12 +67,6 @@ import type {
     VideoStatus,
     VideoTrainingType,
     WeightClass,
-    BoutMethod,
-    BoutRequirementStatus,
-    BoutResult,
-    BoutSport,
-    BoutStatus,
-    WeightWarningStatus,
 } from "./types";
 
 /** Human-readable labels for every domain enum. Single source of truth for UI copy. */
@@ -569,6 +580,135 @@ export const BROADCAST_CHANNEL_LABELS: Record<BroadcastChannel, string> = {
     in_app_email: "Trong ứng dụng + Email",
 };
 
+/* ─── Fight camp ──────────────────────────────────────────────────────────── */
+
+export const WEIGHT_STATUS_LABELS: Record<WeightStatus, string> = {
+    ON_TRACK: "On track",
+    ABOVE_TARGET: "Above tolerance",
+    OVER_LIMIT: "Exceeds cut limit",
+    NOT_WEIGHED: "No recent weigh-in",
+    NEUTRAL: "Not judged",
+};
+
+export const PLAN_ADHERENCE_LABELS: Record<PlanAdherence, string> = {
+    ON_PLAN: "On plan",
+    SLIGHTLY_OFF: "Slightly off",
+    WAY_OFF: "Way off",
+};
+
+export const NUTRITION_PHASE_LABELS: Record<NutritionPhaseKey, string> = {
+    camp: "Camp",
+    fightWeek: "Fight week",
+    postWeighIn: "After the official weigh-in",
+};
+
+export const BOUT_PHASE_LABELS: Record<BoutPhase, string> = {
+    SCHEDULED: "Scheduled",
+    CAMP: "Camp",
+    FIGHT_WEEK: "Fight week",
+    WEIGHED_IN: "Weighed in",
+    COMPLETED: "Completed",
+    CANCELLED: "Cancelled",
+};
+
+export const BOUT_SPORT_LABELS: Record<BoutSport, string> = {
+    BOXING: "Boxing",
+    MUAY_THAI: "Muay Thai",
+    KICKBOXING: "Kickboxing",
+    MMA: "MMA",
+};
+
+export const REQUIREMENT_STATE_LABELS: Record<RequirementState, string> = {
+    MISSING: "Missing",
+    PROVIDED: "Provided",
+    CONFIRMED: "Confirmed",
+    REJECTED: "Rejected",
+};
+
+export const GATE1_REASON_LABELS: Record<Gate1Reason, string> = {
+    MISSING: "missing",
+    EXPIRED: "expires before the bout",
+    REJECTED: "rejected",
+};
+
+export const CANCEL_REASON_LABELS: Record<CancelReason, string> = {
+    OPPONENT_WITHDREW: "Opponent withdrew",
+    INJURY: "Injury",
+    MISSED_WEIGHT: "Missed weight",
+    DOCUMENTS: "Documents",
+    ORGANISER_CANCELLED: "Organiser cancelled",
+    OTHER: "Other",
+};
+
+export const HYDRATION_CHECK_LABELS: Record<HydrationCheck, string> = {
+    NOT_APPLICABLE: "Not applicable",
+    PASSED: "Passed",
+    FAILED: "Failed",
+};
+
+export const BOUT_RESULT_LABELS: Record<BoutResult, string> = {
+    WIN: "Win",
+    LOSS: "Loss",
+    DRAW: "Draw",
+    NO_CONTEST: "No contest",
+};
+
+export const BOUT_METHOD_LABELS: Record<BoutMethod, string> = {
+    KO: "KO",
+    TKO: "TKO",
+    DECISION: "Decision",
+    SUBMISSION: "Submission",
+    DQ: "Disqualification",
+    OTHER: "Other",
+};
+
+export const LOSS_OF_CONSCIOUSNESS_LABELS: Record<LossOfConsciousness, string> = {
+    NONE: "No",
+    UNDER_1_MIN: "Under 1 minute",
+    OVER_1_MIN: "Over 1 minute",
+    UNKNOWN: "Not known",
+};
+
+export const SUSPENSION_REASON_LABELS: Record<SuspensionReason, string> = {
+    KO: "KO",
+    TKO: "TKO",
+    DQ: "Disqualification",
+    MANDATORY_REST: "Mandatory rest",
+    MEDICAL: "Medical",
+    OTHER: "Other",
+};
+
+export const SUSPENSION_STATE_LABELS: Record<SuspensionState, string> = {
+    UPCOMING: "Starts later",
+    ACTIVE: "Suspended",
+    AWAITING_CLEARANCE: "Awaiting clearance",
+    ENDED: "Ended",
+    CLEARED: "Cleared to train",
+};
+export function weightClassLabel(weightClass: WeightClass, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`weightClass.${weightClass}`);
+    return WEIGHT_CLASS_LABELS[weightClass];
+}
+
+/**
+ * The weight class as a fighter's profile shows it: in Vietnamese the English name the sport uses
+ * follows in brackets ("Hạng gà (Bantamweight)"); badges and tables use `weightClassLabel`.
+ */
+export function weightClassFullLabel(weightClass: WeightClass, locale: Locale): string {
+    const label = weightClassLabel(weightClass, locale);
+    return locale === "vi" ? `${label} (${WEIGHT_CLASS_LABELS[weightClass]})` : label;
+}
+
+export function stanceLabel(stance: Stance, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`stance.${stance}`);
+    return STANCE_LABELS[stance];
+}
+
+export function trainingLevelLabel(level: TrainingLevel, locale?: Locale): string {
+    if (locale) return createTranslator(locale)(`trainingLevel.${level}`);
+    return TRAINING_LEVEL_LABELS[level];
+}
+
 export function healthStatusLabel(status: HealthStatus, locale?: Locale): string {
     if (locale) return createTranslator(locale)(`healthStatus.${status}`);
     return HEALTH_STATUS_LABELS[status];
@@ -619,6 +759,7 @@ export function recoveryPlanStatusLabel(status: RecoveryPlanStatus, locale?: Loc
     return RECOVERY_PLAN_STATUS_LABELS[status];
 }
 
+
 /* ─── Display titles for records the medical service describes in free text ── */
 
 /** "Routine check", or the decision's scope for a medical-service examination ("Training examination"). */
@@ -644,54 +785,6 @@ export function treatmentTitle(treatment: Pick<Treatment, "type" | "typeLabel">)
     return treatment.typeLabel?.trim() || "Điều trị";
 }
 
-/* ─── Bouts & Competition Rulesets (T-004) ─────────────────────────────────── */
-
-export const BOUT_STATUS_LABELS: Record<BoutStatus, string> = {
-    SCHEDULED: "Đã lên lịch",
-    CAMP: "Fight Camp",
-    FIGHT_WEEK: "Tuần thi đấu",
-    WEIGHED_IN: "Đã cân",
-    COMPLETED: "Hoàn tất",
-    CANCELLED: "Đã hủy",
-};
-
-export const BOUT_SPORT_LABELS: Record<BoutSport, string> = {
-    BOXING: "Quyền Anh",
-    MUAY_THAI: "Muay Thái",
-    KICKBOXING: "Kickboxing",
-    MMA: "MMA",
-};
-
-export const BOUT_RESULT_LABELS: Record<BoutResult, string> = {
-    WIN: "Thắng",
-    LOSS: "Thua",
-    DRAW: "Hòa",
-    NO_CONTEST: "Không kết quả",
-};
-
-export const BOUT_METHOD_LABELS: Record<BoutMethod, string> = {
-    KO: "KO",
-    TKO: "TKO",
-    DECISION: "Quyết định",
-    SUBMISSION: "Khóa siết",
-    DQ: "Truất quyền",
-    OTHER: "Khác",
-};
-
-export const BOUT_REQUIREMENT_STATUS_LABELS: Record<BoutRequirementStatus, string> = {
-    MISSING: "Thiếu",
-    PROVIDED: "Đã cung cấp",
-    CONFIRMED: "Đã xác nhận",
-    REJECTED: "Đã từ chối",
-};
-
-export const WEIGHT_WARNING_LABELS: Record<WeightWarningStatus, string> = {
-    ON_TRACK: "Đúng tiến độ",
-    ABOVE_TARGET: "Vượt dung sai",
-    OVER_LIMIT: "Vượt giới hạn giảm cân",
-    NOT_WEIGHED: "Chưa cân gần đây",
-    NEUTRAL: "Chưa đánh giá",
-};
 
 /* ─── Training enum label helpers (T-015) ─────────────────────────────────── */
 
@@ -725,4 +818,4 @@ export function sessionStatusLabel(t: Translator, status: SessionStatus): string
 
 export function feedbackKindLabel(t: Translator, kind: FeedbackKind): string {
     return t(`feedbackKind.${kind}` as MessageKey);
-};
+}

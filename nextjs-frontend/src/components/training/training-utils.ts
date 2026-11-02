@@ -77,20 +77,23 @@ const RPE_LABELS = [
     "Maximal",
 ] as const;
 
-/** Verbal anchor for a session RPE (1–10). */
-export function rpeLabel(rpe: number): string {
-    return RPE_LABELS[clamp(Math.round(rpe), 1, 10) - 1];
+/** Verbal anchor for a session RPE (1–10), in the viewer's language when `t` is given. */
+export function rpeLabel(rpe: number, t?: Translator): string {
+    const step = clamp(Math.round(rpe), 1, 10);
+    return t ? t(`rpe.${step}` as MessageKey) : RPE_LABELS[step - 1];
 }
 
 /* ─── Exercises ───────────────────────────────────────────────────────────── */
 
-/** "6 × 3:00" for rounds, "4 × 8 reps" for sets, or null when no volume is set. */
-export function exerciseVolume(item: Pick<SessionExercise, "rounds" | "roundSec" | "sets" | "reps">): string | null {
+/** "6 × 3:00" for rounds, "4 × 8 reps" for sets, or null when no volume is set; in the viewer's language when `t` is given. */
+export function exerciseVolume(item: Pick<SessionExercise, "rounds" | "roundSec" | "sets" | "reps">, t?: Translator): string | null {
     if (item.rounds !== null) {
-        return item.roundSec !== null ? `${item.rounds} × ${formatClock(item.roundSec)}` : pluralize(item.rounds, "round");
+        if (item.roundSec !== null) return `${item.rounds} × ${formatClock(item.roundSec)}`;
+        return t ? plural(t, "screens.training.volume.rounds", item.rounds) : pluralize(item.rounds, "round");
     }
     if (item.sets !== null) {
-        return item.reps !== null ? `${item.sets} × ${item.reps} reps` : pluralize(item.sets, "set");
+        if (item.reps !== null) return t ? t("screens.training.volume.setsReps", { sets: item.sets, reps: item.reps }) : `${item.sets} × ${item.reps} reps`;
+        return t ? plural(t, "screens.training.volume.sets", item.sets) : pluralize(item.sets, "set");
     }
     return null;
 }

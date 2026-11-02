@@ -4,6 +4,7 @@ import { Copy, FilePlus2, LayoutTemplate, PenLine, ShieldAlert, ShieldCheck } fr
 import { useState, useTransition, type ReactNode } from "react";
 
 import { ClearanceCard } from "@/components/domain/clearance-card";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Term, TermHint } from "@/components/domain/term-hint";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,7 +20,7 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { loadPlanCopy } from "@/lib/actions/training";
 import { GLOSSARY, type GlossaryTerm } from "@/lib/domain/glossary";
-import { PLAN_STATUS_LABELS, TECHNIQUE_LABELS, TRAINING_PHASE_LABELS } from "@/lib/domain/labels";
+import { planStatusLabel, techniqueLabel, trainingPhaseLabel } from "@/lib/domain/labels";
 import {
     PHASE_OBJECTIVE_SUGGESTIONS,
     PLAN_LENGTH_WEEKS,
@@ -31,7 +32,8 @@ import {
     type PlanTemplateId,
 } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, Technique, TrainingPhase } from "@/lib/domain/types";
-import { addDaysToKey, formatDate, academyDayStartIso, isDateKey, pluralize } from "@/lib/format";
+import { addDaysToKey, formatDate, academyDayStartIso, isDateKey } from "@/lib/format";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { Callout } from "./callout";
 import { draftsFromPlanExercises, draftsFromTemplate, sentDrafts, serializePlanExerciseDrafts, type PlanCopy, type PlanExerciseDraft } from "./plan-drafts";
@@ -85,16 +87,36 @@ export interface PlanCreateFormProps {
     serviceForm: boolean;
 }
 
-const STEPS = [
-    { id: "start", label: "Start from", description: "Template, blank or a copy" },
-    { id: "basics", label: "Basics", description: "Fighter, phase and dates" },
-    { id: "exercises", label: "Exercises", description: "Drills and their doses", optional: true },
-    { id: "review", label: "Review & create", description: "Check, then save" },
-];
+function planSteps(t: Translator) {
+    return [
+        { id: "start", label: t("screens.training.planCreate.step.start"), description: t("screens.training.planCreate.step.startDesc") },
+        { id: "basics", label: t("screens.training.planCreate.step.basics"), description: t("screens.training.planCreate.step.basicsDesc") },
+        { id: "exercises", label: t("screens.training.planCreate.step.exercises"), description: t("screens.training.planCreate.step.exercisesDesc"), optional: true },
+        { id: "review", label: t("screens.training.planCreate.step.review"), description: t("screens.training.planCreate.step.reviewDesc") },
+    ];
+}
 
-const STEP_NAMES: Record<string, string> = { start: "starting point", basics: "basics", exercises: "exercises" };
+const STEP_NAMES: Record<string, MessageKey> = {
+    start: "screens.training.planCreate.stepName.start",
+    basics: "screens.training.planCreate.stepName.basics",
+    exercises: "screens.training.planCreate.stepName.exercises",
+};
 
-const PHASE_OPTIONS = (Object.entries(TRAINING_PHASE_LABELS) as [TrainingPhase, string][]).map(([value, label]) => ({ value, label }));
+const PHASES: TrainingPhase[] = ["base", "build", "fight_camp", "taper", "rehab", "maintenance"];
+
+/** A template's card copy in the viewer's language; the template file keeps the English that fills the form. */
+function templateLabel(t: Translator, template: PlanTemplate): string {
+    return t(`screens.training.template.${template.id}.label` as MessageKey);
+}
+
+function templateSummary(t: Translator, template: PlanTemplate): string {
+    return t(`screens.training.template.${template.id}.summary` as MessageKey);
+}
+
+/** "Fight camp template", or "Template" when the template is gone. */
+function sourceTemplateLabel(t: Translator, template: PlanTemplate | undefined): string {
+    return template ? t("screens.training.planCreate.source.template", { template: templateLabel(t, template) }) : t("screens.training.planCreate.source.templateFallback");
+}
 
 const PHASE_TERM: Record<TrainingPhase, GlossaryTerm> = {
     base: "phaseBase",
@@ -105,25 +127,27 @@ const PHASE_TERM: Record<TrainingPhase, GlossaryTerm> = {
     maintenance: "phaseMaintenance",
 };
 
-const STATUS_OPTIONS: { value: PlanCreateValues["status"]; label: string; description: string }[] = [
-    { value: "draft", label: "Save as draft", description: "Keep refining. The fighter doesn't see it yet." },
-    { value: "active", label: "Create and activate", description: "The fighter sees the plan and is notified once its exercises are in." },
-];
+function statusOptions(t: Translator): { value: PlanCreateValues["status"]; label: string; description: string }[] {
+    return [
+        { value: "draft", label: t("training.planForm.statusDraft"), description: t("training.planForm.statusDraftDesc") },
+        { value: "active", label: t("screens.training.planCreate.createAndActivate"), description: t("screens.training.planCreate.statusActiveDesc") },
+    ];
+}
 
 /** Fields a starting point fills in; editing any of them makes switching ask first. */
 type ContentField = "title" | "phase" | "endDate" | "objective" | "notes";
 const CONTENT_FIELDS: ContentField[] = ["title", "phase", "endDate", "objective", "notes"];
 
 /** "4 weeks · Build · 7 exercises" */
-function templateMeta(template: PlanTemplate): string {
-    return [pluralize(template.weeks, "week"), TRAINING_PHASE_LABELS[template.phase], pluralize(template.exercises.length, "exercise")].join(" · ");
+function templateMeta(template: PlanTemplate, t: Translator): string {
+    return [plural(t, "training.plan.weeksCount", template.weeks), trainingPhaseLabel(t, template.phase), plural(t, "screens.training.exercisesCount", template.exercises.length)].join(" · ");
 }
 
-function spanText(startDate: string, endDate: string): string | null {
+function spanText(startDate: string, endDate: string, t: Translator): string | null {
     const days = planSpanDays(startDate, endDate);
     if (days === null) return null;
     const weeks = planWholeWeeks(startDate, endDate);
-    return weeks !== null ? pluralize(weeks, "week") : pluralize(days, "day");
+    return weeks !== null ? plural(t, "training.plan.weeksCount", weeks) : plural(t, "screens.training.daysCount", days);
 }
 
 /**
@@ -146,15 +170,17 @@ export function PlanCreateForm({
     serviceForm,
 }: PlanCreateFormProps) {
     // List-level errors on the exercises (too many, unreadable) have no control of their own.
+    const t = useT();
+    const locale = useLocale();
     const form = useActionForm(action, { id: "plan", hiddenFields: ["exercises"] });
     const { error, markEdited } = form;
     const [values, setValues] = useState(defaults);
     const [rows, setRows] = useState<PlanExerciseDraft[]>(() => {
         if (initialSource.kind === "template") {
             const template = PLAN_TEMPLATES.find((candidate) => candidate.id === initialSource.id);
-            return template ? draftsFromTemplate(template, library) : [];
+            return template ? draftsFromTemplate(template, library, t) : [];
         }
-        return initialCopy ? draftsFromPlanExercises(initialCopy.exercises, library, `copy-${initialCopy.planId}`) : [];
+        return initialCopy ? draftsFromPlanExercises(initialCopy.exercises, library, `copy-${initialCopy.planId}`, t) : [];
     });
     const [source, setSource] = useState<PlanSource>(initialSource);
     const [copyPlanId, setCopyPlanId] = useState(initialCopy?.planId ?? "");
@@ -205,7 +231,7 @@ export function PlanCreateForm({
                 objective: template.objective,
                 notes: template.notes,
             },
-            draftsFromTemplate(template, library),
+            draftsFromTemplate(template, library, t),
         );
 
     const applyCopy = (copy: PlanCopy) => {
@@ -219,7 +245,7 @@ export function PlanCreateForm({
                 objective: copy.objective,
                 notes: copy.notes,
             },
-            draftsFromPlanExercises(copy.exercises, library, `copy-${copy.planId}`),
+            draftsFromPlanExercises(copy.exercises, library, `copy-${copy.planId}`, t),
         );
     };
 
@@ -237,11 +263,11 @@ export function PlanCreateForm({
             const result = await loadPlanCopy(planId);
             const copy = result.data;
             if (result.status !== "success" || !copy) {
-                setCopyError(result.message ?? "That plan couldn't be copied. Try again.");
+                setCopyError(result.message ?? t("screens.training.planCreate.copyFailed"));
                 return;
             }
             const plan = copyablePlans.find((candidate) => candidate.id === planId);
-            request(plan ? `a copy of ${plan.title}` : "a copy of that plan", () => applyCopy(copy));
+            request(plan ? t("screens.training.planCreate.request.copyOf", { title: plan.title }) : t("screens.training.planCreate.request.copyOfThat"), () => applyCopy(copy));
         });
     };
 
@@ -256,11 +282,11 @@ export function PlanCreateForm({
     const lengthValue = currentWeeks !== null && (PLAN_LENGTH_WEEKS as readonly number[]).includes(currentWeeks) ? String(currentWeeks) : "";
 
     const validateStep = (stepId: string): string | null => {
-        if (stepId === "start" && source.kind === "copy" && !copied) return "Choose the plan to copy, or pick another starting point.";
+        if (stepId === "start" && source.kind === "copy" && !copied) return t("screens.training.planCreate.validate.chooseCopy");
         if (stepId === "basics" && isDateKey(values.startDate) && isDateKey(values.endDate) && values.endDate < values.startDate) {
-            return "The end date must be on or after the start date.";
+            return t("screens.training.planCreate.validate.endAfterStart");
         }
-        if (stepId === "basics" && !serviceForm && values.focusAreas.length === 0) return "Choose at least one focus area to continue.";
+        if (stepId === "basics" && !serviceForm && values.focusAreas.length === 0) return t("screens.training.planCreate.validate.focusArea");
         return null;
     };
 
@@ -268,10 +294,12 @@ export function PlanCreateForm({
     const skipped = rows.filter((row) => row.exerciseId === null).length;
     const sourceLabel =
         source.kind === "blank"
-            ? "Blank plan"
+            ? t("screens.training.planCreate.blankPlan")
             : source.kind === "template"
-              ? `${PLAN_TEMPLATES.find((template) => template.id === source.id)?.label ?? "Template"} template`
-              : `Copy of ${copyablePlans.find((plan) => plan.id === copied)?.title ?? "a plan"}`;
+              ? sourceTemplateLabel(t, PLAN_TEMPLATES.find((template) => template.id === source.id))
+              : t("screens.training.planCreate.source.copyOf", { title: copyablePlans.find((plan) => plan.id === copied)?.title ?? t("screens.training.planCreate.source.aPlan") });
+    const phaseOptions = PHASES.map((value) => ({ value, label: trainingPhaseLabel(t, value) }));
+    const span = spanText(values.startDate, values.endDate, t);
 
     return (
         <form {...form.formProps} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -280,53 +308,54 @@ export function PlanCreateForm({
             <Card className="min-w-0 lg:col-span-2">
                 <CardContent className="pt-6">
                     <FormSteps
-                        steps={STEPS}
+                        steps={planSteps(t)}
                         state={form.state}
                         validateStep={validateStep}
                         message={<FormMessage {...form.message} />}
                         cancel={
                             <ButtonLink href={cancelHref} variant="ghost" size="lg" className="w-full sm:h-9 sm:w-auto sm:px-3.5 sm:text-sm">
-                                Cancel
+                                {t("training.planExercises.cancel")}
                             </ButtonLink>
                         }
                         submit={
-                            <SubmitButton pending={form.pending} pendingLabel="Creating plan…" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
-                                {values.status === "active" ? "Create and activate" : "Create plan"}
+                            <SubmitButton pending={form.pending} pendingLabel={t("training.planForm.submittingCreate")} size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm">
+                                {values.status === "active" ? t("screens.training.planCreate.createAndActivate") : t("training.planForm.submitCreate")}
                             </SubmitButton>
                         }
                     >
                         <FormStep
                             id="start"
-                            title="Where do you want to start?"
+                            title={t("screens.training.planCreate.startTitle")}
                             description={
                                 <>
-                                    A <Term term="template">template</Term> fills in the phase, dates, objective and exercises. You can change everything before you save.
+                                    {t("screens.training.planCreate.startIntroBefore")} <Term term="template" locale={locale}>{t("screens.training.planCreate.startIntroTerm")}</Term>{" "}
+                                    {t("screens.training.planCreate.startIntroAfter")}
                                 </>
                             }
                         >
-                            <div role="group" aria-label="Starting points" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                            <div role="group" aria-label={t("screens.training.planCreate.startingPoints")} className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                                 <SourceCard
                                     icon={FilePlus2}
-                                    label="Blank plan"
-                                    summary="Start from nothing"
+                                    label={t("screens.training.planCreate.blankPlan")}
+                                    summary={t("screens.training.planCreate.blankPlanSummary")}
                                     selected={source.kind === "blank"}
-                                    onSelect={() => source.kind !== "blank" && request("a blank plan", applyBlank)}
+                                    onSelect={() => source.kind !== "blank" && request(t("screens.training.planCreate.request.blank"), applyBlank)}
                                 />
                                 {PLAN_TEMPLATES.map((template) => (
                                     <SourceCard
                                         key={template.id}
                                         icon={LayoutTemplate}
-                                        label={template.label}
-                                        summary={template.summary}
-                                        meta={templateMeta(template)}
+                                        label={templateLabel(t, template)}
+                                        summary={templateSummary(t, template)}
+                                        meta={templateMeta(template, t)}
                                         selected={source.kind === "template" && source.id === template.id}
-                                        onSelect={() => request(`the ${template.label.toLowerCase()} template`, () => applyTemplate(template))}
+                                        onSelect={() => request(t("screens.training.planCreate.request.template", { template: templateLabel(t, template).toLowerCase() }), () => applyTemplate(template))}
                                     />
                                 ))}
                                 <SourceCard
                                     icon={Copy}
-                                    label="Copy an existing plan"
-                                    summary={copyablePlans.length > 0 ? "Reuse a plan you've run before" : "No plans on your roster yet"}
+                                    label={t("screens.training.planCreate.copyPlan")}
+                                    summary={copyablePlans.length > 0 ? t("screens.training.planCreate.copyPlanSummary") : t("screens.training.planCreate.copyPlanNone")}
                                     selected={source.kind === "copy"}
                                     disabled={copyablePlans.length === 0}
                                     onSelect={() => setSource({ kind: "copy", planId: copied })}
@@ -336,38 +365,38 @@ export function PlanCreateForm({
                             {source.kind === "copy" && (
                                 <div className="mt-5 flex flex-col gap-2">
                                     <Field
-                                        label="Plan to copy"
+                                        label={t("screens.training.planCreate.planToCopy")}
                                         htmlFor="plan-copyFrom"
-                                        hint="Its title, phase, length, objective, notes and exercises are copied. It starts on the start date you choose."
+                                        hint={t("screens.training.planCreate.planToCopyHint")}
                                         error={copyError ?? undefined}
                                     >
                                         <Select id="plan-copyFrom" value={copyPlanId} onChange={(event) => chooseCopyPlan(event.target.value)} disabled={copying} aria-busy={copying || undefined}>
-                                            <option value="">Choose a plan…</option>
+                                            <option value="">{t("screens.training.planCreate.choosePlan")}</option>
                                             {copyablePlans.map((plan) => (
                                                 <option key={plan.id} value={plan.id}>
-                                                    {plan.title} — {plan.fighterName} · {TRAINING_PHASE_LABELS[plan.phase]}
-                                                    {plan.weeks ? ` · ${pluralize(plan.weeks, "week")}` : ""}
-                                                    {plan.status !== "active" ? ` (${PLAN_STATUS_LABELS[plan.status]})` : ""}
+                                                    {plan.title} — {plan.fighterName} · {trainingPhaseLabel(t, plan.phase)}
+                                                    {plan.weeks ? ` · ${plural(t, "training.plan.weeksCount", plan.weeks)}` : ""}
+                                                    {plan.status !== "active" ? ` (${planStatusLabel(t, plan.status)})` : ""}
                                                 </option>
                                             ))}
                                         </Select>
                                     </Field>
                                     <p className="text-[13px] text-fg-muted" aria-live="polite">
-                                        {copying ? "Copying the plan…" : copied && copied === copyPlanId ? "Copied. Check the basics and exercises in the next steps." : null}
+                                        {copying ? t("screens.training.planCreate.copying") : copied && copied === copyPlanId ? t("screens.training.planCreate.copied") : null}
                                     </p>
                                 </div>
                             )}
                         </FormStep>
 
-                        <FormStep id="basics" title="Basics" description="Who the plan is for, its phase and how long it runs.">
+                        <FormStep id="basics" title={t("screens.training.planCreate.step.basics")} description={t("screens.training.planCreate.basicsDesc")}>
                             <div className="flex flex-col gap-5">
-                                <Field label="Fighter" htmlFor="plan-fighterId" required error={error("fighterId")} hint="Only fighters on your roster are listed.">
+                                <Field label={t("training.planForm.fighter")} htmlFor="plan-fighterId" required error={error("fighterId")} hint={t("training.planForm.hintFighter")}>
                                     <Select
                                         {...form.control("fighterId", { required: true, hint: true })}
                                         value={values.fighterId}
                                         onChange={(event) => set("fighterId", event.target.value)}
                                     >
-                                        <option value="">Choose a fighter…</option>
+                                        <option value="">{t("training.planForm.chooseFighter")}</option>
                                         {fighters.map((option) => (
                                             <option key={option.id} value={option.id}>
                                                 {option.name}
@@ -375,12 +404,12 @@ export function PlanCreateForm({
                                         ))}
                                     </Select>
                                 </Field>
-                                <Field label="Plan title" htmlFor="plan-title" required error={error("title")}>
+                                <Field label={t("training.planForm.title")} htmlFor="plan-title" required error={error("title")}>
                                     <Input
                                         {...form.control("title", { required: true })}
                                         value={values.title}
                                         onChange={(event) => set("title", event.target.value)}
-                                        placeholder="e.g. Fight camp — Lotus Fight Night 18"
+                                        placeholder={t("training.planForm.titlePlaceholder")}
                                         maxLength={120}
                                     />
                                 </Field>
@@ -389,13 +418,13 @@ export function PlanCreateForm({
                                     name="phase"
                                     legend={
                                         <span className="inline-flex items-center gap-1.5">
-                                            Phase <TermHint term="trainingPhase" />
+                                            {t("training.planForm.phase")} <TermHint term="trainingPhase" locale={locale} />
                                         </span>
                                     }
                                     required
                                     variant="compact"
                                     columns={3}
-                                    options={PHASE_OPTIONS}
+                                    options={phaseOptions}
                                     value={values.phase}
                                     onChange={(next) => set("phase", next)}
                                     hint={GLOSSARY[PHASE_TERM[values.phase]].definition}
@@ -404,12 +433,12 @@ export function PlanCreateForm({
 
                                 <div className="flex flex-col gap-3">
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                        <Field label="Start date" htmlFor="plan-startDate" required error={error("startDate")}>
+                                        <Field label={t("training.planForm.startDate")} htmlFor="plan-startDate" required error={error("startDate")}>
                                             <Input {...form.control("startDate", { required: true })} type="date" value={values.startDate} onChange={(event) => changeStart(event.target.value)} />
                                         </Field>
-                                        <Field label="End date" htmlFor="plan-endDate" required error={error("endDate")} hint={spanText(values.startDate, values.endDate) ?? undefined}>
+                                        <Field label={t("training.planForm.endDate")} htmlFor="plan-endDate" required error={error("endDate")} hint={span ?? undefined}>
                                             <Input
-                                                {...form.control("endDate", { required: true, hint: spanText(values.startDate, values.endDate) ?? undefined })}
+                                                {...form.control("endDate", { required: true, hint: span ?? undefined })}
                                                 type="date"
                                                 value={values.endDate}
                                                 min={values.startDate || undefined}
@@ -419,10 +448,10 @@ export function PlanCreateForm({
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
                                         <span className="text-[13px] text-fg-muted" aria-hidden>
-                                            Length
+                                            {t("training.plan.length")}
                                         </span>
                                         <SegmentedControl
-                                            label="Plan length"
+                                            label={t("screens.training.planCreate.planLength")}
                                             size="md"
                                             value={lengthValue}
                                             onChange={(weeks) => {
@@ -430,7 +459,7 @@ export function PlanCreateForm({
                                                 set("endDate", planEndKey(values.startDate, Number(weeks)));
                                                 markEdited("endDate");
                                             }}
-                                            options={PLAN_LENGTH_WEEKS.map((weeks) => ({ value: String(weeks), label: `${weeks} wk`, ariaLabel: `${weeks} weeks` }))}
+                                            options={PLAN_LENGTH_WEEKS.map((weeks) => ({ value: String(weeks), label: t("screens.training.planCreate.weeksShort", { n: weeks }), ariaLabel: plural(t, "training.plan.weeksCount", weeks) }))}
                                         />
                                     </div>
                                 </div>
@@ -441,27 +470,26 @@ export function PlanCreateForm({
                                             <TechniqueCheckboxes
                                                 id="plan-focusAreas"
                                                 name="focusAreas"
-                                                legend="Focus areas"
+                                                legend={t("training.plan.focusAreas")}
                                                 required
                                                 value={values.focusAreas}
                                                 onChange={(next) => set("focusAreas", next)}
                                                 restricted={restrictedTechniques}
                                                 error={error("focusAreas")}
-                                                hint={restrictedTechniques.length > 0 ? "Marked techniques are restricted by the current Medical Clearance." : "Choose one or more."}
+                                                hint={restrictedTechniques.length > 0 ? t("training.planForm.hintFocusRestricted") : t("training.planForm.hintFocusNormal")}
                                             />
                                             {restrictedFocus.length > 0 && (
-                                                <Callout tone="warning" icon={ShieldAlert} title="Some focus areas are restricted right now">
-                                                    {restrictedFocus.map((technique) => TECHNIQUE_LABELS[technique]).join(", ")} can&apos;t be trained under the current
-                                                    clearance. Sessions that include them will show a warning when you schedule them.
+                                                <Callout tone="warning" icon={ShieldAlert} title={t("training.planForm.restrictedFocusTitle")}>
+                                                    {t("training.planForm.restrictedFocusDesc", { techniques: restrictedFocus.map((technique) => techniqueLabel(t, technique)).join(", ") })}
                                                 </Callout>
                                             )}
                                         </div>
                                         <Field
-                                            label="Weekly session target"
+                                            label={t("training.planForm.weeklySessionTarget")}
                                             htmlFor="plan-weeklySessionTarget"
                                             required
                                             error={error("weeklySessionTarget")}
-                                            hint="Between 1 and 14 sessions a week."
+                                            hint={t("training.planForm.hintWeekly")}
                                             className="sm:max-w-56"
                                         >
                                             <Input
@@ -480,12 +508,12 @@ export function PlanCreateForm({
 
                                 <div className="flex flex-col gap-2">
                                     <Field
-                                        label="Objective"
+                                        label={t("training.planForm.objective")}
                                         htmlFor="plan-objective"
                                         optional
-                                        info={<TermHint term="planObjective" />}
+                                        info={<TermHint term="planObjective" locale={locale} />}
                                         error={error("objective")}
-                                        hint="One sentence the fighter sees at the top of the plan."
+                                        hint={t("screens.training.planCreate.objectiveHint")}
                                     >
                                         <Textarea
                                             {...form.control("objective", { hint: true })}
@@ -496,18 +524,18 @@ export function PlanCreateForm({
                                         />
                                     </Field>
                                     <SuggestionChips
-                                        label="Ideas"
+                                        label={t("screens.training.planCreate.ideas")}
                                         suggestions={PHASE_OBJECTIVE_SUGGESTIONS[values.phase].map((suggestion) => ({ label: suggestion }))}
                                         onPick={(value) => set("objective", appendSuggestion(values.objective, value))}
                                     />
                                 </div>
-                                <Field label="Coach notes" htmlFor="plan-notes" optional error={error("notes")} hint="Context for the fighter and other coaches, e.g. sparring caps or weight.">
+                                <Field label={t("training.plan.coachNotes")} htmlFor="plan-notes" optional error={error("notes")} hint={t("screens.training.planCreate.notesHint")}>
                                     <Textarea {...form.control("notes", { hint: true })} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
                                 </Field>
                             </div>
                         </FormStep>
 
-                        <FormStep id="exercises" title="Exercises" description="Drills prescribed across the plan, in this order. Untick any you don't want.">
+                        <FormStep id="exercises" title={t("screens.training.planCreate.step.exercises")} description={t("screens.training.planCreate.exercisesDesc")}>
                             <PlanExerciseRows
                                 idPrefix="plan-exercises"
                                 rows={rows}
@@ -515,11 +543,11 @@ export function PlanCreateForm({
                                 library={library}
                                 error={error}
                                 markEdited={markEdited}
-                                emptyText="No exercises yet. Add some from the library below, or skip this step and add them later."
+                                emptyText={t("screens.training.planCreate.exercisesEmpty")}
                             />
                         </FormStep>
 
-                        <FormStep id="review" title="Review & create" description="Check the plan, then choose whether the fighter sees it now.">
+                        <FormStep id="review" title={t("screens.training.planCreate.step.review")} description={t("screens.training.planCreate.reviewDesc")}>
                             <ReviewStep
                                 fighterName={fighter?.name}
                                 values={values}
@@ -533,12 +561,12 @@ export function PlanCreateForm({
                                 name="status"
                                 legend={
                                     <span className="inline-flex items-center gap-1.5">
-                                        Visibility <TermHint term="planDraft" />
+                                        {t("training.planForm.sectionVisibility")} <TermHint term="planDraft" locale={locale} />
                                     </span>
                                 }
                                 required
                                 columns={2}
-                                options={STATUS_OPTIONS}
+                                options={statusOptions(t)}
                                 value={values.status}
                                 onChange={(next) => set("status", next)}
                                 error={error("status")}
@@ -549,19 +577,18 @@ export function PlanCreateForm({
                 </CardContent>
             </Card>
 
-            <aside aria-label="Medical Clearance for this fighter" className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
+            <aside aria-label={t("training.planForm.asideAria")} className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
                 {clearance ? (
                     <ClearanceCard clearance={clearance.clearance} state={clearance.state} doctorName={clearance.doctorName} now={now} variant="summary" />
                 ) : (
                     <Card>
                         <CardContent className="pt-5">
-                            <EmptyState compact icon={<ShieldCheck />} title="Medical Clearance" description="Choose a fighter to see their clearance and restrictions before you plan." />
+                            <EmptyState compact icon={<ShieldCheck />} title={t("training.planForm.emptyClearanceTitle")} description={t("training.planForm.emptyClearanceDesc")} />
                         </CardContent>
                     </Card>
                 )}
                 <p className="px-1 text-[13px] text-pretty text-fg-muted">
-                    Plans don&apos;t change a clearance. Every session you schedule is checked against the fighter&apos;s Medical Clearance, and only the
-                    sports doctor can update it.
+                    {t("training.planForm.asideDesc")}
                 </p>
             </aside>
 
@@ -573,9 +600,9 @@ export function PlanCreateForm({
                     setPending(null);
                 }}
                 tone="primary"
-                title="Replace what you've entered?"
-                description={`Starting from ${pending?.label ?? "this"} replaces the title, phase, end date, objective, notes and exercises you've changed. The fighter and start date stay.`}
-                confirmLabel="Replace"
+                title={t("screens.training.planCreate.replaceTitle")}
+                description={t("screens.training.planCreate.replaceDesc", { source: pending?.label ?? t("screens.training.planCreate.replaceThis") })}
+                confirmLabel={t("screens.training.planCreate.replace")}
             />
         </form>
     );
@@ -636,27 +663,30 @@ function ReviewStep({
     skipped: number;
 }) {
     const { goTo } = useFormSteps();
-    const span = spanText(values.startDate, values.endDate);
+    const t = useT();
+    const locale = useLocale();
+    const span = spanText(values.startDate, values.endDate, t);
+    const notSet = t("screens.training.planCreate.review.notSet");
     const dates =
         isDateKey(values.startDate) && isDateKey(values.endDate)
-            ? `${formatDate(academyDayStartIso(values.startDate))} – ${formatDate(academyDayStartIso(values.endDate))}${span ? ` · ${span}` : ""}`
-            : "Not set";
+            ? `${formatDate(academyDayStartIso(values.startDate), locale)} – ${formatDate(academyDayStartIso(values.endDate), locale)}${span ? ` · ${span}` : ""}`
+            : notSet;
     const exerciseText = [
-        sentCount > 0 ? pluralize(sentCount, "exercise") : "No exercises",
-        leftOut > 0 ? `${leftOut} left out` : null,
-        skipped > 0 ? `${skipped} not in the library, skipped` : null,
+        sentCount > 0 ? plural(t, "screens.training.exercisesCount", sentCount) : t("screens.training.planCreate.review.noExercises"),
+        leftOut > 0 ? t("screens.training.planCreate.review.leftOut", { n: leftOut }) : null,
+        skipped > 0 ? t("screens.training.planCreate.review.skipped", { n: skipped }) : null,
     ]
         .filter(Boolean)
         .join(" · ");
 
     const rows: { label: string; value: ReactNode; step: string }[] = [
-        { label: "Starting point", value: sourceLabel, step: "start" },
-        { label: "Fighter", value: fighterName ?? "Not chosen", step: "basics" },
-        { label: "Title", value: values.title.trim() || "Not set", step: "basics" },
-        { label: "Phase", value: TRAINING_PHASE_LABELS[values.phase], step: "basics" },
-        { label: "Dates", value: dates, step: "basics" },
-        { label: "Objective", value: values.objective.trim() || "None", step: "basics" },
-        { label: "Exercises", value: exerciseText, step: "exercises" },
+        { label: t("screens.training.planCreate.review.startingPoint"), value: sourceLabel, step: "start" },
+        { label: t("training.planForm.fighter"), value: fighterName ?? t("screens.training.planCreate.review.notChosen"), step: "basics" },
+        { label: t("screens.training.planCreate.review.title"), value: values.title.trim() || notSet, step: "basics" },
+        { label: t("training.planForm.phase"), value: trainingPhaseLabel(t, values.phase), step: "basics" },
+        { label: t("screens.training.planCreate.review.dates"), value: dates, step: "basics" },
+        { label: t("training.planForm.objective"), value: values.objective.trim() || t("screens.training.planCreate.review.none"), step: "basics" },
+        { label: t("screens.training.planCreate.step.exercises"), value: exerciseText, step: "exercises" },
     ];
 
     return (
@@ -667,9 +697,9 @@ function ReviewStep({
                     <dd className="min-w-0 flex-1 text-sm break-words text-fg">{row.value}</dd>
                     {/* One way back per step, on its first row. */}
                     {(index === 0 || rows[index - 1].step !== row.step) && (
-                        <Button variant="ghost" size="sm" className="-my-1 shrink-0" onClick={() => goTo(row.step)} aria-label={`Edit ${STEP_NAMES[row.step]}`}>
+                        <Button variant="ghost" size="sm" className="-my-1 shrink-0" onClick={() => goTo(row.step)} aria-label={t("screens.training.planCreate.review.editStep", { step: t(STEP_NAMES[row.step]) })}>
                             <PenLine aria-hidden />
-                            <span className="max-sm:sr-only">Edit</span>
+                            <span className="max-sm:sr-only">{t("training.planDetails.edit")}</span>
                         </Button>
                     )}
                 </div>

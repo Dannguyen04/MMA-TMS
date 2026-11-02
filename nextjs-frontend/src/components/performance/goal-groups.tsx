@@ -3,6 +3,8 @@ import type { ReactNode } from "react";
 import { GoalCard } from "@/components/domain/goal-card";
 import type { Goal } from "@/lib/domain/types";
 import { formatNumber } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { GoalActions } from "./goal-actions";
 import { GoalTrend } from "./goal-trend";
 
@@ -24,22 +26,29 @@ export interface GoalGroupsProps {
     manage?: { fighterName: string };
     /** Shown in the Active group when nothing is in progress. */
     noActiveText?: ReactNode;
+    locale: Locale;
 }
 
 /** Goals split into Active (at risk first), Achieved and Missed, each as a card grid. */
-export function GoalGroups({ goals, now, heading: Heading, manage, noActiveText = "No goals in progress right now." }: GoalGroupsProps) {
+export function GoalGroups({ goals, now, heading: Heading, manage, noActiveText, locale }: GoalGroupsProps) {
+    const t = createTranslator(locale);
     const groups: GoalGroup[] = [
         {
             id: "active",
-            title: "Active",
-            description: "In progress · at-risk goals first",
+            title: t("screens.performance.goalGroups.active"),
+            description: t("screens.performance.goalGroups.activeDesc"),
             goals: goals.filter((goal) => goal.status === "at_risk" || goal.status === "on_track"),
         },
-        { id: "achieved", title: "Achieved", description: "Target reached", goals: goals.filter((goal) => goal.status === "achieved") },
+        {
+            id: "achieved",
+            title: t("screens.performance.goalStatus.achieved"),
+            description: t("screens.performance.goalGroups.achievedDesc"),
+            goals: goals.filter((goal) => goal.status === "achieved"),
+        },
         {
             id: "missed",
-            title: "Missed",
-            description: "Due date passed before the target was reached",
+            title: t("screens.performance.goalStatus.missed"),
+            description: t("screens.performance.goalGroups.missedDesc"),
             goals: goals.filter((goal) => goal.status === "missed"),
         },
     ];
@@ -64,14 +73,16 @@ export function GoalGroups({ goals, now, heading: Heading, manage, noActiveText 
                                 <p className="text-[13px] text-fg-subtle">{group.description}</p>
                             </div>
                             {group.goals.length === 0 ? (
-                                <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-sm text-fg-muted">{noActiveText}</p>
+                                <p className="rounded-xl border border-dashed border-border-strong px-4 py-6 text-center text-sm text-fg-muted">
+                                    {noActiveText ?? t("screens.performance.goalGroups.noActive")}
+                                </p>
                             ) : (
                                 <ul className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 2xl:grid-cols-3">
                                     {group.goals.map((goal) => (
                                         <li key={goal.id} className="min-w-0">
-                                            <GoalCard goal={goal} now={now} headingLevel={3}>
+                                            <GoalCard goal={goal} now={now} headingLevel={3} locale={locale}>
                                                 <div className="flex flex-col gap-3">
-                                                    <GoalTrend goal={goal} now={now} />
+                                                    <GoalTrend goal={goal} now={now} locale={locale} />
                                                     {manage && (
                                                         <GoalActions goal={goal} fighterName={manage.fighterName} now={now} className="border-t border-border pt-3" />
                                                     )}

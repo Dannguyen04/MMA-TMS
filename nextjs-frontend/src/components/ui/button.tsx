@@ -8,7 +8,9 @@ export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "dang
 export type ButtonSize = "sm" | "md" | "lg" | "icon" | "icon-sm";
 
 const BASE =
-    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium transition-colors select-none " +
+    "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-lg font-medium select-none " +
+    // Press feedback: a slight give under the pointer, so the button feels heard (no motion under reduced motion).
+    "transition-[color,background-color,border-color,box-shadow,scale] duration-150 ease-out active:scale-[0.97] motion-reduce:active:scale-100 " +
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring " +
     "disabled:pointer-events-none disabled:opacity-50 aria-disabled:pointer-events-none aria-disabled:opacity-50 " +
     "[&_svg]:pointer-events-none [&_svg]:shrink-0";

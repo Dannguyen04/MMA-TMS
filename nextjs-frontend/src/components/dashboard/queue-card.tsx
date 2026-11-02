@@ -81,7 +81,12 @@ export function QueueCard<Q extends string>({
                     />
                 </div>
             )}
-            <AttentionList items={shown} empty={active ? meta[active].empty : emptyAll} className="border-t border-border" />
+            <AttentionList
+                items={shown}
+                empty={active ? meta[active].empty : emptyAll}
+                forFighter={(name) => t("queue.forFighter", { name })}
+                className="border-t border-border"
+            />
             {!active && inQueue.length > shown.length && (
                 <CardFooter className="text-fg-muted">
                     {t("queue.showing", { shown: shown.length, total: inQueue.length })}

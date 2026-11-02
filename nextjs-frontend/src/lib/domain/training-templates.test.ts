@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 
+import { createTranslator } from "@/lib/i18n/translate";
+
 import { TRAINING_PHASE_LABELS } from "./labels";
 import { exerciseNameKey, SERVICE_EXERCISE_CATEGORIES, SERVICE_TRAINING_TYPES } from "./training-contract";
 import {
@@ -177,8 +179,11 @@ describe("session presets", () => {
             expect(preset.durationMin % 5, type).toBe(0);
             expect(preset.durationMin, type).toBeGreaterThanOrEqual(SESSION.minutesMin);
             expect(preset.durationMin, type).toBeLessThanOrEqual(SESSION.minutesMax);
-            expect(preset.notes.trim(), type).not.toBe("");
-            expect(preset.notes.length, type).toBeLessThanOrEqual(SESSION.notesMax);
+            for (const locale of ["en", "vi"] as const) {
+                const notes = createTranslator(locale)(preset.notes);
+                expect(notes.trim(), type).not.toBe("");
+                expect(notes.length, type).toBeLessThanOrEqual(SESSION.notesMax);
+            }
         }
         expect(presetDuration("grappling")).toBe(75);
         expect(presetDuration("technical_drilling")).toBe(60);

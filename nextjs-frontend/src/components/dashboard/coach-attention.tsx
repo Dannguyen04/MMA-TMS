@@ -277,7 +277,7 @@ export function buildCoachAttention({
             tone: "ai",
             icon: Sparkles,
             kind: t("attention.kind.aiReview"),
-            badges: <AIGeneratedBadge size="sm" />,
+            badges: <AIGeneratedBadge size="sm" locale={locale} />,
             fighterName: fighter.name,
             fighterHref: routes.coach.fighter(fighter.id),
             title:
@@ -296,7 +296,7 @@ export function buildCoachAttention({
             tone: "ai",
             icon: Sparkles,
             kind: t("attention.kind.aiReview"),
-            badges: <AIGeneratedBadge size="sm" />,
+            badges: <AIGeneratedBadge size="sm" locale={locale} />,
             title: plural(t, "attention.review.summary", reviewCount),
             detail: t("attention.review.summaryDetail"),
             action: { href: routes.coach.videoAnalysis, label: t("attention.action.openFilmRoom") },

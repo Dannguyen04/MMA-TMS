@@ -85,7 +85,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
         [next[index], next[target]] = [next[target], next[index]];
         changeRows(next);
         const row = rows[index];
-        setAnnouncement(t("training.exerciseBuilder.announcedMoved", { name: byId[row.exerciseId]?.name ?? "Exercise", pos: target + 1, total: rows.length }));
+        setAnnouncement(t("training.exerciseBuilder.announcedMoved", { name: byId[row.exerciseId]?.name ?? t("screens.training.exerciseFallback"), pos: target + 1, total: rows.length }));
         focus(`${row.key}-${direction === -1 ? "up" : "down"}`, `${row.key}-${direction === -1 ? "down" : "up"}`);
     };
 
@@ -157,7 +157,7 @@ export function ExerciseBuilder({ library, rows, onChange, error: errorFor, mark
                 <ol className="flex flex-col gap-2">
                     {rows.map((row, index) => {
                         const exercise = byId[row.exerciseId];
-                        const name = exercise?.name ?? "Unknown exercise";
+                        const name = exercise?.name ?? t("screens.training.unknownExercise");
                         const rounds = exercise ? isRoundBased(exercise) : row.rounds !== "";
                         const touchesRestriction =
                             exercise !== undefined &&

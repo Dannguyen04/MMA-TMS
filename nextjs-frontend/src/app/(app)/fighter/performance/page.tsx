@@ -7,21 +7,23 @@ import { ButtonLink } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 
-export const metadata: Metadata = { title: "Performance" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.performance.title") };
+}
 
 export default async function FighterPerformancePage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighterId = requireFighterId(user, user.profileId);
+    const { t } = await getTranslator();
 
     return (
         <>
-            <PageHeader
-                title="Performance"
-                description="How your technique, speed and training load are developing week by week."
-            />
+            <PageHeader title={t("screens.performance.title")} description={t("screens.performance.fighterPerformance.desc")} />
             <PerformanceOverview
                 fighterId={fighterId}
                 fighterName={user.name}
@@ -31,7 +33,7 @@ export default async function FighterPerformancePage() {
                 emptyAction={
                     <ButtonLink href={routes.fighter.uploadVideo}>
                         <Upload aria-hidden />
-                        Upload a training video
+                        {t("screens.performance.uploadVideo")}
                     </ButtonLink>
                 }
             />

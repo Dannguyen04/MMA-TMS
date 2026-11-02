@@ -87,7 +87,7 @@ interface WeekContext {
 
 const profiles: FighterProfile[] = [
     {
-        // Fight camp for Saigon Warriors MMA 04: jab/cross rising, hook lagging, guard slow to improve.
+        // Fight camp for Lotus Fight Night 18: jab/cross rising, hook lagging, guard slow to improve.
         fighterId: "f-minh-tran",
         baseline: { jab: 74, cross: 72, hook: 62, kick: 80, combination: 72, footwork: 81, guard: 68, head_movement: 70 },
         trend: { jab: 8, cross: 8, hook: 5, kick: 2, combination: 5, footwork: 2, guard: 6, head_movement: 2 },

@@ -62,6 +62,7 @@ export function Dialog({
     return (
         <dialog
             ref={ref}
+            data-side={side}
             aria-labelledby={titleId}
             aria-describedby={description ? descriptionId : undefined}
             onCancel={(event) => {

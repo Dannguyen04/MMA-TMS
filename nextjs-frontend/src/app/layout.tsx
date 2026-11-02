@@ -3,6 +3,7 @@ import { Barlow_Condensed, Be_Vietnam_Pro, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
 
 import { LocaleProvider } from "@/components/i18n/locale-provider";
+import { GraphicsTierMark } from "@/components/layout/graphics-tier-mark";
 import { ToastProvider } from "@/components/ui/toast";
 import { THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
 import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/config";
@@ -51,6 +52,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     return (
         <html lang={locale} data-theme={theme} className={`${beVietnam.variable} ${barlow.variable} ${geistMono.variable} h-full antialiased`}>
             <body className="min-h-full bg-bg text-fg">
+                <GraphicsTierMark />
                 <LocaleProvider locale={locale}>
                     <ToastProvider>{children}</ToastProvider>
                 </LocaleProvider>

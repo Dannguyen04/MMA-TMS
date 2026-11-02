@@ -174,7 +174,7 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
     "account.careTeam.noCoaches": "Chưa có huấn luyện viên nào được phân công. Học viện sẽ chỉ định huấn luyện viên trưởng.",
     "account.careTeam.primaryCoach": "Huấn luyện viên chính",
     "account.careTeam.doctors": "Bác sĩ thể thao",
-    "account.careTeam.noDoctors": "Chưa có bác sĩ thể thao nào được phân công. Hãy nhờ học viện sắp xếp buổi khám ban đầu.",
+    "account.careTeam.noDoctors": "Chưa có bác sĩ thể thao. Học viện sẽ phân công một bác sĩ cho buổi khám ban đầu, và bác sĩ sẽ hiện ở đây và trên trang Hôm nay của bạn.",
 
     /* Staff profile cards */
     "account.staff.coachingTitle": "Hồ sơ huấn luyện",

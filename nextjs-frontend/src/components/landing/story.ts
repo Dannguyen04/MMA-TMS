@@ -73,7 +73,7 @@ export interface StageFrame {
     beams: number;
 }
 
-const RED: Vec3 = [0.84, 0.2, 0.25];
+const OVER_LIMIT: Vec3 = [0.84, 0.2, 0.25];
 const BLUE: Vec3 = [0.18, 0.49, 0.88];
 const CYAN: Vec3 = [0.2, 0.85, 0.95];
 const AMBER: Vec3 = [0.98, 0.62, 0.22];
@@ -121,13 +121,13 @@ const COMPACT: Record<ChapterId, Shot> = {
 const INTRO_START: Shot = { azimuth: 0.9, elevation: 0.42, distance: 13, height: 1.0, shift: 0, fov: 28, turn: 0 };
 
 const RIMS: Record<ChapterId, RimLight> = {
-    hero: { left: BLUE, right: RED, strength: 1 },
+    hero: { left: BLUE, right: OVER_LIMIT, strength: 1 },
     analysis: { left: CYAN, right: BLUE, strength: 0.9 },
     training: { left: BLUE, right: ICE, strength: 0.85 },
-    performance: { left: AMBER, right: RED, strength: 0.95 },
+    performance: { left: AMBER, right: OVER_LIMIT, strength: 0.95 },
     medicine: { left: CYAN, right: ICE, strength: 0.8 },
-    roles: { left: BLUE, right: RED, strength: 0.9 },
-    cta: { left: RED, right: BLUE, strength: 1 },
+    roles: { left: BLUE, right: OVER_LIMIT, strength: 0.9 },
+    cta: { left: OVER_LIMIT, right: BLUE, strength: 1 },
 };
 
 /** Top and bottom of the analysis scan sweep, just above the head to just below the feet. */

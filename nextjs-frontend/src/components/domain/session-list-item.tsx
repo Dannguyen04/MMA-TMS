@@ -97,7 +97,7 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                 )}
             >
                 <p className="flex items-center gap-1.5 whitespace-nowrap text-fg-muted">
-                    <TrainingTypeIcon type={session.type} labelled className="size-3.5 shrink-0" />
+                    <TrainingTypeIcon type={session.type} labelled locale={locale} className="size-3.5 shrink-0" />
                     <time dateTime={session.scheduledAt} className={cn("font-medium", session.status === "pending" ? "line-through text-fg-muted" : "text-fg")}>
                         {formatTime(session.scheduledAt)}
                     </time>

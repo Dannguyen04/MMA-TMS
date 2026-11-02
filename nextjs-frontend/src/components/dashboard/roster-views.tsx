@@ -10,17 +10,18 @@ import { DeltaText } from "@/components/performance/delta-text";
 import { changeDelta, SCORE_NOISE_POINTS } from "@/components/performance/performance-format";
 import { TrendBadge } from "@/components/performance/trend-badge";
 import { SortableTH, TBody, TD, THead, TR, Table } from "@/components/ui/table";
-import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { weightClassLabel } from "@/lib/domain/labels";
 import { clearanceExpiresSoon } from "@/lib/domain/rules";
 import { formatNumber, formatTime } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import type { SearchParams, SortDirection } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
-import { NOT_RECORDED } from "@/components/domain/domain-format";
-import { recordSpoken, recordText, relativeDay } from "./dashboard-utils";
+import { recordSpoken, recordText, relativeDayText } from "./dashboard-utils";
 import type { RosterEntry } from "./roster-data";
 
-function ScoreSparkline({ entry, width }: { entry: RosterEntry; width: number }) {
+function ScoreSparkline({ entry, width, t }: { entry: RosterEntry; width: number; t: Translator }) {
     const { overallSeries: values, fighter } = entry;
     if (values.length < 2) return null;
     return (
@@ -30,18 +31,18 @@ function ScoreSparkline({ entry, width }: { entry: RosterEntry; width: number })
             width={width}
             height={28}
             className="shrink-0"
-            ariaLabel={`${fighter.name}'s overall score over ${values.length} weeks, from ${formatNumber(values[0], 1)} to ${formatNumber(values[values.length - 1], 1)}`}
+            ariaLabel={t("screens.roster.sparklineLabel", { name: fighter.name, n: values.length, from: formatNumber(values[0], 1), to: formatNumber(values[values.length - 1], 1) })}
         />
     );
 }
 
-function NextSessionText({ entry, now, narrow = false, className }: { entry: RosterEntry; now: string; narrow?: boolean; className?: string }) {
+function NextSessionText({ entry, now, t, locale, narrow = false, className }: { entry: RosterEntry; now: string; t: Translator; locale: Locale; narrow?: boolean; className?: string }) {
     const session = entry.nextSession;
-    if (!session) return <span className={cn("text-fg-subtle", className)}>Nothing scheduled</span>;
+    if (!session) return <span className={cn("text-fg-subtle", className)}>{t("screens.roster.nothingScheduled")}</span>;
     return (
         <span className={cn("min-w-0", className)}>
             <span className="font-medium text-fg">
-                {relativeDay(session.scheduledAt, now)} · <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt)}</time>
+                {relativeDayText(t, session.scheduledAt, now)} · <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt, locale)}</time>
             </span>
             <span className={cn("block truncate text-fg-muted", narrow && "max-w-40")}>{session.title}</span>
         </span>
@@ -50,7 +51,20 @@ function NextSessionText({ entry, now, narrow = false, className }: { entry: Ros
 
 /* ─── Grid ────────────────────────────────────────────────────────────────── */
 
-export function RosterGrid({ entries, now, warningDays, showPerformance }: { entries: RosterEntry[]; now: string; warningDays: number; showPerformance: boolean }) {
+export function RosterGrid({
+    entries,
+    now,
+    warningDays,
+    showPerformance,
+    locale = "en",
+}: {
+    entries: RosterEntry[];
+    now: string;
+    warningDays: number;
+    showPerformance: boolean;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
+}) {
     return (
         <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {entries.map((entry) => (
@@ -61,8 +75,9 @@ export function RosterGrid({ entries, now, warningDays, showPerformance }: { ent
                         now={now}
                         href={routes.coach.fighter(entry.fighter.id)}
                         className="h-full"
+                        locale={locale}
                     >
-                        <RosterCardDetails entry={entry} now={now} warningDays={warningDays} showPerformance={showPerformance} />
+                        <RosterCardDetails entry={entry} now={now} warningDays={warningDays} showPerformance={showPerformance} locale={locale} />
                     </FighterCard>
                 </li>
             ))}
@@ -70,7 +85,8 @@ export function RosterGrid({ entries, now, warningDays, showPerformance }: { ent
     );
 }
 
-function RosterCardDetails({ entry, now, warningDays, showPerformance }: { entry: RosterEntry; now: string; warningDays: number; showPerformance: boolean }) {
+function RosterCardDetails({ entry, now, warningDays, showPerformance, locale }: { entry: RosterEntry; now: string; warningDays: number; showPerformance: boolean; locale: Locale }) {
+    const t = createTranslator(locale);
     const { performance, clearance, clearanceState } = entry;
 
     return (
@@ -78,29 +94,29 @@ function RosterCardDetails({ entry, now, warningDays, showPerformance }: { entry
             {showPerformance && (
                 <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                        <p className="text-xs text-fg-muted">Overall score</p>
+                        <p className="text-xs text-fg-muted">{t("screens.roster.overallScore")}</p>
                         {performance ? (
                             <p className="mt-0.5 flex flex-wrap items-baseline gap-x-1.5">
                                 <span className="text-lg leading-tight font-semibold text-fg">{formatNumber(performance.overall, 1)}</span>
-                                {entry.hasComparison && <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} />}
+                                {entry.hasComparison && <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} locale={locale} />}
                             </p>
                         ) : (
-                            <p className="mt-0.5 text-sm text-fg-subtle">No scored weeks yet</p>
+                            <p className="mt-0.5 text-sm text-fg-subtle">{t("screens.roster.noScoredWeeks")}</p>
                         )}
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
-                        <ScoreSparkline entry={entry} width={88} />
-                        {performance && entry.hasComparison && <TrendBadge trend={performance.trend} size="sm" />}
+                        <ScoreSparkline entry={entry} width={88} t={t} />
+                        {performance && entry.hasComparison && <TrendBadge trend={performance.trend} size="sm" locale={locale} />}
                     </div>
                 </div>
             )}
             <p className="flex items-start gap-2 text-[13px] leading-snug">
                 <CalendarClock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
-                <span className="sr-only">Next session: </span>
-                <NextSessionText entry={entry} now={now} />
+                <span className="sr-only">{t("screens.roster.nextSessionSr")}</span>
+                <NextSessionText entry={entry} now={now} t={t} locale={locale} />
             </p>
             {clearanceExpiresSoon(clearance, warningDays, now) && (
-                <ClearanceValidity clearance={clearance} state={clearanceState} now={now} warningDays={warningDays} variant="inline" />
+                <ClearanceValidity locale={locale} clearance={clearance} state={clearanceState} now={now} warningDays={warningDays} variant="inline" />
             )}
         </div>
     );
@@ -118,27 +134,30 @@ export interface RosterTableProps {
     direction: SortDirection;
     /** Overall score and trend columns; off while the performance service isn't available. */
     showPerformance: boolean;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
 }
 
-export function RosterTable({ entries, now, warningDays, pathname, searchParams, sort, direction, showPerformance }: RosterTableProps) {
+export function RosterTable({ entries, now, warningDays, pathname, searchParams, sort, direction, showPerformance, locale = "en" }: RosterTableProps) {
+    const t = createTranslator(locale);
     const sortProps = { pathname, searchParams, activeSort: sort, direction };
 
     return (
-        <Table caption="Fighters on your roster">
+        <Table caption={t("screens.roster.table.caption")}>
             <THead>
                 <tr>
-                    <SortableTH label="Fighter" sortKey="name" {...sortProps} />
-                    <SortableTH label="Weight class" sortKey="weight" {...sortProps} />
-                    <SortableTH label="Record" sortKey="record" {...sortProps} />
-                    <SortableTH label="Health" sortKey="health" {...sortProps} />
-                    <SortableTH label="Clearance" sortKey="clearance" {...sortProps} />
+                    <SortableTH label={t("screens.roster.table.fighter")} sortKey="name" {...sortProps} />
+                    <SortableTH label={t("screens.roster.table.weightClass")} sortKey="weight" {...sortProps} />
+                    <SortableTH label={t("screens.roster.table.record")} sortKey="record" {...sortProps} />
+                    <SortableTH label={t("screens.roster.table.health")} sortKey="health" {...sortProps} />
+                    <SortableTH label={t("screens.roster.table.clearance")} sortKey="clearance" {...sortProps} />
                     {showPerformance && (
                         <>
-                            <SortableTH label="Overall" sortKey="overall" {...sortProps} />
-                            <SortableTH label="Trend" sortKey="trend" {...sortProps} />
+                            <SortableTH label={t("screens.roster.table.overall")} sortKey="overall" {...sortProps} />
+                            <SortableTH label={t("screens.roster.table.trend")} sortKey="trend" {...sortProps} />
                         </>
                     )}
-                    <SortableTH label="Next session" sortKey="next" {...sortProps} />
+                    <SortableTH label={t("screens.roster.table.nextSession")} sortKey="next" {...sortProps} />
                 </tr>
             </THead>
             <TBody>
@@ -148,24 +167,24 @@ export function RosterTable({ entries, now, warningDays, pathname, searchParams,
                         // Positioned cells keep screen-reader-only text inside the table's scroll container on narrow screens.
                         <TR key={fighter.id} className="[&>td]:relative">
                             <TD className="min-w-44">
-                                <FighterIdentity fighter={fighter} size="sm" href={routes.coach.fighter(fighter.id)} showMeta={false} />
+                                <FighterIdentity fighter={fighter} size="sm" href={routes.coach.fighter(fighter.id)} showMeta={false} locale={locale} />
                             </TD>
-                            <TD className="whitespace-nowrap text-fg-muted">{WEIGHT_CLASS_LABELS[fighter.weightClass]}</TD>
+                            <TD className="whitespace-nowrap text-fg-muted">{weightClassLabel(fighter.weightClass, locale)}</TD>
                             <TD className="whitespace-nowrap">
                                 {fighter.record ? (
                                     <>
                                         <span aria-hidden>{recordText(fighter)}</span>
-                                        <span className="sr-only">{recordSpoken(fighter)}</span>
+                                        <span className="sr-only">{recordSpoken(fighter, t)}</span>
                                     </>
                                 ) : (
-                                    <span className="text-fg-subtle">{NOT_RECORDED}</span>
+                                    <span className="text-fg-subtle">{t("screens.roster.notRecorded")}</span>
                                 )}
                             </TD>
                             <TD>
-                                <HealthStatusBadge status={fighter.healthStatus} size="sm" />
+                                <HealthStatusBadge status={fighter.healthStatus} size="sm" locale={locale} />
                             </TD>
                             <TD className="min-w-44">
-                                <ClearanceCell clearance={clearance} state={clearanceState} now={now} warningDays={warningDays} />
+                                <ClearanceCell locale={locale} clearance={clearance} state={clearanceState} now={now} warningDays={warningDays} />
                             </TD>
                             {showPerformance && (
                                 <>
@@ -174,20 +193,20 @@ export function RosterTable({ entries, now, warningDays, pathname, searchParams,
                                             <span className="inline-flex items-center gap-2">
                                                 <span className="font-semibold text-fg">{formatNumber(performance.overall, 1)}</span>
                                                 {entry.hasComparison && (
-                                                    <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} />
+                                                    <DeltaText delta={changeDelta(performance.overallDelta, { decimals: 1, neutralWithin: SCORE_NOISE_POINTS })} locale={locale} />
                                                 )}
                                             </span>
                                         ) : (
-                                            <span className="text-xs text-fg-subtle">No data yet</span>
+                                            <span className="text-xs text-fg-subtle">{t("screens.roster.table.noData")}</span>
                                         )}
                                     </TD>
                                     <TD>
-                                        {performance && entry.hasComparison ? <TrendBadge trend={performance.trend} size="sm" /> : <span className="text-xs text-fg-subtle">Too early</span>}
+                                        {performance && entry.hasComparison ? <TrendBadge trend={performance.trend} size="sm" locale={locale} /> : <span className="text-xs text-fg-subtle">{t("screens.roster.table.tooEarly")}</span>}
                                     </TD>
                                 </>
                             )}
                             <TD className="text-[13px] leading-snug">
-                                <NextSessionText entry={entry} now={now} narrow className="block" />
+                                <NextSessionText entry={entry} now={now} t={t} locale={locale} narrow className="block" />
                             </TD>
                         </TR>
                     );

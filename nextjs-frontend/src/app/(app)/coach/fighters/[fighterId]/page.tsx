@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { AnalysisSummaryCard } from "@/components/dashboard/analysis-summary-card";
 import { CardLink } from "@/components/dashboard/card-link";
 import { fighterSessionsHref } from "@/components/dashboard/coach-attention";
-import { relativeDay } from "@/components/dashboard/dashboard-utils";
+import { relativeDayText } from "@/components/dashboard/dashboard-utils";
 import { HealthStatusCard } from "@/components/dashboard/health-status-card";
 import { BodyProfileCard, GoalsSnapshotCard, UpcomingSessionsCard } from "@/components/dashboard/profile-overview-cards";
 import { loadRosterEntry } from "@/components/dashboard/roster-data";
@@ -13,7 +13,7 @@ import { FighterJourney } from "@/components/domain/fighter-journey";
 import { ReviewRequestCard } from "@/components/medical/review-request-card";
 import { CoachFeedbackItem } from "@/components/domain/coach-feedback-item";
 import { PlanCard } from "@/components/domain/plan-card";
-import type { JourneyCode } from "@/lib/domain/journey";
+import { localizeJourney, type JourneyCode } from "@/lib/domain/journey";
 import { planAdherencePct } from "@/lib/domain/training-plan";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -22,6 +22,7 @@ import { requireFighterAccess } from "@/lib/auth/access";
 import { hasPermission, requireRole } from "@/lib/auth/session";
 import { formatWeekdayDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -88,9 +89,11 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             {!journey.complete && (
                 <FighterJourney
-                    journey={journey}
+                    journey={localizeJourney(journey, t)}
                     variant="compact"
-                    action={journeyAction(journey.active?.code, fighter.id)}
+                    locale={locale}
+                    title={t("onboarding.title")}
+                    action={journeyAction(journey.active?.code, fighter.id, t)}
                     className="lg:col-span-3"
                 />
             )}
@@ -104,7 +107,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     variant="summary"
                     warningDays={settings.clearanceExpiryWarningDays}
                     pausedForReview={eligibility?.reasons.includes("REVIEW_REQUEST_PENDING")}
-                    actions={<CardLink href={routes.coach.clearance}>Roster</CardLink>}
+                    actions={<CardLink href={routes.coach.clearance}>{t("nav.Roster")}</CardLink>}
                 />
 
                 <ReviewRequestCard
@@ -117,7 +120,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     now={now}
                 />
 
-                <HealthStatusCard status={health?.fighter.healthStatus ?? fighter.healthStatus}>
+                <HealthStatusCard status={health?.fighter.healthStatus ?? fighter.healthStatus} locale={locale}>
                     {followUp && (
                         <p className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-[13px]">
                             <span className="inline-flex items-center gap-1.5 text-fg-muted">
@@ -126,7 +129,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                             </span>
                             <span className="text-right font-medium text-fg">
                                 <time dateTime={followUp.date}>{formatWeekdayDate(followUp.date, locale)}</time>
-                                <span className="block text-xs font-normal text-fg-muted">{relativeDay(followUp.date, now)}</span>
+                                <span className="block text-xs font-normal text-fg-muted">{relativeDayText(t, followUp.date, now)}</span>
                             </span>
                         </p>
                     )}
@@ -165,11 +168,11 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     </Card>
                 )}
 
-                {platformFeatureAvailable("goals") && <GoalsSnapshotCard goals={goals} href={routes.coach.fighterGoals(fighter.id)} />}
+                {platformFeatureAvailable("goals") && <GoalsSnapshotCard goals={goals} href={routes.coach.fighterGoals(fighter.id)} locale={locale} />}
             </div>
 
             <div className={cn("flex min-w-0 flex-col gap-6 lg:col-span-2 lg:col-start-1", journey.complete ? "lg:row-start-1" : "lg:row-start-2")}>
-                <BodyProfileCard fighter={fighter} now={now} />
+                <BodyProfileCard fighter={fighter} now={now} locale={locale} />
 
                 <UpcomingSessionsCard
                     checks={entry.upcoming.slice(0, UPCOMING_LIMIT)}
@@ -181,6 +184,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                             ? t("training.fighterOverview.trainingPaused")
                             : undefined
                     }
+                    locale={locale}
                 />
 
                 <AnalysisSummaryCard
@@ -190,6 +194,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     libraryHref={routes.coach.fighterVideos(fighter.id)}
                     uploadHref={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighter.id })}
                     now={now}
+                    locale={locale}
                 />
 
                 {platformFeatureAvailable("coachFeedback") && (
@@ -214,6 +219,7 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                                                 now={now}
                                                 sessionHref={item.sessionId ? routes.coach.session(item.sessionId) : undefined}
                                                 videoHref={item.videoId ? routes.coach.video(item.videoId) : undefined}
+                                                locale={locale}
                                             />
                                         </li>
                                     ))}
@@ -228,12 +234,12 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
 }
 
 /** The coach's own move on the journey, when the step in progress is theirs to take. */
-function journeyAction(code: JourneyCode | undefined, fighterId: string) {
+function journeyAction(code: JourneyCode | undefined, fighterId: string, t: Translator) {
     if (code === "plan_missing" || code === "plan_draft") {
         return (
             <ButtonLink href={code === "plan_missing" ? hrefWith(routes.coach.newPlan, {}, { fighter: fighterId }) : routes.coach.fighterTraining(fighterId)} variant="secondary" size="sm">
                 <ClipboardPlus aria-hidden />
-                {code === "plan_missing" ? "New training plan" : "Open training"}
+                {code === "plan_missing" ? t("training.fighterOverview.newTrainingPlan") : t("screens.roster.overview.openTraining")}
             </ButtonLink>
         );
     }
@@ -241,7 +247,7 @@ function journeyAction(code: JourneyCode | undefined, fighterId: string) {
         return (
             <ButtonLink href={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighterId })} variant="secondary" size="sm">
                 <Upload aria-hidden />
-                Upload video
+                {t("screens.roster.overview.uploadVideo")}
             </ButtonLink>
         );
     }

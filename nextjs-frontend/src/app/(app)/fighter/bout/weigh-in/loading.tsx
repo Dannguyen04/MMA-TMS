@@ -1,15 +1,15 @@
 import { LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
 import { getTranslator } from "@/lib/i18n/server";
 
-export default async function FighterWeighInLoading() {
+export default async function WeighInLoading() {
     const { t } = await getTranslator();
     return (
-        <LoadingRegion label={t("weighIn.loading")} className="mx-auto w-full max-w-md">
-            <PageHeaderSkeleton eyebrow back />
-            <div className="flex flex-col gap-4 rounded-xl border border-border bg-surface px-5 py-4">
-                <Skeleton className="h-5 w-40" />
-                <Skeleton className="h-12 w-full" />
-                <Skeleton className="h-11 w-full" />
+        <LoadingRegion label={t("boutFighter.loading.weighIn")}>
+            <PageHeaderSkeleton />
+            <div className="flex max-w-lg flex-col gap-4">
+                <Skeleton className="h-16 w-full rounded-lg" />
+                <Skeleton className="h-32 w-full rounded-lg" />
+                <Skeleton className="h-11 w-full rounded-lg sm:w-32" />
             </div>
         </LoadingRegion>
     );

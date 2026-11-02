@@ -1,28 +1,51 @@
 import { viDemoFlow } from "./demo-flow.vi";
 import { viAccount } from "./account.vi";
 import { viAuth } from "./auth.vi";
+import { viBoutAnalysis } from "./bout-analysis.vi";
+import { viBoutLabels } from "./bout-labels.vi";
+import { viBoutDetail } from "./bout-detail.vi";
+import { viBoutFighter } from "./bout-fighter.vi";
+import { viBoutMessages } from "./bout-messages.vi";
 import { viCoachBouts } from "./coach-bouts.vi";
 import { viCoachToday } from "./coach-today.vi";
 import { viFighterToday } from "./fighter-today.vi";
 import { viHealth } from "./health.vi";
 import { viTraining } from "./training.vi";
 import { viLanding } from "./landing.vi";
+import { viFigure3d } from "./figure3d.vi";
+import { viScreens } from "./screens.vi";
+import { viScreensRoster } from "./screens-roster.vi";
+import { viScreensPerformance } from "./screens-performance.vi";
+import { viScreensTraining } from "./screens-training.vi";
 import type { en } from "./en";
+import { viScreensMisc } from "./screens-misc.vi";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
 export const vi = {
     ...viDemoFlow,
     ...viAccount,
     ...viAuth,
+    ...viBoutAnalysis,
+    ...viBoutLabels,
+    ...viBoutDetail,
+    ...viBoutFighter,
+    ...viBoutMessages,
     ...viCoachBouts,
     ...viCoachToday,
     ...viFighterToday,
     ...viHealth,
     ...viTraining,
     ...viLanding,
+    ...viFigure3d,
+    ...viScreens,
+    ...viScreensRoster,
+    ...viScreensPerformance,
+    ...viScreensTraining,
+    ...viScreensMisc,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
+    "nav.Upcoming": "Sắp tới",
     "nav.Suspensions": "Đình chỉ",
     "nav.Readiness": "Sẵn sàng",
     "nav.Training": "Tập luyện",
@@ -41,6 +64,9 @@ export const vi = {
     "nav.Injuries": "Chấn thương",
     "nav.Dashboard": "Tổng quan",
     "nav.Access": "Truy cập",
+    "nav.People": "Người dùng",
+    "nav.AI": "AI",
+    "nav.System": "Hệ thống",
     "nav.Users": "Người dùng",
     "nav.Roles & permissions": "Vai trò và quyền",
     "nav.Roles": "Vai trò",
@@ -58,6 +84,10 @@ export const vi = {
     "shell.workspace": "Khu làm việc {role}",
     "shell.home": "Trang chủ",
     "shell.mainNav": "Điều hướng chính",
+    "shell.badge.notifications": "chưa đọc",
+    "shell.badge.reviewQueue": "chờ duyệt",
+    "shell.badge.newAlerts": "mới",
+    "shell.badge.failedJobs": "lỗi",
     "shell.primaryNav": "Điều hướng nhanh",
     "shell.openNav": "Mở menu",
     "shell.closeNav": "Đóng menu",
@@ -180,6 +210,10 @@ export const vi = {
     "weightNote.fighter.NOT_WEIGHED.title": "3 ngày chưa ghi cân",
     "weightNote.fighter.NOT_WEIGHED.text": "Hãy ghi cân mỗi sáng.",
 
+    "chart.showTable": "Xem bảng số liệu",
+    "chart.hideTable": "Ẩn bảng số liệu",
+    "chart.noData": "Không có dữ liệu",
+    "chart.keyboardHintPeriods": "Dùng phím mũi tên trái và phải để đọc số liệu từng mốc.",
     "chart.weight": "Cân nặng",
     "chart.reference": "Lộ trình",
     "chart.limit": "Giới hạn",

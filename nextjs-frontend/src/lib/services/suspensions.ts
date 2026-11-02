@@ -18,7 +18,7 @@ import type {
     User,
 } from "@/lib/domain/types";
 import { queryPath } from "./api-helpers";
-import { weightWarningStatusSchema } from "./bouts";
+import { listCampBouts, weightWarningStatusSchema } from "./bouts";
 
 /* ─── Zod Schemas matching backend contract ───────────────────────────────── */
 
@@ -289,4 +289,16 @@ export async function getReadiness(
         z.array(backendReadinessRowSchema),
     );
     return rows.map(toReadinessRow);
+}
+
+/**
+ * Event names of the bouts suspensions point at. Demo mode reads the suspensions store's own bouts, the ones its
+ * sample suspensions were made from (T-030 B); API mode asks the bouts service.
+ */
+export async function suspensionBoutNames(fighterIds: string[] | "all"): Promise<Map<string, string>> {
+    if (isDemoAuthEnabled()) {
+        const { db } = await import("@/lib/mocks/db");
+        return new Map(db().bouts.filter((bout) => fighterIds === "all" || fighterIds.includes(bout.fighterId)).map((bout) => [bout.id, bout.eventName]));
+    }
+    return new Map((await listCampBouts(fighterIds)).map((bout) => [bout.id, bout.event]));
 }

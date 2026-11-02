@@ -4,7 +4,16 @@ import { useId, type ReactNode } from "react";
 import { TermHint } from "@/components/domain/term-hint";
 import { CornerTag } from "@/components/ui/corner-tag";
 import type { GlossaryTerm } from "@/lib/domain/glossary";
-import { JOURNEY_STATUS_LABELS, journeyOwnerLabel, type FighterJourney as Journey, type JourneyStep, type JourneyStepId } from "@/lib/domain/journey";
+import {
+    JOURNEY_STATUS_LABELS,
+    journeyOwnerLabel,
+    journeyStatusLabel,
+    type FighterJourney as Journey,
+    type JourneyStep,
+    type JourneyStepId,
+} from "@/lib/domain/journey";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface FighterJourneyProps {
@@ -20,6 +29,11 @@ export interface FighterJourneyProps {
     hideNextAction?: boolean;
     /** A link or button for the next action, shown beside it. */
     action?: ReactNode;
+    /**
+     * The viewer's language for the stepper's own words; English when omitted. Step labels and details come from the
+     * journey, so pass one re-worded with `localizeJourney`.
+     */
+    locale?: Locale;
     className?: string;
 }
 
@@ -31,13 +45,20 @@ const STEP_TERMS: Partial<Record<JourneyStepId, GlossaryTerm>> = { baseline: "ba
  * `aria-current="step"` on the step in progress; status is carried by icon and words, never colour alone.
  * Server or Client Component.
  */
-export function FighterJourney({ journey, variant = "full", ground, title, headingLevel = 2, hideNextAction, action, className }: FighterJourneyProps) {
+export function FighterJourney({ journey, variant = "full", ground, title, headingLevel = 2, hideNextAction, action, locale, className }: FighterJourneyProps) {
     const headingId = useId();
+    const t = locale ? createTranslator(locale) : null;
     const onHero = (ground ?? (variant === "full" ? "hero" : "surface")) === "hero";
     const Heading = headingLevel === 2 ? "h2" : "h3";
-    const heading = title ?? (journey.viewer === "fighter" ? "Getting fight-ready" : "Getting started");
+    const heading =
+        title ??
+        (t
+            ? t(journey.viewer === "fighter" ? "screens.shared.journey.titleFighter" : "onboarding.title")
+            : journey.viewer === "fighter"
+              ? "Getting fight-ready"
+              : "Getting started");
     const total = journey.steps.length;
-    const next = !hideNextAction && journey.active ? <NextAction step={journey.active} journey={journey} onHero={onHero} action={action} /> : null;
+    const next = !hideNextAction && journey.active ? <NextAction step={journey.active} journey={journey} onHero={onHero} action={action} t={t} /> : null;
 
     if (variant === "compact") {
         return (
@@ -60,7 +81,7 @@ export function FighterJourney({ journey, variant = "full", ground, title, headi
                                 {journey.doneCount}/{total}
                             </span>
                             <span className="sr-only">
-                                , {journey.doneCount} of {total} steps done
+                                {t ? t("screens.shared.journey.stepsDone", { n: journey.doneCount, total }) : `, ${journey.doneCount} of ${total} steps done`}
                             </span>
                         </span>
                     </Heading>
@@ -68,7 +89,7 @@ export function FighterJourney({ journey, variant = "full", ground, title, headi
                         {journey.steps.map((step) => (
                             <li key={step.id} aria-current={isActive(step) ? "step" : undefined} className="flex items-center gap-1.5">
                                 <StatusIcon step={step} onHero={onHero} size="sm" />
-                                <span className="sr-only">{JOURNEY_STATUS_LABELS[step.status]}: </span>
+                                <span className="sr-only">{statusLabel(step, t)}: </span>
                                 <span className={labelClass(step, onHero)}>{step.label}</span>
                             </li>
                         ))}
@@ -83,7 +104,7 @@ export function FighterJourney({ journey, variant = "full", ground, title, headi
         <section aria-labelledby={headingId} className={cn("@container flex min-w-0 flex-col gap-4", className)}>
             <div className="flex flex-col gap-2">
                 <CornerTag tone={onHero ? "stage" : "neutral"}>
-                    {journey.doneCount} of {total} done
+                    {t ? t("screens.shared.journey.done", { n: journey.doneCount, total }) : `${journey.doneCount} of ${total} done`}
                 </CornerTag>
                 <Heading
                     id={headingId}
@@ -94,7 +115,7 @@ export function FighterJourney({ journey, variant = "full", ground, title, headi
             </div>
             <ol className="grid grid-cols-1 gap-3 @md:grid-cols-3 @md:gap-x-3 @md:gap-y-4 @xl:grid-cols-6">
                 {journey.steps.map((step, index) => (
-                    <FullStep key={step.id} step={step} journey={journey} onHero={onHero} last={index === total - 1} />
+                    <FullStep key={step.id} step={step} journey={journey} onHero={onHero} last={index === total - 1} t={t} locale={locale} />
                 ))}
             </ol>
             {next}
@@ -102,7 +123,21 @@ export function FighterJourney({ journey, variant = "full", ground, title, headi
     );
 }
 
-function FullStep({ step, journey, onHero, last }: { step: JourneyStep; journey: Journey; onHero: boolean; last: boolean }) {
+function FullStep({
+    step,
+    journey,
+    onHero,
+    last,
+    t,
+    locale,
+}: {
+    step: JourneyStep;
+    journey: Journey;
+    onHero: boolean;
+    last: boolean;
+    t: Translator | null;
+    locale?: Locale;
+}) {
     const term = STEP_TERMS[step.id];
     return (
         <li aria-current={isActive(step) ? "step" : undefined} className="flex min-w-0 items-start gap-3 @md:flex-col @md:items-stretch @md:gap-2">
@@ -111,12 +146,12 @@ function FullStep({ step, journey, onHero, last }: { step: JourneyStep; journey:
                 {!last && <span aria-hidden className={cn("hidden h-px flex-1 @xl:block", onHero ? "bg-white/35" : "bg-border-strong")} />}
             </span>
             <span className="min-w-0">
-                <span className="sr-only">{JOURNEY_STATUS_LABELS[step.status]}: </span>
+                <span className="sr-only">{statusLabel(step, t)}: </span>
                 <span className={cn("flex items-center gap-0.5 text-[13px] leading-snug", labelClass(step, onHero))}>
                     {step.label}
-                    {term && <TermHint term={term} className={onHero ? "text-white/80 hover:text-white" : undefined} />}
+                    {term && <TermHint term={term} locale={locale} className={onHero ? "text-white/80 hover:text-white" : undefined} />}
                 </span>
-                <span className={cn("mt-0.5 block text-[12px] leading-snug break-words", subClass(step, onHero))}>{stepSubline(step, journey)}</span>
+                <span className={cn("mt-0.5 block text-[12px] leading-snug break-words", subClass(step, onHero))}>{stepSubline(step, journey, t)}</span>
             </span>
         </li>
     );
@@ -126,29 +161,47 @@ function isActive(step: JourneyStep): boolean {
     return step.status === "current" || step.status === "waiting";
 }
 
+/** The step's screen-reader status, in the viewer's language when `t` is given. */
+function statusLabel(step: JourneyStep, t: Translator | null): string {
+    return t ? journeyStatusLabel(step.status, t) : JOURNEY_STATUS_LABELS[step.status];
+}
+
 /** Under each step's label: what it came to once done, who it's with while in progress, who does it later. */
-function stepSubline(step: JourneyStep, journey: Journey): string {
+function stepSubline(step: JourneyStep, journey: Journey, t: Translator | null): string {
+    const who = step.person && step.id !== "doctor" ? step.person : journeyOwnerLabel(step.owner, journey.viewer, t ?? undefined);
     switch (step.status) {
         case "done":
         case "unknown":
             return step.detail;
         case "current":
-            return "Your move";
+            return t ? t("screens.shared.journey.yourMove") : "Your move";
         case "waiting":
-            return `With ${step.person && step.id !== "doctor" ? step.person : journeyOwnerLabel(step.owner, journey.viewer)}`;
+            return t ? t("screens.shared.journey.with", { owner: who }) : `With ${who}`;
         case "upcoming":
-            return step.person && step.id !== "doctor" ? step.person : journeyOwnerLabel(step.owner, journey.viewer);
+            return who;
     }
 }
 
-function NextAction({ step, journey, onHero, action }: { step: JourneyStep; journey: Journey; onHero: boolean; action?: ReactNode }) {
-    const owner = step.status === "current" ? null : journeyOwnerLabel(step.owner, journey.viewer);
+function NextAction({
+    step,
+    journey,
+    onHero,
+    action,
+    t,
+}: {
+    step: JourneyStep;
+    journey: Journey;
+    onHero: boolean;
+    action?: ReactNode;
+    t: Translator | null;
+}) {
+    const owner = step.status === "current" ? null : journeyOwnerLabel(step.owner, journey.viewer, t ?? undefined);
     return (
         <div className={cn("flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between", onHero ? "border-white/20" : "border-border")}>
             <p className={cn("flex min-w-0 items-start gap-1.5 text-[13px] text-pretty", onHero ? "text-white/80" : "text-fg-muted")}>
                 {step.attention && <ShieldAlert aria-hidden className={cn("mt-0.5 size-3.5 shrink-0", onHero ? "text-white" : "text-danger-fg")} />}
                 <span>
-                    <span className="sr-only">Next: </span>
+                    <span className="sr-only">{t ? t("screens.shared.journey.next") : "Next:"} </span>
                     <span className={cn("font-medium", onHero ? "text-white" : "text-fg")}>{step.detail}</span>
                     {owner && <span> · {owner}</span>}
                 </span>

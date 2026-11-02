@@ -6,27 +6,50 @@ import { enDemoFlow } from "./demo-flow.en";
  */
 import { enAccount } from "./account.en";
 import { enAuth } from "./auth.en";
+import { enBoutAnalysis } from "./bout-analysis.en";
+import { enBoutLabels } from "./bout-labels.en";
+import { enBoutDetail } from "./bout-detail.en";
+import { enBoutFighter } from "./bout-fighter.en";
+import { enBoutMessages } from "./bout-messages.en";
 import { enCoachBouts } from "./coach-bouts.en";
 import { enCoachToday } from "./coach-today.en";
 import { enFighterToday } from "./fighter-today.en";
 import { enHealth } from "./health.en";
 import { enTraining } from "./training.en";
 import { enLanding } from "./landing.en";
+import { enFigure3d } from "./figure3d.en";
+import { enScreens } from "./screens.en";
+import { enScreensRoster } from "./screens-roster.en";
+import { enScreensPerformance } from "./screens-performance.en";
+import { enScreensTraining } from "./screens-training.en";
+import { enScreensMisc } from "./screens-misc.en";
 
 export const en = {
     ...enDemoFlow,
     ...enAccount,
     ...enAuth,
+    ...enBoutAnalysis,
+    ...enBoutLabels,
+    ...enBoutDetail,
+    ...enBoutFighter,
+    ...enBoutMessages,
     ...enCoachBouts,
     ...enCoachToday,
     ...enFighterToday,
     ...enHealth,
     ...enTraining,
     ...enLanding,
+    ...enFigure3d,
+    ...enScreens,
+    ...enScreensRoster,
+    ...enScreensPerformance,
+    ...enScreensTraining,
+    ...enScreensMisc,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
     "nav.Bouts": "Bouts",
+    "nav.Upcoming": "Upcoming",
     "nav.Suspensions": "Suspensions",
     "nav.Readiness": "Readiness",
     "nav.Training": "Training",
@@ -45,6 +68,9 @@ export const en = {
     "nav.Injuries": "Injuries",
     "nav.Dashboard": "Dashboard",
     "nav.Access": "Access",
+    "nav.People": "People",
+    "nav.AI": "AI",
+    "nav.System": "System",
     "nav.Users": "Users",
     "nav.Roles & permissions": "Roles & permissions",
     "nav.Roles": "Roles",
@@ -63,6 +89,10 @@ export const en = {
     "shell.workspace": "{role} workspace",
     "shell.home": "Dashboard",
     "shell.mainNav": "Main",
+    "shell.badge.notifications": "unread",
+    "shell.badge.reviewQueue": "awaiting review",
+    "shell.badge.newAlerts": "new",
+    "shell.badge.failedJobs": "failed",
     "shell.primaryNav": "Primary",
     "shell.openNav": "Open navigation",
     "shell.closeNav": "Close navigation",
@@ -162,8 +192,8 @@ export const en = {
     "coachTodo.WEIGH_IN_TODAY": "Official weigh-in today",
     "coachTodo.RESULT_OVERDUE": "No result recorded for the bout of {date}",
     "coachTodo.WEIGHT_NOT_LOGGED": "No weight logged for 2 days",
-    "coachTodo.SUSPENSION_AWAITING_CLEARANCE": "Suspension awaiting clearance to resume training",
-    "coachTodo.TRAINING_CONFLICTS_WITH_SUSPENSION": "{count} training session(s) conflict with suspension",
+    "coachTodo.SUSPENSION_AWAITING_CLEARANCE": "Suspension awaiting clearance to train",
+    "coachTodo.TRAINING_CONFLICTS_WITH_SUSPENSION": "{count} sessions conflict with a suspension",
 
     "feasibility.title": "Weight check",
     "feasibility.OVER_LIMIT": "At risk: {kg} kg is {remaining}% above the {limitKg} kg limit, over the {limit}% cut limit. You can still save the bout.",
@@ -186,6 +216,10 @@ export const en = {
     "weightNote.fighter.NOT_WEIGHED.title": "No weigh-in for 3 days",
     "weightNote.fighter.NOT_WEIGHED.text": "Log your weight each morning.",
 
+    "chart.showTable": "Show data table",
+    "chart.hideTable": "Hide data table",
+    "chart.noData": "No data",
+    "chart.keyboardHintPeriods": "Use the left and right arrow keys to read the values for each period.",
     "chart.weight": "Weight",
     "chart.reference": "Reference",
     "chart.limit": "Limit",

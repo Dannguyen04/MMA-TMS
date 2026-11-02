@@ -5,7 +5,7 @@ import Link from "next/link";
 import { CLEARANCE_PRIORITY, HEALTH_PRIORITY } from "@/components/dashboard/dashboard-utils";
 import { loadRoster, type RosterEntry } from "@/components/dashboard/roster-data";
 import { RosterGrid, RosterTable } from "@/components/dashboard/roster-views";
-import { PERFORMANCE_TRENDS, TREND_META, TREND_ORDER } from "@/components/performance/trend-badge";
+import { PERFORMANCE_TRENDS, TREND_ORDER } from "@/components/performance/trend-badge";
 import { ViewToggle } from "@/components/training/view-toggle";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,7 +14,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
-import { HEALTH_STATUS_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
+import { HEALTH_STATUS_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_ORDER, healthStatusLabel, trainingLevelLabel, weightClassLabel } from "@/lib/domain/labels";
 import type { HealthStatus, TrainingLevel } from "@/lib/domain/types";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/translate";
@@ -50,7 +50,7 @@ const SORT_ACCESSORS: Record<SortKey, (entry: RosterEntry) => string | number | 
 };
 
 export default async function CoachFightersPage({ searchParams }: PageProps<"/coach/fighters">) {
-    const { t } = await getTranslator();
+    const { t, locale } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -88,7 +88,7 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
             allLabel: t("training.roster.allWeightClasses"),
             options: WEIGHT_CLASS_ORDER.filter((wc) => allFighters.some((fighter) => fighter.weightClass === wc)).map((wc) => ({
                 value: wc,
-                label: WEIGHT_CLASS_LABELS[wc],
+                label: weightClassLabel(wc, locale),
             })),
         },
         {
@@ -96,12 +96,12 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
             name: "health",
             label: t("training.roster.healthStatusLabel"),
             allLabel: t("training.roster.allHealthStatuses"),
-            options: HEALTH_STATUSES.map((status) => ({ value: status, label: HEALTH_STATUS_LABELS[status] })),
+            options: HEALTH_STATUSES.map((status) => ({ value: status, label: healthStatusLabel(status, locale) })),
         },
-        { type: "select", name: "level", label: t("training.roster.levelLabel"), allLabel: t("training.roster.allLevels"), options: LEVELS.map((lvl) => ({ value: lvl, label: TRAINING_LEVEL_LABELS[lvl] })) },
+        { type: "select", name: "level", label: t("training.roster.levelLabel"), allLabel: t("training.roster.allLevels"), options: LEVELS.map((lvl) => ({ value: lvl, label: trainingLevelLabel(lvl, locale) })) },
     ];
     if (showPerformance) {
-        filters.push({ type: "select", name: "trend", label: t("training.roster.trendLabel"), allLabel: t("training.roster.allTrends"), options: PERFORMANCE_TRENDS.map((value) => ({ value, label: TREND_META[value].label })) });
+        filters.push({ type: "select", name: "trend", label: t("training.roster.trendLabel"), allLabel: t("training.roster.allTrends"), options: PERFORMANCE_TRENDS.map((value) => ({ value, label: t(`screens.roster.trend.${value}`) })) });
     }
     const clearFiltersHref = hrefWith(pathname, params, Object.fromEntries([...FILTER_KEYS, "page"].map((key) => [key, null])));
 
@@ -109,7 +109,7 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
         <>
             <PageHeader
                 title={t("training.roster.title")}
-                description={t("training.roster.description", {
+                description={t("screens.roster.description", {
                     count: plural(t, "training.roster.fightersCount", allFighters.length),
                     performance: showPerformance ? t("training.roster.performanceText") : "",
                 })}
@@ -180,15 +180,16 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
                                 sort={sort}
                                 direction={direction}
                                 showPerformance={showPerformance}
+                                locale={locale}
                             />
-                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel={t("training.roster.itemLabel")} />
+                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel={t("training.roster.itemLabel")} locale={locale} />
                         </Card>
                     ) : (
                         <>
-                            <RosterGrid entries={page.items} now={now} warningDays={settings.clearanceExpiryWarningDays} showPerformance={showPerformance} />
+                            <RosterGrid entries={page.items} now={now} warningDays={settings.clearanceExpiryWarningDays} showPerformance={showPerformance} locale={locale} />
                             {page.pageCount > 1 && (
                                 <Card className="min-w-0 overflow-hidden [&>nav]:border-t-0">
-                                    <Pagination {...page} pathname={pathname} searchParams={params} itemLabel={t("training.roster.itemLabel")} />
+                                    <Pagination {...page} pathname={pathname} searchParams={params} itemLabel={t("training.roster.itemLabel")} locale={locale} />
                                 </Card>
                             )}
                         </>

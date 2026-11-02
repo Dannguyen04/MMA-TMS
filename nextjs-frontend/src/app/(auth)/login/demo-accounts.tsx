@@ -1,4 +1,4 @@
-import { ChevronRight, ClipboardPen, Dumbbell, ServerCog, Stethoscope, Swords } from "lucide-react";
+import { ChevronRight, Dumbbell, ServerCog, Stethoscope, Swords } from "lucide-react";
 
 import { signInAsDemo } from "@/lib/actions/auth";
 import { DEMO_PASSWORD, isDemoAuthEnabled } from "@/lib/auth/constants";
@@ -10,7 +10,6 @@ const ACCOUNTS: { role: Parameters<typeof signInAsDemo>[0]; name: string; icon: 
     { role: "coach", name: "Rafael Costa", icon: Dumbbell },
     { role: "doctor", name: "Dr. Thu Lê", icon: Stethoscope },
     { role: "admin", name: "Nora Whitfield", icon: ServerCog },
-    { role: "applicant", name: "Quang Hồ", icon: ClipboardPen },
 ];
 
 /** Demo environment helper: one-click sign-in for each role while the auth service is mocked. */

@@ -4,6 +4,7 @@ import { MailCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { TermHint } from "@/components/domain/term-hint";
 import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage, Input } from "@/components/ui/form";
@@ -52,7 +53,14 @@ export function EmailCodeForm() {
             </p>
             {request.state.status === "error" && <FormMessage {...request.message} />}
             <FormMessage {...verify.message} />
-            <Field label={t("auth.code")} htmlFor={token.id} required error={verify.error("token")} hint={t("auth.codeHint")}>
+            <Field
+                label={t("auth.code")}
+                htmlFor={token.id}
+                required
+                info={<TermHint term="verificationCode" />}
+                error={verify.error("token")}
+                hint={t("auth.codeHint")}
+            >
                 <Input {...token} inputMode="numeric" autoComplete="one-time-code" pattern="[0-9]*" maxLength={10} placeholder="123456" className="tracking-widest" />
             </Field>
             <SubmitButton size="lg" className="w-full" pending={verify.pending} pendingLabel={t("auth.checkingCodePending")}>

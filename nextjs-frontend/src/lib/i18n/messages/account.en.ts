@@ -172,7 +172,7 @@ export const enAccount = {
     "account.careTeam.noCoaches": "No coaches assigned yet. The academy will assign a head coach.",
     "account.careTeam.primaryCoach": "Primary coach",
     "account.careTeam.doctors": "Sports doctors",
-    "account.careTeam.noDoctors": "No sports doctor assigned yet. Ask the academy to arrange a baseline physical.",
+    "account.careTeam.noDoctors": "No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page.",
 
     /* Staff profile cards */
     "account.staff.coachingTitle": "Coaching profile",
