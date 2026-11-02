@@ -133,3 +133,22 @@ Nên mở ticket riêng để đưa các câu này vào từ điển.
 2. C2: khôi phục câu tiếng Việt khi không có `locale` ở bốn component.
 3. N1: cập nhật handover.
 4. Chạy lại `pnpm --filter nextjs-frontend test` (phải là 0 lỗi), lint và typecheck. Sau đó chủ dự án quyết việc push `12ea66a` cùng các commit sửa.
+
+## Kiểm lại 2/11 sau bản sửa `98a266c`: APPROVED
+
+Antigravity (`gemini-3.8-flash-high`, một lượt, khoảng 4 phút; log `D:/test/ai-worktrees/logs/T-040A-run-2.json`) sửa C1 và C2 trong commit `98a266c` (4 file, 7 dòng). Chưa push.
+
+- **C1:** `application-summary.test.ts` chờ `"19/07/2003"`. Đạt.
+- **C2:** `ReviewStateBadge`, `ConfidenceBadge`, `ConfidenceMeter`, `TermHint` mặc định `locale = "vi"`, chú thích đổi theo. Không đổi chỗ gọi và từ điển. Đạt.
+
+Claude chạy lại trong worktree `D:/test/ai-worktrees/T-040`:
+
+```text
+pnpm --filter nextjs-frontend lint       → eslint, không lỗi
+pnpm --filter nextjs-frontend typecheck  → ✓ Types generated successfully, tsc không lỗi
+pnpm --filter nextjs-frontend test       → Test Files 116 passed | 1 skipped (117); Tests 1136 passed | 2 skipped (1138)
+```
+
+Backend không đổi so với lần review trên (build, lint đạt; test chỉ lỗi baseline B1, B2; `test:db` 49/49).
+
+Không còn vấn đề mức chặn. N1 (handover thiếu mục cho lần gộp `66c0887`) vẫn mở, mức nên sửa: Claude ghi bổ sung khi merge. G1 (bản `en` hỏng sau `8c41af94`) nằm ngoài phạm vi, xử lý cùng review PR #29.
