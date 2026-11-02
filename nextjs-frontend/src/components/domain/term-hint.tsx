@@ -35,7 +35,7 @@ function Definition({ term, locale }: { term: GlossaryTerm; locale?: Locale }) {
  * A small info button that explains a term from the glossary on hover, keyboard focus or tap. Put it in a
  * Field's `info` slot (never inside a `<label>`), or next to a heading.
  */
-export function TermHint({ term, side = "top", className, locale }: { term: GlossaryTerm; side?: "top" | "bottom"; className?: string; locale?: Locale }) {
+export function TermHint({ term, side = "top", className, locale = "vi" }: { term: GlossaryTerm; side?: "top" | "bottom"; className?: string; locale?: Locale }) {
     const name = glossaryEntry(term, locale).term;
     return (
         <Tooltip content={<Definition term={term} locale={locale} />} side={side}>

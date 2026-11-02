@@ -217,13 +217,13 @@ export function ReviewStateBadge({
     confidence,
     size,
     className,
-    locale,
+    locale = "vi",
 }: {
     review: AIFeedback | null;
     confidence: number | null;
     size?: BadgeSize;
     className?: string;
-    /** The viewer's language; English when omitted. */
+    /** The viewer's language; Vietnamese when omitted. */
     locale?: Locale;
 }) {
     const t = locale ? createTranslator(locale) : null;
@@ -274,7 +274,7 @@ export function AlertStatusBadge({ status, size, className }: { status: AlertSta
 }
 
 /** Confidence as text + band, e.g. "87% · High". */
-export function ConfidenceBadge({ confidence, size, className, locale }: { confidence: number | null; size?: BadgeSize; className?: string; locale?: Locale }) {
+export function ConfidenceBadge({ confidence, size, className, locale = "vi" }: { confidence: number | null; size?: BadgeSize; className?: string; locale?: Locale }) {
     const band = confidenceBand(confidence);
     const tone: Tone = band === "high" ? "neutral" : band === "medium" ? "neutral" : "warning";
     return (
