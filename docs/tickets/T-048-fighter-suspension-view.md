@@ -34,7 +34,7 @@ Có sẵn trên nhánh T-030 B, dùng lại, không viết mới:
 
 ### 2.1 Thẻ đình chỉ (chỉ xem, không có nút sửa)
 
-Lấy `listSuspensions({ active: true }, actor)`. Không có đình chỉ thì không hiện gì. Có thì hiện, theo thứ tự:
+Lấy `GET /suspensions` **không** lọc `active`, đọc hết các trang, rồi giữ trên máy các đình chỉ `UPCOMING`, `ACTIVE`, `AWAITING_CLEARANCE` và `ENDED` có `gradedReturn` khác `null` (phương án A, chủ dự án chốt 2/11; mobile đã làm ở `reactnative-mobile/src/screens/fight-camp/camp-rules.ts`, hàm `liveSuspensions`). Không dùng `active: true`: bộ lọc này không trả đình chỉ đang tập lại theo bậc và đình chỉ `UPCOMING` (`nestjs-api/src/suspensions/suspensions.repo.ts`, nhánh `params.active === true`); nghĩa của `active=true` giữ nguyên vì web đang dùng ([T-051 mục J1](./T-051-mobile-backend-gaps-and-known-issues.md)). Không có đình chỉ thì không hiện gì. Có thì hiện, theo thứ tự:
 
 1. **Câu chính**, một trong ba câu:
    - "Đang đình chỉ đến {ngày}" (có `endsOn`, chưa qua).

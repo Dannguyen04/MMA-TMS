@@ -278,3 +278,16 @@ Các nhóm file không trùng nhau:
 5. **L:** không cho sửa quyết định của HLV với gợi ý AI (đề xuất: giữ đến sau 10/11).
 6. **S4:** giữ hay xoá `reactnative-mobile/src/components/launch` và `src/components/auth` (ghi chú của T-051 cho rằng hai thư mục tự mất khi gộp nhánh; điều này không còn đúng sau PR #29).
 7. **U2-b:** bỏ hậu tố `" (Reanalysis)"` trước 10/11 (đề xuất: bỏ, Ken).
+
+## Quyết định của chủ dự án (2/11)
+
+| Câu hỏi | Quyết định |
+| --- | --- |
+| 1. Model và key Gemini cho demo | Gói miễn phí, `gemini-3.5-flash`, kèm phương án dự phòng: gọi lỗi thì màn hiện gợi ý AI đã lưu sẵn trong database (mục I, Dan) |
+| 2. Cân nhiều lần trong ngày | Giữ: biểu đồ lấy số mới nhất trong ngày, không chặn (mục C) |
+| 3. Danh sách kết quả và cách kết thúc trận | Giữ nguyên đến 10/11 (mục F) |
+| 4. T-048 và `active=true` | Phương án A, giữ nghĩa `active=true`. T-048 mục 2.1 đã sửa 2/11. Bộ lọc mới `current=true` (Ken) để sau 10/11 |
+| 5. HLV sửa quyết định đã chọn với gợi ý AI | Không, ít nhất đến sau 10/11 |
+| 6. `components/launch`, `components/auth` của mobile | Fon quyết giữ hay xoá; nếu giữ thì Fon sửa lỗi tsc |
+| 7. Hậu tố `" (Reanalysis)"` | Bỏ trước 10/11, Ken làm |
+| Việc gợi ý AI của trận (E, L, M, N, O, Q, R, T1) | Gộp một ticket cho Codex, làm sau 10/11 |
