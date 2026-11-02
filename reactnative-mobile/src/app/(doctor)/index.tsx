@@ -1,5 +1,6 @@
-import { DoctorFightersScreen } from "@/screens/doctor/fighters-screen";
+import { Redirect, type Href } from "expo-router";
 
-export default function DoctorFightersRoute() {
-  return <DoctorFightersScreen />;
+/** "/(doctor)" (đích sau đăng nhập và các liên kết cũ) → tab Võ sĩ. */
+export default function DoctorHomeRoute() {
+  return <Redirect href={"/(doctor)/vo-si" as Href} />;
 }

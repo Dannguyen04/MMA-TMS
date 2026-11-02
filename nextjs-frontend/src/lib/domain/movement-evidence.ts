@@ -6,7 +6,7 @@ const windowSchema = z.object({
     startMs: z.number().finite().nonnegative(), endMs: z.number().finite().nonnegative(),
     sampleCount: count.min(6), confidence: z.null(), reviewStatus: z.literal("requires_review"),
 }).refine(w => w.endFrame >= w.startFrame && w.endMs - w.startMs >= 250 &&
-    w.sampleCount === w.endFrame - w.startFrame + 1, "Invalid evidence window");
+    w.sampleCount === w.endFrame - w.startFrame + 1, "Khoảng dữ liệu không hợp lệ");
 
 /** Versioned, non-clinical evidence contract. Unknown versions fail closed. */
 export const movementEvidenceSchema = z.object({
@@ -44,31 +44,31 @@ export const movementEvidenceSchema = z.object({
     const c = report.coverage;
     const expected = c.totalFrames ? c.usableFrames / c.totalFrames : 0;
     if (c.usableFrames > c.freshPoseFrames || c.freshPoseFrames > c.totalFrames || Math.abs(c.usableRatio - expected) > .0001)
-        ctx.addIssue({ code: "custom", message: "Inconsistent coverage" });
+        ctx.addIssue({ code: "custom", message: "Độ phủ không nhất quán" });
     if ((report.status === "recapture") !== (report.windows.length === 0))
-        ctx.addIssue({ code: "custom", message: "Inconsistent review status" });
+        ctx.addIssue({ code: "custom", message: "Trạng thái duyệt không nhất quán" });
     if ((report.context.source === "declared") !== (report.context.exerciseId !== null))
-        ctx.addIssue({ code: "custom", message: "Inconsistent declared exercise" });
+        ctx.addIssue({ code: "custom", message: "Bài tập khai báo không nhất quán" });
     const ids = new Set<string>();
     let windowFrames = 0;
     let endFrame = -1;
     let endMs = -1;
     for (const w of report.windows) {
         if (ids.has(w.id) || w.startFrame <= endFrame || w.startMs <= endMs || w.sampleCount > c.usableFrames)
-            ctx.addIssue({ code: "custom", message: "Overlapping or invalid evidence windows" });
+            ctx.addIssue({ code: "custom", message: "Các khoảng dữ liệu chồng lấn hoặc không hợp lệ" });
         ids.add(w.id);
         windowFrames += w.sampleCount;
         endFrame = w.endFrame;
         endMs = w.endMs;
     }
     if (windowFrames > c.usableFrames)
-        ctx.addIssue({ code: "custom", message: "Windows exceed usable frame coverage" });
+        ctx.addIssue({ code: "custom", message: "Khoảng dữ liệu vượt quá số khung hình dùng được" });
 });
 
 export type MovementEvidence = z.infer<typeof movementEvidenceSchema>;
 
 export const MOVEMENT_REVIEW_LABELS: Record<MovementEvidence["status"], string> = {
-    review_ready: "Footage available for review",
-    limited: "Partial footage available for review",
-    recapture: "New recording or reprocessing required",
+    review_ready: "Có Video để xem lại",
+    limited: "Có một phần Video để xem lại",
+    recapture: "Cần quay mới hoặc xử lý lại",
 };

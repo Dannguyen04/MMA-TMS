@@ -1,5 +1,6 @@
 import { fighter } from "@/i18n/fighter";
 import { vi } from "@/i18n/vi";
+import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 import type { SessionStatus, SessionType, TrainingPlanStatus } from "@/api";
 
 export function formatWhen(iso: string): string {
@@ -27,11 +28,11 @@ export function formatMinutes(seconds: number | null | undefined): string {
 }
 
 export function sessionStatusLabel(status: string): string {
-  return fighter.sessionStatus[status as SessionStatus] ?? status;
+  return fighter.sessionStatus[status as SessionStatus] ?? UNKNOWN_VALUE;
 }
 
 export function sessionTypeLabel(value: string): string {
-  return fighter.sessionType[value as SessionType] ?? value;
+  return fighter.sessionType[value as SessionType] ?? UNKNOWN_VALUE;
 }
 
 export function planStatusLabel(status: string): string {

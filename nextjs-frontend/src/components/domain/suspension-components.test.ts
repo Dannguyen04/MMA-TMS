@@ -359,7 +359,7 @@ describe("T-030 B3: Shared suspension components", () => {
         const noLocaleHtml = renderToStaticMarkup(
             createElement(SessionStatusBadge, { status: "pending" }),
         );
-        expect(noLocaleHtml).toContain("To reschedule");
+        expect(noLocaleHtml).toContain("Cần dời lịch");
     });
 
     // ─── B3-13 ─────────────────────────────────────────────────────────────────

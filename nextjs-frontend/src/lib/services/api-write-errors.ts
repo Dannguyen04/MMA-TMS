@@ -39,7 +39,7 @@ export interface ServiceErrorMessages {
 
 /** The change may or may not have been saved: the service didn't answer in time or failed. */
 export function maybeNotSavedMessage(service: string): string {
-    return `The ${service} didn't confirm the change, so it may not have been saved. Reload the page to check before trying again.`;
+    return `${service} không xác nhận thay đổi nên có thể chưa được lưu. Hãy tải lại trang để kiểm tra trước khi thử lại.`;
 }
 
 interface ValidationIssue {
@@ -80,7 +80,7 @@ function fromValidation(error: ApiError, service: string, fields: Record<string,
         if (field) fieldErrors[field] ??= sentence(issue.message);
         else unplaced.push(sentence(issue.message));
     }
-    const message = [`The ${service} didn't accept some of the details. Check the highlighted fields.`, ...new Set(unplaced)].join(" ");
+    const message = [`${service} không chấp nhận một số thông tin. Hãy kiểm tra các ô được đánh dấu.`, ...new Set(unplaced)].join(" ");
     return Object.keys(fieldErrors).length > 0 ? { message, fieldErrors } : { message };
 }
 
@@ -105,12 +105,12 @@ export function apiWriteFailure(error: unknown, messages: ServiceErrorMessages, 
     const { service } = messages;
     switch (error.kind) {
         case "unauthorized":
-            return { message: "Your session has expired. Sign in again, then check whether the change was saved." };
+            return { message: "Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại rồi kiểm tra thay đổi đã được lưu chưa." };
         case "network":
         case "timeout":
             return { message: maybeNotSavedMessage(service), unconfirmed: true };
         case "invalid_response":
-            return { message: `The change was probably saved, but the ${service}'s reply couldn't be read. Reload the page to check before trying again.`, unconfirmed: true };
+            return { message: `Thay đổi có thể đã được lưu nhưng không đọc được phản hồi của ${service}. Hãy tải lại trang để kiểm tra trước khi thử lại.`, unconfirmed: true };
         case "http":
             break;
     }
@@ -121,7 +121,7 @@ export function apiWriteFailure(error: unknown, messages: ServiceErrorMessages, 
     if (status === 403) return { message: messages.forbidden };
     if (status === 404) return known ? fromCode(known, error.code, options.conflictFields) : { message: messages.notFound };
     if (status === 409) return fromCode(known ?? sentence(error.message), error.code, options.conflictFields);
-    if (status === 429) return { message: "Too many changes in a short time. Wait a moment, then reload the page and try again." };
+    if (status === 429) return { message: "Quá nhiều thay đổi trong thời gian ngắn. Hãy chờ giây lát, tải lại trang và thử lại." };
     if (status >= 500) return { message: maybeNotSavedMessage(service), unconfirmed: true };
     return { message: sentence(error.message) };
 }

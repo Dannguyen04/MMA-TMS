@@ -38,7 +38,7 @@ export function ObservationCard({ alert, fighter, source, now, className }: Obse
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <FighterIdentity fighter={fighter} size="sm" />
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <AIGeneratedBadge size="sm" label="AI observation" />
+                    <AIGeneratedBadge size="sm" label="Quan sát AI" />
                     <AlertStatusBadge status={alert.status} size="sm" />
                 </div>
             </div>
@@ -61,30 +61,30 @@ export function ObservationCard({ alert, fighter, source, now, className }: Obse
                     <dd className="mt-0.5 font-semibold text-fg">{describeMetricComparison(alert.metric)}</dd>
                 </div>
                 <div className="min-w-0">
-                    <dt className="text-fg-muted">AI confidence</dt>
+                    <dt className="text-fg-muted">Độ tin cậy AI</dt>
                     <dd className="mt-1">
-                        <ConfidenceMeter confidence={alert.confidence} label={`AI confidence for this observation`} />
+                        <ConfidenceMeter confidence={alert.confidence} label={`Độ tin cậy AI của quan sát này`} />
                     </dd>
                 </div>
             </dl>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-3 text-[13px] text-fg-muted">
                 <span>
-                    Detected <time dateTime={alert.detectedAt}>{formatRelative(alert.detectedAt, now)}</time>
+                    Phát hiện <time dateTime={alert.detectedAt}>{formatRelative(alert.detectedAt, now, "vi")}</time>
                 </span>
                 <span>
                     {source ? (
                         <>
-                            {TRAINING_TYPE_LABELS[source.trainingType]} video ·{" "}
+                            {TRAINING_TYPE_LABELS[source.trainingType]} Video ·{" "}
                             <time dateTime={source.uploadedAt}>{formatDate(source.uploadedAt)}</time>
                         </>
                     ) : (
-                        "Footage no longer available"
+                        "Video không còn khả dụng"
                     )}
                 </span>
                 {alert.linkedInjuryId && (
                     <Badge tone="neutral" size="sm" icon={Bandage}>
-                        Linked to an injury record
+                        Đã liên kết hồ sơ chấn thương
                     </Badge>
                 )}
             </div>
@@ -96,7 +96,7 @@ export function ObservationCard({ alert, fighter, source, now, className }: Obse
                         <span className="font-medium text-fg">{decision.label}</span>
                         <span className="text-fg-muted">
                             {" "}
-                            by {review.reviewerName} · <time dateTime={review.reviewedAt}>{formatDate(review.reviewedAt)}</time>
+                            bởi {review.reviewerName} · <time dateTime={review.reviewedAt}>{formatDate(review.reviewedAt)}</time>
                         </span>
                         <span className="mt-0.5 line-clamp-1 block text-fg-muted">{review.note}</span>
                     </span>

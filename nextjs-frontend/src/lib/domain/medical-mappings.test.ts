@@ -51,7 +51,7 @@ describe("restrictionFromAllowLists", () => {
     });
 
     it("blocks nothing for open lists", () => {
-        expect(restrictionFromAllowLists(lists(), "r-2")).toMatchObject({ label: "Medical restrictions", blockedTrainingTypes: [], blockedTechniques: [], blockedRegions: [] });
+        expect(restrictionFromAllowLists(lists(), "r-2")).toMatchObject({ label: "Hạn chế y tế", blockedTrainingTypes: [], blockedTechniques: [], blockedRegions: [] });
         expect(isRestricted(lists({ notes: "Warm up well" }))).toBe(false);
         expect(isRestricted(lists({ excludedJoints: ["SPINE_CORE"] }))).toBe(true);
     });

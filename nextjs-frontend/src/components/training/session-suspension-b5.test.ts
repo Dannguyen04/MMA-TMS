@@ -370,7 +370,7 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
         // Explanatory sentence with ceiling & fullReturnOn
         expect(gradedHtml).toContain("tập lại theo bậc");
         expect(gradedHtml).toContain("3");
-        expect(gradedHtml).toContain("20 thg 11");
+        expect(gradedHtml).toContain("20/11");
 
         // Ladder with 3 allowed and 2 ceiling segments
         expect(gradedHtml).toContain("bị chặn hôm nay");
@@ -637,7 +637,7 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
             requiresClearance: false,
         };
 
-        const errorSentence = "Võ sĩ đang bị đình chỉ (Nghỉ bắt buộc), buổi tập loại này bị chặn đến ngày 3 thg 11.";
+        const errorSentence = "Võ sĩ đang bị đình chỉ (Nghỉ bắt buộc), buổi tập loại này bị chặn đến ngày 03/11.";
         const errorState: ActionState<SessionFormResult> = {
             status: "error",
             message: errorSentence,
@@ -717,8 +717,8 @@ describe("T-030 B5: Lịch tập (Training schedule & suspensions sync)", () => 
         expect(html).toContain('name="date"');
         expect(html).toContain('value="2026-11-04"');
 
-        // 2. Contains button "Dùng ngày 4 thg 11"
-        expect(html).toContain("Dùng ngày 4 thg 11");
+        // 2. Contains button "Dùng ngày 04/11"
+        expect(html).toContain("Dùng ngày 04/11");
         expect(html).toContain("<button");
     });
 

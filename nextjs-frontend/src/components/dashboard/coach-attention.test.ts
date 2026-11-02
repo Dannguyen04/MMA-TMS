@@ -132,7 +132,7 @@ describe("buildCoachAttention", () => {
             ["applicants", "Linh old"],
             ["applicants", "Linh new"],
         ]);
-        expect(items[1]).toMatchObject({ kind: "Entrance assessment", detail: "Assigned 3 days ago · Lightweight", action: { href: "/coach/admissions/old", label: "Assess" } });
+        expect(items[1]).toMatchObject({ kind: "Entrance assessment", detail: "Assigned 3 days ago · Hạng nhẹ", action: { href: "/coach/admissions/old", label: "Assess" } });
     });
 
     it("says a pending medical review is what pauses training", () => {

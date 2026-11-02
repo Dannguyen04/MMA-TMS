@@ -25,7 +25,7 @@ import { EmptyState } from "@/components/ui/states";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { dayKey, formatDate, pluralize } from "@/lib/format";
+import { dayKey, formatDate } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus, getRecoveryPlanDetail } from "@/lib/services/medical";
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: PageProps<"/doctor/recovery/[
     const detail = await loadRecoveryPlanDetail(planId);
     // The title must not reveal a plan the viewer isn't assigned to.
     const visible = detail && user && canAccessFighter(user, detail.plan.fighterId);
-    return { title: visible ? `${detail.plan.title} · ${detail.fighter.name}` : "Recovery plan" };
+    return { title: visible ? `${detail.plan.title} · ${detail.fighter.name}` : "Kế hoạch phục hồi" };
 }
 
 export default async function RecoveryPlanPage({ params, searchParams }: PageProps<"/doctor/recovery/[planId]">) {
@@ -67,8 +67,8 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
     return (
         <>
             <PageHeader
-                back={{ href: routes.doctor.recovery, label: "Recovery" }}
-                eyebrow="Recovery plan"
+                back={{ href: routes.doctor.recovery, label: "Phục hồi" }}
+                eyebrow="Kế hoạch phục hồi"
                 title={plan.title}
                 meta={
                     <>
@@ -118,16 +118,16 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                         tone="success"
                         icon={CircleCheck}
                         role="status"
-                        title="Recovery plan created"
+                        title="Đã tạo kế hoạch phục hồi"
                         action={
                             <ButtonLink href={routes.doctor.recoveryPlan(plan.id)} variant="ghost" size="sm" replace scroll={false}>
-                                Dismiss
+                                Đóng
                             </ButtonLink>
                         }
                     >
                         {serviceForms
-                            ? `${fighter.name} can follow the plan on their Health page. Tick milestones off as they're reached.`
-                            : `${fighter.name} has been notified, and their coaches were told a return-to-training plan has started — without clinical detail. Log the first check-in to start tracking.`}
+                            ? `${fighter.name} có thể theo dõi kế hoạch ở trang Sức khỏe. Đánh dấu từng mốc khi đạt.`
+                            : `${fighter.name} đã được thông báo, HLV được báo kế hoạch trở lại tập đã bắt đầu — không kèm chi tiết lâm sàng. Ghi lần kiểm tra đầu tiên để bắt đầu theo dõi.`}
                     </Callout>
                 )}
 
@@ -135,30 +135,29 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                     <Callout
                         tone="success"
                         icon={CircleCheck}
-                        title={serviceForms ? "Plan completed" : "Every phase is complete"}
+                        title={serviceForms ? "Đã hoàn tất kế hoạch" : "Mọi giai đoạn đã xong"}
                         action={
                             <>
                                 <ButtonLink href={routes.doctor.injury(injury.id)} size="sm" variant="secondary">
-                                    Open injury record
+                                    Mở hồ sơ chấn thương
                                 </ButtonLink>
                                 <ButtonLink href={clinicalLinks.grantClearanceFor(fighter.id)} size="sm">
                                     <ShieldCheck aria-hidden />
-                                    Review Medical Clearance
+                                    Xem lại giấy phép
                                 </ButtonLink>
                             </>
                         }
                     >
-                        The injury record and Medical Clearance don&apos;t change on their own. Resolve the injury and update the clearance when your assessment
-                        supports a full return.
+                        Hồ sơ chấn thương và giấy phép không tự thay đổi. Hãy đánh dấu đã khỏi và cập nhật giấy phép khi đánh giá của bạn cho phép trở lại hoàn toàn.
                     </Callout>
                 )}
 
                 {serviceForms ? (
                     <Card>
                         <CardHeader
-                            title="Milestones"
+                            title="Các mốc"
                             icon={<ListChecks />}
-                            description={plan.status === "active" ? "Tick milestones as they're reached. The fighter sees them on their Health page." : "This plan is closed."}
+                            description={plan.status === "active" ? "Đánh dấu mốc khi đạt. Võ sĩ thấy chúng ở trang Sức khỏe." : "Kế hoạch này đã đóng."}
                         />
                         <CardContent>
                             {plan.legacyMilestones ? (
@@ -171,9 +170,9 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                 ) : (
                     <Card>
                         <CardHeader
-                            title="Phases & milestones"
+                            title="Giai đoạn & mốc"
                             icon={<ListChecks />}
-                            description="Tick milestones as they're met. Progress updates straight away."
+                            description="Đánh dấu mốc khi đạt. Tiến độ cập nhật ngay."
                         />
                         <CardContent>
                             <RecoveryTracker plan={plan} now={now} />
@@ -184,20 +183,20 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                 {medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
                     <Card className="overflow-hidden">
                         <CardHeader
-                            title="Check-ins"
+                            title="Kiểm tra định kỳ"
                             icon={<LineChartIcon />}
                             description={
                                 plan.checkIns.length === 0
-                                    ? "Pain, mobility and strength over time"
-                                    : `${pluralize(plan.checkIns.length, "check-in")} · last on ${formatDate(plan.checkIns.at(-1)?.date ?? now)}`
+                                    ? "Đau, vận động và sức mạnh theo thời gian"
+                                    : `${plan.checkIns.length} lần kiểm tra · gần nhất ${formatDate(plan.checkIns.at(-1)?.date ?? now)}`
                             }
                         />
                         {plan.checkIns.length === 0 ? (
                             <EmptyState
                                 compact
                                 icon={<LineChartIcon />}
-                                title="No check-ins yet"
-                                description="Log pain, mobility and strength at each review to see how the fighter is responding to the plan."
+                                title="Chưa có lần kiểm tra"
+                                description="Ghi đau, vận động và sức mạnh mỗi lần kiểm tra để theo dõi đáp ứng."
                                 className="border-t border-border"
                             />
                         ) : (
@@ -207,20 +206,20 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                                         <CheckInCharts checkIns={plan.checkIns} audience="clinical" />
                                     ) : (
                                         <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
-                                            Trends appear after the second check-in.
+                                            Xu hướng hiện sau lần kiểm tra thứ hai.
                                         </p>
                                     )}
                                 </CardContent>
                                 <div className="border-t border-border">
-                                    <h3 className="sr-only">Check-in history</h3>
-                                    <Table caption="Check-in history, newest first">
+                                    <h3 className="sr-only">Lịch sử kiểm tra</h3>
+                                    <Table caption="Lịch sử kiểm tra, mới nhất trước">
                                         <THead>
                                             <tr>
-                                                <TH>Date</TH>
-                                                <TH className="text-right">Pain</TH>
-                                                <TH className="text-right">Mobility</TH>
-                                                <TH className="text-right">Strength</TH>
-                                                <TH>Note</TH>
+                                                <TH>Ngày</TH>
+                                                <TH className="text-right">Đau</TH>
+                                                <TH className="text-right">Vận động</TH>
+                                                <TH className="text-right">Sức mạnh</TH>
+                                                <TH>Ghi chú</TH>
                                             </tr>
                                         </THead>
                                         <TBody>
@@ -250,25 +249,25 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <Card className="min-w-0 overflow-hidden lg:col-span-2">
                         <CardHeader
-                            title="Treatments"
+                            title="Điều trị"
                             icon={<ClipboardList />}
-                            description="For this injury"
+                            description="Cho chấn thương này"
                             action={
                                 injury && (
-                                    <CardLink href={routes.doctor.injury(injury.id)} srContext="treatments on the injury record">
-                                        Manage
+                                    <CardLink href={routes.doctor.injury(injury.id)} srContext="điều trị trong hồ sơ chấn thương">
+                                        Quản lý
                                     </CardLink>
                                 )
                             }
                         />
                         {treatments.length === 0 ? (
-                            <p className="border-t border-border px-5 py-4 text-sm text-fg-muted">No treatments recorded for this injury.</p>
+                            <p className="border-t border-border px-5 py-4 text-sm text-fg-muted">Chưa ghi nhận điều trị cho chấn thương này.</p>
                         ) : (
                             <TreatmentList treatments={treatments} className="border-t border-border" />
                         )}
                     </Card>
 
-                    <aside aria-label="Medical Clearance and plan details" className="flex min-w-0 flex-col gap-6">
+                    <aside aria-label="Giấy phép và chi tiết kế hoạch" className="flex min-w-0 flex-col gap-6">
                         <ClearanceCard
                             clearance={clearance}
                             state={clearanceNow}
@@ -278,24 +277,24 @@ export default async function RecoveryPlanPage({ params, searchParams }: PagePro
                             warningDays={settings.clearanceExpiryWarningDays}
                         />
                         <Card>
-                            <CardHeader title="Plan details" icon={<FileText />} />
+                            <CardHeader title="Chi tiết kế hoạch" icon={<FileText />} />
                             <CardContent>
                                 <DescriptionList
                                     columns={1}
                                     items={[
-                                        { label: "Responsible doctor", value: doctor?.name ?? "Sports doctor" },
-                                        { label: "Started", value: <time dateTime={plan.startDate}>{formatDate(plan.startDate)}</time> },
+                                        { label: "Bác sĩ phụ trách", value: doctor?.name ?? "Bác sĩ thể thao" },
+                                        { label: "Bắt đầu", value: <time dateTime={plan.startDate}>{formatDate(plan.startDate)}</time> },
                                         {
-                                            label: "Target return",
+                                            label: "Mục tiêu trở lại",
                                             value: plan.targetReturnDate ? <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time> : NOT_RECORDED,
                                         },
                                         serviceForms
-                                            ? { label: "Milestones", value: `${milestones.filter((m) => m.isCompleted).length} of ${milestones.length} reached` }
+                                            ? { label: "Các mốc", value: `Đạt ${milestones.filter((m) => m.isCompleted).length}/${milestones.length}` }
                                             : {
-                                                  label: "Phases",
-                                                  value: `${plan.phases.filter((p) => p.status === "completed").length} of ${plan.phases.length} completed`,
+                                                  label: "Giai đoạn",
+                                                  value: `Xong ${plan.phases.filter((p) => p.status === "completed").length}/${plan.phases.length}`,
                                               },
-                                        ...(plan.description ? [{ label: "Approach", value: <span className="font-normal">{plan.description}</span> }] : []),
+                                        ...(plan.description ? [{ label: "Phương pháp", value: <span className="font-normal">{plan.description}</span> }] : []),
                                     ]}
                                 />
                             </CardContent>

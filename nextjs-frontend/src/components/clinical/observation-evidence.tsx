@@ -48,7 +48,7 @@ function ClipButtons({ timestampsMs, durationMs }: { timestampsMs: number[]; dur
 
     return (
         <div>
-            <h4 className="mb-2 text-[13px] font-semibold text-fg">Flagged moments</h4>
+            <h4 className="mb-2 text-[13px] font-semibold text-fg">Thời điểm được đánh dấu</h4>
             <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {clips.map(({ start, end }, index) => {
                     const ms = timestampsMs[index];
@@ -74,7 +74,7 @@ function ClipButtons({ timestampsMs, durationMs }: { timestampsMs: number[]; dur
                                     <Play className="size-3.5" />
                                 </span>
                                 <span className="min-w-0 text-[13px]">
-                                    <span className="block font-medium text-fg">Moment {index + 1}</span>
+                                    <span className="block font-medium text-fg">Thời điểm {index + 1}</span>
                                     <span className="text-fg-muted tabular-nums">
                                         {formatTimestamp(start)} – {formatTimestamp(end)}
                                     </span>

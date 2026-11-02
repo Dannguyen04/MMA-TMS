@@ -23,6 +23,6 @@ describe("accountWriteFailure", () => {
 
     it("explains an account that disappeared and never claims a failed write wasn't saved", () => {
         expect(accountWriteFailure(http(404, "USER_NOT_FOUND")).message).toContain("no longer exists");
-        expect(accountWriteFailure(http(500, "USER_OPERATION_FAILED")).message).toContain("may not have been saved");
+        expect(accountWriteFailure(http(500, "USER_OPERATION_FAILED")).message).toContain("có thể chưa được lưu");
     });
 });

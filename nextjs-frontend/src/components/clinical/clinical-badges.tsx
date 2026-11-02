@@ -47,7 +47,7 @@ export const RECOVERY_PLAN_STATUS_META: Record<RecoveryPlanStatus, StatusMeta> =
 
 export function RecoveryPlanStatusBadge({ status, size, className }: { status: RecoveryPlanStatus; size?: BadgeSize; className?: string }) {
     const meta = RECOVERY_PLAN_STATUS_META[status];
-    return <StatusBadge meta={{ ...meta, label: `Plan ${meta.label.toLowerCase()}` }} size={size} className={className} />;
+    return <StatusBadge meta={{ ...meta, label: `Kế hoạch ${meta.label.toLowerCase()}` }} size={size} className={className} />;
 }
 
 /** A doctor's decision reads the same as the observation status it sets. */
@@ -79,7 +79,7 @@ export function TreatmentTypeIcon({ type, labelled = false, className }: { type:
                 className,
             )}
             role={labelled ? "img" : undefined}
-            aria-label={labelled ? (type ? TREATMENT_TYPE_LABELS[type] : "Treatment") : undefined}
+            aria-label={labelled ? (type ? TREATMENT_TYPE_LABELS[type] : "Điều trị") : undefined}
             aria-hidden={labelled ? undefined : true}
         >
             <Icon className="size-[18px]" aria-hidden />

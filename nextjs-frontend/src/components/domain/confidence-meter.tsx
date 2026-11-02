@@ -7,9 +7,9 @@ import { createTranslator } from "@/lib/i18n/translate";
 import { clamp, cn } from "@/lib/utils";
 
 const BAND_LABELS: Record<ConfidenceBand, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low – needs review",
+    high: "Cao",
+    medium: "Trung bình",
+    low: "Thấp – cần xem lại",
 };
 
 export interface ConfidenceMeterProps {

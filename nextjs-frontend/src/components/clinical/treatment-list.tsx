@@ -16,7 +16,7 @@ export interface TreatmentListProps {
 }
 
 /** Treatments in order: type icon, what and who, frequency, dates and status. */
-export function TreatmentList({ treatments, editable = false, className, locale = "en" }: TreatmentListProps) {
+export function TreatmentList({ treatments, editable = false, className, locale = "vi" }: TreatmentListProps) {
     const t = createTranslator(locale);
     const notRecorded = t("health.notRecorded");
     return (
@@ -34,14 +34,14 @@ export function TreatmentList({ treatments, editable = false, className, locale 
                             // A treatment from the medical service: a dated entry with an optional review, no provider or schedule.
                             <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
                                 <div className="flex gap-1">
-                                    <dt>{locale === "vi" ? "Thời gian" : "Given"}</dt>
+                                    <dt>{locale === "vi" ? "Thời gian" : "Thực hiện"}</dt>
                                     <dd>
                                         <time dateTime={treatment.startDate}>{formatDate(treatment.startDate, locale)}</time>
                                     </dd>
                                 </div>
                                 {treatment.nextReviewAt && (
                                     <div className="flex gap-1">
-                                        <dt>{locale === "vi" ? "Tái khám" : "Review"}</dt>
+                                        <dt>{locale === "vi" ? "Tái khám" : "Đánh giá lại"}</dt>
                                         <dd>
                                             <time dateTime={treatment.nextReviewAt}>{formatDate(treatment.nextReviewAt, locale)}</time>
                                         </dd>
@@ -51,15 +51,15 @@ export function TreatmentList({ treatments, editable = false, className, locale 
                         ) : (
                             <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-[13px] text-fg-muted">
                                 <div className="flex gap-1">
-                                    <dt className="sr-only">Provider</dt>
+                                    <dt className="sr-only">Nơi thực hiện</dt>
                                     <dd>{treatment.providerName ?? notRecorded}</dd>
                                 </div>
                                 <div className="flex gap-1">
-                                    <dt className="sr-only">Frequency</dt>
+                                    <dt className="sr-only">Tần suất</dt>
                                     <dd>{treatment.frequency ?? notRecorded}</dd>
                                 </div>
                                 <div className="flex gap-1">
-                                    <dt className="sr-only">Dates</dt>
+                                    <dt className="sr-only">Thời gian</dt>
                                     <dd>
                                         <time dateTime={treatment.startDate}>{formatDate(treatment.startDate, locale)}</time>
                                         {" – "}

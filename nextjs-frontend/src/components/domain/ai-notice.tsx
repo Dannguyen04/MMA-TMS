@@ -9,23 +9,23 @@ export type AINoticeAudience = "coach" | "fighter" | "doctor" | "admin";
 
 const NOTICES: Record<AINoticeAudience, { title: string; body: string; icon: LucideIcon }> = {
     coach: {
-        title: "AI suggestions",
-        body: "AI findings are suggestions from computer vision. Confirm or correct them before sharing with fighters.",
+        title: "Gợi ý của AI",
+        body: "Kết quả AI là gợi ý từ thị giác máy tính. Hãy xác nhận hoặc sửa trước khi chia sẻ với võ sĩ.",
         icon: Sparkles,
     },
     fighter: {
-        title: "AI estimates",
-        body: "These results are AI estimates from your video. Your coach reviews them — treat unreviewed items as a guide, not a verdict.",
+        title: "Ước tính của AI",
+        body: "Đây là ước tính của AI từ Video của bạn. HLV sẽ xem lại — mục chưa duyệt chỉ mang tính tham khảo.",
         icon: Sparkles,
     },
     doctor: {
-        title: "AI movement observations",
-        body: "AI observations are supporting information only. They are not a medical diagnosis and do not replace clinical examination or professional judgement.",
+        title: "Quan sát AI",
+        body: "Quan sát AI chỉ là thông tin hỗ trợ, không phải chẩn đoán y khoa và không thay thế khám lâm sàng hay đánh giá chuyên môn.",
         icon: Info,
     },
     admin: {
-        title: "Assistive model outputs",
-        body: "Model outputs are assistive. Threshold changes affect what coaches and doctors see as low confidence.",
+        title: "Kết quả mô hình hỗ trợ",
+        body: "Kết quả mô hình chỉ mang tính hỗ trợ. Thay đổi ngưỡng ảnh hưởng đến mục mà HLV và bác sĩ thấy là độ tin cậy thấp.",
         icon: Sparkles,
     },
 };

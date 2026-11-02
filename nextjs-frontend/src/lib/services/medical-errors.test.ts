@@ -19,9 +19,9 @@ describe("medicalWriteFailure", () => {
     });
 
     it("explains a lost assignment, a missing record and a known conflict", () => {
-        expect(medicalWriteFailure(http(403, "FORBIDDEN")).message).toContain("no longer assigned");
-        expect(medicalWriteFailure(http(404, "INJURY_NOT_FOUND")).message).toBe("This injury record no longer exists, or belongs to another fighter.");
-        expect(medicalWriteFailure(http(409, "INVALID_INJURY_STATUS_TRANSITION")).message).toContain("resolved injury stays resolved");
+        expect(medicalWriteFailure(http(403, "FORBIDDEN")).message).toContain("không còn phụ trách");
+        expect(medicalWriteFailure(http(404, "INJURY_NOT_FOUND")).message).toBe("Hồ sơ chấn thương này không còn tồn tại hoặc thuộc võ sĩ khác.");
+        expect(medicalWriteFailure(http(409, "INVALID_INJURY_STATUS_TRANSITION")).message).toContain("Chấn thương đã khỏi giữ nguyên");
     });
 
     it("can tie a conflict to a field", () => {
@@ -32,7 +32,7 @@ describe("medicalWriteFailure", () => {
     it("never claims a change failed when it may have been saved", () => {
         expect(medicalWriteFailure(http(500, "MEDICAL_OPERATION_FAILED")).message).toBe(MAYBE_NOT_SAVED);
         expect(medicalWriteFailure(new ApiError({ message: "slow", kind: "timeout", code: "API_TIMEOUT" })).message).toBe(MAYBE_NOT_SAVED);
-        expect(medicalWriteFailure(new ApiError({ message: "odd", kind: "invalid_response", status: 201, code: "INVALID_API_RESPONSE" })).message).toContain("probably saved");
+        expect(medicalWriteFailure(new ApiError({ message: "odd", kind: "invalid_response", status: 201, code: "INVALID_API_RESPONSE" })).message).toContain("có thể đã được lưu");
     });
 
     it("marks only the failures that may have been saved as unconfirmed, so the form checks the record first", () => {

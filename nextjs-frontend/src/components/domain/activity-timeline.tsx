@@ -27,7 +27,7 @@ export interface ActivityTimelineProps {
 }
 
 /** Vertical timeline of recent events. Server Component (icons are component references). */
-export function ActivityTimeline({ items, now, emptyText = "No recent activity.", className, locale = "en" }: ActivityTimelineProps) {
+export function ActivityTimeline({ items, now, emptyText = "No recent activity.", className, locale = "vi" }: ActivityTimelineProps) {
     if (items.length === 0) {
         return <p className={cn("py-6 text-center text-sm text-fg-muted", className)}>{emptyText}</p>;
     }

@@ -130,10 +130,10 @@ export function HealthStatusBadge({ status, size, className, locale }: { status:
 
 export const CLEARANCE_STATE_META: Record<ClearanceState, StatusMeta> = {
     full: { label: CLEARANCE_LEVEL_LABELS.full, tone: "success", icon: ShieldCheck },
-    restricted: { label: "Restricted", tone: "warning", icon: ShieldAlert },
+    restricted: { label: "Có hạn chế", tone: "warning", icon: ShieldAlert },
     not_cleared: { label: CLEARANCE_LEVEL_LABELS.not_cleared, tone: "danger", icon: ShieldX, solid: true },
-    expired: { label: "Expired", tone: "danger", icon: ShieldX },
-    none: { label: "No clearance", tone: "neutral", icon: ShieldQuestion },
+    expired: { label: "Hết hạn", tone: "danger", icon: ShieldX },
+    none: { label: "Chưa có giấy phép", tone: "neutral", icon: ShieldQuestion },
 };
 
 export function ClearanceBadge({ state, size, className, locale }: { state: ClearanceState; size?: BadgeSize; className?: string; locale?: Locale }) {
@@ -195,13 +195,13 @@ export function AIJobStatusBadge({ status, size, className }: { status: AIJobSta
 export function LowConfidenceBadge({ size, className }: { size?: BadgeSize; className?: string }) {
     return (
         <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-            Low confidence
+            Độ tin cậy thấp
         </Badge>
     );
 }
 
 /** Marks content produced by AI so it is never mistaken for a human judgement. */
-export function AIGeneratedBadge({ size, className, locale, label = createTranslator(locale ?? "en")("aiGenerated") }: { size?: BadgeSize; className?: string; locale?: Locale; label?: string }) {
+export function AIGeneratedBadge({ size, className, locale, label = createTranslator(locale ?? "vi")("aiGenerated") }: { size?: BadgeSize; className?: string; locale?: Locale; label?: string }) {
     return (
         <Badge tone="ai" icon={Sparkles} size={size} className={className}>
             {label}

@@ -3,7 +3,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 export function Card({ className, ...props }: ComponentProps<"div">) {
-    return <div className={cn("rounded-xl border border-border bg-surface shadow-card", className)} {...props} />;
+    return <div data-ui="card" className={cn("rounded-xl border border-border bg-surface shadow-card", className)} {...props} />;
 }
 
 export interface CardHeaderProps {
@@ -19,11 +19,11 @@ export interface CardHeaderProps {
 
 export function CardHeader({ title, description, action, icon, as: Heading = "h2", className }: CardHeaderProps) {
     return (
-        <div className={cn("flex items-start justify-between gap-3 px-5 pt-4 pb-3", className)}>
+        <div data-ui="card-header" className={cn("flex items-start justify-between gap-3 px-5 pt-4 pb-3", className)}>
             <div className="flex min-w-0 items-start gap-2.5">
                 {icon && <span className="mt-[3px] flex shrink-0 items-center text-primary-soft-fg [&_svg]:size-[18px]">{icon}</span>}
                 <div className="min-w-0">
-                    <Heading className="font-display text-[19px] leading-6 font-bold tracking-[0.01em] text-fg">{title}</Heading>
+                    <Heading data-ui="card-title" className="font-display text-[19px] leading-6 font-bold tracking-[0.01em] text-fg">{title}</Heading>
                     {description && <p className="mt-0.5 text-sm text-fg-muted">{description}</p>}
                 </div>
             </div>

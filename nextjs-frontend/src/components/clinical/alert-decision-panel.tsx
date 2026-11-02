@@ -24,7 +24,7 @@ const DECISION_OPTIONS: ChoiceOption<DoctorDecision>[] = (["acknowledged", "foll
     tone: DOCTOR_DECISION_META[value].tone,
 }));
 
-const NOTE_HINT = "Why you reached this decision. Stored with the observation and visible to other assigned doctors.";
+const NOTE_HINT = "Lý do bạn đưa ra quyết định. Được lưu cùng quan sát và các bác sĩ phụ trách khác xem được.";
 
 export interface AlertDecisionPanelProps {
     alertId: string;
@@ -43,7 +43,7 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
         onSuccess: (state) => {
             setEditing(false);
             setNote("");
-            toast({ title: "Decision recorded", description: state.message });
+            toast({ title: "Đã ghi quyết định", description: state.message });
         },
     });
     const noteControl = form.control("note", { hint: NOTE_HINT, required: true });
@@ -63,7 +63,7 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
                     }}
                 >
                     <PenLine aria-hidden />
-                    Change decision
+                    Đổi quyết định
                 </Button>
             </div>
         );
@@ -75,7 +75,7 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
             <ChoiceGroup
                 id={form.control("decision").id}
                 name="decision"
-                legend="Decision"
+                legend="Quyết định"
                 required
                 options={DECISION_OPTIONS}
                 value={decision}
@@ -83,14 +83,14 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
                 error={form.error("decision")}
             />
 
-            <Field label="Clinical note" htmlFor={noteControl.id} required error={form.error("note")} hint={NOTE_HINT}>
+            <Field label="Ghi chú lâm sàng" htmlFor={noteControl.id} required error={form.error("note")} hint={NOTE_HINT}>
                 <Textarea
                     {...noteControl}
                     rows={4}
                     value={note}
                     maxLength={1000}
                     onChange={(event) => setNote(event.target.value)}
-                    placeholder="e.g. Reviewed the clips; consistent with fatigue in round 3. Re-check at next week's session."
+                    placeholder="VD: Đã xem các đoạn video; phù hợp với mệt mỏi ở hiệp 3. Kiểm tra lại ở buổi tập tuần sau."
                 />
             </Field>
 
@@ -99,11 +99,11 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
             <div className="flex flex-wrap justify-end gap-2">
                 {review && (
                     <Button variant="secondary" onClick={() => setEditing(false)} disabled={form.pending}>
-                        Cancel
+                        Hủy
                     </Button>
                 )}
                 <Button type="submit" loading={form.pending}>
-                    {form.pending ? "Recording…" : "Record decision"}
+                    {form.pending ? "Đang ghi…" : "Ghi quyết định"}
                 </Button>
             </div>
         </form>

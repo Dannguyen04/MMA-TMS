@@ -13,7 +13,7 @@ import { listFighters } from "@/lib/services/people";
 import { listVideos } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Record injury" };
+export const metadata: Metadata = { title: "Ghi nhận chấn thương" };
 
 export default async function NewInjuryPage({ searchParams }: PageProps<"/doctor/injuries/new">) {
     const user = await requireRole("doctor");
@@ -29,10 +29,10 @@ export default async function NewInjuryPage({ searchParams }: PageProps<"/doctor
         return (
             <>
                 <PageHeader
-                    back={preselected ? { href: cancelHref, label: preselected.name } : { href: cancelHref, label: "Injuries" }}
-                    eyebrow="Injury record"
-                    title="Record injury"
-                    description="Document a confirmed injury after your assessment. Treatments and a recovery plan follow from the injury record."
+                    back={preselected ? { href: cancelHref, label: preselected.name } : { href: cancelHref, label: "Chấn thương" }}
+                    eyebrow="Hồ sơ chấn thương"
+                    title="Ghi nhận chấn thương"
+                    description="Ghi nhận chấn thương đã xác định sau khi đánh giá. Điều trị và kế hoạch phục hồi đi kèm hồ sơ chấn thương."
                 />
                 <InjuryRecordForm
                     fighters={fighters.map((fighter) => ({ id: fighter.id, name: fighter.name })).sort((a, b) => a.name.localeCompare(b.name))}
@@ -67,18 +67,18 @@ export default async function NewInjuryPage({ searchParams }: PageProps<"/doctor
     const preselected = fighters.find((fighter) => fighter.id === defaultFighterId);
 
     const back = linkedAlert
-        ? { href: routes.doctor.aiAlert(linkedAlert.id), label: "AI movement observation" }
+        ? { href: routes.doctor.aiAlert(linkedAlert.id), label: "Quan sát AI" }
         : preselected
           ? { href: routes.doctor.fighter(preselected.id), label: preselected.name }
-          : { href: routes.doctor.injuries, label: "Injuries" };
+          : { href: routes.doctor.injuries, label: "Chấn thương" };
 
     return (
         <>
             <PageHeader
                 back={back}
-                eyebrow="Injury record"
-                title="Record injury"
-                description="Document a confirmed injury after your assessment. Treatments, a recovery plan and Medical Clearance follow from the injury record."
+                eyebrow="Hồ sơ chấn thương"
+                title="Ghi nhận chấn thương"
+                description="Ghi nhận chấn thương đã xác định sau khi đánh giá. Điều trị, kế hoạch phục hồi và giấy phép đi kèm hồ sơ chấn thương."
             />
             <InjuryForm
                 fighters={fighters.map((fighter) => ({

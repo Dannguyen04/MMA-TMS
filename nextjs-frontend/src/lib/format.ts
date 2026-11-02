@@ -10,11 +10,11 @@ export const APP_TIMEZONE = "Asia/Ho_Chi_Minh";
 export const DAY_MS = 86_400_000;
 
 const FORMATS = {
-    date: { day: "numeric", month: "short", year: "numeric" },
-    shortDate: { day: "numeric", month: "short" },
-    weekdayDate: { weekday: "short", day: "numeric", month: "short" },
+    date: { day: "2-digit", month: "2-digit", year: "numeric" },
+    shortDate: { day: "2-digit", month: "2-digit" },
+    weekdayDate: { weekday: "short", day: "2-digit", month: "2-digit" },
     time: { hour: "2-digit", minute: "2-digit", hour12: false },
-    dateTime: { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false },
+    dateTime: { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false },
     monthYear: { month: "long", year: "numeric" },
 } satisfies Record<string, Intl.DateTimeFormatOptions>;
 
@@ -36,21 +36,24 @@ function formatter(locale: Locale, format: keyof typeof FORMATS): Intl.DateTimeF
 
 const dayKeyFmt = new Intl.DateTimeFormat("en-CA", { timeZone: APP_TIMEZONE, year: "numeric", month: "2-digit", day: "2-digit" });
 
+/** dd/mm everywhere: some ICU builds join Vietnamese day and month with "-". */
+const slash = (text: string) => text.replace(/(\d{2})-(\d{2})/g, "$1/$2");
+
 const toDate = (value: string | Date) => (typeof value === "string" ? new Date(value) : value);
 
 /** 14 Sept 2026 · 14 thg 9, 2026 */
 export function formatDate(value: string | Date, locale: Locale = "en"): string {
-    return formatter(locale, "date").format(toDate(value));
+    return slash(formatter(locale, "date").format(toDate(value)));
 }
 
 /** 14 Sept · 14 thg 9 */
 export function formatShortDate(value: string | Date, locale: Locale = "en"): string {
-    return formatter(locale, "shortDate").format(toDate(value));
+    return slash(formatter(locale, "shortDate").format(toDate(value)));
 }
 
 /** Mon, 14 Sept · Th 2, 14 thg 9 */
 export function formatWeekdayDate(value: string | Date, locale: Locale = "en"): string {
-    return formatter(locale, "weekdayDate").format(toDate(value));
+    return slash(formatter(locale, "weekdayDate").format(toDate(value)));
 }
 
 /** 18:30 */
@@ -60,7 +63,8 @@ export function formatTime(value: string | Date, locale: Locale = "en"): string 
 
 /** 14 Sept 2026, 18:30 */
 export function formatDateTime(value: string | Date, locale: Locale = "en"): string {
-    return formatter(locale, "dateTime").format(toDate(value));
+    // dd/mm/yyyy, HH:mm in every language (vi-VN would otherwise put the time first).
+    return `${formatter(locale, "date").format(toDate(value))}, ${formatter(locale, "time").format(toDate(value))}`;
 }
 
 /** September 2026 · tháng 9 năm 2026 */
@@ -162,7 +166,7 @@ const relativeFmts: Record<Locale, Intl.RelativeTimeFormat> = {
     en: new Intl.RelativeTimeFormat("en", { numeric: "auto" }),
     vi: new Intl.RelativeTimeFormat("vi", { numeric: "auto" }),
 };
-const JUST_NOW: Record<Locale, string> = { en: "just now", vi: "vừa xong" };
+const JUST_NOW: Record<Locale, string> = { en: "vừa xong", vi: "vừa xong" };
 
 /** "in 3 days", "yesterday", "5 min ago". `now` must come from the server when rendered on the client. */
 export function formatRelative(value: string | Date, now: string | Date = new Date(), locale: Locale = "en"): string {
@@ -234,7 +238,7 @@ export function formatNumber(value: number, decimals = 0): string {
 
 /** 0.873 → "87%" */
 export function formatConfidence(confidence: number | null): string {
-    if (confidence === null) return "Unavailable";
+    if (confidence === null) return "Không khả dụng";
     return `${Math.round(confidence * 100)}%`;
 }
 
@@ -264,6 +268,20 @@ export function ageFromBirthDate(dateOfBirth: string, now: string | Date = new D
         (ref.getUTCMonth() === birth.getUTCMonth() && ref.getUTCDate() < birth.getUTCDate());
     if (beforeBirthday) age -= 1;
     return age;
+}
+
+/** Vietnamese nouns have no plural form; the English singulars callers pass map to them here. */
+const VI_NOUNS: Record<string, string> = {
+    "abnormal finding": "dấu hiệu bất thường", day: "ngày", examination: "phiếu khám", fighter: "võ sĩ", finding: "kết quả", milestone: "mốc",
+    "movement observation": "quan sát AI", "open injury": "chấn thương đang mở", record: "hồ sơ", review: "lượt xem xét", "review request": "yêu cầu xem xét",
+    treatment: "điều trị", video: "Video", week: "tuần", year: "năm", month: "tháng", phase: "giai đoạn", injury: "chấn thương", detection: "nhận dạng",
+    "unreviewed finding": "kết quả chưa duyệt", "low-confidence finding": "kết quả độ tin cậy thấp", "low-confidence detection": "nhận dạng độ tin cậy thấp",
+    "kết quả chưa duyệt": "kết quả chưa duyệt", "kết quả độ tin cậy thấp": "kết quả độ tin cậy thấp", "nhận dạng độ tin cậy thấp": "nhận dạng độ tin cậy thấp",
+};
+
+/** `pluralize` for Vietnamese copy: the count, then the noun (no plural form). */
+export function pluralizeVi(count: number, singular: string): string {
+    return `${formatNumber(count)} ${VI_NOUNS[singular] ?? singular}`;
 }
 
 export function pluralize(count: number, singular: string, plural = `${singular}s`): string {

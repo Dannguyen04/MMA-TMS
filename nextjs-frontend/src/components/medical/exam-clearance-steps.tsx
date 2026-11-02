@@ -2,7 +2,7 @@ import { Check, ChevronRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
-const STEPS = ["Examination", "Medical Clearance"] as const;
+const STEPS = ["Phiếu khám", "Giấy phép"] as const;
 
 /**
  * Where the doctor is in the two writes that clear a fighter: the examination first, then the clearance issued from it.
@@ -10,7 +10,7 @@ const STEPS = ["Examination", "Medical Clearance"] as const;
  */
 export function ExamClearanceSteps({ current }: { current: 1 | 2 }) {
     return (
-        <ol aria-label="Clearing a fighter" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
+        <ol aria-label="Cấp phép cho võ sĩ" className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
             {STEPS.map((label, index) => {
                 const step = index + 1;
                 const done = step < current;
@@ -20,8 +20,8 @@ export function ExamClearanceSteps({ current }: { current: 1 | 2 }) {
                         {index > 0 && <ChevronRight aria-hidden className="size-3.5 text-fg-subtle" />}
                         <span className={cn("inline-flex items-center gap-1.5", active ? "font-semibold text-fg" : "text-fg-muted")}>
                             {done && <Check aria-hidden className="size-3.5 text-success-fg" />}
-                            Step {step} of {STEPS.length}: {label}
-                            {done && <span className="sr-only">(done)</span>}
+                            Bước {step}/{STEPS.length}: {label}
+                            {done && <span className="sr-only">(xong)</span>}
                         </span>
                     </li>
                 );

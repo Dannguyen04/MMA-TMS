@@ -15,7 +15,7 @@ export function FighterSettingsScreen() {
   const titleStyle = titleTextStyle(useTypography());
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const summary = `${appearance.presets[applied.presetId]} · ${appearance.modes[applied.settings.mode]}`;
+  const summary = `${appearance.modes[applied.settings.mode]} · Cỡ chữ ${Math.round(applied.settings.fontScale * 100)}%`;
 
   return (
     <FighterStack
@@ -51,7 +51,7 @@ export function FighterSettingsScreen() {
           <View style={styles.flex}>
             <Text style={[styles.noticeTitle, { color: colors.ink }]}>Giao diện lưu trên điện thoại</Text>
             <Text style={[styles.noticeBody, { color: colors.muted }]}>
-              Chủ đề, màu nhấn và cỡ chữ được ghi trên máy này, không đồng bộ lên máy chủ. Thông báo vẫn chưa lưu được.
+              Chế độ màu, cỡ chữ, khoảng cách ký tự và dòng được lưu trên máy này cho tài khoản của bạn.
             </Text>
           </View>
         </View>
@@ -59,7 +59,7 @@ export function FighterSettingsScreen() {
         <Text style={[styles.kicker, { color: colors.muted }]}>CÁ NHÂN HÓA</Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="Giao diện. Chủ đề, màu nhấn và kiểu chữ."
+          accessibilityLabel="Giao diện. Chế độ màu và khả năng đọc chữ."
           onPress={() => router.push("/giao-dien" as Href)}
           style={[styles.entry, { borderBottomColor: colors.line }]}
         >
@@ -68,7 +68,7 @@ export function FighterSettingsScreen() {
           </View>
           <View style={styles.flex}>
             <Text style={[styles.entryTitle, { color: colors.ink }]}>Giao diện</Text>
-            <Text style={[styles.noticeBody, { color: colors.muted }]}>Chủ đề, màu nhấn và kiểu chữ.</Text>
+            <Text style={[styles.noticeBody, { color: colors.muted }]}>Sáng, tối, hệ thống và khả năng đọc chữ.</Text>
             <Text style={{ color: colors.accent, fontSize: 12, fontWeight: "600" }}>
               {summary}
             </Text>
@@ -98,7 +98,7 @@ export function FighterSettingsScreen() {
         <Text style={{ color: colors.muted, fontSize: 13, fontWeight: "600" }}>Kênh thông báo</Text>
         <View style={styles.channels}>
           <Channel icon="email-outline" label="Email" />
-          <Channel icon="cellphone" label="Push" />
+          <Channel icon="cellphone" label="Thông báo" />
         </View>
         <Text style={[styles.noticeBody, { color: colors.muted }]}>Tùy chọn email / push sẽ được mở sau.</Text>
       </View>

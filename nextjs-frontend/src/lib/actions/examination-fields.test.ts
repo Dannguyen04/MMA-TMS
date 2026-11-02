@@ -17,7 +17,7 @@ describe("examination fields", () => {
     it("books a follow-up after the examination day", () => {
         const schema = z.object({ followUpDate: z.string(), examinedAt: z.string() }).superRefine((input, ctx) => checkFollowUpDate(input.followUpDate, input.examinedAt, ctx));
         expect(schema.safeParse({ followUpDate: "2026-09-01", examinedAt: "2026-09-01T09:00" }).error?.issues).toMatchObject([
-            { path: ["followUpDate"], message: "Schedule the follow-up after the examination day." },
+            { path: ["followUpDate"], message: "Hãy hẹn theo dõi sau ngày khám." },
         ]);
         expect(schema.safeParse({ followUpDate: "2026-09-02", examinedAt: "2026-09-01T09:00" }).success).toBe(true);
         expect(schema.safeParse({ followUpDate: "", examinedAt: "2026-09-01T09:00" }).success).toBe(true);

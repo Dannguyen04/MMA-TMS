@@ -25,7 +25,7 @@ describe("trainingWriteFailure", () => {
     });
 
     it("never claims a change failed when it may have been saved", () => {
-        expect(trainingWriteFailure(http(500, "TRAINING_OPERATION_FAILED")).message).toContain("may not have been saved");
+        expect(trainingWriteFailure(http(500, "TRAINING_OPERATION_FAILED")).message).toContain("có thể chưa được lưu");
     });
 });
 

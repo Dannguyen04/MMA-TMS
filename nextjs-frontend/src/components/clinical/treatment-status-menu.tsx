@@ -32,18 +32,18 @@ export function TreatmentStatusMenu({ injuryId, treatmentId, type, status }: Tre
             const result = await updateTreatmentStatusAction({ injuryId, treatmentId, status: next });
             toast(
                 result.status === "success"
-                    ? { title: "Treatment updated", description: result.message }
-                    : { tone: "error", title: "Couldn't update the treatment", description: result.message },
+                    ? { title: "Đã cập nhật điều trị", description: result.message }
+                    : { tone: "error", title: "Không cập nhật được điều trị", description: result.message },
             );
         });
     };
 
     return (
         <Popover
-            label={`Change status of ${TREATMENT_TYPE_LABELS[type]}`}
+            label={`Đổi trạng thái ${TREATMENT_TYPE_LABELS[type]}`}
             align="end"
             trigger={(props) => (
-                <Button {...props} variant="ghost" size="icon-sm" loading={pending} aria-label={`Change status of ${TREATMENT_TYPE_LABELS[type]}`}>
+                <Button {...props} variant="ghost" size="icon-sm" loading={pending} aria-label={`Đổi trạng thái ${TREATMENT_TYPE_LABELS[type]}`}>
                     {!pending && <Ellipsis />}
                 </Button>
             )}
@@ -51,7 +51,7 @@ export function TreatmentStatusMenu({ injuryId, treatmentId, type, status }: Tre
         >
             {(close) => (
                 <div className="flex flex-col">
-                    <p className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-fg-subtle">Change status</p>
+                    <p className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-fg-subtle">Đổi trạng thái</p>
                     {STATUSES.map((value) => {
                         const meta = TREATMENT_STATUS_META[value];
                         const Icon = meta.icon;
@@ -69,7 +69,7 @@ export function TreatmentStatusMenu({ injuryId, treatmentId, type, status }: Tre
                                 )}
                             >
                                 <Icon aria-hidden className="size-4 text-fg-muted" />
-                                {current ? `${meta.label} (current)` : `Mark ${meta.label.toLowerCase()}`}
+                                {current ? `${meta.label} (hiện tại)` : `Chuyển sang ${meta.label.toLowerCase()}`}
                             </button>
                         );
                     })}

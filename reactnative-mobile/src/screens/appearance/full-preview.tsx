@@ -48,11 +48,8 @@ export function FullPreview({ draft, canApply, onApply, onBackToEdit, onCancel }
 
   const previewSettings = useMemo<AppearanceSettings>(() => {
     if (previewDark === draftDark) return draft.settings;
-    const mode = previewDark
-      ? draft.settings.mode === "system"
-        ? draft.settings.systemDarkVariant
-        : "dark"
-      : "light";
+    // Tối follows "Kiểu tối" (systemDarkVariant), so the preview keeps the chosen dark style.
+    const mode = previewDark ? "dark" : "light";
     return { ...draft.settings, mode };
   }, [draft.settings, draftDark, previewDark]);
 

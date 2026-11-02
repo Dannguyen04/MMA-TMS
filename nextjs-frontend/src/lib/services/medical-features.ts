@@ -41,4 +41,4 @@ export function usesMedicalServiceForms(): boolean {
 }
 
 /** Message returned by server actions for a feature that isn't available in this mode. */
-export const FEATURE_UNAVAILABLE_MESSAGE = "This isn't available yet. The medical service will add it in a later release.";
+export const FEATURE_UNAVAILABLE_MESSAGE = "Tính năng này chưa khả dụng. Dịch vụ y tế sẽ bổ sung ở bản sau.";

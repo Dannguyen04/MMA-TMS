@@ -18,7 +18,7 @@ import { grantClearanceAction } from "@/lib/actions/medical";
 import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, examinationTitle } from "@/lib/domain/labels";
 import { clearanceState, type ClearanceState } from "@/lib/domain/rules";
 import type { ClearanceLevel, ExaminationOutcome, ExaminationType, MedicalClearance } from "@/lib/domain/types";
-import { addDaysToKey, daysBetween, formatDate, pluralize } from "@/lib/format";
+import { addDaysToKey, daysBetween, formatDate, pluralizeVi } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { CLEARANCE_LEVEL_FOR_OUTCOME, ExaminationOutcomeBadge } from "./clinical-badges";
 import { ClearanceValidity } from "@/components/domain/clearance-validity";
@@ -64,21 +64,21 @@ const LEVEL_OPTIONS: ChoiceOption<ClearanceLevel>[] = [
         label: CLEARANCE_LEVEL_LABELS.full,
         icon: ShieldCheck,
         tone: "success",
-        description: "Can take part in all training and competition. Coaches can plan any session.",
+        description: "Được tham gia mọi buổi tập và thi đấu. HLV lên lịch bất kỳ buổi nào.",
     },
     {
         value: "restricted",
         label: CLEARANCE_LEVEL_LABELS.restricted,
         icon: ShieldAlert,
         tone: "warning",
-        description: "Can train within the limits you set. Sessions that break a limit are blocked or flagged when coaches plan them.",
+        description: "Được tập trong giới hạn bạn đặt. Buổi vi phạm giới hạn sẽ bị chặn hoặc cảnh báo khi HLV lên lịch.",
     },
     {
         value: "not_cleared",
         label: CLEARANCE_LEVEL_LABELS.not_cleared,
         icon: ShieldX,
         tone: "danger",
-        description: "Must not train. Planned sessions are blocked until you issue a new clearance.",
+        description: "Không được tập. Buổi đã lên lịch bị chặn cho đến khi bạn cấp giấy phép mới.",
     },
 ];
 
@@ -138,14 +138,14 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                   validUntil: level !== "not_cleared" && validUntil ? `${validUntil}T12:00:00.000Z` : null,
                   reason,
                   restrictions:
-                      level === "restricted" ? drafts.map(({ key, ...restriction }) => ({ ...restriction, id: `preview-${key}`, label: restriction.label || "Untitled restriction" })) : [],
+                      level === "restricted" ? drafts.map(({ key, ...restriction }) => ({ ...restriction, id: `preview-${key}`, label: restriction.label || "Hạn chế chưa đặt tên" })) : [],
                   examinationId: examinationId || null,
                   revokedAt: null,
                   revokedReason: null,
               }
             : null;
 
-    const submitLabel = level === "restricted" ? "Issue restricted clearance" : level === "not_cleared" ? "Set as not cleared…" : "Issue clearance";
+    const submitLabel = level === "restricted" ? "Cấp giấy phép có hạn chế" : level === "not_cleared" ? "Đặt là chưa được tập…" : "Cấp giấy phép";
 
     return (
         <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,380px)]">
@@ -174,10 +174,10 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                     )}
                 />
                 <Card className="flex flex-col divide-y divide-border">
-                    <Section title="Fighter" description="Clearance applies to one fighter and replaces their current clearance.">
-                        <Field label="Fighter" htmlFor={control("fighterId").id} error={error("fighterId")} required className="sm:max-w-sm">
+                    <Section title="Võ sĩ" description="Giấy phép áp dụng cho một võ sĩ và thay thế giấy phép hiện tại.">
+                        <Field label="Võ sĩ" htmlFor={control("fighterId").id} error={error("fighterId")} required className="sm:max-w-sm">
                             <Select {...control("fighterId", { required: true })} value={fighterId} onChange={(event) => changeFighter(event.target.value)}>
-                                <option value="">Choose a fighter…</option>
+                                <option value="">Chọn võ sĩ…</option>
                                 {fighters.map((option) => (
                                     <option key={option.id} value={option.id}>
                                         {option.name}
@@ -187,12 +187,12 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                         </Field>
                     </Section>
 
-                    <Section title="Decision" description="What the fighter may do from now on. The consequence is shown under each option.">
+                    <Section title="Quyết định" description="Võ sĩ được làm gì từ bây giờ. Hệ quả hiển thị dưới từng lựa chọn.">
                         <div>
                             <ChoiceGroup
                                 id={control("level").id}
                                 name="level"
-                                legend="Clearance level"
+                                legend="Mức giấy phép"
                                 legendVisuallyHidden
                                 required
                                 options={LEVEL_OPTIONS}
@@ -204,8 +204,8 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                                 {linkedExam && level && (
                                     <InlineNote icon={Info} tone={examMismatch ? "warning" : "neutral"} className="mt-2">
                                         {examMismatch
-                                            ? `The linked ${examinationTitle(linkedExam).toLowerCase()} concluded “${EXAMINATION_OUTCOME_LABELS[linkedExam.outcome]}”. Explain the difference in the clinical reason.`
-                                            : `Matches the outcome of the linked ${examinationTitle(linkedExam).toLowerCase()}.`}
+                                            ? `Phiếu ${examinationTitle(linkedExam).toLowerCase()} liên kết kết luận “${EXAMINATION_OUTCOME_LABELS[linkedExam.outcome]}”. Hãy giải thích khác biệt trong lý do lâm sàng.`
+                                            : `Khớp với kết luận của phiếu ${examinationTitle(linkedExam).toLowerCase()} liên kết.`}
                                     </InlineNote>
                                 )}
                             </div>
@@ -213,16 +213,16 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                     </Section>
 
                     {level !== "not_cleared" ? (
-                        <Section title="Validity" description="Clearances lapse on this date and training is blocked until renewed.">
+                        <Section title="Hiệu lực" description="Giấy phép hết hạn vào ngày này và việc tập bị chặn cho đến khi gia hạn.">
                             <Field
-                                label="Valid until"
+                                label="Hiệu lực đến"
                                 htmlFor={control("validUntil").id}
                                 error={error("validUntil")}
                                 required
                                 hint={
                                     validDays !== null && validDays >= 0
-                                        ? `Valid for ${pluralize(validDays, "day")}. Coaches see a warning ${warningDays} days before it lapses.`
-                                        : "Up to 12 months. Match it to your next planned examination."
+                                        ? `Hiệu lực ${pluralizeVi(validDays, "day")}. HLV thấy cảnh báo ${warningDays} ngày trước khi hết hạn.`
+                                        : "Tối đa 12 tháng. Nên khớp với lần khám dự kiến tiếp theo."
                                 }
                             >
                                 <div className="flex flex-wrap items-center gap-2">
@@ -237,7 +237,7 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                                         />
                                     </div>
                                     <span className="text-[13px] text-fg-muted" aria-hidden>
-                                        or
+                                        hoặc
                                     </span>
                                     {VALIDITY_PICKS.map((days) => {
                                         const date = addDaysToKey(today, days);
@@ -252,7 +252,7 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                                                     form.markEdited("validUntil");
                                                 }}
                                             >
-                                                {days} days
+                                                {days} ngày
                                             </Button>
                                         );
                                     })}
@@ -260,51 +260,51 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                             </Field>
                         </Section>
                     ) : (
-                        <Section title="Validity" description="A not cleared decision has no end date.">
-                            <InlineNote icon={Info}>It stays in force until you examine the fighter again and issue a new clearance.</InlineNote>
+                        <Section title="Hiệu lực" description="Quyết định chưa được tập không có thời hạn.">
+                            <InlineNote icon={Info}>Có hiệu lực cho đến khi bạn khám lại và cấp giấy phép mới.</InlineNote>
                         </Section>
                     )}
 
                     {level === "restricted" && (
                         <Section
-                            title="Restrictions"
-                            description="Word each one the way a coach should read it. Limits underneath are enforced when sessions are planned."
+                            title="Hạn chế"
+                            description="Viết mỗi hạn chế theo cách HLV dễ hiểu. Giới hạn bên dưới được áp dụng khi lên lịch buổi tập."
                         >
                             {copiedRestrictions && drafts.length > 0 && (
                                 <InlineNote icon={Info} tone="info">
-                                    Copied from the current clearance — review each one before issuing.
+                                    Sao chép từ giấy phép hiện tại — hãy xem lại từng mục trước khi cấp.
                                 </InlineNote>
                             )}
                             <RestrictionBuilder drafts={drafts} onChange={setDrafts} error={error} markEdited={form.markEdited} />
                         </Section>
                     )}
 
-                    <Section title="Clinical reason & evidence" description="Why you made this decision, and the examination it rests on.">
+                    <Section title="Lý do lâm sàng & căn cứ" description="Lý do quyết định và phiếu khám làm căn cứ.">
                         <Field
-                            label="Clinical reason"
+                            label="Lý do lâm sàng"
                             htmlFor={control("reason").id}
                             error={error("reason")}
                             required
-                            hint="Doctors only. Coaches and the fighter see the level, restrictions and validity — never this reason."
+                            hint="Chỉ bác sĩ xem. HLV và võ sĩ thấy mức, hạn chế và hiệu lực — không bao giờ thấy lý do này."
                         >
                             <Textarea
                                 {...control("reason", { hint: true, required: true })}
                                 rows={4}
                                 value={reason}
                                 onChange={(event) => setReason(event.target.value)}
-                                placeholder="e.g. Pain-free full range and 90% strength symmetry on dynamometry. Cleared for technical work; no contact until graded exposure is complete."
+                                placeholder="VD: Đủ biên độ không đau, sức mạnh đối xứng 90% khi đo lực. Được tập kỹ thuật; không va chạm cho đến khi hoàn tất tiếp xúc theo bậc."
                             />
                         </Field>
                         <Field
-                            label="Linked examination"
+                            label="Phiếu khám liên kết"
                             htmlFor={control("examinationId").id}
                             error={error("examinationId")}
                             optional
-                            hint={fighter && fighter.examinations.length === 0 ? "No examinations recorded for this fighter yet." : "The examination this decision is based on."}
+                            hint={fighter && fighter.examinations.length === 0 ? "Võ sĩ này chưa có phiếu khám." : "Phiếu khám làm căn cứ cho quyết định."}
                             className="sm:max-w-lg"
                         >
                             <Select {...control("examinationId", { hint: true })} value={examinationId} onChange={(event) => setExaminationId(event.target.value)} disabled={!fighter}>
-                                <option value="">No linked examination</option>
+                                <option value="">Không liên kết phiếu khám</option>
                                 {fighter?.examinations.map((exam) => (
                                     <option key={exam.id} value={exam.id}>
                                         {examinationTitle(exam)} · {formatDate(exam.date)} · {EXAMINATION_OUTCOME_LABELS[exam.outcome]}
@@ -318,19 +318,19 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                         <FormMessage {...form.message} />
                         <div className="flex flex-wrap items-center justify-end gap-2">
                             <Link href={fighter ? routes.doctor.fighter(fighter.id) : routes.doctor.clearance} className={buttonClasses({ variant: "secondary" })}>
-                                Cancel
+                                Hủy
                             </Link>
                             <Button type="submit" variant={level === "not_cleared" ? "danger" : "primary"} loading={form.pending}>
-                                {form.pending ? "Issuing clearance…" : submitLabel}
+                                {form.pending ? "Đang cấp giấy phép…" : submitLabel}
                             </Button>
                         </div>
                     </div>
                 </Card>
             </form>
 
-            <aside aria-label="Context and preview" className="flex min-w-0 flex-col gap-6">
+            <aside aria-label="Bối cảnh và xem trước" className="flex min-w-0 flex-col gap-6">
                 <Card>
-                    <CardHeader title="Current status" />
+                    <CardHeader title="Tình trạng hiện tại" />
                     <CardContent>
                         <CurrentStatus fighter={fighter} now={now} warningDays={warningDays} />
                     </CardContent>
@@ -339,15 +339,15 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                 <section aria-labelledby="clearance-preview-heading" className="flex flex-col gap-2">
                     <div>
                         <h2 id="clearance-preview-heading" className="text-[15px] font-semibold text-fg">
-                            How coaches and the fighter will see it
+                            HLV và võ sĩ sẽ thấy thế nào
                         </h2>
-                        <p className="text-[13px] text-fg-muted">Live preview. The clinical reason stays private to doctors.</p>
+                        <p className="text-[13px] text-fg-muted">Xem trước trực tiếp. Lý do lâm sàng chỉ bác sĩ xem.</p>
                     </div>
                     {preview ? (
                         <ClearanceCard clearance={preview} state={clearanceState(preview, now)} doctorName={doctorName} now={now} variant="summary" warningDays={warningDays} />
                     ) : (
                         <p className="rounded-xl border border-dashed border-border-strong px-4 py-8 text-center text-sm text-fg-muted">
-                            {fighter ? "Choose a clearance level to preview the clearance." : "Choose a fighter and a clearance level to preview the clearance."}
+                            {fighter ? "Chọn mức giấy phép để xem trước." : "Chọn võ sĩ và mức giấy phép để xem trước."}
                         </p>
                     )}
                 </section>
@@ -360,9 +360,9 @@ export function GrantClearanceForm({ fighters, defaultFighterId, defaultExaminat
                     setConfirmOpen(false);
                     form.submit({ confirmNotCleared: "yes" });
                 }}
-                title={`Set ${fighter?.name ?? "this fighter"} as not cleared?`}
-                description="Coaches and the fighter are notified immediately, and every planned session is blocked until you issue a new clearance."
-                confirmLabel="Set as not cleared"
+                title={`Đặt ${fighter?.name ?? "võ sĩ này"} là chưa được tập?`}
+                description="HLV và võ sĩ được thông báo ngay; mọi buổi đã lên lịch bị chặn cho đến khi bạn cấp giấy phép mới."
+                confirmLabel="Đặt là chưa được tập"
             />
         </div>
     );
@@ -384,13 +384,13 @@ function Section({ title, description, children }: { title: string; description:
 }
 
 function CurrentStatus({ fighter, now, warningDays }: { fighter: ClearanceFighterContext | null; now: string; warningDays: number }) {
-    if (!fighter) return <p className="text-sm text-fg-muted">Choose a fighter to see their current clearance and latest examination.</p>;
+    if (!fighter) return <p className="text-sm text-fg-muted">Chọn võ sĩ để xem giấy phép hiện tại và lần khám gần nhất.</p>;
     const latest = fighter.examinations[0];
     return (
         <div className="flex flex-col gap-4">
             <FighterIdentity fighter={fighter} size="sm" href={routes.doctor.fighter(fighter.id)} />
             <div className="flex flex-col gap-2">
-                <p className="text-xs font-medium text-fg-muted">Current Medical Clearance</p>
+                <p className="text-xs font-medium text-fg-muted">Giấy phép hiện tại</p>
                 <div className="flex flex-wrap items-center gap-1.5">
                     <ClearanceBadge state={fighter.state} size="sm" />
                     <HealthStatusBadge status={fighter.healthStatus} size="sm" />
@@ -398,14 +398,14 @@ function CurrentStatus({ fighter, now, warningDays }: { fighter: ClearanceFighte
                 <ClearanceValidity clearance={fighter.clearance} state={fighter.state} now={now} warningDays={warningDays} />
                 {fighter.clearance && fighter.issuedByName && (
                     <p className="text-xs text-fg-muted">
-                        Issued by {fighter.issuedByName} on {formatDate(fighter.clearance.issuedAt)}
+                        Người cấp {fighter.issuedByName} ngày {formatDate(fighter.clearance.issuedAt)}
                     </p>
                 )}
                 {fighter.state === "restricted" && fighter.clearance && <RestrictionSummary restrictions={fighter.clearance.restrictions} />}
             </div>
             {fighter.openInjuries.length > 0 && (
                 <div className="flex flex-col gap-1">
-                    <p className="text-xs font-medium text-fg-muted">Open injuries</p>
+                    <p className="text-xs font-medium text-fg-muted">Chấn thương đang mở</p>
                     <ul className="text-[13px] text-fg">
                         {fighter.openInjuries.map((injury) => (
                             <li key={injury}>{injury}</li>
@@ -414,7 +414,7 @@ function CurrentStatus({ fighter, now, warningDays }: { fighter: ClearanceFighte
                 </div>
             )}
             <div className="flex flex-col gap-1.5 border-t border-border pt-4">
-                <p className="text-xs font-medium text-fg-muted">Latest examination</p>
+                <p className="text-xs font-medium text-fg-muted">Lần khám gần nhất</p>
                 {latest ? (
                     <>
                         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]">
@@ -428,11 +428,11 @@ function CurrentStatus({ fighter, now, warningDays }: { fighter: ClearanceFighte
                     </>
                 ) : (
                     <p className="text-[13px] text-fg-muted">
-                        No examinations yet.{" "}
+                        Chưa có phiếu khám.{" "}
                         <Link href={`${routes.doctor.newExamination}?fighter=${fighter.id}&type=baseline`} className="font-medium text-primary-soft-fg hover:underline">
-                            Record a baseline physical
+                            Ghi phiếu khám nền
                         </Link>{" "}
-                        before issuing a clearance.
+                        trước khi cấp giấy phép.
                     </p>
                 )}
             </div>
