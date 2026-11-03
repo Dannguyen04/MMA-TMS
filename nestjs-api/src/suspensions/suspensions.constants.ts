@@ -8,6 +8,7 @@ export const SUSPENSION_RESPONSE_MESSAGES = {
   LIST: 'Get suspensions successfully',
   CREATE: 'Create suspension successfully',
   CLEAR: 'Clear suspension successfully',
+  END_EARLY: 'End suspension early successfully',
 } as const;
 
 export const SESSION_TYPES = [
@@ -47,6 +48,8 @@ export const SUSPENSION_REASONS = [
   'OTHER',
 ] as const;
 export type SuspensionReason = (typeof SUSPENSION_REASONS)[number];
+
+export const SUSPENSION_ISSUERS = ['CLUB', 'ORGANIZER'] as const;
 
 export const LOSS_OF_CONSCIOUSNESS_VALUES = [
   'NONE',

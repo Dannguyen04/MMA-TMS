@@ -22,6 +22,7 @@ import {
   coaches,
   doctorFighters,
   fighters,
+  medicalExaminations,
   sportsDoctors,
   suspensions,
   type InsertSuspension,
@@ -299,6 +300,35 @@ export class SuspensionsRepository {
       .orderBy(asc(suspensions.startsOn), asc(suspensions.id));
   }
 
+  /**
+   * Raw examination facts for an early end (T-050); the service decides validity.
+   * Queried here (not through MedicalService) to keep SuspensionsModule free of
+   * the medical module.
+   */
+  async findEarlyEndExamination(
+    examinationId: string,
+    database: DatabaseExecutor,
+  ) {
+    const [row] = await database
+      .select({
+        fighterId: medicalExaminations.fighterId,
+        doctorUserId: sportsDoctors.userId,
+        scope: medicalExaminations.scope,
+        decision: medicalExaminations.decision,
+        examinedAt: medicalExaminations.examinedAt,
+        validUntil: medicalExaminations.validUntil,
+        superseded: sql<boolean>`exists (select 1 from medical_examinations successor where successor.supersedes_id = ${medicalExaminations.id})`,
+      })
+      .from(medicalExaminations)
+      .innerJoin(
+        sportsDoctors,
+        eq(medicalExaminations.doctorId, sportsDoctors.id),
+      )
+      .where(eq(medicalExaminations.id, examinationId))
+      .limit(1);
+    return row;
+  }
+
   async lockSuspensionById(
     id: string,
     database: DatabaseExecutor,
@@ -433,17 +463,14 @@ export class SuspensionsRepository {
       clearedAt: Date;
       clearedById: string;
       clearanceNote: string;
+      earlyEndExaminationId?: string | null;
+      liftReference?: string | null;
     },
     database: DatabaseExecutor = this.db,
   ): Promise<SuspensionRow | undefined> {
     const [row] = await database
       .update(suspensions)
-      .set({
-        clearedAt: values.clearedAt,
-        clearedById: values.clearedById,
-        clearanceNote: values.clearanceNote,
-        updatedAt: new Date(),
-      })
+      .set({ ...values, updatedAt: new Date() })
       .where(
         and(
           eq(suspensions.id, id),

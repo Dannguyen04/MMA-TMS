@@ -1154,3 +1154,55 @@ describe('T-045 intensity tiers and graded return', () => {
     expect(gradedReturnFor(unclearedKo, '2026-12-19')).toBeNull();
   });
 });
+
+describe('T-050 graded return for MEDICAL', () => {
+  // SC: MEDICAL, CLUB, 2026-11-01..2026-11-14, no clearance, ended early on 2026-11-05.
+  const sc = {
+    reason: 'MEDICAL' as const,
+    startsOn: '2026-11-01',
+    endsOn: '2026-11-14',
+    requiresClearance: false,
+    clearedAt: null as Date | null,
+  };
+
+  it('G1: SC ended early at 2026-11-05T03:00:00Z -> ceiling 3 on 11-05, ceiling 4 on 11-06, null on 11-07', () => {
+    const ended = { ...sc, clearedAt: new Date('2026-11-05T03:00:00Z') };
+    expect(gradedReturnFor(ended, '2026-11-05')).toEqual({
+      ceiling: 3,
+      fullReturnOn: '2026-11-07',
+    });
+    expect(gradedReturnFor(ended, '2026-11-06')).toEqual({
+      ceiling: 4,
+      fullReturnOn: '2026-11-07',
+    });
+    expect(gradedReturnFor(ended, '2026-11-07')).toBeNull();
+  });
+
+  it('G2: MEDICAL ending 2026-11-14 with requiresClearance, cleared 2026-11-20T02:00:00Z -> ceiling 3 on 11-20, fullReturnOn 11-22', () => {
+    const cleared = {
+      ...sc,
+      requiresClearance: true,
+      clearedAt: new Date('2026-11-20T02:00:00Z'),
+    };
+    expect(gradedReturnFor(cleared, '2026-11-20')).toEqual({
+      ceiling: 3,
+      fullReturnOn: '2026-11-22',
+    });
+  });
+
+  it('G3: MEDICAL ending 2026-11-14 without requiresClearance and never cleared -> ceiling 3 on 11-15, fullReturnOn 11-17', () => {
+    expect(gradedReturnFor(sc, '2026-11-15')).toEqual({
+      ceiling: 3,
+      fullReturnOn: '2026-11-17',
+    });
+  });
+
+  it('G4: OTHER ended like G1 -> null on 11-05', () => {
+    const other = {
+      ...sc,
+      reason: 'OTHER' as const,
+      clearedAt: new Date('2026-11-05T03:00:00Z'),
+    };
+    expect(gradedReturnFor(other, '2026-11-05')).toBeNull();
+  });
+});

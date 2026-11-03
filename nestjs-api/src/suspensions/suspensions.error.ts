@@ -38,6 +38,40 @@ export function suspensionNotAwaitingClearance(
   });
 }
 
+export function suspensionEarlyEndNotEligible(
+  reason: string,
+  status: string,
+): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'SUSPENSION_EARLY_END_NOT_ELIGIBLE',
+    message: 'Only an active MEDICAL suspension can be ended early.',
+    details: { reason, status },
+  });
+}
+
+export type EarlyEndExamCause =
+  | 'NOT_FOUND'
+  | 'OTHER_DOCTOR'
+  | 'NOT_TRAINING'
+  | 'NOT_ELIGIBLE'
+  | 'BEFORE_SUSPENSION'
+  | 'SUPERSEDED'
+  | 'EXPIRED';
+
+export function suspensionEarlyEndExamInvalid(
+  cause: EarlyEndExamCause,
+): ConflictException {
+  return new ConflictException({
+    statusCode: HttpStatus.CONFLICT,
+    error: 'Conflict',
+    code: 'SUSPENSION_EARLY_END_EXAM_INVALID',
+    message: 'The examination cannot be used to end this suspension early.',
+    details: { cause },
+  });
+}
+
 export function suspensionDaysRequired(): UnprocessableEntityException {
   return new UnprocessableEntityException({
     statusCode: HttpStatus.UNPROCESSABLE_ENTITY,

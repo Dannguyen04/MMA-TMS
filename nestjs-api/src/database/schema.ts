@@ -4657,6 +4657,11 @@ export const suspensionReasonEnum = pgEnum('suspension_reason', [
   'OTHER',
 ]);
 
+export const suspensionIssuerEnum = pgEnum('suspension_issuer', [
+  'CLUB',
+  'ORGANIZER',
+]);
+
 export const suspensions = pgTable('suspensions', {
   id: uuid('id').primaryKey().defaultRandom(),
   fighterId: uuid('fighter_id').notNull().references(() => fighters.id),
@@ -4676,6 +4681,10 @@ export const suspensions = pgTable('suspensions', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   deletedAt: timestamp('deleted_at', { withTimezone: true }),
+  issuedBy: suspensionIssuerEnum('issued_by').notNull().default('CLUB'),
+  issuerReference: text('issuer_reference'),
+  earlyEndExaminationId: uuid('early_end_examination_id'),
+  liftReference: text('lift_reference'),
 }, (t) => [
   check(
     'ck_suspensions_loss_of_consciousness',
@@ -4683,6 +4692,19 @@ export const suspensions = pgTable('suspensions', {
   ),
   check('ck_suspensions_dates', sql.raw('(ends_on >= starts_on)')),
   check('ck_suspensions_cleared', sql.raw('((cleared_at IS NULL) = (cleared_by_id IS NULL))')),
+  check(
+    'ck_suspensions_issuer',
+    sql.raw("(((issued_by = 'ORGANIZER'::suspension_issuer) = (issuer_reference IS NOT NULL)) AND ((issued_by = 'CLUB'::suspension_issuer) OR (reason = 'MEDICAL'::suspension_reason)) AND ((issuer_reference IS NULL) OR ((length(btrim(issuer_reference)) >= 3) AND (length(btrim(issuer_reference)) <= 200))))"),
+  ),
+  check(
+    'ck_suspensions_early_end',
+    sql.raw("(((early_end_examination_id IS NULL) OR (lift_reference IS NULL)) AND (((early_end_examination_id IS NULL) AND (lift_reference IS NULL)) OR (cleared_at IS NOT NULL)) AND ((early_end_examination_id IS NULL) OR (issued_by = 'CLUB'::suspension_issuer)) AND ((lift_reference IS NULL) OR ((issued_by = 'ORGANIZER'::suspension_issuer) AND (length(btrim(lift_reference)) >= 3) AND (length(btrim(lift_reference)) <= 200))))"),
+  ),
+  foreignKey({
+    name: 'fk_suspensions_early_end_examination',
+    columns: [t.earlyEndExaminationId, t.fighterId],
+    foreignColumns: [medicalExaminations.id, medicalExaminations.fighterId],
+  }),
   index('idx_suspensions_fighter_active').on(t.fighterId, t.endsOn).where(sql`deleted_at IS NULL`),
 ]).enableRLS();
 

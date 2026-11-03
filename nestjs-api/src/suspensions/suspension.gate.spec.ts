@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { DrizzleDB } from '../database/database.module.js';
 import type { SuspensionRow } from '../database/schema.js';
 import type { Transaction } from '../shared/utils/audit-context.util.js';
+import { trainingSuspensionActive } from '../training/training.error.js';
 import { SuspensionGate } from './suspension.gate.js';
 import { endsOnFor } from './suspensions.model.js';
 import { SuspensionsRepository } from './suspensions.repo.js';
@@ -31,6 +32,10 @@ function makeSuspension(over: Partial<SuspensionRow> = {}): SuspensionRow {
     createdAt: new Date('2026-10-01T03:00:00.000Z'),
     updatedAt: new Date('2026-10-01T03:00:00.000Z'),
     deletedAt: null,
+    issuedBy: 'CLUB',
+    issuerReference: null,
+    earlyEndExaminationId: null,
+    liftReference: null,
     ...over,
   };
 }
@@ -321,5 +326,60 @@ describe('SuspensionsRepository.findSuspensionsByFighterId SQL boundary', () => 
     expect(config.text).toContain('"suspensions"."deleted_at" is null');
     expect(config.text).toContain('order by "suspensions"."starts_on" asc');
     expect(params).toEqual([FIGHTER_ID]);
+  });
+});
+
+describe('T-050 Gate 2 after a MEDICAL early end', () => {
+  it('G6: SC ended early at 2026-11-05T03:00:00Z -> SPARRING 11-05 409 TRAINING_SUSPENSION_ACTIVE with gradedReturn.ceiling 3; PAD_WORK 11-05 passes; SPARRING 11-07 passes', async () => {
+    const sc = makeSuspension({
+      reason: 'MEDICAL',
+      startsOn: '2026-11-01',
+      endsOn: '2026-11-14',
+      lossOfConsciousness: null,
+      suggestedDays: null,
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      requiresClearance: false,
+      clearedAt: new Date('2026-11-05T03:00:00Z'),
+      clearedById: '30000000-0000-4000-8000-000000000001',
+      clearanceNote: 'Khám ổn, hết đau đầu',
+      earlyEndExaminationId: '70000000-0000-4000-8000-000000000001',
+    });
+    const repo = {
+      findSuspensionsByFighterId: vi.fn().mockResolvedValue([sc]),
+    } as unknown as SuspensionsRepository;
+    const gate = new SuspensionGate(repo);
+    // Same wiring as TrainingSessionService.assertNotSuspended: any blocking row -> 409.
+    const schedule = async (type: 'SPARRING' | 'PAD_WORK', at: string) => {
+      const blocking = await gate.blockingSuspensions(
+        FIGHTER_ID,
+        type,
+        new Date(at),
+      );
+      if (blocking.length > 0) throw trainingSuspensionActive(blocking);
+    };
+
+    const error = await schedule('SPARRING', '2026-11-05T04:00:00Z').then(
+      () => undefined,
+      (e: unknown) => e as { getStatus(): number; getResponse(): unknown },
+    );
+    expect(error?.getStatus()).toBe(409);
+    expect(error?.getResponse()).toMatchObject({
+      code: 'TRAINING_SUSPENSION_ACTIVE',
+      details: {
+        suspensions: [
+          {
+            suspensionId: SUSPENSION_ID,
+            reason: 'MEDICAL',
+            gradedReturn: { ceiling: 3, fullReturnOn: '2026-11-07' },
+          },
+        ],
+      },
+    });
+    await expect(
+      schedule('PAD_WORK', '2026-11-05T04:00:00Z'),
+    ).resolves.toBeUndefined();
+    await expect(
+      schedule('SPARRING', '2026-11-07T04:00:00Z'),
+    ).resolves.toBeUndefined();
   });
 });

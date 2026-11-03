@@ -10,6 +10,7 @@ import { SuspensionsController } from './suspensions.controller.js';
 import {
   ClearSuspensionDto,
   CreateSuspensionDto,
+  EndSuspensionEarlyDto,
   ListSuspensionsQueryDto,
   SuspensionIdParamsDto,
 } from './suspensions.dto.js';
@@ -43,6 +44,12 @@ describe('SuspensionsController routes', () => {
       'suspensions/:id/clear',
       SUSPENSION_PERMISSIONS.CLEAR,
     ],
+    [
+      'endSuspensionEarly',
+      RequestMethod.POST,
+      'suspensions/:id/end-early',
+      SUSPENSION_PERMISSIONS.CLEAR,
+    ],
   ];
 
   it.each(cases)(
@@ -57,7 +64,7 @@ describe('SuspensionsController routes', () => {
     },
   );
 
-  it('exposes exactly the three Round A endpoints', () => {
+  it('exposes exactly the Round A endpoints plus end-early (T-050)', () => {
     const handlers = Object.getOwnPropertyNames(proto).filter(
       (key) => key !== 'constructor' && key !== 'requireActor',
     );
@@ -125,6 +132,44 @@ describe('SuspensionsController DTO boundary and delegation', () => {
         },
       ),
     ).toEqual({ active: true, limit: 10 });
+  });
+
+  it('T-050 C2, C3, C5, E10, E15, O4: create and end-early DTOs reject issuer and basis violations with 422', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-11-05T03:00:00.000Z'));
+    const pipe = (value: unknown, metatype: typeof CreateSuspensionDto) =>
+      Promise.resolve().then(() =>
+        appZodValidationPipe.transform(value, { type: 'body', metatype }),
+      );
+    const medical = {
+      fighterId: '10000000-0000-4000-8000-000000000001',
+      reason: 'MEDICAL',
+      days: 14,
+    };
+    const reference = 'Giải MMA Hà Nội 2026, QĐ 12/BTC ngày 31/10';
+    await expect(
+      pipe({ ...medical, issuedBy: 'ORGANIZER', issuerReference: reference }, CreateSuspensionDto),
+    ).resolves.toMatchObject({ issuedBy: 'ORGANIZER' });
+    for (const invalid of [
+      { ...medical, issuedBy: 'ORGANIZER' }, // C2
+      { ...medical, reason: 'KO', issuedBy: 'ORGANIZER', issuerReference: reference }, // C3
+      { ...medical, issuedBy: 'CLUB', issuerReference: reference }, // C5
+    ]) {
+      await expect(pipe(invalid, CreateSuspensionDto)).rejects.toMatchObject({ status: 422 });
+    }
+
+    const examinationId = '70000000-0000-4000-8000-000000000001';
+    const liftReference = 'CV 15/BTC ngày 04/11 gỡ đình chỉ';
+    for (const invalid of [
+      { note: 'ok', examinationId }, // E10
+      { note: 'a'.repeat(501), examinationId }, // E10
+      { note: 'Khám ổn, hết đau đầu' }, // E15, O4
+      { note: 'Khám ổn, hết đau đầu', examinationId, liftReference }, // E15
+    ]) {
+      await expect(
+        pipe(invalid, EndSuspensionEarlyDto as unknown as typeof CreateSuspensionDto),
+      ).rejects.toMatchObject({ status: 422 });
+    }
   });
 
   it('forwards authenticated actor and generated requestId, and rejects unauthenticated calls with 401', async () => {

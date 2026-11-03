@@ -40,6 +40,7 @@ import {
   ClearSuspensionDto,
   CreateSuspensionDto,
   CreateSuspensionResponseDto,
+  EndSuspensionEarlyDto,
   ListSuspensionsQueryDto,
   SuspensionIdParamsDto,
   SuspensionListResponseDto,
@@ -145,6 +146,47 @@ export class SuspensionsController {
     @Body() body: ClearSuspensionDto,
   ) {
     return this.suspensionsService.clearSuspension(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
+  }
+
+  @Post('suspensions/:id/end-early')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [SUSPENSION_PERMISSIONS.CLEAR] })
+  @ApiOperation({
+    summary: 'End an active MEDICAL suspension early',
+    description:
+      'Club suspension: the assigned DOCTOR gives `examinationId`, a TRAINING examination they recorded with an eligible decision, ' +
+      'examined on or after `startsOn`, not superseded and not expired; unavailable when medical supervision is NONE. ' +
+      'Organizer suspension: an assigned COACH or DOCTOR gives `liftReference` (the organizer lift document). ' +
+      'Sets `clearedAt`, `clearedById` and `clearanceNote` (from `note`) without modifying `endsOn`.',
+  })
+  @ResponseMessage(SUSPENSION_RESPONSE_MESSAGES.END_EARLY)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: SUSPENSION_RESPONSE_MESSAGES.END_EARLY,
+    model: SuspensionResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope(
+    'Requires suspension:clear and the assigned doctor (club) or an assigned coach or doctor (organizer)',
+  )
+  @ApiNotFoundEnvelope('SUSPENSION_NOT_FOUND', 'Suspension not found')
+  @ApiConflictEnvelope(
+    'SUSPENSION_EARLY_END_NOT_ELIGIBLE',
+    'The suspension cannot be ended early',
+    'SUSPENSION_EARLY_END_NOT_ELIGIBLE (details: { reason, status }), SUSPENSION_EARLY_END_EXAM_INVALID (details: { cause }), SUSPENSION_ALREADY_CLEARED, or MEDICAL_SUPERVISION_DISABLED',
+  )
+  async endSuspensionEarly(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: SuspensionIdParamsDto,
+    @Body() body: EndSuspensionEarlyDto,
+  ) {
+    return this.suspensionsService.endSuspensionEarly(
       this.requireActor(actor),
       params.id,
       body,

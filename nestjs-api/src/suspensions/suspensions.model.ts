@@ -12,6 +12,7 @@ import {
   REHAB_TRIGGER_SUSPENSION_REASONS,
   SESSION_INTENSITY_TIERS,
   SESSION_TYPES,
+  SUSPENSION_ISSUERS,
   SUSPENSION_REASONS,
   TRAINING_PLAN_PHASES,
   type LossOfConsciousness,
@@ -175,22 +176,21 @@ export function maxAllowedTier(
 }
 
 /**
- * Computes the graded-return state `{ ceiling, fullReturnOn }` for a head-injury
- * (`KO` / `TKO`) suspension on academy date `d` (YYYY-MM-DD), or `null` when not
+ * Computes the graded-return state `{ ceiling, fullReturnOn }` for a `KO`, `TKO`
+ * or `MEDICAL` suspension on academy date `d` (YYYY-MM-DD), or `null` when not
  * in the graded-return window.
  *
  * - Start date `R`:
- *   - `requiresClearance = true`: `academyDateOf(clearedAt)` once cleared (`null` while uncleared).
- *   - `requiresClearance = false`: `endsOn + 1`.
+ *   - cleared (by `/clear` or an early end): `academyDateOf(clearedAt)`.
+ *   - not cleared, `requiresClearance = true`: `null`.
+ *   - not cleared, `requiresClearance = false`: `endsOn + 1`.
  * - Ceiling by day: day `R` -> ceiling 3; day `R + 1` -> ceiling 4; from `R + 2` (`fullReturnOn`) -> `null`.
  */
 export function gradedReturnFor(
   suspension: SuspensionGradedReturnInput,
   d: string,
 ): GradedReturn | null {
-  if (suspension.reason !== 'KO' && suspension.reason !== 'TKO') {
-    return null;
-  }
+  if (!['KO', 'TKO', 'MEDICAL'].includes(suspension.reason ?? '')) return null;
   if (
     isInForceOn(suspension, d) ||
     suspensionStatusOn(suspension, d) !== 'ENDED'
@@ -199,15 +199,10 @@ export function gradedReturnFor(
   }
 
   let startDate: string;
-  if (suspension.requiresClearance) {
-    if (suspension.clearedAt === null || suspension.clearedAt === undefined) {
-      return null;
-    }
-    const clearedInstant =
-      suspension.clearedAt instanceof Date
-        ? suspension.clearedAt
-        : new Date(suspension.clearedAt);
-    startDate = academyDateOf(clearedInstant);
+  if (suspension.clearedAt !== null && suspension.clearedAt !== undefined) {
+    startDate = academyDateOf(new Date(suspension.clearedAt));
+  } else if (suspension.requiresClearance) {
+    return null;
   } else {
     startDate = addDaysToDate(suspension.endsOn, 1);
   }
@@ -418,8 +413,32 @@ export const createSuspensionSchema = z
       .enum(LOSS_OF_CONSCIOUSNESS_VALUES)
       .nullable()
       .optional(),
+    issuedBy: z.enum(SUSPENSION_ISSUERS).optional(),
+    issuerReference: trimmedTextSchema(200, 3).optional(),
   })
   .superRefine((value, ctx) => {
+    if (value.issuedBy === 'ORGANIZER') {
+      if (value.reason !== 'MEDICAL') {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['issuedBy'],
+          message: 'Only MEDICAL suspensions can be issued by an organizer',
+        });
+      }
+      if (value.issuerReference === undefined) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['issuerReference'],
+          message: 'issuerReference is required for an organizer suspension',
+        });
+      }
+    } else if (value.issuerReference !== undefined) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['issuerReference'],
+        message: 'issuerReference is only allowed for an organizer suspension',
+      });
+    }
     if (
       value.maxTier !== undefined &&
       value.blockedSessionTypes !== undefined
@@ -461,6 +480,23 @@ export const clearSuspensionSchema = z.strictObject({
   clearanceNote: trimmedTextSchema(500, 3),
 });
 export type ClearSuspensionInput = z.infer<typeof clearSuspensionSchema>;
+
+export const endSuspensionEarlySchema = z
+  .strictObject({
+    note: trimmedTextSchema(500, 3),
+    examinationId: z.uuid().optional(),
+    liftReference: trimmedTextSchema(200, 3).optional(),
+  })
+  .refine(
+    (value) =>
+      (value.examinationId === undefined) !==
+      (value.liftReference === undefined),
+    {
+      path: ['examinationId'],
+      message: 'Exactly one of examinationId or liftReference is required',
+    },
+  );
+export type EndSuspensionEarlyInput = z.infer<typeof endSuspensionEarlySchema>;
 
 export const applySuspensionConflictsSchema = z.strictObject({
   sessionIds: z
@@ -968,6 +1004,10 @@ export const suspensionResponseSchema = z.object({
   clearedAt: isoDateTimeSchema.nullable(),
   clearedById: z.uuid().nullable(),
   clearanceNote: z.string().nullable(),
+  issuedBy: z.enum(SUSPENSION_ISSUERS),
+  issuerReference: z.string().nullable(),
+  earlyEndExaminationId: z.uuid().nullable(),
+  liftReference: z.string().nullable(),
   createdById: z.uuid(),
   createdAt: isoDateTimeSchema,
   updatedAt: isoDateTimeSchema,

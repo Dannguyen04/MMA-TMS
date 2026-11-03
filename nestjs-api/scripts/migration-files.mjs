@@ -36,6 +36,7 @@ export const migrationNames = [
   '030_between_round_plan.sql',
   '031_bout_ai_suggestions.sql',
   '032_session_status_pending.sql',
+  '033_suspension_early_end.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

@@ -3,12 +3,16 @@ import type { SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mocked } from 'vitest';
+import type { AcademySettingsRepository } from '../academy-settings/academy-settings.repo.js';
 import type { SuspensionRow } from '../database/schema.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import type { Transaction } from '../shared/utils/audit-context.util.js';
 import { SuspensionEffects } from './suspension.effects.js';
-import type { CreateSuspensionInput } from './suspensions.model.js';
+import type {
+  CreateSuspensionInput,
+  SuspensionResponse,
+} from './suspensions.model.js';
 import { SuspensionsRepository } from './suspensions.repo.js';
 import { SuspensionsService } from './suspensions.service.js';
 
@@ -63,6 +67,10 @@ function makeSuspension(over: Partial<SuspensionRow> = {}): SuspensionRow {
     createdAt: new Date('2026-10-20T03:00:00.000Z'),
     updatedAt: new Date('2026-10-20T03:00:00.000Z'),
     deletedAt: null,
+    issuedBy: 'CLUB',
+    issuerReference: null,
+    earlyEndExaminationId: null,
+    liftReference: null,
     ...over,
   };
 }
@@ -87,6 +95,7 @@ async function expectHttp(
 
 describe('SuspensionsService', () => {
   let repo: Mocked<SuspensionsRepository>;
+  let settings: { getMedicalSupervision: ReturnType<typeof vi.fn> };
   let txExecute: ReturnType<typeof vi.fn>;
   let service: SuspensionsService;
 
@@ -113,24 +122,21 @@ describe('SuspensionsService', () => {
       clearSuspension: vi.fn(
         async (
           id: string,
-          values: {
-            clearedAt: Date;
-            clearedById: string;
-            clearanceNote: string;
-          },
+          values: Partial<SuspensionRow>,
         ) => {
+          // Mirrors the UPDATE: every written column lands on the returned row.
           const current = await repo.lockSuspensionById(id, tx);
-          return makeSuspension({
-            ...current,
-            clearedAt: values.clearedAt,
-            clearedById: values.clearedById,
-            clearanceNote: values.clearanceNote,
-          });
+          return makeSuspension({ ...current, ...values });
         },
       ),
     } as unknown as Mocked<SuspensionsRepository>;
 
-    service = new SuspensionsService(repo, new SuspensionEffects());
+    settings = { getMedicalSupervision: vi.fn().mockResolvedValue('DOCTOR') };
+    service = new SuspensionsService(
+      repo,
+      new SuspensionEffects(),
+      settings as unknown as AcademySettingsRepository,
+    );
   });
 
   afterEach(() => {
@@ -287,6 +293,8 @@ describe('SuspensionsService', () => {
           clearedById: null,
           clearanceNote: null,
           createdById: coachActor.id,
+          issuedBy: 'CLUB',
+          issuerReference: null,
         },
         expect.anything(),
       );
@@ -596,7 +604,11 @@ describe('SuspensionsService', () => {
         callOrder.push('tx:commit');
         return out;
       });
-      const serviceWithEffects = new SuspensionsService(repo, effects);
+      const serviceWithEffects = new SuspensionsService(
+        repo,
+        effects,
+        settings as unknown as AcademySettingsRepository,
+      );
 
       const res = await serviceWithEffects.createSuspension(
         coachActor,
@@ -878,6 +890,514 @@ describe('SuspensionsService', () => {
       expect((result as HttpException).getResponse()).toMatchObject({
         code: 'SUSPENSION_ALREADY_CLEARED',
       });
+    });
+  });
+
+  describe('T-050 issuer and early end', () => {
+    // Today = 2026-11-05 10:00 in Vietnam. F has coach C, assigned doctors D and D3; D2 is not assigned.
+    const TODAY = new Date('2026-11-05T03:00:00.000Z');
+    const D = doctorActor;
+    const D2: AuthenticatedUser = {
+      ...doctorActor,
+      id: '30000000-0000-4000-8000-000000000002',
+      authSubject: 'doctor-sub-2',
+    };
+    const D3_USER_ID = '30000000-0000-4000-8000-000000000003';
+    const C = coachActor;
+    const unassignedCoach: AuthenticatedUser = {
+      ...coachActor,
+      id: '20000000-0000-4000-8000-000000000009',
+      authSubject: 'coach-sub-9',
+    };
+    const X1 = '70000000-0000-4000-8000-000000000001';
+    const UNKNOWN_EXAM = '70000000-0000-4000-8000-0000000000ff';
+    const SO_REFERENCE = 'Giải MMA Hà Nội 2026, QĐ 12/BTC ngày 31/10';
+    const LIFT = 'CV 15/BTC ngày 04/11 gỡ đình chỉ';
+
+    const sc = makeSuspension({
+      reason: 'MEDICAL',
+      startsOn: '2026-11-01',
+      endsOn: '2026-11-14',
+      lossOfConsciousness: null,
+      blockedSessionTypes: ['SPARRING', 'GRAPPLING'],
+      requiresClearance: false,
+      clearedAt: null,
+      issuedBy: 'CLUB',
+      issuerReference: null,
+    });
+    const so = makeSuspension({
+      ...sc,
+      issuedBy: 'ORGANIZER',
+      issuerReference: SO_REFERENCE,
+    });
+
+    // Raw examination row as the repo returns it; the service decides validity.
+    type ExamRow = Awaited<
+      ReturnType<SuspensionsRepository['findEarlyEndExamination']>
+    >;
+    const x1 = {
+      fighterId: FIGHTER_ID,
+      doctorUserId: D.id,
+      scope: 'TRAINING',
+      decision: 'ELIGIBLE',
+      examinedAt: new Date('2026-11-05T02:00:00Z'),
+      validUntil: null,
+      superseded: false,
+    } as NonNullable<ExamRow>;
+
+    function given(
+      row: SuspensionRow | undefined,
+      exam: Partial<NonNullable<ExamRow>> | undefined = x1,
+    ): void {
+      repo.findSuspensionById.mockResolvedValue(row);
+      repo.lockSuspensionById.mockResolvedValue(row);
+      (
+        repo as unknown as { findEarlyEndExamination: ReturnType<typeof vi.fn> }
+      ).findEarlyEndExamination = vi.fn(async (id: string) =>
+        id === X1 && exam ? { ...x1, ...exam } : undefined,
+      );
+    }
+
+    async function errorOf(promise: Promise<unknown>): Promise<HttpException> {
+      const error = await promise.then(
+        () => undefined,
+        (e: unknown) => e,
+      );
+      expect(error).toBeInstanceOf(HttpException);
+      return error as HttpException;
+    }
+
+    const endEarly = (
+      actor: AuthenticatedUser,
+      body: Record<string, unknown>,
+    ): Promise<unknown> =>
+      service.endSuspensionEarly(
+        actor,
+        SUSPENSION_ID,
+        body as never,
+        REQUEST_ID,
+      );
+    const clubBody = { note: 'Khám ổn, hết đau đầu', examinationId: X1 };
+    const organizerBody = { note: 'Đã nhận văn bản gỡ', liftReference: LIFT };
+
+    beforeEach(() => {
+      vi.setSystemTime(TODAY);
+      repo.isDoctorAssignedToFighter.mockImplementation(
+        async (userId: string) => userId === D.id || userId === D3_USER_ID,
+      );
+      repo.isCoachAssignedToFighter.mockImplementation(
+        async (userId: string) => userId === C.id,
+      );
+      given(sc);
+    });
+
+    // --- Create ---------------------------------------------------------------
+
+    const createBase = {
+      fighterId: FIGHTER_ID,
+      reason: 'MEDICAL',
+      days: 14,
+      requiresClearance: false,
+    } as const;
+
+    it('C1: MEDICAL issuedBy ORGANIZER with issuerReference -> 201, issuedBy ORGANIZER, issuerReference echoed', async () => {
+      const res = await service.createSuspension(
+        C,
+        { ...createBase, issuedBy: 'ORGANIZER', issuerReference: SO_REFERENCE },
+        REQUEST_ID,
+      );
+      expect(res.issuedBy).toBe('ORGANIZER');
+      expect(res.issuerReference).toBe(SO_REFERENCE);
+      expect(repo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({
+          issuedBy: 'ORGANIZER',
+          issuerReference: SO_REFERENCE,
+        }),
+        expect.anything(),
+      );
+    });
+
+    it('C2: ORGANIZER without issuerReference -> 422 VALIDATION_ERROR', async () => {
+      await expectHttp(
+        service.createSuspension(
+          C,
+          { ...createBase, issuedBy: 'ORGANIZER' },
+          REQUEST_ID,
+        ),
+        422,
+        'VALIDATION_ERROR',
+      );
+      expect(repo.insertSuspension).not.toHaveBeenCalled();
+    });
+
+    it('C3: ORGANIZER with reason KO -> 422 VALIDATION_ERROR', async () => {
+      await expectHttp(
+        service.createSuspension(
+          C,
+          {
+            fighterId: FIGHTER_ID,
+            reason: 'KO',
+            days: 30,
+            issuedBy: 'ORGANIZER',
+            issuerReference: SO_REFERENCE,
+          },
+          REQUEST_ID,
+        ),
+        422,
+        'VALIDATION_ERROR',
+      );
+      expect(repo.insertSuspension).not.toHaveBeenCalled();
+    });
+
+    it('C4: no issuedBy -> 201, issuedBy CLUB, issuerReference null', async () => {
+      const res = await service.createSuspension(C, createBase, REQUEST_ID);
+      expect(res.issuedBy).toBe('CLUB');
+      expect(res.issuerReference).toBeNull();
+      expect(res.earlyEndExaminationId).toBeNull();
+      expect(res.liftReference).toBeNull();
+      expect(repo.insertSuspension).toHaveBeenCalledWith(
+        expect.objectContaining({ issuedBy: 'CLUB', issuerReference: null }),
+        expect.anything(),
+      );
+    });
+
+    it('C5: CLUB with issuerReference -> 422 VALIDATION_ERROR', async () => {
+      await expectHttp(
+        service.createSuspension(
+          C,
+          { ...createBase, issuedBy: 'CLUB', issuerReference: SO_REFERENCE },
+          REQUEST_ID,
+        ),
+        422,
+        'VALIDATION_ERROR',
+      );
+      expect(repo.insertSuspension).not.toHaveBeenCalled();
+    });
+
+    // --- End early, club suspension -------------------------------------------
+
+    it('E1: SC + X1, D ends early -> status ENDED; one write with clearedById D, note, earlyEndExaminationId X1, liftReference null, clearedAt Date', async () => {
+      const res = (await endEarly(D, clubBody)) as SuspensionResponse;
+      expect(res.status).toBe('ENDED');
+      expect(res.earlyEndExaminationId).toBe(X1);
+      expect(repo.clearSuspension).toHaveBeenCalledTimes(1);
+      const [id, values] = repo.clearSuspension.mock.calls[0] ?? [];
+      expect(id).toBe(SUSPENSION_ID);
+      expect(values).toEqual({
+        clearedAt: expect.any(Date),
+        clearedById: D.id,
+        clearanceNote: 'Khám ổn, hết đau đầu',
+        earlyEndExaminationId: X1,
+        liftReference: null,
+      });
+    });
+
+    it('E2: SC with reason KO -> 409 SUSPENSION_EARLY_END_NOT_ELIGIBLE { reason KO, status ACTIVE }, no write', async () => {
+      given(makeSuspension({ ...sc, reason: 'KO' }));
+      const error = await errorOf(endEarly(D, clubBody));
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse()).toMatchObject({
+        code: 'SUSPENSION_EARLY_END_NOT_ELIGIBLE',
+        details: { reason: 'KO', status: 'ACTIVE' },
+      });
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E3: SC with reason OTHER -> 409 SUSPENSION_EARLY_END_NOT_ELIGIBLE, details.reason OTHER', async () => {
+      given(makeSuspension({ ...sc, reason: 'OTHER' }));
+      const error = await errorOf(endEarly(D, clubBody));
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse()).toMatchObject({
+        code: 'SUSPENSION_EARLY_END_NOT_ELIGIBLE',
+        details: { reason: 'OTHER' },
+      });
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E4: SC starting 2026-11-10 ending 2026-11-20 -> 409 SUSPENSION_EARLY_END_NOT_ELIGIBLE, details.status UPCOMING', async () => {
+      given(makeSuspension({ ...sc, startsOn: '2026-11-10', endsOn: '2026-11-20' }));
+      const error = await errorOf(endEarly(D, clubBody));
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse()).toMatchObject({
+        code: 'SUSPENSION_EARLY_END_NOT_ELIGIBLE',
+        details: { status: 'UPCOMING' },
+      });
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E5: SC 2026-10-20..2026-10-26 with requiresClearance -> 409 SUSPENSION_EARLY_END_NOT_ELIGIBLE, details.status AWAITING_CLEARANCE', async () => {
+      given(
+        makeSuspension({
+          ...sc,
+          startsOn: '2026-10-20',
+          endsOn: '2026-10-26',
+          requiresClearance: true,
+        }),
+      );
+      const error = await errorOf(endEarly(D, clubBody));
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse()).toMatchObject({
+        code: 'SUSPENSION_EARLY_END_NOT_ELIGIBLE',
+        details: { status: 'AWAITING_CLEARANCE' },
+      });
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E6: SC already cleared at 2026-11-04T03:00:00Z -> 409 SUSPENSION_ALREADY_CLEARED', async () => {
+      given(
+        makeSuspension({
+          ...sc,
+          clearedAt: new Date('2026-11-04T03:00:00Z'),
+          clearedById: D.id,
+          clearanceNote: 'Đã xong',
+        }),
+      );
+      await expectHttp(endEarly(D, clubBody), 409, 'SUSPENSION_ALREADY_CLEARED');
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E7: SC, unassigned doctor D2 -> 403 and no transaction opened', async () => {
+      await expectHttp(endEarly(D2, clubBody), 403);
+      expect(repo.transaction).not.toHaveBeenCalled();
+    });
+
+    it('E8: SC, coach C with examinationId X1 -> 403', async () => {
+      await expectHttp(endEarly(C, clubBody), 403);
+      expect(repo.transaction).not.toHaveBeenCalled();
+    });
+
+    it('E9: SC in NONE mode, D -> 409 MEDICAL_SUPERVISION_DISABLED, no write', async () => {
+      settings.getMedicalSupervision.mockResolvedValue('NONE');
+      await expectHttp(
+        endEarly(D, clubBody),
+        409,
+        'MEDICAL_SUPERVISION_DISABLED',
+      );
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E10: note "ok" and a 501-character note -> both 422 VALIDATION_ERROR', async () => {
+      await expectHttp(
+        endEarly(D, { ...clubBody, note: 'ok' }),
+        422,
+        'VALIDATION_ERROR',
+      );
+      await expectHttp(
+        endEarly(D, { ...clubBody, note: 'a'.repeat(501) }),
+        422,
+        'VALIDATION_ERROR',
+      );
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E11: unknown suspension id -> 404 SUSPENSION_NOT_FOUND', async () => {
+      given(undefined);
+      await expectHttp(endEarly(D, clubBody), 404, 'SUSPENSION_NOT_FOUND');
+    });
+
+    it('E12: SC, D calls /clear -> still 409 SUSPENSION_NOT_AWAITING_CLEARANCE', async () => {
+      await expectHttp(
+        service.clearSuspension(
+          D,
+          SUSPENSION_ID,
+          { clearanceNote: 'Khám ổn, hết đau đầu' },
+          REQUEST_ID,
+        ),
+        409,
+        'SUSPENSION_NOT_AWAITING_CLEARANCE',
+      );
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E13: SC, lockSuspensionById returns a row already cleared -> 409 SUSPENSION_ALREADY_CLEARED', async () => {
+      given(sc);
+      repo.lockSuspensionById.mockResolvedValue(
+        makeSuspension({
+          ...sc,
+          clearedAt: new Date('2026-11-05T02:30:00Z'),
+          clearedById: D3_USER_ID,
+          clearanceNote: 'Đã kết thúc',
+        }),
+      );
+      await expectHttp(endEarly(D, clubBody), 409, 'SUSPENSION_ALREADY_CLEARED');
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it("E14: SC + X1, D -> setAuditContext with D's authSubject and requestId inside the transaction", async () => {
+      await endEarly(D, clubBody);
+      expect(txExecute).toHaveBeenCalledTimes(1);
+      const audit = new PgDialect().sqlToQuery(
+        txExecute.mock.calls[0]?.[0] as SQL,
+      );
+      expect(audit.params).toEqual([
+        JSON.stringify({ sub: D.authSubject }),
+        REQUEST_ID,
+      ]);
+      expect(repo.transaction.mock.invocationCallOrder[0]).toBeLessThan(
+        txExecute.mock.invocationCallOrder[0] as number,
+      );
+      expect(txExecute.mock.invocationCallOrder[0]).toBeLessThan(
+        repo.lockSuspensionById.mock.invocationCallOrder[0] as number,
+      );
+    });
+
+    it('E15: SC, D without examinationId; then with both examinationId and liftReference -> both 422 VALIDATION_ERROR', async () => {
+      await expectHttp(
+        endEarly(D, { note: 'Khám ổn, hết đau đầu' }),
+        422,
+        'VALIDATION_ERROR',
+      );
+      await expectHttp(
+        endEarly(D, { ...clubBody, liftReference: LIFT }),
+        422,
+        'VALIDATION_ERROR',
+      );
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E15b: SC, D with note and liftReference but no examinationId -> 422 VALIDATION_ERROR, no transaction, no write', async () => {
+      await expectHttp(
+        endEarly(D, { note: 'Khám ổn, hết đau đầu', liftReference: LIFT }),
+        422,
+        'VALIDATION_ERROR',
+      );
+      expect(repo.transaction).not.toHaveBeenCalled();
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('E8b: SC in NONE mode, coach C with examinationId X1 -> 403 (not 409 MEDICAL_SUPERVISION_DISABLED), no write', async () => {
+      settings.getMedicalSupervision.mockResolvedValue('NONE');
+      const error = await errorOf(endEarly(C, clubBody));
+      expect(error.getStatus()).toBe(403);
+      expect(error.getResponse()).not.toMatchObject({
+        code: 'MEDICAL_SUPERVISION_DISABLED',
+      });
+      expect(repo.transaction).not.toHaveBeenCalled();
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    // --- Invalid examination (SC, D) ------------------------------------------
+
+    async function expectExamInvalid(
+      body: Record<string, unknown>,
+      cause: string,
+    ): Promise<void> {
+      const error = await errorOf(endEarly(D, body));
+      expect(error.getStatus()).toBe(409);
+      expect(error.getResponse()).toMatchObject({
+        code: 'SUSPENSION_EARLY_END_EXAM_INVALID',
+        details: { cause },
+      });
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    }
+
+    it('X2: unknown examination id -> cause NOT_FOUND', async () => {
+      await expectExamInvalid(
+        { ...clubBody, examinationId: UNKNOWN_EXAM },
+        'NOT_FOUND',
+      );
+    });
+
+    it("X3: another fighter's examination -> cause NOT_FOUND", async () => {
+      given(sc, { fighterId: OTHER_FIGHTER_ID });
+      await expectExamInvalid(clubBody, 'NOT_FOUND');
+    });
+
+    it('X4: examination recorded by D3 -> cause OTHER_DOCTOR', async () => {
+      given(sc, { doctorUserId: D3_USER_ID });
+      await expectExamInvalid(clubBody, 'OTHER_DOCTOR');
+    });
+
+    it('X5: X1 with scope COMPETITION -> cause NOT_TRAINING', async () => {
+      given(sc, { scope: 'COMPETITION' });
+      await expectExamInvalid(clubBody, 'NOT_TRAINING');
+    });
+
+    it('X6: X1 with decision NOT_ELIGIBLE -> cause NOT_ELIGIBLE', async () => {
+      given(sc, { decision: 'NOT_ELIGIBLE' });
+      await expectExamInvalid(clubBody, 'NOT_ELIGIBLE');
+    });
+
+    it('X7: X1 examined 2026-10-31T10:00:00Z (academy 10-31) -> cause BEFORE_SUSPENSION', async () => {
+      given(sc, { examinedAt: new Date('2026-10-31T10:00:00Z') });
+      await expectExamInvalid(clubBody, 'BEFORE_SUSPENSION');
+    });
+
+    it('X8: X1 superseded by another examination -> cause SUPERSEDED', async () => {
+      given(sc, { superseded: true });
+      await expectExamInvalid(clubBody, 'SUPERSEDED');
+    });
+
+    it('X9: X1 examined 2026-11-01T03:00:00Z, validUntil 2026-11-04T00:00:00Z -> cause EXPIRED', async () => {
+      given(sc, {
+        examinedAt: new Date('2026-11-01T03:00:00Z'),
+        validUntil: new Date('2026-11-04T00:00:00Z'),
+      });
+      await expectExamInvalid(clubBody, 'EXPIRED');
+    });
+
+    it('X10: X1 with ELIGIBLE_WITH_RESTRICTIONS -> no error, status ENDED', async () => {
+      given(sc, { decision: 'ELIGIBLE_WITH_RESTRICTIONS' });
+      const res = (await endEarly(D, clubBody)) as SuspensionResponse;
+      expect(res.status).toBe('ENDED');
+    });
+
+    it('X11: X1 examined 2026-10-31T18:00:00Z (01:00 on 11-01 academy time) -> no error (UTC+7 day boundary)', async () => {
+      given(sc, { examinedAt: new Date('2026-10-31T18:00:00Z') });
+      const res = (await endEarly(D, clubBody)) as SuspensionResponse;
+      expect(res.status).toBe('ENDED');
+    });
+
+    // --- End early, organizer suspension --------------------------------------
+
+    it('O1: SO, C with liftReference and note -> 200 ENDED; writes liftReference, earlyEndExaminationId null, clearedById C', async () => {
+      given(so);
+      const res = (await endEarly(C, organizerBody)) as SuspensionResponse;
+      expect(res.status).toBe('ENDED');
+      expect(res.liftReference).toBe(LIFT);
+      expect(repo.clearSuspension).toHaveBeenCalledTimes(1);
+      expect(repo.clearSuspension.mock.calls[0]?.[1]).toEqual({
+        clearedAt: expect.any(Date),
+        clearedById: C.id,
+        clearanceNote: 'Đã nhận văn bản gỡ',
+        earlyEndExaminationId: null,
+        liftReference: LIFT,
+      });
+    });
+
+    it('O2: SO, D like O1 -> 200', async () => {
+      given(so);
+      const res = (await endEarly(D, organizerBody)) as SuspensionResponse;
+      expect(res.status).toBe('ENDED');
+    });
+
+    it('O3: SO in NONE mode, C like O1 -> 200 (mode not checked)', async () => {
+      given(so);
+      settings.getMedicalSupervision.mockResolvedValue('NONE');
+      const res = (await endEarly(C, organizerBody)) as SuspensionResponse;
+      expect(res.status).toBe('ENDED');
+    });
+
+    it('O4: SO, C without liftReference; then with examinationId X1 instead -> both 422 VALIDATION_ERROR', async () => {
+      given(so);
+      await expectHttp(
+        endEarly(C, { note: 'Đã nhận văn bản gỡ' }),
+        422,
+        'VALIDATION_ERROR',
+      );
+      await expectHttp(
+        endEarly(C, { note: 'Đã nhận văn bản gỡ', examinationId: X1 }),
+        422,
+        'VALIDATION_ERROR',
+      );
+      expect(repo.clearSuspension).not.toHaveBeenCalled();
+    });
+
+    it('O5: SO, D2 and an unassigned coach -> both 403', async () => {
+      given(so);
+      await expectHttp(endEarly(D2, organizerBody), 403);
+      await expectHttp(endEarly(unassignedCoach, organizerBody), 403);
+      expect(repo.transaction).not.toHaveBeenCalled();
     });
   });
 });

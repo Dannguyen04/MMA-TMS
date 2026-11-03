@@ -1,4 +1,21 @@
-# Migrations 003–032 — Backend, Database & API Permissions
+# Migrations 003–033 — Backend, Database & API Permissions
+
+## Áp dụng migration 033 (Nguồn đình chỉ và kết thúc sớm có căn cứ — T-050)
+
+033 yêu cầu ledger 011 và 025, chưa có 033, đã có `public.suspensions` và ràng buộc `uq_medical_examination_fighter`; không yêu cầu 026–032.
+Nội dung:
+- Enum `public.suspension_issuer` (`CLUB`, `ORGANIZER`).
+- Cột `suspensions.issued_by` (NOT NULL, mặc định `CLUB`, dòng có sẵn nhận `CLUB`), `issuer_reference`, `early_end_examination_id`, `lift_reference`.
+- CHECK `ck_suspensions_issuer`: `ORGANIZER` khi và chỉ khi có `issuer_reference` (3–200 ký tự), `ORGANIZER` chỉ cho lý do `MEDICAL`.
+- CHECK `ck_suspensions_early_end`: không có cả hai căn cứ; có căn cứ thì `cleared_at` khác null; phiếu khám chỉ với `CLUB`, văn bản gỡ (3–200) chỉ với `ORGANIZER`.
+- FK `fk_suspensions_early_end_examination` `(early_end_examination_id, fighter_id)` → `medical_examinations (id, fighter_id)`: phiếu phải cùng võ sĩ.
+- Không thêm quyền, trigger, bảng hay loại thông báo; RLS và REVOKE của bảng giữ nguyên. Trigger audit có sẵn ghi các cột mới.
+- Ledger version 33, advisory lock `(20260916, 33)`, checksum trong `manifest.json`.
+
+```sh
+pnpm db:check
+pnpm db:migrate:033
+```
 
 ## Áp dụng migration 032 (Trạng thái buổi tập PENDING — T-036 / R28)
 

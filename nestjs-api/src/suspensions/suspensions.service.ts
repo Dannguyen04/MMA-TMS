@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
+import { AcademySettingsRepository } from '../academy-settings/academy-settings.repo.js';
 import type { SuspensionRow } from '../database/schema.js';
 import { fighterNotFound } from '../fighters/fighters.error.js';
+import { medicalSupervisionDisabled } from '../medical/medical.error.js';
 import { forbidden } from '../shared/errors/access.error.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
@@ -9,6 +11,8 @@ import { SuspensionEffects } from './suspension.effects.js';
 import {
   mapSuspensionPersistenceError,
   suspensionAlreadyCleared,
+  suspensionEarlyEndExamInvalid,
+  suspensionEarlyEndNotEligible,
   suspensionNotAwaitingClearance,
   suspensionNotFound,
   suspensionValidationError,
@@ -21,6 +25,7 @@ import {
   DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
   deriveRequiresClearance,
   encodeSuspensionCursor,
+  endSuspensionEarlySchema,
   endsOnFor,
   gradedReturnFor,
   maxAllowedTier,
@@ -28,6 +33,7 @@ import {
   type ClearSuspensionInput,
   type CreateSuspensionInput,
   type CreateSuspensionResponse,
+  type EndSuspensionEarlyInput,
   type ListSuspensionsQuery,
   type LossOfConsciousness,
   type SuspensionListResponse,
@@ -43,6 +49,7 @@ export class SuspensionsService {
   constructor(
     private readonly repo: SuspensionsRepository,
     private readonly suspensionEffects: SuspensionEffects,
+    private readonly academySettings: AcademySettingsRepository,
   ) {}
 
   async listSuspensions(
@@ -131,6 +138,8 @@ export class SuspensionsService {
             clearedById: null,
             clearanceNote: null,
             createdById: actor.id,
+            issuedBy: data.issuedBy ?? 'CLUB',
+            issuerReference: data.issuerReference ?? null,
           },
           tx,
         );
@@ -197,6 +206,109 @@ export class SuspensionsService {
         );
         if (!cleared) throw suspensionAlreadyCleared();
         return cleared;
+      });
+      return toSuspensionResponse(updated, academyDateOf(new Date()));
+    } catch (error) {
+      throw mapSuspensionPersistenceError(error);
+    }
+  }
+
+  /**
+   * Ends an ACTIVE MEDICAL suspension early (T-050). A club suspension needs a
+   * valid TRAINING examination by the assigned Doctor; an organizer suspension
+   * needs the organizer's lift document.
+   */
+  async endSuspensionEarly(
+    actor: AuthenticatedUser,
+    id: string,
+    input: EndSuspensionEarlyInput,
+    requestId: string,
+  ): Promise<SuspensionResponse> {
+    const parsed = endSuspensionEarlySchema.safeParse(input);
+    if (!parsed.success) {
+      throw suspensionValidationError(
+        'Validation failed',
+        parsed.error.issues.map((issue) => ({
+          code: issue.code,
+          path: issue.path as (string | number)[],
+          message: issue.message,
+        })),
+      );
+    }
+    const { note, examinationId, liftReference } = parsed.data;
+
+    const current = await this.requireSuspension(id);
+    if (current.issuedBy === 'CLUB') {
+      if (examinationId === undefined) {
+        throw suspensionValidationError(
+          'examinationId is required to end a club suspension early',
+        );
+      }
+      if (actor.role !== USER.DOCTOR) throw forbidden();
+      if ((await this.academySettings.getMedicalSupervision()) === 'NONE') {
+        throw medicalSupervisionDisabled();
+      }
+      await this.assertClearAccess(actor, current.fighterId);
+    } else {
+      if (liftReference === undefined) {
+        throw suspensionValidationError(
+          'liftReference is required to end an organizer suspension early',
+        );
+      }
+      await this.assertClearAccess(actor, current.fighterId);
+    }
+
+    try {
+      const updated = await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const locked = await this.repo.lockSuspensionById(id, tx);
+        if (!locked) throw suspensionNotFound();
+        if (locked.clearedAt !== null) throw suspensionAlreadyCleared();
+        const now = new Date();
+        const status = suspensionStatusOn(locked, academyDateOf(now));
+        if (locked.reason !== 'MEDICAL' || status !== 'ACTIVE') {
+          throw suspensionEarlyEndNotEligible(locked.reason, status);
+        }
+        if (examinationId !== undefined) {
+          const exam = await this.repo.findEarlyEndExamination(
+            examinationId,
+            tx,
+          );
+          if (!exam || exam.fighterId !== locked.fighterId) {
+            throw suspensionEarlyEndExamInvalid('NOT_FOUND');
+          }
+          if (exam.doctorUserId !== actor.id) {
+            throw suspensionEarlyEndExamInvalid('OTHER_DOCTOR');
+          }
+          if (exam.scope !== 'TRAINING') {
+            throw suspensionEarlyEndExamInvalid('NOT_TRAINING');
+          }
+          if (exam.decision === 'NOT_ELIGIBLE') {
+            throw suspensionEarlyEndExamInvalid('NOT_ELIGIBLE');
+          }
+          if (academyDateOf(exam.examinedAt) < locked.startsOn) {
+            throw suspensionEarlyEndExamInvalid('BEFORE_SUSPENSION');
+          }
+          if (exam.superseded) {
+            throw suspensionEarlyEndExamInvalid('SUPERSEDED');
+          }
+          if (exam.validUntil !== null && exam.validUntil <= now) {
+            throw suspensionEarlyEndExamInvalid('EXPIRED');
+          }
+        }
+        const ended = await this.repo.clearSuspension(
+          id,
+          {
+            clearedAt: now,
+            clearedById: actor.id,
+            clearanceNote: note,
+            earlyEndExaminationId: examinationId ?? null,
+            liftReference: liftReference ?? null,
+          },
+          tx,
+        );
+        if (!ended) throw suspensionAlreadyCleared();
+        return ended;
       });
       return toSuspensionResponse(updated, academyDateOf(new Date()));
     } catch (error) {
@@ -326,6 +438,10 @@ export function toSuspensionResponse(
     clearedAt: row.clearedAt ? row.clearedAt.toISOString() : null,
     clearedById: row.clearedById,
     clearanceNote: row.clearanceNote,
+    issuedBy: row.issuedBy,
+    issuerReference: row.issuerReference,
+    earlyEndExaminationId: row.earlyEndExaminationId,
+    liftReference: row.liftReference,
     createdById: row.createdById,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),

@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it, vi, type Mocked } from 'vitest';
+import type { AcademySettingsRepository } from '../academy-settings/academy-settings.repo.js';
 import type { SuspensionRow } from '../database/schema.js';
 import { MedicalService } from '../medical/medical.service.js';
 import {
@@ -91,6 +92,10 @@ function makeSuspensionRow(over: Partial<SuspensionRow> = {}): SuspensionRow {
     createdAt: new Date('2026-10-01T03:00:00.000Z'),
     updatedAt: new Date('2026-10-01T03:00:00.000Z'),
     deletedAt: null,
+    issuedBy: 'CLUB',
+    issuerReference: null,
+    earlyEndExaminationId: null,
+    liftReference: null,
     ...over,
   };
 }
@@ -208,12 +213,14 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
   let suspensionEffects: SuspensionEffects;
   let repo: Mocked<TrainingRepository>;
   let suspensionsRepo: Mocked<SuspensionsRepository>;
+  let settings: { getMedicalSupervision: ReturnType<typeof vi.fn> };
   let notifications: {
     notify: ReturnType<typeof vi.fn>;
     notifyResolved: ReturnType<typeof vi.fn>;
   };
 
   beforeEach(async () => {
+    settings = { getMedicalSupervision: vi.fn().mockResolvedValue('DOCTOR') };
     notifications = {
       notify: vi.fn().mockResolvedValue({ status: 'queued' }),
       notifyResolved: vi.fn(async (resolve: () => Promise<unknown>) => {
@@ -709,6 +716,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       const suspensionsService = new SuspensionsService(
         suspensionsRepo,
         suspensionEffects,
+        settings as unknown as AcademySettingsRepository,
       );
       const res = await suspensionsService.createSuspension(
         coachActor,
@@ -780,6 +788,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       const suspensionsService = new SuspensionsService(
         suspensionsRepo,
         suspensionEffects,
+        settings as unknown as AcademySettingsRepository,
       );
       const resNoDecSession = await suspensionsService.createSuspension(
         coachActor,
@@ -869,6 +878,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       const suspensionsService = new SuspensionsService(
         suspensionsRepo,
         suspensionEffects,
+        settings as unknown as AcademySettingsRepository,
       );
 
       // (a) Session 1 becomes IN_PROGRESS before lockSessionById resolves during a KO/MEDICAL (CANCEL) suspension creation
@@ -1037,6 +1047,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       const suspensionsService = new SuspensionsService(
         suspensionsRepo,
         suspensionEffects,
+        settings as unknown as AcademySettingsRepository,
       );
 
       // (a) Transaction throws after runOnCreated -> notifySessionCancelled is NOT called
@@ -1465,6 +1476,7 @@ describe('TrainingSuspensionConflictsService (R28 / T-036)', () => {
       const suspensionsService = new SuspensionsService(
         suspensionsRepo,
         suspensionEffects,
+        settings as unknown as AcademySettingsRepository,
       );
 
       return {
