@@ -1,203 +1,124 @@
-import { ClipboardPlus, SearchX, Stethoscope } from "lucide-react";
+import { FilePlus2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ExaminationOutcomeBadge } from "@/components/medical/clinical-badges";
-import { ExaminationList } from "@/components/medical/examination-list";
-import { Avatar } from "@/components/ui/avatar";
-import { ButtonLink } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { FilterBar } from "@/components/ui/filter-bar";
-import { PageHeader } from "@/components/ui/page-header";
-import { EmptyState } from "@/components/ui/states";
-import { Pagination, SortableTH, Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
+import { examKind } from "@/components/doctor/exam-meta";
+import { OUTCOME, SCOPE, fmtDate } from "@/components/doctor/labels";
+import { Empty, FighterFilter, PageHead, Panel, Pill } from "@/components/doctor/ui";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { EXAMINATION_OUTCOME_LABELS, EXAMINATION_TYPE_LABELS, examinationTitle } from "@/lib/domain/labels";
-import type { ExaminationOutcome, ExaminationType, MedicalExamination } from "@/lib/domain/types";
-import { formatDate, formatTime } from "@/lib/format";
-import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
+import type { ExaminationScope } from "@/lib/domain/medical-contract";
 import { routes } from "@/lib/routes";
 import { listExaminations } from "@/lib/services/medical";
-import { listDoctors, listFighters } from "@/lib/services/people";
+import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Examinations" };
+export const metadata: Metadata = { title: "Phiếu khám" };
 
-const PAGE_SIZE = 12;
-const TYPES = Object.keys(EXAMINATION_TYPE_LABELS) as ExaminationType[];
-const OUTCOMES = Object.keys(EXAMINATION_OUTCOME_LABELS) as ExaminationOutcome[];
-const OUTCOME_RANK: Record<ExaminationOutcome, number> = { unfit: 0, fit_with_restrictions: 1, fit: 2 };
-const SORTS = ["date", "fighter", "type", "outcome", "followUp"] as const;
-const DATE_KEY = /^\d{4}-\d{2}-\d{2}$/;
-
-const dateParam = (value: string | undefined) => (value && DATE_KEY.test(value) ? value : undefined);
-
-export default async function ExaminationsPage({ searchParams }: PageProps<"/doctor/examinations">) {
+/** Phiếu khám của mọi võ sĩ được giao: ghép `GET /fighters/:id/medical-examinations` từng võ sĩ (chưa có danh sách theo bác sĩ). */
+export default async function DoctorExaminationsPage({ searchParams }: PageProps<"/doctor/examinations">) {
     const user = await requireRole("doctor");
-    const params = await searchParams;
-
-    const fighterParam = param(params.fighter);
-    const fighterFilter = fighterParam && canAccessFighter(user, fighterParam) ? fighterParam : undefined;
-    const type = parseEnum(param(params.type), TYPES);
-    const outcome = parseEnum(param(params.outcome), OUTCOMES);
-    const from = dateParam(param(params.from));
-    const to = dateParam(param(params.to));
-    const sort = parseEnum(param(params.sort), SORTS) ?? "date";
-    const dir = parseSortDirection(param(params.dir), sort === "date" ? "desc" : "asc");
-    const hasFilters = Boolean(fighterFilter || type || outcome || from || to);
-
-    const [fighters, doctors, examinations] = await Promise.all([
-        listFighters(user),
-        listDoctors(),
-        listExaminations({ fighterIds: fighterFilter ? [fighterFilter] : accessibleFighterIds(user), type, outcome, from, to }),
-    ]);
-    const fighterById = new Map(fighters.map((fighter) => [fighter.id, fighter]));
-    const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
-
-    const accessors: Record<(typeof SORTS)[number], (exam: MedicalExamination) => string | number | null> = {
-        date: (exam) => exam.date,
-        fighter: (exam) => fighterById.get(exam.fighterId)?.name ?? null,
-        type: (exam) => examinationTitle(exam),
-        outcome: (exam) => OUTCOME_RANK[exam.outcome],
-        followUp: (exam) => exam.followUpDate,
-    };
-    const page = paginate(sortItems(examinations, accessors[sort], dir), param(params.page), PAGE_SIZE);
-    const pathname = routes.doctor.examinations;
-    const sortProps = { pathname, searchParams: params, activeSort: sort, direction: dir };
+    const query = await searchParams;
+    const requested = param(query.fighter);
+    const fighterId = requested && canAccessFighter(user, requested) ? requested : undefined;
+    const scopeParam = param(query.scope);
+    const scope: ExaminationScope | undefined = scopeParam === "TRAINING" || scopeParam === "COMPETITION" ? scopeParam : undefined;
+    const [fighters, all] = await Promise.all([listFighters(user), listExaminations({ fighterIds: fighterId ? [fighterId] : accessibleFighterIds(user) })]);
+    const nameOf = new Map(fighters.map((f) => [f.id, f.name]));
+    const list = all.filter((e) => !scope || e.scope === scope);
+    // "Hiện hành": phiếu mới nhất của mỗi võ sĩ trong cùng phạm vi (như findCurrentExamination của backend).
+    const current = new Set<string>();
+    const seen = new Set<string>();
+    for (const e of all) {
+        const key = `${e.fighterId}:${e.scope ?? "-"}`;
+        if (!seen.has(key)) {
+            seen.add(key);
+            current.add(e.id);
+        }
+    }
+    const hasScopes = all.some((e) => e.scope);
+    const seg = (k: string | undefined, l: string) => (
+        <Link href={`${routes.doctor.examinations}?${new URLSearchParams({ ...(fighterId && { fighter: fighterId }), ...(k && { scope: k }) })}`} aria-current={scope === k ? "page" : undefined}>
+            {l}
+        </Link>
+    );
+    const newHref = `${routes.doctor.newExamination}${fighterId ? `?fighter=${fighterId}` : ""}`;
 
     return (
-        <>
-            <PageHeader
-                title="Examinations"
-                description="Every examination recorded for your assigned fighters, with outcome and follow-up."
+        <div className="yt-page">
+            <PageHead
+                title="Phiếu khám"
+                sub={`${list.length} phiếu · mới nhất trước`}
                 actions={
-                    <ButtonLink href={fighterFilter ? `${routes.doctor.newExamination}?fighter=${fighterFilter}` : routes.doctor.newExamination}>
-                        <ClipboardPlus aria-hidden />
-                        New examination
-                    </ButtonLink>
+                    <Link href={newHref} className="yt-btn" data-v="primary">
+                        <FilePlus2 aria-hidden />
+                        Tạo phiếu khám
+                    </Link>
                 }
             />
-
-            <div className="flex flex-col gap-4">
-                <FilterBar
-                    filters={[
-                        {
-                            type: "select",
-                            name: "fighter",
-                            label: "Fighter",
-                            allLabel: "All fighters",
-                            options: fighters.map((fighter) => ({ value: fighter.id, label: fighter.name })),
-                        },
-                        {
-                            type: "select",
-                            name: "type",
-                            label: "Examination type",
-                            allLabel: "All types",
-                            options: TYPES.map((value) => ({ value, label: EXAMINATION_TYPE_LABELS[value] })),
-                        },
-                        {
-                            type: "select",
-                            name: "outcome",
-                            label: "Outcome",
-                            allLabel: "All outcomes",
-                            options: OUTCOMES.map((value) => ({ value, label: EXAMINATION_OUTCOME_LABELS[value] })),
-                        },
-                        { type: "date", name: "from", label: "From" },
-                        { type: "date", name: "to", label: "To" },
-                    ]}
-                />
-
-                {page.total === 0 ? (
-                    hasFilters ? (
-                        <EmptyState
-                            icon={<SearchX />}
-                            title="No examinations match these filters"
-                            description="Widen the date range or clear the filters to see every examination."
-                            action={
-                                <ButtonLink href={pathname} variant="secondary">
-                                    Clear filters
-                                </ButtonLink>
-                            }
-                        />
-                    ) : (
-                        <EmptyState
-                            icon={<Stethoscope />}
-                            title="No examinations recorded yet"
-                            description="Start with a baseline physical for each fighter — later examinations are compared against it."
-                            action={
-                                <ButtonLink href={routes.doctor.newExamination}>
-                                    <ClipboardPlus aria-hidden />
-                                    New examination
-                                </ButtonLink>
-                            }
-                        />
-                    )
-                ) : (
-                    <>
-                        <Card className="hidden overflow-hidden md:block">
-                            <Table caption="Examinations">
-                                <THead>
-                                    <tr>
-                                        <SortableTH label="Date" sortKey="date" {...sortProps} />
-                                        <SortableTH label="Fighter" sortKey="fighter" {...sortProps} />
-                                        <SortableTH label="Examination" sortKey="type" {...sortProps} />
-                                        <SortableTH label="Outcome" sortKey="outcome" {...sortProps} />
-                                        <SortableTH label="Follow-up" sortKey="followUp" {...sortProps} />
-                                        <TH>Examined by</TH>
-                                    </tr>
-                                </THead>
-                                <TBody>
-                                    {page.items.map((exam) => {
-                                        const fighter = fighterById.get(exam.fighterId);
-                                        return (
-                                            <TR key={exam.id}>
-                                                <TD className="whitespace-nowrap">
-                                                    <Link href={routes.doctor.examination(exam.id)} className="rounded-sm font-medium text-fg hover:underline">
-                                                        <time dateTime={exam.date}>{formatDate(exam.date)}</time>
-                                                        <span className="sr-only">, {examinationTitle(exam)}</span>
-                                                    </Link>
-                                                    <span className="block text-xs text-fg-muted">{formatTime(exam.date)}</span>
-                                                </TD>
-                                                <TD className="min-w-44">
-                                                    {fighter ? (
-                                                        <Link href={routes.doctor.fighter(fighter.id)} className="flex items-center gap-2 rounded-sm text-fg hover:underline">
-                                                            <Avatar name={fighter.name} shape="octagon" size="xs" />
-                                                            <span className="truncate">{fighter.name}</span>
-                                                        </Link>
-                                                    ) : (
-                                                        <span className="text-fg-muted">Unknown fighter</span>
-                                                    )}
-                                                </TD>
-                                                <TD className="min-w-48">{examinationTitle(exam)}</TD>
-                                                <TD>
-                                                    <ExaminationOutcomeBadge outcome={exam.outcome} size="sm" />
-                                                </TD>
-                                                <TD className="whitespace-nowrap text-[13px]">
-                                                    {exam.followUpDate ? (
-                                                        <time dateTime={exam.followUpDate}>{formatDate(exam.followUpDate)}</time>
-                                                    ) : (
-                                                        <span className="text-fg-muted">None</span>
-                                                    )}
-                                                </TD>
-                                                <TD className="whitespace-nowrap text-[13px] text-fg-muted">{doctorNames.get(exam.doctorId) ?? "Sports doctor"}</TD>
-                                            </TR>
-                                        );
-                                    })}
-                                </TBody>
-                            </Table>
-                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="examinations" />
-                        </Card>
-
-                        <Card className="overflow-hidden md:hidden">
-                            <ExaminationList
-                                items={page.items.map((exam) => ({ examination: exam, fighterName: fighterById.get(exam.fighterId)?.name ?? "Unknown fighter" }))}
-                            />
-                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="examinations" />
-                        </Card>
-                    </>
+            <div className="yt-filters">
+                <FighterFilter base={routes.doctor.examinations} fighters={fighters} current={fighterId} extra={{ scope }} />
+                {hasScopes && (
+                    <nav className="yt-segs" aria-label="Phạm vi">
+                        {seg(undefined, "Mọi phạm vi")}
+                        {seg("TRAINING", "Tập luyện")}
+                        {seg("COMPETITION", "Thi đấu")}
+                    </nav>
                 )}
             </div>
-        </>
+            <Panel id="bang">
+                {list.length === 0 ? (
+                    <Empty
+                        title="Chưa có phiếu khám"
+                        action={
+                            <Link href={newHref} className="yt-btn" data-v="primary">
+                                Tạo phiếu khám đầu tiên
+                            </Link>
+                        }
+                    >
+                        Không có phiếu khám nào khớp bộ lọc này.
+                    </Empty>
+                ) : (
+                    <div className="yt-tablewrap">
+                        <table className="yt-table">
+                            <thead>
+                                <tr>
+                                    <th>Ngày khám</th>
+                                    <th>Võ sĩ</th>
+                                    <th>Loại khám</th>
+                                    {hasScopes && <th className="yt-hide-sm">Phạm vi</th>}
+                                    <th>Kết luận</th>
+                                    <th className="yt-hide-sm">Hiệu lực đến</th>
+                                    <th className="yt-hide-sm">Tái khám</th>
+                                    <th className="yt-hide-sm">Tình trạng</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {list.map((e, i) => (
+                                    <tr key={e.id} style={{ ["--i" as string]: i }}>
+                                        <td>
+                                            <Link className="yt-rowlink" href={routes.doctor.examination(e.id)}>
+                                                {fmtDate(e.date)}
+                                            </Link>
+                                        </td>
+                                        <td>
+                                            <Link href={routes.doctor.fighter(e.fighterId)}>{nameOf.get(e.fighterId) ?? "Võ sĩ"}</Link>
+                                        </td>
+                                        <td>{e.type ? examKind(e) : "Không có chi tiết"}</td>
+                                        {hasScopes && <td className="yt-hide-sm">{e.scope ? SCOPE[e.scope] : "—"}</td>}
+                                        <td>
+                                            <Pill tone={OUTCOME[e.outcome].tone}>{OUTCOME[e.outcome].label}</Pill>
+                                        </td>
+                                        <td className="yt-hide-sm">{e.validUntil ? fmtDate(e.validUntil) : <span className="yt-muted">Không giới hạn</span>}</td>
+                                        <td className="yt-hide-sm">{e.followUpDate ? fmtDate(e.followUpDate) : <span className="yt-muted">Không</span>}</td>
+                                        <td className="yt-hide-sm">{current.has(e.id) ? "Hiện hành" : <span className="yt-muted">Đã có phiếu mới hơn</span>}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </Panel>
+        </div>
     );
 }

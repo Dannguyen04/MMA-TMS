@@ -3,7 +3,7 @@
 import { Info } from "lucide-react";
 import { useState } from "react";
 
-import { BodyMap } from "@/components/domain/body-map";
+import { RegionModel } from "@/components/doctor/region-model";
 import { INJURY_SEVERITY_META } from "@/components/domain/status-badges";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
@@ -12,7 +12,6 @@ import { SuggestionChips } from "@/components/ui/suggestion-chips";
 import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { recordInjuryAction } from "@/lib/actions/medical-contract";
 import { API_INJURY_SEVERITIES, BODY_JOINT_LABELS, MEDICAL_TEXT_LIMITS, type ApiInjurySeverity, type BodyJoint } from "@/lib/domain/medical-contract";
-import { JOINT_REGIONS } from "@/lib/domain/medical-mappings";
 import { INJURY_SEVERITY_LABELS } from "@/lib/domain/labels";
 import type { InjurySeverity } from "@/lib/domain/types";
 import { addDaysToKey, toDateTimeInputValue } from "@/lib/format";
@@ -27,9 +26,9 @@ export interface InjuryRecordFormProps {
 }
 
 const JOINT_GROUPS: { label: string; joints: BodyJoint[] }[] = [
-    { label: "Upper body", joints: ["LEFT_SHOULDER", "RIGHT_SHOULDER", "LEFT_ELBOW", "RIGHT_ELBOW", "LEFT_WRIST", "RIGHT_WRIST"] },
-    { label: "Trunk", joints: ["SPINE_CORE"] },
-    { label: "Lower body", joints: ["LEFT_HIP", "RIGHT_HIP", "LEFT_KNEE", "RIGHT_KNEE", "LEFT_ANKLE", "RIGHT_ANKLE"] },
+    { label: "Thân trên", joints: ["LEFT_SHOULDER", "RIGHT_SHOULDER", "LEFT_ELBOW", "RIGHT_ELBOW", "LEFT_WRIST", "RIGHT_WRIST"] },
+    { label: "Thân", joints: ["SPINE_CORE"] },
+    { label: "Thân dưới", joints: ["LEFT_HIP", "RIGHT_HIP", "LEFT_KNEE", "RIGHT_KNEE", "LEFT_ANKLE", "RIGHT_ANKLE"] },
 ];
 
 const severityKey = (value: ApiInjurySeverity) => value.toLowerCase() as InjurySeverity;
@@ -62,7 +61,7 @@ function OccurredAtField({ form, maxDay }: { form: Pick<ActionForm<unknown>, "co
         form.markEdited("occurredAt");
     };
     return (
-        <Field label="Occurred" htmlFor={control.id} error={message} required hint="Academy time (Ho Chi Minh City)">
+        <Field label="Xảy ra" htmlFor={control.id} error={message} required hint="Giờ học viện (TP. Hồ Chí Minh)">
             <div className="flex flex-col gap-2">
                 <input type="hidden" name="occurredAt" value={day && time ? `${day}T${time}` : ""} />
                 <div className="flex flex-wrap items-center gap-2">
@@ -72,18 +71,18 @@ function OccurredAtField({ form, maxDay }: { form: Pick<ActionForm<unknown>, "co
                         type="time"
                         value={time}
                         onChange={(event) => setTime(event.target.value)}
-                        aria-label="Time it happened"
+                        aria-label="Thời điểm xảy ra"
                         aria-invalid={message ? true : undefined}
                         aria-required
                         className="w-32"
                     />
                 </div>
                 <SuggestionChips
-                    label="Quick pick"
+                    label="Chọn nhanh"
                     suggestions={[
-                        { label: "Now", value: "now" },
-                        { label: "Today", value: "today" },
-                        { label: "Yesterday", value: "yesterday" },
+                        { label: "Bây giờ", value: "now" },
+                        { label: "Hôm nay", value: "today" },
+                        { label: "Hôm qua", value: "yesterday" },
                     ]}
                     onPick={pick}
                 />
@@ -104,10 +103,10 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
     return (
         <form {...form.formProps} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
             <Card className="min-w-0 px-5 py-6 sm:px-6">
-                <FormSection title="Fighter" description="Who was injured.">
-                    <Field label="Fighter" htmlFor={control("fighterId").id} error={error("fighterId")} required>
+                <FormSection title="Võ sĩ" description="Võ sĩ bị chấn thương.">
+                    <Field label="Võ sĩ" htmlFor={control("fighterId").id} error={error("fighterId")} required>
                         <Select {...control("fighterId", { required: true })} value={fighterId} onChange={(event) => setFighterId(event.target.value)} className="sm:max-w-sm">
-                            <option value="">Choose a fighter…</option>
+                            <option value="">Chọn võ sĩ…</option>
                             {fighters.map((option) => (
                                 <option key={option.id} value={option.id}>
                                     {option.name}
@@ -117,12 +116,12 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
                     </Field>
                 </FormSection>
 
-                <FormSection title="Injury" description="Where it is, what it is and how serious it is.">
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_auto]">
-                        <div className="flex min-w-0 flex-col gap-5">
-                            <Field label="Affected joint" htmlFor={control("affectedJoint").id} error={error("affectedJoint")} required hint="Left and right are the athlete's own sides.">
+                <FormSection title="Chấn thương" description="Ở đâu, chấn thương gì và mức độ ra sao.">
+                    <div className="grid grid-cols-1 gap-5">
+                        <div className="grid min-w-0 grid-cols-1 items-start gap-5 sm:grid-cols-2">
+                            <Field label="Khớp bị ảnh hưởng" htmlFor={control("affectedJoint").id} error={error("affectedJoint")} required hint="Trái/phải tính theo cơ thể võ sĩ.">
                                 <Select {...control("affectedJoint", { hint: true, required: true })} value={joint} onChange={(event) => setJoint(event.target.value as BodyJoint | "")}>
-                                    <option value="">Choose a joint…</option>
+                                    <option value="">Chọn khớp…</option>
                                     {JOINT_GROUPS.map((group) => (
                                         <optgroup key={group.label} label={group.label}>
                                             {group.joints.map((value) => (
@@ -134,7 +133,7 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
                                     ))}
                                 </Select>
                             </Field>
-                            <Field label="Diagnosis" htmlFor={control("injuryType").id} error={error("injuryType")} required hint="In your words, e.g. “Grade II lateral ankle sprain”.">
+                            <Field label="Chẩn đoán" htmlFor={control("injuryType").id} error={error("injuryType")} required hint="Theo cách bạn mô tả, VD: “Bong gân cổ chân ngoài độ II”.">
                                 <Input
                                     {...control("injuryType", { hint: true, required: true })}
                                     value={injuryType}
@@ -143,36 +142,31 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
                                 />
                             </Field>
                         </div>
-                        <div className="flex flex-col items-center gap-1.5 rounded-lg bg-surface-muted/60 px-4 py-3" aria-live="polite">
-                            <BodyMap
-                                size="sm"
-                                showLegend={false}
-                                highlights={joint ? [{ region: JOINT_REGIONS[joint], tone: severity === "MINOR" ? "warning" : "danger", label: injuryType || BODY_JOINT_LABELS[joint] }] : []}
-                            />
-                            <p className="text-center text-xs font-medium text-fg-muted">{joint ? BODY_JOINT_LABELS[joint] : "No joint selected"}</p>
+                        <div className="rounded-lg bg-surface-muted/60 px-2 py-2">
+                            <RegionModel targets={[{ joint }]} label={injuryType || undefined} height={320} emptyText="Chưa chọn khớp" legend={false} />
                         </div>
                     </div>
-                    <ChoiceGroup id="injury-record-severity" name="severity" legend="Severity" required columns={2} options={SEVERITY_OPTIONS} value={severity} onChange={setSeverity} error={error("severity")} />
+                    <ChoiceGroup id="injury-record-severity" name="severity" legend="Mức độ" required columns={2} options={SEVERITY_OPTIONS} value={severity} onChange={setSeverity} error={error("severity")} />
                 </FormSection>
 
-                <FormSection title="When and what" description="When it happened and what you found.">
+                <FormSection title="Thời điểm và chẩn đoán" description="Xảy ra khi nào và bạn phát hiện gì.">
                     <OccurredAtField form={form} maxDay={nowInput.slice(0, 10)} />
-                    <Field label="Clinical findings" htmlFor={control("description").id} error={error("description")} optional hint="Mechanism, symptoms, examination and imaging. Coaches never see this.">
+                    <Field label="Dấu hiệu lâm sàng" htmlFor={control("description").id} error={error("description")} optional hint="Cơ chế, triệu chứng, khám và chẩn đoán hình ảnh. HLV không bao giờ thấy phần này.">
                         <Textarea {...control("description", { hint: true })} rows={5} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
                     </Field>
                 </FormSection>
 
-                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Record injury" pendingLabel="Recording injury…" />
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Ghi nhận chấn thương" pendingLabel="Đang ghi nhận chấn thương…" />
             </Card>
 
-            <aside aria-label="What happens next" className="min-w-0">
+            <aside aria-label="Điều gì xảy ra tiếp theo" className="min-w-0">
                 <Card>
-                    <CardHeader title="When you record it" icon={<Info />} />
+                    <CardHeader title="Khi bạn ghi nhận" icon={<Info />} />
                     <CardContent>
                         <ul className="flex flex-col gap-2.5 text-[13px] text-fg-muted">
-                            <li>The injury starts as active. Mark it recovering or resolved from the injury page.</li>
-                            <li>Resolving is final: if it flares up again, record a new injury.</li>
-                            <li className="font-medium text-fg">Medical Clearance doesn&apos;t change on its own — examine the fighter and review it next.</li>
+                            <li>Chấn thương bắt đầu ở trạng thái đang điều trị. Chuyển sang đang phục hồi hoặc đã khỏi từ trang chấn thương.</li>
+                            <li>Đánh dấu đã khỏi là cuối cùng: nếu tái phát, hãy ghi chấn thương mới.</li>
+                            <li className="font-medium text-fg">Giấy phép không tự thay đổi — hãy khám võ sĩ và xem lại ở bước tiếp theo.</li>
                         </ul>
                     </CardContent>
                 </Card>

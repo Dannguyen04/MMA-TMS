@@ -11,6 +11,8 @@ jest.mock("@react-native-async-storage/async-storage", () =>
 jest.mock("expo-haptics", () => ({
   impactAsync: jest.fn(() => Promise.resolve()),
   ImpactFeedbackStyle: { Light: "light", Medium: "medium", Heavy: "heavy" },
+  notificationAsync: jest.fn(() => Promise.resolve()),
+  NotificationFeedbackType: { Success: "success", Warning: "warning", Error: "error" },
 }));
 
 jest.mock(
@@ -43,6 +45,13 @@ jest.mock("@expo/vector-icons", () => {
   );
 });
 
+// Lottie: native view không chạy trong jest → View rỗng.
+jest.mock("lottie-react-native", () => {
+  const React = require("react");
+  const { View } = require("react-native");
+  return { __esModule: true, default: (props: object) => React.createElement(View, props) };
+});
+
 jest.mock("react-native-toast-message", () => {
   const React = require("react");
   const { View } = require("react-native");
@@ -65,6 +74,7 @@ jest.mock("react-native-worklets", () => ({
 jest.mock("react-native-reanimated", () => {
   const { View, Text } = require("react-native");
   const identity = (value: unknown) => value;
+  const layoutAnimation = { duration: (_ms: number) => layoutAnimation, easing: (_curve: unknown) => layoutAnimation, delay: (_ms: number) => layoutAnimation };
   return {
     __esModule: true,
     default: {
@@ -72,14 +82,18 @@ jest.mock("react-native-reanimated", () => {
       Text,
       createAnimatedComponent: (component: unknown) => component,
     },
-    FadeIn: { duration: () => ({}) },
+    FadeIn: layoutAnimation,
+    FadeInDown: layoutAnimation,
+    LinearTransition: layoutAnimation,
+    cubicBezier: () => "ease-out",
     FadeInLeft: { duration: () => ({}) },
     FadeInRight: { duration: () => ({}) },
-    FadeOut: { duration: () => ({}) },
+    FadeOut: layoutAnimation,
     FadeOutLeft: { duration: () => ({}) },
     FadeOutRight: { duration: () => ({}) },
     useReducedMotion: () => false,
     useSharedValue: (value: number) => ({ value }),
+    makeMutable: (value: number) => ({ value }),
     useAnimatedStyle: () => ({}),
     useAnimatedProps: () => ({}),
     withTiming: identity,

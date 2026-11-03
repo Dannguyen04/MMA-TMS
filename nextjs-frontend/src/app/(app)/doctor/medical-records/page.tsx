@@ -12,7 +12,7 @@ import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TBody, TD, THead, TR } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
 import type { Fighter, MedicalRecord } from "@/lib/domain/types";
-import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getMedicalRecord } from "@/lib/services/medical";
@@ -20,7 +20,7 @@ import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { listFighters } from "@/lib/services/people";
 import { cn, param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Medical records" };
+export const metadata: Metadata = { title: "Bệnh án" };
 
 const PAGE_SIZE = 10;
 const SORTS = ["name", "bloodType", "allergies", "conditions", "lastPhysical", "documents", "updated"] as const;
@@ -48,8 +48,8 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
     if (!medicalFeatureAvailable("medicalRecord")) {
         return (
             <>
-                <PageHeader title="Medical records" />
-                <FeatureUnavailable title="Medical records aren't available yet" />
+                <PageHeader title="Bệnh án" />
+                <FeatureUnavailable title="Bệnh án chưa khả dụng" />
             </>
         );
     }
@@ -71,17 +71,17 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
     return (
         <>
             <PageHeader
-                title="Medical records"
-                description="Blood type, allergies, conditions and documents for your assigned fighters. Records are visible to sports doctors only."
+                title="Bệnh án"
+                description="Nhóm máu, dị ứng, bệnh nền và tài liệu của võ sĩ được phân công. Chỉ bác sĩ thể thao được xem."
             />
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-                    <FilterBar filters={[{ type: "search", name: "q", label: "Search records", placeholder: "Search fighter name or discipline" }]} />
+                    <FilterBar filters={[{ type: "search", name: "q", label: "Tìm bệnh án", placeholder: "Tìm tên võ sĩ hoặc môn" }]} />
                     {rows.length > 0 && (
                         <p className="text-[13px] text-fg-muted">
-                            {pluralize(rows.length, "record")} · {pluralize(withAllergies, "fighter")} with allergies
-                            {missing > 0 && ` · ${missing} not opened`}
+                            {rows.length} bệnh án · {withAllergies} võ sĩ có dị ứng
+                            {missing > 0 && ` · ${missing} chưa mở`}
                         </p>
                     )}
                 </div>
@@ -90,34 +90,34 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
                     search ? (
                         <EmptyState
                             icon={<SearchX />}
-                            title={`No records match “${search}”`}
-                            description="Check the spelling or search by discipline instead."
+                            title={`Không có bệnh án khớp “${search}”`}
+                            description="Kiểm tra chính tả hoặc tìm theo môn."
                             action={
                                 <ButtonLink href={pathname} variant="secondary">
-                                    Clear filters
+                                    Xóa bộ lọc
                                 </ButtonLink>
                             }
                         />
                     ) : (
                         <EmptyState
                             icon={<FileText />}
-                            title="No medical records yet"
-                            description="Records appear here once fighters are assigned to you."
+                            title="Chưa có bệnh án"
+                            description="Bệnh án sẽ hiện khi có võ sĩ được phân công."
                         />
                     )
                 ) : (
                     <>
                         <Card className="hidden overflow-hidden md:block">
-                            <Table caption="Medical records">
+                            <Table caption="Bệnh án">
                                 <THead>
                                     <tr>
-                                        <SortableTH label="Fighter" sortKey="name" {...sortProps} />
-                                        <SortableTH label="Blood type" sortKey="bloodType" {...sortProps} />
-                                        <SortableTH label="Allergies" sortKey="allergies" {...sortProps} />
-                                        <SortableTH label="Chronic conditions" sortKey="conditions" {...sortProps} />
-                                        <SortableTH label="Last physical" sortKey="lastPhysical" {...sortProps} />
-                                        <SortableTH label="Documents" sortKey="documents" {...sortProps} />
-                                        <SortableTH label="Updated" sortKey="updated" {...sortProps} />
+                                        <SortableTH label="Võ sĩ" sortKey="name" {...sortProps} />
+                                        <SortableTH label="Nhóm máu" sortKey="bloodType" {...sortProps} />
+                                        <SortableTH label="Dị ứng" sortKey="allergies" {...sortProps} />
+                                        <SortableTH label="Bệnh mạn tính" sortKey="conditions" {...sortProps} />
+                                        <SortableTH label="Khám tổng quát gần nhất" sortKey="lastPhysical" {...sortProps} />
+                                        <SortableTH label="Tài liệu" sortKey="documents" {...sortProps} />
+                                        <SortableTH label="Cập nhật" sortKey="updated" {...sortProps} />
                                     </tr>
                                 </THead>
                                 <TBody>
@@ -134,7 +134,7 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
                                                     </TD>
                                                     <TD className="max-w-64 min-w-44 text-[13px]">
                                                         {record.chronicConditions.length === 0 ? (
-                                                            <span className="text-fg-muted">None</span>
+                                                            <span className="text-fg-muted">Không</span>
                                                         ) : (
                                                             <span className="line-clamp-2" title={record.chronicConditions.join("; ")}>
                                                                 {record.chronicConditions.join("; ")}
@@ -143,20 +143,20 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
                                                     </TD>
                                                     <TD className="whitespace-nowrap text-[13px]">
                                                         <time dateTime={record.lastPhysicalAt}>{formatDate(record.lastPhysicalAt)}</time>
-                                                        <span className="block text-xs text-fg-muted">{formatRelative(record.lastPhysicalAt, now)}</span>
+                                                        <span className="block text-xs text-fg-muted">{formatRelative(record.lastPhysicalAt, now, "vi")}</span>
                                                     </TD>
                                                     <TD className="text-[13px]">{record.documents.length}</TD>
                                                     <TD className="whitespace-nowrap text-[13px]">
                                                         <time dateTime={record.updatedAt} title={formatDateTime(record.updatedAt)}>
-                                                            {formatRelative(record.updatedAt, now)}
+                                                            {formatRelative(record.updatedAt, now, "vi")}
                                                         </time>
                                                     </TD>
                                                 </>
                                             ) : (
                                                 <TD colSpan={6} className="text-[13px] text-fg-muted">
-                                                    No record opened yet ·{" "}
+                                                    Chưa mở bệnh án ·{" "}
                                                     <Link href={recordHref(fighter.id)} className="font-medium text-primary-soft-fg hover:underline">
-                                                        Open record<span className="sr-only"> for {fighter.name}</span>
+                                                        Mở bệnh án<span className="sr-only"> for {fighter.name}</span>
                                                     </Link>
                                                 </TD>
                                             )}
@@ -164,7 +164,7 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
                                     ))}
                                 </TBody>
                             </Table>
-                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="records" />
+                            <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="bệnh án" />
                         </Card>
 
                         <div className="flex flex-col gap-3 md:hidden">
@@ -175,32 +175,32 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
                                         {record ? (
                                             <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-3 text-[13px]">
                                                 <div className="min-w-0">
-                                                    <dt className="text-xs text-fg-muted">Blood type</dt>
+                                                    <dt className="text-xs text-fg-muted">Nhóm máu</dt>
                                                     <dd className="font-medium text-fg">{record.bloodType}</dd>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <dt className="text-xs text-fg-muted">Allergies</dt>
+                                                    <dt className="text-xs text-fg-muted">Dị ứng</dt>
                                                     <dd>
                                                         <AllergySummary allergies={record.allergies} />
                                                     </dd>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <dt className="text-xs text-fg-muted">Last physical</dt>
+                                                    <dt className="text-xs text-fg-muted">Khám tổng quát gần nhất</dt>
                                                     <dd className="text-fg">{formatDate(record.lastPhysicalAt)}</dd>
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <dt className="text-xs text-fg-muted">Documents</dt>
+                                                    <dt className="text-xs text-fg-muted">Tài liệu</dt>
                                                     <dd className="text-fg">{record.documents.length}</dd>
                                                 </div>
                                             </dl>
                                         ) : (
-                                            <p className="mt-3 text-[13px] text-fg-muted">No record opened yet.</p>
+                                            <p className="mt-3 text-[13px] text-fg-muted">Chưa mở bệnh án.</p>
                                         )}
                                     </li>
                                 ))}
                             </ul>
                             <Card className="overflow-hidden [&>nav]:border-t-0">
-                                <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="records" />
+                                <Pagination {...page} pathname={pathname} searchParams={params} itemLabel="bệnh án" />
                             </Card>
                         </div>
                     </>
@@ -211,7 +211,7 @@ export default async function MedicalRecordsPage({ searchParams }: PageProps<"/d
 }
 
 function AllergySummary({ allergies }: { allergies: string[] }) {
-    if (allergies.length === 0) return <span className="text-[13px] text-fg-muted">None known</span>;
+    if (allergies.length === 0) return <span className="text-[13px] text-fg-muted">Chưa ghi nhận</span>;
     return (
         <Badge tone="danger" icon={TriangleAlert} size="sm" title={allergies.join(", ")}>
             {allergies.join(", ")}

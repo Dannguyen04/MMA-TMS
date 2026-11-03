@@ -12,11 +12,11 @@ import { InjuryStatusActions } from "@/components/clinical/injury-status-actions
 import { ObservationSummary } from "@/components/clinical/observation-summary";
 import { TreatmentList } from "@/components/clinical/treatment-list";
 import { AINotice } from "@/components/domain/ai-notice";
-import { BodyMap } from "@/components/domain/body-map";
+import { RegionModel } from "@/components/doctor/region-model";
 import { ClearanceValidity } from "@/components/domain/clearance-validity";
 import { describeDaysUntil, labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
-import { ClearanceBadge, FighterStatusBadges, INJURY_STATUS_META, InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
+import { ClearanceBadge, FighterStatusBadges, InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { RestrictionSummary } from "@/components/medical/restriction-summary";
 import { Callout } from "@/components/training/callout";
 import { Avatar } from "@/components/ui/avatar";
@@ -29,7 +29,7 @@ import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
 import { INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
-import { dayKey, daysBetween, formatDate, formatDateTime, pluralize } from "@/lib/format";
+import { dayKey, daysBetween, formatDate, formatDateTime } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus, getInjuryDetail } from "@/lib/services/medical";
@@ -45,7 +45,7 @@ export async function generateMetadata({ params }: PageProps<"/doctor/injuries/[
     const detail = await loadInjuryDetail(injuryId);
     // The title must not reveal a record the viewer isn't assigned to.
     const visible = detail && user && canAccessFighter(user, detail.injury.fighterId);
-    return { title: visible ? `${injuryTitle(detail.injury)} · ${detail.fighter.name}` : "Injury" };
+    return { title: visible ? `${injuryTitle(detail.injury)} · ${detail.fighter.name}` : "Chấn thương" };
 }
 
 export default async function InjuryDetailPage({ params, searchParams }: PageProps<"/doctor/injuries/[injuryId]">) {
@@ -67,8 +67,8 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
     return (
         <>
             <PageHeader
-                back={{ href: routes.doctor.injuries, label: "Injuries" }}
-                eyebrow="Injury record"
+                back={{ href: routes.doctor.injuries, label: "Chấn thương" }}
+                eyebrow="Hồ sơ chấn thương"
                 title={injuryTitle(injury)}
                 meta={
                     <>
@@ -104,33 +104,33 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                         tone="success"
                         icon={CircleCheck}
                         role="status"
-                        title="Injury recorded"
+                        title="Đã ghi chấn thương"
                         action={
                             <>
                                 <ButtonLink href={clinicalLinks.grantClearanceFor(fighter.id)} size="sm">
                                     <ShieldCheck aria-hidden />
-                                    Review Medical Clearance for {fighter.name}
+                                    Xem lại giấy phép của {fighter.name}
                                 </ButtonLink>
                                 <ButtonLink href={routes.doctor.injury(injury.id)} variant="ghost" size="sm" replace scroll={false}>
-                                    Dismiss
+                                    Đóng
                                 </ButtonLink>
                             </>
                         }
                     >
                         {serviceForms
-                            ? `Medical Clearance doesn't change on its own. Examine ${fighter.name} and review it so training limits match this injury.`
-                            : `${fighter.name}'s coaches have been asked to check Medical Clearance. Review it now so training restrictions match this injury.`}
+                            ? `Giấy phép không tự thay đổi. Hãy khám ${fighter.name} và xem lại để giới hạn tập luyện khớp với chấn thương.`
+                            : `HLV của ${fighter.name} đã được nhắc kiểm tra giấy phép. Hãy xem lại ngay để giới hạn tập luyện khớp với chấn thương này.`}
                     </Callout>
                 )}
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                         <Card>
-                            <CardHeader title="Injury details" icon={<FileText />} />
+                            <CardHeader title="Chi tiết chấn thương" icon={<FileText />} />
                             <CardContent className="flex flex-col gap-5">
                                 <DescriptionList items={detailItems(injury, now, recordedBy?.name ?? null)} columns={3} className="grid-cols-2" />
                                 <div className="border-t border-border pt-4">
-                                    <h3 className="text-[13px] font-semibold text-fg">Clinical description</h3>
+                                    <h3 className="text-[13px] font-semibold text-fg">Mô tả lâm sàng</h3>
                                     <p className="mt-1 text-sm leading-relaxed text-pretty whitespace-pre-line text-fg">{injury.description}</p>
                                 </div>
                             </CardContent>
@@ -138,13 +138,13 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
 
                         <Card className="overflow-hidden">
                             <CardHeader
-                                title="Treatments"
+                                title="Điều trị"
                                 description={
                                     treatments.length === 0
-                                        ? "What is being done for this injury"
+                                        ? "Những gì đang thực hiện cho chấn thương này"
                                         : medicalFeatureAvailable("treatmentStatus")
-                                          ? `${treatments.filter((t) => t.status === "ongoing").length} ongoing · ${treatments.length} in total`
-                                          : `${pluralize(treatments.length, "treatment")} recorded`
+                                          ? `${treatments.filter((t) => t.status === "ongoing").length} đang thực hiện · tổng ${treatments.length}`
+                                          : `Đã ghi ${treatments.length} điều trị`
                                 }
                                 icon={<ClipboardList />}
                                 action={
@@ -161,8 +161,8 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                 <EmptyState
                                     compact
                                     icon={<ClipboardList />}
-                                    title="No treatments yet"
-                                    description="Add rest, physiotherapy, imaging or referrals so the fighter can follow the plan from their Health page."
+                                    title="Chưa có điều trị"
+                                    description="Thêm nghỉ ngơi, vật lý trị liệu, chẩn đoán hình ảnh hoặc chuyển tuyến để võ sĩ theo dõi kế hoạch."
                                     className="border-t border-border"
                                 />
                             ) : (
@@ -172,9 +172,9 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
 
                         <Card>
                             <CardHeader
-                                title="Recovery plan"
+                                title="Kế hoạch phục hồi"
                                 icon={<RefreshCw />}
-                                description={recoveryPlan ? recoveryPlan.title : "Return to training for this injury"}
+                                description={recoveryPlan ? recoveryPlan.title : "Trở lại tập sau chấn thương này"}
                                 action={
                                     recoveryPlan ? (
                                         <div className="flex items-center gap-2">
@@ -191,27 +191,27 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                             href={routes.doctor.recoveryPlan(recoveryPlan.id)}
                                             className="inline-flex w-fit items-center gap-1 rounded-md text-sm font-medium text-primary-soft-fg hover:underline"
                                         >
-                                            {serviceForms ? "Open recovery plan — milestones" : "Open recovery plan — milestones and check-ins"}
+                                            {serviceForms ? "Mở kế hoạch phục hồi — các mốc" : "Mở kế hoạch phục hồi — mốc và lần kiểm tra"}
                                             <ArrowRight aria-hidden className="size-4" />
                                         </Link>
                                     </div>
                                 ) : injury.status === "resolved" ? (
                                     <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
-                                        No recovery plan was created for this injury.
+                                        Chấn thương này không có kế hoạch phục hồi.
                                     </p>
                                 ) : (
                                     <EmptyState
                                         compact
                                         icon={<RefreshCw />}
-                                        title="No recovery plan yet"
+                                        title="Chưa có kế hoạch phục hồi"
                                         description={
                                             serviceForms
-                                                ? `Plan ${firstName}'s return as milestones, each with how you'll know it's reached.`
-                                                : `Plan ${firstName}'s return in phases with milestones, then track pain, mobility and strength at each check-in.`
+                                                ? `Lập kế hoạch trở lại của ${firstName} theo các mốc, mỗi mốc có tiêu chí đạt.`
+                                                : `Lập kế hoạch trở lại của ${firstName} theo giai đoạn và mốc, theo dõi đau, vận động, sức mạnh mỗi lần kiểm tra.`
                                         }
                                         action={
                                             <ButtonLink href={clinicalLinks.newRecoveryPlanFor(injury.id, fighter.id)} size="sm">
-                                                Create recovery plan
+                                                Lập kế hoạch phục hồi
                                             </ButtonLink>
                                         }
                                     />
@@ -220,25 +220,16 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                         </Card>
                     </div>
 
-                    <aside aria-label="Location, clearance and AI observation" className="flex min-w-0 flex-col gap-6">
+                    <aside aria-label="Vị trí, giấy phép và quan sát AI" className="flex min-w-0 flex-col gap-6">
                         <Card>
-                            <CardHeader title="Location" icon={<MapPin />} />
+                            <CardHeader title="Vị trí" icon={<MapPin />} />
                             <CardContent>
-                                <BodyMap
-                                    size="md"
-                                    highlights={[
-                                        {
-                                            region: injury.bodyRegion,
-                                            tone: INJURY_STATUS_META[injury.status].tone,
-                                            label: `${INJURY_SEVERITY_LABELS[injury.severity]} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`,
-                                        },
-                                    ]}
-                                />
+                                <RegionModel targets={[{ joint: injury.joint, region: injury.bodyRegion }]} label={`${INJURY_SEVERITY_LABELS[injury.severity]} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`} status={injury.status === "active" ? "ACTIVE" : injury.status === "recovering" ? "RECOVERING" : "RESOLVED"} height={380} />
                             </CardContent>
                         </Card>
 
                         <Card>
-                            <CardHeader title="Medical Clearance" icon={<ShieldCheck />} description="Set separately from the injury record" />
+                            <CardHeader title="Giấy phép" icon={<ShieldCheck />} description="Cập nhật riêng với hồ sơ chấn thương" />
                             <CardContent className="flex flex-col gap-3">
                                 <div className="flex flex-col items-start gap-1.5">
                                     <ClearanceBadge state={clearanceNow} />
@@ -248,7 +239,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                                     <RestrictionSummary restrictions={clearance.restrictions} />
                                 )}
                                 <ButtonLink href={clinicalLinks.grantClearanceFor(fighter.id)} variant="secondary" size="sm" className="w-fit">
-                                    Update clearance
+                                    Cập nhật giấy phép
                                 </ButtonLink>
                             </CardContent>
                         </Card>
@@ -257,7 +248,7 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                             <section aria-labelledby="linked-observation-heading" className="flex flex-col gap-3">
                                 <h2 id="linked-observation-heading" className="flex items-center gap-2 text-[15px] font-semibold text-fg">
                                     <Radar aria-hidden className="size-4 text-fg-muted" />
-                                    Linked AI observation
+                                    Quan sát AI liên kết
                                 </h2>
                                 <AINotice audience="doctor" compact />
                                 <ObservationSummary
@@ -268,9 +259,9 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
                             </section>
                         ) : (
                             <Card>
-                                <CardHeader title="AI movement observation" icon={<Radar />} />
+                                <CardHeader title="Quan sát AI" icon={<Radar />} />
                                 <CardContent>
-                                    <p className="text-sm text-fg-muted">No AI movement observation is linked to this injury.</p>
+                                    <p className="text-sm text-fg-muted">Chưa có quan sát AI nào liên kết với chấn thương này.</p>
                                 </CardContent>
                             </Card>
                         )}
@@ -284,37 +275,37 @@ export default async function InjuryDetailPage({ params, searchParams }: PagePro
 function detailItems(injury: Injury, now: string, recordedByName: string | null): DescriptionItem[] {
     // The medical service keeps no diagnosis date, mechanism or expected return, so its records skip those rows.
     const serviceRecord = injury.joint !== undefined;
-    const items: DescriptionItem[] = [{ label: "Occurred", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> }];
+    const items: DescriptionItem[] = [{ label: "Xảy ra", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> }];
     if (!serviceRecord) {
         items.push(
-            { label: "Diagnosed", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
-            { label: "Mechanism", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
+            { label: "Chẩn đoán", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
+            { label: "Cơ chế", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
         );
     }
 
     if (injury.resolvedAt) {
-        items.push({ label: "Resolved", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> });
-        items.push({ label: "Time to resolve", value: pluralize(Math.max(0, daysBetween(injury.occurredAt, injury.resolvedAt)), "day") });
+        items.push({ label: "Đã khỏi", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> });
+        items.push({ label: "Thời gian khỏi", value: `${Math.max(0, daysBetween(injury.occurredAt, injury.resolvedAt))} ngày` });
     } else if (serviceRecord) {
         // No expected return in the service's record; the recovery plan carries it.
     } else if (injury.expectedReturnAt) {
         const days = daysBetween(now, injury.expectedReturnAt);
         items.push({
-            label: "Expected return",
+            label: "Dự kiến trở lại",
             value: (
                 <span className="flex flex-col gap-0.5">
                     <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt)}</time>
                     <span className={days < 0 ? "text-[13px] font-medium text-warning-fg" : "text-[13px] font-normal text-fg-muted"}>
-                        {days < 0 ? `Target passed ${describeDaysUntil(days)}` : days === 0 ? "Today" : `${pluralize(days, "day")} remaining`}
+                        {days < 0 ? `Đã quá mục tiêu ${describeDaysUntil(days)}` : days === 0 ? "Hôm nay" : `Còn ${days} ngày`}
                     </span>
                 </span>
             ),
         });
     } else {
-        items.push({ label: "Expected return", value: <span className="font-normal text-fg-muted">To be assessed</span> });
+        items.push({ label: "Dự kiến trở lại", value: <span className="font-normal text-fg-muted">Cần đánh giá</span> });
     }
 
-    if (!injury.resolvedAt) items.push({ label: "Days since injury", value: pluralize(Math.max(0, daysBetween(injury.occurredAt, now)), "day") });
-    if (recordedByName) items.push({ label: "Recorded by", value: recordedByName });
+    if (!injury.resolvedAt) items.push({ label: "Số ngày từ khi chấn thương", value: `${Math.max(0, daysBetween(injury.occurredAt, now))} ngày` });
+    if (recordedByName) items.push({ label: "Người ghi", value: recordedByName });
     return items;
 }

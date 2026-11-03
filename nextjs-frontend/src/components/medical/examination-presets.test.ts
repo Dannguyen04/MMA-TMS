@@ -38,9 +38,9 @@ describe("markUnmarkedNormal", () => {
 
 describe("assessmentRowsProblem", () => {
     it("names what's left before the doctor can move on", () => {
-        expect(assessmentRowsProblem(rows(), { baseline: true })).toBe("Mark a result for 2 areas, name 1 row or remove it.");
-        expect(assessmentRowsProblem([{ area: "Knee", result: "abnormal", note: " " }], { baseline: false })).toBe("Describe the abnormal finding.");
-        expect(assessmentRowsProblem([], { baseline: true })).toContain("at least one assessed area");
+        expect(assessmentRowsProblem(rows(), { baseline: true })).toBe("Ghi kết quả cho 2 vùng, đặt tên 1 dòng hoặc xóa đi.");
+        expect(assessmentRowsProblem([{ area: "Knee", result: "abnormal", note: " " }], { baseline: false })).toBe("Mô tả dấu hiệu bất thường.");
+        expect(assessmentRowsProblem([], { baseline: true })).toContain("ít nhất một vùng được đánh giá");
         expect(assessmentRowsProblem([], { baseline: false })).toBeNull();
     });
 });
@@ -52,12 +52,12 @@ describe("findingsSummary", () => {
         const { rows: marked } = markUnmarkedNormal(rows());
         const text = findingsSummary({ type: "baseline", vitals, assessments: marked, scat6: { status: "ADMINISTERED", reason: "" } });
         expect(text.split("\n")).toEqual([
-            "Baseline physical.",
-            "Vitals: weight 70.2 kg, resting heart rate 58 bpm, blood pressure 118/76 mmHg, temperature 36.6 °C, SpO₂ 98%, hydration good.",
-            "Normal: Cardiovascular; Vision.",
-            "Abnormal: Left knee (Mild effusion).",
-            "Inconclusive: Respiratory.",
-            "SCAT6 administered; the medical service calculates its scores.",
+            "Khám nền.",
+            "Sinh hiệu: cân nặng 70.2 kg, mạch nghỉ 58 lần/phút, huyết áp 118/76 mmHg, nhiệt độ 36.6 °C, SpO2 98%, mức nước tốt.",
+            "Bình thường: Cardiovascular; Vision.",
+            "Bất thường: Left knee (Mild effusion).",
+            "Chưa kết luận: Respiratory.",
+            "Đã thực hiện SCAT6; dịch vụ y tế tự tính điểm.",
         ]);
         expect(text).not.toMatch(/within|range|score \d|eligible/i);
     });
@@ -65,7 +65,7 @@ describe("findingsSummary", () => {
     it("leaves out blank readings and unmarked rows, and is empty with nothing entered", () => {
         const partial = { ...vitals, bloodPressureDiastolic: "", spo2Pct: " ", hydration: "" };
         const text = findingsSummary({ type: "routine", vitals: partial, assessments: rows(), scat6: null });
-        expect(text).toContain("Vitals: weight 70.2 kg, resting heart rate 58 bpm, temperature 36.6 °C.");
+        expect(text).toContain("Sinh hiệu: cân nặng 70.2 kg, mạch nghỉ 58 lần/phút, nhiệt độ 36.6 °C.");
         expect(text).not.toContain("Cardiovascular");
         expect(text).not.toContain("SCAT6");
         const blank = { weightKg: "", restingHeartRate: "", bloodPressureSystolic: "", bloodPressureDiastolic: "", temperatureC: "", spo2Pct: "", hydration: "" };
@@ -74,6 +74,6 @@ describe("findingsSummary", () => {
 
     it("gives the reason when the SCAT6 wasn't administered", () => {
         const text = findingsSummary({ type: "baseline", vitals, assessments: [], scat6: { status: "NOT_ADMINISTERED", reason: "Athlete is 12." } });
-        expect(text).toContain("SCAT6 not administered: Athlete is 12.");
+        expect(text).toContain("Không thực hiện SCAT6: Athlete is 12.");
     });
 });

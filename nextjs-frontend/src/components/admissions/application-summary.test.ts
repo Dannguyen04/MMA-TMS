@@ -15,7 +15,7 @@ describe("applicationSummary", () => {
             title: "About you",
             items: [
                 { label: "Name", value: "Quang Hồ" },
-                { label: "Date of birth", value: "19 Jul 2003" },
+                { label: "Date of birth", value: "19/07/2003" },
                 { label: "Weight class", value: "Lightweight · up to 70.3 kg" },
                 { label: "Email", value: "quang@example.test" },
             ],

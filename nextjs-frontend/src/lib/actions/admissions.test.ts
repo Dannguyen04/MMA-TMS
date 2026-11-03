@@ -60,7 +60,7 @@ describe("admission actions", () => {
         const criteria = JSON.stringify([{ criterionName: "Cardio", method: "", observation: "Kept pace", value: "abc", unit: "", note: "" }]);
         const state = await submitAssessmentAction(IDLE, form({ applicationId: "app-1", conclusion: "pass", summary: "Ready", criteria }));
 
-        expect(state.fieldErrors).toMatchObject({ "criteria.0.method": "Enter the method.", "criteria.0.value": expect.stringContaining("number") });
+        expect(state.fieldErrors).toMatchObject({ "criteria.0.method": "Hãy nhập method.", "criteria.0.value": expect.stringContaining("number") });
         expect(services.submitAssessment).not.toHaveBeenCalled();
 
         await expect(submitAssessmentAction(IDLE, form({ applicationId: "app-1", conclusion: "pass", summary: "Ready", criteria: "[]" }))).resolves.toMatchObject({

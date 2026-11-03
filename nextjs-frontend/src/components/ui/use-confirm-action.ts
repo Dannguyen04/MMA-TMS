@@ -90,7 +90,7 @@ export function useConfirmAction<P, T = undefined>(
             },
             onConfirm: confirm,
             pending,
-            error: failure && !hasFieldErrors ? (failure.message ?? "That didn't work. Try again.") : undefined,
+            error: failure && !hasFieldErrors ? (failure.message ?? "Chưa thực hiện được. Hãy thử lại.") : undefined,
         },
     };
 }

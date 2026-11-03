@@ -403,3 +403,78 @@ describe('T-010 report calculations', () => {
     }
   });
 });
+
+
+describe('T-037 next-round plans', () => {
+  const plan = (over = {}) => ({ focusTacticIds: [], addedTactics: [], instructions: [], ...over });
+  it('prioritizes coach order even when a focused tactic is dropped, without mutation', () => {
+    const rounds: AnalysisRound[] = [
+      { roundNo: 1, tacticMarks: { t1: 'INEFFECTIVE', t2: 'EFFECTIVE' } },
+      { roundNo: 2, tacticMarks: { t1: 'INEFFECTIVE' }, nextRoundPlan: plan({ focusTacticIds: ['t1', 't2'] }) },
+    ];
+    const before = structuredClone(rounds);
+    const result = advice(analysis, rounds);
+    expect(result.tactics.map((t) => t.id)).toEqual(['t1', 't2']);
+    expect(result.tactics[0]).toMatchObject({ focus: true, dropped: true, addedRound: null });
+    expect(result.nextRound.plan).toEqual(rounds[1]!.nextRoundPlan);
+    expect(result.nextRound.roundNo).toBe(3);
+    expect(rounds).toEqual(before);
+  });
+  it('merges added tactics from every round and uses only the latest plan', () => {
+    const result = advice(analysis, [
+      { roundNo: 2, nextRoundPlan: plan({ addedTactics: [{ id: 'new2', text: 'second', observationIds: [] }] }) },
+      { roundNo: 1, observationMarks: { o1: 'SEEN' }, nextRoundPlan: plan({ focusTacticIds: ['new1'], addedTactics: [{ id: 'new1', text: 'new', observationIds: ['o1'] }] }) },
+    ]);
+    expect(result.tactics.find((t) => t.id === 'new1')).toMatchObject({ addedRound: 1, trained: false, basis: 'REPEATED', focus: false, round: null, partnerBrief: null });
+    expect(result.tactics.find((t) => t.id === 'new2')?.addedRound).toBe(2);
+    expect(advice(analysis, [{ roundNo: 1, nextRoundPlan: plan() }]).nextRound.plan).toBeNull();
+    expect(advice(analysis, [{ roundNo: 1 }]).tactics.every((t) => !t.focus)).toBe(true);
+  });
+  it('suggests safety, newly dropped, up to two uses, then must-win in order', () => {
+    const a = { ...analysis, tactics: [tactic('t1'), tactic('t2'), tactic('t3')] };
+    const rounds: AnalysisRound[] = [
+      { roundNo: 1, tacticMarks: { t1: 'INEFFECTIVE' }, stunned: true, selfScore: 'LOSS' },
+      { roundNo: 2, tacticMarks: { t1: 'INEFFECTIVE' }, stunned: true, selfScore: 'WIN' },
+    ];
+    expect(advice(a, rounds).nextRound.suggested).toEqual([
+      { code: 'SAFETY_CHECK' }, { code: 'STOP_TACTIC', tacticId: 't1' },
+      { code: 'USE_TACTIC', tacticId: 't2' }, { code: 'USE_TACTIC', tacticId: 't3' },
+      { code: 'MUST_WIN_ROUND' },
+    ]);
+    expect(advice(a, [...rounds, { roundNo: 3 }], 5).nextRound.suggested.some((i) => i.code === 'STOP_TACTIC')).toBe(false);
+  });
+  it('rechecks changed evidence after uses and reports hard-to-win points', () => {
+    const result = advice(analysis, [
+      { roundNo: 1, selfScore: 'LOSS', observationMarks: { o1: 'NOT_SEEN' } },
+      { roundNo: 2, selfScore: 'LOSS', observationMarks: { o1: 'NOT_SEEN' } },
+    ]);
+    expect(result.nextRound.suggested).toEqual([
+      { code: 'USE_TACTIC', tacticId: 't2' },
+      { code: 'RECHECK_OPPONENT', tacticId: 't1' },
+      { code: 'HARD_TO_WIN_ON_POINTS' },
+    ]);
+    expect(advice({}, [{ roundNo: 1, selfScore: 'WIN' }]).nextRound.suggested).toEqual([]);
+  });
+  it('caps suggestions at five in rule order', () => {
+    const a = { tactics: Array.from({ length: 5 }, (_, i) => tactic('t' + i, [])) };
+    const marks = Object.fromEntries(a.tactics.map((t) => [t.id, 'INEFFECTIVE' as const]));
+    expect(advice(a, [{ roundNo: 1, tacticMarks: marks }, { roundNo: 2, tacticMarks: marks, knockdownsAgainst: 2 }]).nextRound.suggested).toEqual([
+      { code: 'SAFETY_CHECK' }, ...a.tactics.slice(0, 4).map((t) => ({ code: 'STOP_TACTIC', tacticId: t.id })),
+    ]);
+  });
+  it.each(['CUSTOM', 'USE_TACTIC', 'STOP_TACTIC', 'RECHECK_OPPONENT'])('requires instruction fields for %s', (code) => {
+    expect(roundInputSchema.safeParse({ nextRoundPlan: { instructions: [{ code }] } }).success).toBe(false);
+  });
+  it('accepts trimmed custom text and enforces array, text and strict-key limits', () => {
+    expect(roundInputSchema.parse({ nextRoundPlan: { instructions: [{ code: 'CUSTOM', text: '  act  ' }] } }).nextRoundPlan?.instructions[0]?.text).toBe('act');
+    for (const nextRoundPlan of [
+      { focusTacticIds: ['t1', 't2', 't3'] },
+      { addedTactics: Array.from({ length: 3 }, (_, i) => ({ id: 't' + i, text: 'new' })) },
+      { addedTactics: [{ id: 't1', text: 'x'.repeat(141) }] },
+      { addedTactics: [{ id: 't1', text: 'new', observationIds: ['o1', 'o2', 'o3', 'o4'] }] },
+      { instructions: Array.from({ length: 4 }, () => ({ code: 'SAFETY_CHECK' })) },
+      { instructions: [{ code: 'CUSTOM', text: ' ' }] },
+      { unknown: true },
+    ]) expect(roundInputSchema.safeParse({ nextRoundPlan }).success).toBe(false);
+  });
+});

@@ -20,9 +20,9 @@ export const EXAMINATION_OUTCOME_META: Record<ExaminationOutcome, StatusMeta> = 
 
 /** Plain-language meaning of each outcome, shown in the form and on the examination. */
 export const EXAMINATION_OUTCOME_DESCRIPTIONS: Record<ExaminationOutcome, string> = {
-    fit: "No findings that limit training. The fighter can train normally.",
-    fit_with_restrictions: "The fighter can train, but findings call for limits — set them in a restricted Medical Clearance.",
-    unfit: "Findings mean the fighter should not train until they are reassessed.",
+    fit: "Không có dấu hiệu hạn chế tập luyện. Võ sĩ tập bình thường.",
+    fit_with_restrictions: "Võ sĩ được tập nhưng cần giới hạn — đặt trong giấy phép có hạn chế.",
+    unfit: "Võ sĩ không nên tập cho đến khi được đánh giá lại.",
 };
 
 /** The clearance level an examination outcome points to. */

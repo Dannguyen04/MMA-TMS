@@ -37,8 +37,8 @@ import { clampPastToday, daysAgo, daysFromNow, fromToday } from "./time";
 const THU_LE = "d-thu-le";
 const SAMUEL_BROOKS = "d-samuel-brooks";
 const THU_LE_NAME = "Dr. Thu Lê";
-const SAMUEL_BROOKS_NAME = "Dr. Samuel Brooks";
-const LOTUS_PHYSIO = "Lotus Physio Clinic";
+const SAMUEL_BROOKS_NAME = "BS. Samuel Brooks";
+const LOTUS_PHYSIO = "Phòng khám vật lý trị liệu Lotus";
 
 const fighterMap = new Map(mockFighters.map((f) => [f.id, f]));
 

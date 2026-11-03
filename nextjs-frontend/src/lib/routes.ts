@@ -59,9 +59,10 @@ export const routes = {
     coach: {
         dashboard: "/coach/dashboard",
         bouts: "/coach/bouts",
+        suspensions: "/coach/bouts/suspensions",
+        readiness: "/coach/bouts/readiness",
         newBout: "/coach/bouts/new",
         bout: (boutId: string) => `/coach/bouts/${boutId}`,
-        suspensions: "/coach/bouts/suspensions",
         fighters: "/coach/fighters",
         fighter: (fighterId: string) => `/coach/fighters/${fighterId}`,
         fighterPerformance: (fighterId: string) => `/coach/fighters/${fighterId}/performance`,
@@ -103,6 +104,8 @@ export const routes = {
         grantClearance: "/doctor/medical-clearance/new",
         aiAlerts: "/doctor/ai-alerts",
         aiAlert: (alertId: string) => `/doctor/ai-alerts/${alertId}`,
+        reviewRequests: "/doctor/review-requests",
+        history: "/doctor/history",
     },
 
     admin: {

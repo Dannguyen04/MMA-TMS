@@ -1,17 +1,24 @@
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
-import { media } from "@/i18n/media";
+import { FeatureUnavailable } from "@/components/feature-unavailable";
+import { unavailable } from "@/i18n/unavailable";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterHub } from "@/screens/fighter/redesign/shell";
 
+/** Chưa có API backend — xem out/06-API-can-bo-sung.md. */
 export default function FighterPerformanceRoute() {
   const colors = useFighterPalette();
   return (
     <FighterHub>
-      <View style={{ paddingHorizontal: 20, gap: 8 }}>
-        <Text style={{ color: colors.ink, fontSize: 26, fontWeight: "700" }}>Hiệu suất</Text>
-        <Text style={{ color: colors.muted }}>{media.performanceMissing}</Text>
+      <View style={styles.wrap}>
+        <Text style={[styles.title, { color: colors.ink }]}>{"Hiệu suất"}</Text>
+        <FeatureUnavailable icon="chart-line" description={unavailable.performance} />
       </View>
     </FighterHub>
   );
 }
+
+const styles = StyleSheet.create({
+  wrap: { paddingHorizontal: 20, gap: 16 },
+  title: { fontSize: 26, fontWeight: "700" },
+});

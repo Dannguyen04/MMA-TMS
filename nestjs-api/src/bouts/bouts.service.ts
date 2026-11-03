@@ -1,7 +1,13 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
+import { createHash } from 'node:crypto';
+import { BoutAiClient, AI_LIST_KEYS, anonymizeAiInput } from './bout-ai.client.js';
+import { aiDecisionSchema, aiVideoInputSchema, aiKindSchema, type BoutAiKind } from './bout-analysis.model.js';
+import type { BoutAiSuggestionRow } from '../database/schema.js';
+import { boutAiAlreadyDecided, boutAiNoObservations } from './bouts.error.js';
 import type {
   BoutHistoryEntry,
   BoutRequirementRow,
+  BoutNutritionCheckinRow,
   BoutRow,
   CompetitionRuleset,
   SuspensionRow,
@@ -53,6 +59,13 @@ import {
   computeBoutWeightTrack,
   computeWeighInReminder,
   computeWeightFeasibility,
+  currentNutritionPhase,
+  NUTRITION_PHASES,
+  type NutritionCheckinInput,
+  type NutritionCheckinResponse,
+  type NutritionPlan,
+  type NutritionPlanResponse,
+  type UpdateNutritionPlanInput,
   daysToWeighIn,
   encodeBoutCursor,
   evaluateGate1,
@@ -92,7 +105,7 @@ import {
   type WeighInInput,
   type WeighInResponse,
   type WeightFeasibility,
-  type WeightTrack,
+  type WeightTrackResponse,
 } from './bouts.model.js';
 import {
   buildCornerCard,
@@ -103,6 +116,7 @@ import {
   opponentAnalysisInputSchema,
   opponentReviewInputSchema,
   roundInputSchema,
+  nextRoundPlanSchema,
   type OpponentAnalysis,
   type OpponentAnalysisInput,
   type OpponentReviewInput,
@@ -114,6 +128,7 @@ import {
   suspensionDaysRequired,
   suspensionOverrideReasonRequired,
 } from '../suspensions/suspensions.error.js';
+import { SuspensionEffects } from '../suspensions/suspension.effects.js';
 import { SuspensionsRepository } from '../suspensions/suspensions.repo.js';
 
 @Injectable()
@@ -121,7 +136,145 @@ export class BoutsService {
   constructor(
     private readonly repo: BoutsRepository,
     private readonly suspensionsRepo: SuspensionsRepository,
+    private readonly suspensionEffects: SuspensionEffects,
+    private readonly ai?: BoutAiClient,
   ) {}
+
+  async suggestAiTactics(actor: AuthenticatedUser, id: string, requestId: string) {
+    return this.generateAiSuggestion(actor, id, 'PRE_BOUT_TACTICS', null, requestId);
+  }
+
+  async suggestAiRoundAdvice(actor: AuthenticatedUser, id: string, roundNo: number, requestId: string) {
+    return this.generateAiSuggestion(actor, id, 'BETWEEN_ROUNDS', roundNo, requestId);
+  }
+
+  async suggestAiVideo(actor: AuthenticatedUser, id: string, input: { url: string; who: string }, requestId: string) {
+    const parsed = aiVideoInputSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    return this.generateAiSuggestion(actor, id, 'VIDEO_OBSERVATIONS', null, requestId, parsed.data);
+  }
+
+  private async generateAiSuggestion(actor: AuthenticatedUser, id: string, kind: BoutAiKind, roundNo: number | null, requestId: string, video?: { url: string; who: string }) {
+    const bout = await this.requireBout(id);
+    await this.assertWriteAccess(actor, bout.fighterId);
+    const rounds = kind === 'BETWEEN_ROUNDS' ? await this.repo.listRounds(id) : [];
+    const assertStatus = (current: BoutRow) => {
+      if (kind === 'BETWEEN_ROUNDS') {
+        this.assertCornerStatus(current);
+        const lastRound = Math.max(0, ...rounds.map((r) => r.roundNo));
+        if (roundNo === null || !Number.isInteger(roundNo) || roundNo < 2 ||
+            current.scheduledRounds === null || roundNo > current.scheduledRounds || roundNo !== lastRound + 1)
+          throw boutAnalysisInvalid('BOUT_ROUND_OUT_OF_RANGE');
+      } else if (isFinalStatus(current.status)) throw boutNotEditable(current.status);
+    };
+    assertStatus(bout);
+    const observations = bout.opponentAnalysis.observations ?? [];
+    if (kind === 'PRE_BOUT_TACTICS' && !observations.length) throw boutAiNoObservations();
+    const advice = kind === 'BETWEEN_ROUNDS'
+      ? buildRoundAdvice(bout.opponentAnalysis, rounds, bout.scheduledRounds!) : null;
+    const tactics = advice?.tactics ?? bout.opponentAnalysis.tactics ?? [];
+    // Stable prompt-local references: database and analysis IDs never leave the server.
+    const references = new Map<string, string>([
+      ...observations.map((o, i) => [o.id, `o${i + 1}`] as [string, string]),
+      ...tactics.map((t, i) => [t.id, `t${i + 1}`] as [string, string]),
+    ]);
+    const reverse = new Map([...references].map(([local, alias]) => [alias, local]));
+    const alias = (value: unknown): unknown => {
+      if (typeof value === 'string') return references.get(value) ?? value;
+      if (Array.isArray(value)) return value.map(alias);
+      if (value && typeof value === 'object') return Object.fromEntries(Object.entries(value).map(([k, v]) => [references.get(k) ?? k, alias(v)]));
+      return value;
+    };
+    const { fighter, coach } = await this.repo.aiParticipantContext(bout.fighterId, bout.coachId);
+    const participantNames = [bout.opponentName, ...(bout.opponentName?.split(/\s+/) ?? []), fighter?.firstName, fighter?.lastName,
+      fighter && `${fighter.firstName} ${fighter.lastName}`, coach?.firstName, coach?.lastName,
+      coach && `${coach.firstName} ${coach.lastName}`,
+    ].filter((name): name is string => Boolean(name));
+    const profile = bout.opponentAnalysis.profile;
+    const input = anonymizeAiInput(alias(kind === 'VIDEO_OBSERVATIONS' ? {
+      who: video!.who, subject: 'đối thủ',
+    } : {
+      scheduledRounds: bout.scheduledRounds, roundNo,
+      fighter: { label: 'võ sĩ của ta', weightClass: bout.weightClassCode,
+        stance: fighter?.stance, heightCm: fighter?.heightCm, reachCm: fighter?.reachCm },
+      opponent: { label: 'đối thủ', opponentProfile: profile && {
+        wins: profile.wins, losses: profile.losses, draws: profile.draws,
+        stance: profile.stance, style: profile.style, heightCm: profile.heightCm, reachCm: profile.reachCm,
+      } },
+      observations: observations.map((o) => ({ id: o.id, kind: o.kind, text: o.text,
+        confidence: o.confidence, evidenceTime: o.evidenceTime, evidenceNote: o.evidenceNote })),
+      tactics: tactics.map((t) => ({ id: t.id, text: t.text, round: t.round,
+        ...('observationIds' in t ? { observationIds: t.observationIds } : {}),
+      })),
+      ...(advice ? { advice, rounds: rounds.map((r) => ({
+        roundNo: r.roundNo, ...Object.fromEntries(Object.keys(roundInputSchema.shape).map((key) => [key, r[key as keyof typeof r]])),
+      })) } : {}),
+    }), participantNames);
+    if (!this.ai) throw new Error('BoutAiClient provider is required');
+    const model = this.ai.model;
+    // Include the local mapping only in the local hash, so cached references remain valid.
+    const inputHash = createHash('sha256').update(JSON.stringify({ input, references: [...references], url: video?.url })).digest('hex');
+    const cacheKey = { boutId: id, kind, roundNo, model, inputHash };
+    const cached = await this.repo.findAiCache(cacheKey);
+    if (cached) return { suggestion: toAiSuggestion(cached, true) };
+    const started = Date.now();
+    const result = await this.ai.generate(kind, input, video?.url);
+    let items = result.ok ? result.items : [];
+    if (kind === 'PRE_BOUT_TACTICS') items = items.filter((item) =>
+      Array.isArray(item.observationIds) && item.observationIds.length > 0 &&
+      item.observationIds.every((ref) => typeof ref === 'string' && observations.some((o) => references.get(o.id) === ref)) &&
+      (item.round === null || (typeof item.round === 'number' && bout.scheduledRounds !== null && item.round <= bout.scheduledRounds)),
+    ).map((item) => ({ ...item, observationIds: (item.observationIds as string[]).map((ref) => reverse.get(ref)!) }));
+    if (kind === 'BETWEEN_ROUNDS') items = items.map(({ tacticId, ...item }) => ({
+      ...item, ...(typeof tacticId === 'string' && tactics.some((t) => references.get(t.id) === tacticId) ? { tacticId: reverse.get(tacticId)! } : {}),
+    }));
+    // Give every displayed item a stable local ID for the coach's decision.
+    items = items.slice(0, kind === 'VIDEO_OBSERVATIONS' ? 6 : 3).map((item, i) => ({ ...item, id: `ai${i + 1}` }));
+    const errorCode = !result.ok ? result.error : !items.length ? 'EMPTY' as const : null;
+    const output = { ...(items.length ? { [AI_LIST_KEYS[kind]]: items } : {}),
+      ...(advice?.safety?.level === 'RED' ? { safety: 'RED' } : {}),
+    };
+    const row = await this.repo.transaction(async (tx) => {
+      await setAuditContext(actor.authSubject, requestId, tx);
+      const current = await this.repo.lockBoutById(id, tx);
+      if (!current) throw boutNotFound();
+      // A concurrent identical request may have finished while Gemini was running.
+      const existing = await this.repo.findAiCache(cacheKey, tx);
+      if (existing) return { row: existing, cached: true };
+      return { row: await this.repo.insertAiSuggestion({ ...cacheKey, status: errorCode ? 'FAILED' : 'OK',
+        errorCode, output, latencyMs: Date.now() - started, requestedById: actor.id }, tx), cached: false };
+    });
+    return { suggestion: toAiSuggestion(row.row, row.cached) };
+  }
+
+  async getAiSuggestions(actor: AuthenticatedUser, id: string, kind?: BoutAiKind) {
+    const bout = await this.requireBout(id);
+    await this.assertPrivateReadAccess(actor, bout);
+    if (kind && !aiKindSchema.safeParse(kind).success) throw analysisValidationError();
+    return { suggestions: (await this.repo.listAiSuggestions(id, kind)).map((row) => ({
+      ...toAiSuggestion(row, false), decision: row.decision, acceptedItemIds: row.acceptedItemIds,
+      decidedAt: row.decidedAt?.toISOString() ?? null,
+    })) };
+  }
+
+  async decideAiSuggestion(actor: AuthenticatedUser, id: string, suggestionId: string, input: { decision: 'ACCEPTED' | 'PARTIAL' | 'REJECTED'; acceptedItemIds: string[] }, requestId: string) {
+    const bout = await this.requireBout(id);
+    await this.assertWriteAccess(actor, bout.fighterId);
+    const parsed = aiDecisionSchema.safeParse(input);
+    if (!parsed.success) throw analysisValidationError();
+    return this.repo.transaction(async (tx) => {
+      await setAuditContext(actor.authSubject, requestId, tx);
+      const row = await this.repo.lockAiSuggestion(id, suggestionId, tx);
+      if (!row) throw boutNotFound();
+      if (row.decision !== null) throw boutAiAlreadyDecided();
+      const list = row.output[AI_LIST_KEYS[row.kind]];
+      const ids = new Set(Array.isArray(list) ? list.map((item: { id?: string }) => item.id) : []);
+      if (parsed.data.acceptedItemIds.some((itemId) => !ids.has(itemId))) throw analysisValidationError();
+      const updated = await this.repo.decideAiSuggestion(row.id, { ...parsed.data, decidedAt: new Date() }, tx);
+      if (!updated) throw boutAiAlreadyDecided();
+      return { suggestion: toAiSuggestion(updated, false) };
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Rulesets
@@ -263,7 +416,7 @@ export class BoutsService {
   async getWeightTrack(
     actor: AuthenticatedUser,
     id: string,
-  ): Promise<WeightTrack> {
+  ): Promise<WeightTrackResponse> {
     const bout = await this.requireBout(id);
     await this.assertReadAccess(actor, bout.fighterId);
     const ruleset = await this.requireRuleset(bout.rulesetId);
@@ -418,6 +571,27 @@ export class BoutsService {
         const observations = new Set(
           (bout.opponentAnalysis.observations ?? []).map((o) => o.id),
         );
+        const rounds = await this.repo.listRounds(id, tx);
+        const previousAdded = rounds.filter((r) => r.roundNo < roundNo)
+          .flatMap((r) => r.nextRoundPlan?.addedTactics ?? []);
+        for (const t of previousAdded) tactics.add(t.id);
+        const plan = parsed.data.nextRoundPlan;
+        if (plan && roundNo === bout.scheduledRounds &&
+          (plan.focusTacticIds.length || plan.addedTactics.length || plan.instructions.length))
+          throw boutAnalysisInvalid('BOUT_NEXT_ROUND_PLAN_LAST_ROUND');
+        const existingIds = new Set([...tactics, ...observations,
+          ...rounds.filter((r) => r.roundNo !== roundNo)
+            .flatMap((r) => (r.nextRoundPlan?.addedTactics ?? []).map((t) => t.id)),
+        ]);
+        for (const t of plan?.addedTactics ?? []) {
+          if (existingIds.has(t.id) || t.observationIds.some((oid) => !observations.has(oid)))
+            throw boutAnalysisInvalid('BOUT_ROUND_MARK_UNKNOWN');
+          existingIds.add(t.id);
+        }
+        const planTactics = new Set([...tactics, ...(plan?.addedTactics ?? []).map((t) => t.id)]);
+        if (plan?.focusTacticIds.some((tid) => !planTactics.has(tid)) ||
+          plan?.instructions.some((instruction) => instruction.tacticId && !planTactics.has(instruction.tacticId)))
+          throw boutAnalysisInvalid('BOUT_ROUND_MARK_UNKNOWN');
         if (
           Object.keys(parsed.data.tacticMarks ?? {}).some(
             (id) => !tactics.has(id),
@@ -1497,6 +1671,7 @@ export class BoutsService {
 
     try {
       let createdSuspensions: RecordResultSuspension[] = [];
+      let afterCommit: () => Promise<void> = async () => {};
       const updated = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
         const locked = await this.repo.lockBoutById(bout.id, tx);
@@ -1548,7 +1723,7 @@ export class BoutsService {
         );
         if (!updatedRow) throw boutStateConflict();
 
-        createdSuspensions = await this.applyResultSuspensions(
+        const applied = await this.applyResultSuspensions(
           actor,
           bout,
           ruleset,
@@ -1557,8 +1732,11 @@ export class BoutsService {
           tx,
         );
 
+        createdSuspensions = applied.suspensions;
+        afterCommit = applied.afterCommit;
         return updatedRow;
       });
+      await afterCommit();
 
       const detail = await this.buildDetail(updated, ruleset);
       return {
@@ -1577,7 +1755,10 @@ export class BoutsService {
     input: RecordResultInput,
     today: string,
     tx: Transaction,
-  ): Promise<RecordResultSuspension[]> {
+  ): Promise<{
+    suspensions: RecordResultSuspension[];
+    afterCommit: () => Promise<void>;
+  }> {
     const priorSuspensions =
       await this.suspensionsRepo.findPriorKoTkoSuspensions(
         bout.fighterId,
@@ -1622,7 +1803,7 @@ export class BoutsService {
       throw boutResultInvalid('SUSPENSION_OVERRIDE_NOT_ALLOWED');
     }
 
-    const created: RecordResultSuspension[] = [];
+    const insertedRows: { row: SuspensionRow; explanation: string }[] = [];
     for (const s of suggestion.suspensions) {
       const row = await this.suspensionsRepo.insertSuspension(
         {
@@ -1643,19 +1824,35 @@ export class BoutsService {
         },
         tx,
       );
-      created.push({
+      insertedRows.push({ row, explanation: s.explanation });
+    }
+    const effects =
+      insertedRows.length > 0
+        ? await this.suspensionEffects.runOnCreated(
+            insertedRows.map((item) => item.row),
+            tx,
+          )
+        : {
+            affectedSessions: [],
+            affectedPlans: [],
+            afterCommit: async () => {},
+          };
+    return {
+      suspensions: insertedRows.map(({ row, explanation }) => ({
         id: row.id,
         reason: row.reason,
         startsOn: row.startsOn,
         endsOn: row.endsOn,
         requiresClearance: row.requiresClearance,
         suggestedDays: row.suggestedDays,
-        explanation: s.explanation,
-      });
-    }
-
-    return created;
+        explanation,
+        affectedSessions: effects.affectedSessions,
+        affectedPlans: effects.affectedPlans,
+      })),
+      afterCommit: effects.afterCommit,
+    };
   }
+
 
   // ---------------------------------------------------------------------------
   // Internals
@@ -1739,6 +1936,8 @@ export class BoutsService {
 
     return {
       ...toBoutSummary(bout),
+      nutritionPlan: (bout.nutritionPlan ?? {}) as NutritionPlan,
+      currentNutritionPhase: currentNutritionPhase(bout.status),
       opponentAnalysis: bout.opponentAnalysis,
       tacticsWithoutSessions: (bout.opponentAnalysis.tactics ?? [])
         .filter((t) => !t.sessionIds.length)
@@ -1797,17 +1996,20 @@ export class BoutsService {
     bout: BoutRow,
     ruleset: CompetitionRuleset,
     now: Date,
-  ): Promise<WeightTrack> {
+  ): Promise<WeightTrackResponse> {
     const plan = bout.trainingPlanId
       ? await this.repo.findPlanById(bout.trainingPlanId)
       : undefined;
     const planStartDate = plan?.startDate ?? null;
-    const measurements = await this.repo.findWeightMeasurements(
-      bout.fighterId,
-      academyStartOfDay(campStartOf(planStartDate, bout.createdAt)),
-      now,
-    );
-    return computeBoutWeightTrack({
+    const [measurements, nutrition] = await Promise.all([
+      this.repo.findWeightMeasurements(
+        bout.fighterId,
+        academyStartOfDay(campStartOf(planStartDate, bout.createdAt)),
+        now,
+      ),
+      this.repo.findNutritionCheckinsForBout(bout.id),
+    ]);
+    const track = computeBoutWeightTrack({
       status: bout.status,
       limitKg: Number(bout.catchweightKg ?? bout.weightLimitKg),
       acuteLossLimitPct: Number(bout.acuteLossLimitPct),
@@ -1818,6 +2020,10 @@ export class BoutsService {
       measurements,
       now,
     });
+    return {
+      ...track,
+      nutrition,
+    };
   }
 
   private async requireBout(id: string): Promise<BoutRow> {
@@ -1907,6 +2113,108 @@ export class BoutsService {
     if (!(await this.repo.isCoachAssignedToFighter(actor.id, fighterId)))
       throw forbidden();
   }
+
+  async putNutritionPlan(
+    actor: AuthenticatedUser,
+    id: string,
+    input: UpdateNutritionPlanInput,
+    requestId: string,
+    now = new Date(),
+  ): Promise<NutritionPlanResponse> {
+    const current = await this.requireBout(id);
+    await this.assertWriteAccess(actor, current.fighterId);
+    try {
+      return await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const bout = await this.repo.lockBoutById(id, tx);
+        if (!bout) throw boutNotFound();
+        if (isFinalStatus(bout.status)) {
+          throw boutNotEditable(bout.status);
+        }
+        const nowIso = now.toISOString();
+        const currentPlan = (bout.nutritionPlan ?? {}) as NutritionPlan;
+        const newPlan: NutritionPlan = {};
+        for (const phase of NUTRITION_PHASES) {
+          const item = input[phase];
+          if (item) {
+            const existing = currentPlan[phase];
+            const isUnchanged =
+              existing &&
+              existing.text === item.text &&
+              existing.author === item.author;
+            newPlan[phase] = {
+              text: item.text,
+              author: item.author,
+              updatedAt: isUnchanged ? existing.updatedAt : nowIso,
+              updatedById: isUnchanged ? existing.updatedById : actor.id,
+            };
+          }
+        }
+        const updated = await this.repo.updateBout(
+          id,
+          { nutritionPlan: newPlan },
+          { expectedStatus: bout.status },
+          tx,
+        );
+        if (!updated) throw boutStateConflict();
+        return { nutritionPlan: newPlan };
+      });
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
+  }
+
+  async putNutritionCheckin(
+    actor: AuthenticatedUser,
+    id: string,
+    date: string,
+    input: NutritionCheckinInput,
+    requestId: string,
+  ): Promise<NutritionCheckinResponse> {
+    const bout = await this.requireBout(id);
+    await this.assertNutritionCheckinAccess(actor, bout.fighterId);
+
+    try {
+      return await this.repo.transaction(async (tx) => {
+        await setAuditContext(actor.authSubject, requestId, tx);
+        const locked = await this.repo.lockBoutById(id, tx);
+        if (!locked) throw boutNotFound();
+        const row = await this.repo.upsertNutritionCheckin(
+          {
+            boutId: locked.id,
+            fighterId: locked.fighterId,
+            academyDate: date,
+            adherence: input.adherence,
+            note: input.note ?? null,
+            recordedById: actor.id,
+          },
+          tx,
+        );
+        return toNutritionCheckinResponse(row);
+      });
+    } catch (error) {
+      throw mapBoutPersistenceError(error);
+    }
+  }
+
+  private async assertNutritionCheckinAccess(
+    actor: AuthenticatedUser,
+    fighterId: string,
+  ): Promise<void> {
+    if (actor.role === USER.ADMIN) return;
+    if (actor.role === USER.FIGHTER) {
+      const own = await this.repo.findActiveFighterIdByUserId(actor.id);
+      if (own !== fighterId) throw forbidden();
+      return;
+    }
+    if (actor.role === USER.COACH) {
+      if (!(await this.repo.isCoachAssignedToFighter(actor.id, fighterId)))
+        throw forbidden();
+      return;
+    }
+    throw forbidden();
+  }
+
 }
 
 // ---------------------------------------------------------------------------
@@ -1915,6 +2223,12 @@ export class BoutsService {
 
 function toNumber(value: string | null): number | null {
   return value === null ? null : Number(value);
+}
+
+function toAiSuggestion(row: BoutAiSuggestionRow, cached: boolean) {
+  return { id: row.id, kind: row.kind, roundNo: row.roundNo, status: row.status,
+    errorCode: row.errorCode, model: row.model, output: row.output, cached,
+    createdAt: row.createdAt.toISOString() };
 }
 
 function toRulesetResponse(row: CompetitionRuleset): RulesetResponse {
@@ -2027,6 +2341,23 @@ function toRoundResponse(
 ) {
   return {
     ...row,
+    nextRoundPlan: nextRoundPlanSchema.parse(row.nextRoundPlan ?? {}),
+    createdAt: row.createdAt.toISOString(),
+    updatedAt: row.updatedAt.toISOString(),
+  };
+}
+
+function toNutritionCheckinResponse(
+  row: BoutNutritionCheckinRow,
+): NutritionCheckinResponse {
+  return {
+    id: row.id,
+    boutId: row.boutId,
+    fighterId: row.fighterId,
+    academyDate: row.academyDate,
+    adherence: row.adherence,
+    note: row.note,
+    recordedById: row.recordedById,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   };

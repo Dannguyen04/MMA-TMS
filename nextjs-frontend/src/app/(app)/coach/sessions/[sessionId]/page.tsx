@@ -1,4 +1,4 @@
-import { CalendarPlus, PenLine, Upload } from "lucide-react";
+import { Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -7,12 +7,13 @@ import { FlashToast } from "@/components/medical/flash-toast";
 import { ButtonLink } from "@/components/ui/button";
 import type { ToastInput } from "@/components/ui/toast";
 import { PageHeader } from "@/components/ui/page-header";
-import { AddFeedbackButton, CancelSessionButton, MarkMissedButton, RecordResultButton, StartSessionButton } from "@/components/training/session-coach-actions";
+import { AddFeedbackButton, RecordResultButton, SessionCoachActions } from "@/components/training/session-coach-actions";
+import { listSuspensions } from "@/lib/services/suspensions";
 import { SessionDetail, SessionHeaderMeta } from "@/components/training/session-detail";
 import { getCoachNames, getExerciseLibrary, toIdentity } from "@/components/training/training-data";
 import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { formatDateTime } from "@/lib/format";
+
 import { getTranslator } from "@/lib/i18n/server";
 import { plural, type Translator } from "@/lib/i18n/translate";
 import { hrefWith, type SearchParams } from "@/lib/query";
@@ -65,11 +66,13 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
 
     const current = new Date();
     const now = current.toISOString();
-    const [videos, feedback, plan] = await Promise.all([
+    const [videos, feedback, plan, suspensionsRes] = await Promise.all([
         listVideos({ fighterIds: [fighter.id] }),
         platformFeatureAvailable("coachFeedback") ? listCoachFeedback({ sessionId: session.id }) : null,
         session.planId ? getPlan(session.planId) : Promise.resolve(null),
+        session.status === "pending" ? listSuspensions({ fighterId: fighter.id, active: true }) : Promise.resolve([]),
     ]);
+    const suspensions = suspensionsRes ?? [];
 
     const serviceForm = usesTrainingServiceForms();
     const scheduled = session.status === "scheduled";
@@ -80,7 +83,6 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
     // The demo records a result straight from a scheduled session once it has begun; the training service only
     // completes a session that was started.
     const canRecord = session.status === "completed" || session.status === "in_progress" || (!serviceForm && scheduled && started);
-    const transitionProps = { sessionId: session.id, sessionTitle: session.title, fighterName: fighter.name };
     const canUpload = session.status !== "cancelled" && session.status !== "missed";
     const firstName = fighter.name.split(" ")[0];
 
@@ -113,22 +115,16 @@ export default async function CoachSessionPage({ params, searchParams }: PagePro
                 back={{ href: routes.coach.sessions, label: t("training.sessionPage.backSessions") }}
                 meta={<SessionHeaderMeta session={session} locale={locale} />}
                 actions={
-                    <>
-                        <ButtonLink href={hrefWith(routes.coach.newSession, {}, { from: session.id })} variant="secondary">
-                            <CalendarPlus aria-hidden />
-                            {t("training.repeat.scheduleAgain")}
-                        </ButtonLink>
-                        {scheduled && (
-                            <ButtonLink href={routes.coach.editSession(session.id)} variant="secondary">
-                                <PenLine aria-hidden />
-                                {t("training.sessionPage.edit")}
-                            </ButtonLink>
-                        )}
-                        {scheduled && started && <MarkMissedButton {...transitionProps} />}
-                        {active && <CancelSessionButton {...transitionProps} when={formatDateTime(session.scheduledAt, locale)} />}
-                        {canRecord && recordButton}
-                        {scheduled && <StartSessionButton {...transitionProps} />}
-                    </>
+                    <SessionCoachActions
+                        session={session}
+                        fighterName={fighter.name}
+                        now={now}
+                        locale={locale}
+                        suspensions={suspensions}
+                        recordButton={canRecord ? recordButton : undefined}
+                        editHref={scheduled ? routes.coach.editSession(session.id) : undefined}
+                        scheduleAgainHref={hrefWith(routes.coach.newSession, {}, { from: session.id })}
+                    />
                 }
             />
             <SessionDetail

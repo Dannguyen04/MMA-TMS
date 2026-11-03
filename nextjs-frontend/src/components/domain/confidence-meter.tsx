@@ -7,9 +7,9 @@ import { createTranslator } from "@/lib/i18n/translate";
 import { clamp, cn } from "@/lib/utils";
 
 const BAND_LABELS: Record<ConfidenceBand, string> = {
-    high: "High",
-    medium: "Medium",
-    low: "Low – needs review",
+    high: "Cao",
+    medium: "Trung bình",
+    low: "Thấp – cần xem lại",
 };
 
 export interface ConfidenceMeterProps {
@@ -20,12 +20,12 @@ export interface ConfidenceMeterProps {
     /** Review threshold, 0–1. Defaults to the platform low-confidence threshold. */
     lowThreshold?: number;
     className?: string;
-    /** The viewer's language; English when omitted. */
+    /** The viewer's language; Vietnamese when omitted. */
     locale?: Locale;
 }
 
 /** Horizontal 0–100% meter with the band label and a tick at the review threshold. */
-export function ConfidenceMeter({ confidence, label, lowThreshold = LOW_CONFIDENCE_THRESHOLD, className, locale }: ConfidenceMeterProps) {
+export function ConfidenceMeter({ confidence, label, lowThreshold = LOW_CONFIDENCE_THRESHOLD, className, locale = "vi" }: ConfidenceMeterProps) {
     const t = locale ? createTranslator(locale) : null;
     const name = label ?? (t ? t("screens.training.confidence.label") : "AI confidence");
     if (confidence === null) {

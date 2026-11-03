@@ -4,7 +4,7 @@ import { ArrowDown, ArrowUp, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/form";
-import { daysBetweenKeys, pluralize } from "@/lib/format";
+import { daysBetweenKeys, pluralizeVi } from "@/lib/format";
 
 export interface MilestoneDraft {
     key: number;
@@ -34,7 +34,7 @@ export interface PhaseBuilderProps {
 /** Ordered list of editable recovery phases with dates, goal and milestones. */
 export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMove, onRemove, onAddMilestone }: PhaseBuilderProps) {
     return (
-        <ol className="flex flex-col gap-4" aria-label="Recovery phases">
+        <ol className="flex flex-col gap-4" aria-label="Các giai đoạn phục hồi">
             {phases.map((phase, index) => {
                 const id = (name: string) => `${idPrefix}-${phase.key}-${name}`;
                 const error = (name: string) => errorFor(`phases.${index}.${name}`);
@@ -51,9 +51,9 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                 >
                                     {index + 1}
                                 </span>
-                                Phase {index + 1}
+                                Giai đoạn {index + 1}
                                 {length !== null && length >= 0 && (
-                                    <span className="text-[13px] font-normal text-fg-muted">· {pluralize(length, "day")}</span>
+                                    <span className="text-[13px] font-normal text-fg-muted">· {pluralizeVi(length, "day")}</span>
                                 )}
                             </h3>
                             <div className="flex items-center gap-1">
@@ -62,7 +62,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                     size="icon-sm"
                                     onClick={() => onMove(phase.key, -1)}
                                     disabled={index === 0}
-                                    aria-label={`Move phase ${index + 1} up`}
+                                    aria-label={`Đưa giai đoạn ${index + 1} lên`}
                                 >
                                     <ArrowUp />
                                 </Button>
@@ -71,7 +71,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                     size="icon-sm"
                                     onClick={() => onMove(phase.key, 1)}
                                     disabled={index === phases.length - 1}
-                                    aria-label={`Move phase ${index + 1} down`}
+                                    aria-label={`Đưa giai đoạn ${index + 1} xuống`}
                                 >
                                     <ArrowDown />
                                 </Button>
@@ -80,7 +80,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                     size="icon-sm"
                                     onClick={() => onRemove(phase.key)}
                                     disabled={phases.length === 1}
-                                    aria-label={`Remove phase ${index + 1}`}
+                                    aria-label={`Xóa giai đoạn ${index + 1}`}
                                     className="hover:text-danger-fg"
                                 >
                                     <Trash2 />
@@ -89,7 +89,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                         </div>
 
                         <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
-                            <Field label="Phase name" htmlFor={id("name")} error={error("name")} required className="sm:col-span-2">
+                            <Field label="Tên giai đoạn" htmlFor={id("name")} error={error("name")} required className="sm:col-span-2">
                                 <Input
                                     id={id("name")}
                                     value={phase.name}
@@ -97,7 +97,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                     maxLength={80}
                                 />
                             </Field>
-                            <Field label="Starts" htmlFor={id("startDate")} error={error("startDate")} required>
+                            <Field label="Bắt đầu" htmlFor={id("startDate")} error={error("startDate")} required>
                                 <Input
                                     id={id("startDate")}
                                     type="date"
@@ -105,7 +105,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                     onChange={(event) => onChange(phase.key, { startDate: event.target.value })}
                                 />
                             </Field>
-                            <Field label="Ends" htmlFor={id("endDate")} error={error("endDate")} required>
+                            <Field label="Kết thúc" htmlFor={id("endDate")} error={error("endDate")} required>
                                 <Input
                                     id={id("endDate")}
                                     type="date"
@@ -114,7 +114,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                     onChange={(event) => onChange(phase.key, { endDate: event.target.value })}
                                 />
                             </Field>
-                            <Field label="Goal" htmlFor={id("goal")} error={error("goal")} required className="sm:col-span-2">
+                            <Field label="Mục tiêu" htmlFor={id("goal")} error={error("goal")} required className="sm:col-span-2">
                                 <Textarea
                                     id={id("goal")}
                                     rows={2}
@@ -128,8 +128,8 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
 
                         <fieldset className="mt-4 min-w-0" data-invalid={milestonesError ? "true" : undefined}>
                             <legend className="mb-2 text-sm font-medium text-fg">
-                                Milestones
-                                <span className="ml-1.5 text-xs font-normal text-fg-subtle">what must be true before moving on</span>
+                                Các mốc
+                                <span className="ml-1.5 text-xs font-normal text-fg-subtle">điều kiện cần đạt trước khi chuyển tiếp</span>
                             </legend>
                             <ul className="flex flex-col gap-2">
                                 {phase.milestones.map((milestone, milestoneIndex) => {
@@ -138,13 +138,13 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                         <li key={milestone.key} className="flex items-center gap-2">
                                             <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-fg-subtle" />
                                             <label htmlFor={milestoneId} className="sr-only">
-                                                Phase {index + 1} milestone {milestoneIndex + 1}
+                                                Giai đoạn {index + 1} milestone {milestoneIndex + 1}
                                             </label>
                                             <Input
                                                 id={milestoneId}
                                                 value={milestone.text}
                                                 maxLength={160}
-                                                placeholder="e.g. Pain-free walking"
+                                                placeholder="VD: Đi bộ không đau"
                                                 onChange={(event) =>
                                                     onChange(phase.key, {
                                                         milestones: phase.milestones.map((m) =>
@@ -162,7 +162,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                                                 onClick={() =>
                                                     onChange(phase.key, { milestones: phase.milestones.filter((m) => m.key !== milestone.key) })
                                                 }
-                                                aria-label={`Remove milestone ${milestoneIndex + 1} from phase ${index + 1}`}
+                                                aria-label={`Xóa mốc ${milestoneIndex + 1} khỏi giai đoạn ${index + 1}`}
                                             >
                                                 <X />
                                             </Button>
@@ -177,7 +177,7 @@ export function PhaseBuilder({ phases, error: errorFor, idPrefix, onChange, onMo
                             )}
                             <Button variant="ghost" size="sm" onClick={() => onAddMilestone(phase.key)} className="mt-2 -ml-2 text-primary-soft-fg">
                                 <Plus aria-hidden />
-                                Add milestone
+                                Thêm mốc
                             </Button>
                         </fieldset>
                     </li>

@@ -386,7 +386,7 @@ function StageChips({ analysis, detections, showLabel, t }: { analysis: AIAnalys
                     ) : (
                         <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: TECHNIQUE_COLOR[detection.type] }} />
                     )}
-                    {possibleStrike(t, detection.type)} · {detection.confidenceAvailable === false ? t("screens.video.confidenceUnavailableLower") : confidencePct(t, detection.confidence)}
+                    {possibleStrike(t, detection.type)} · {detection.confidenceAvailable === false ? t("screens.video.player.confidenceUnavailable") : confidencePct(t, detection.confidence)}
                     {low && <span className="font-medium">{t("screens.video.player.needsReview")}</span>}
                     {detection.review && detection.review.decision !== "rejected" && (
                         <span className="inline-flex items-center gap-1 font-medium text-nav-fg">
@@ -447,10 +447,10 @@ function Transport({
                         <StepForward />
                     </Button>
                     <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-                    <Button variant="ghost" size="icon" onClick={() => onDetection("previous")} aria-label={t("screens.video.moment.previousDetection")} aria-keyshortcuts="[">
+                    <Button variant="ghost" size="icon" onClick={() => onDetection("previous")} aria-label={t("screens.video.player.previousDetection")} aria-keyshortcuts="[">
                         <ChevronLeft />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onDetection("next")} aria-label={t("screens.video.moment.nextDetection")} aria-keyshortcuts="]">
+                    <Button variant="ghost" size="icon" onClick={() => onDetection("next")} aria-label={t("screens.video.player.nextDetection")} aria-keyshortcuts="]">
                         <ChevronRight />
                     </Button>
                 </div>

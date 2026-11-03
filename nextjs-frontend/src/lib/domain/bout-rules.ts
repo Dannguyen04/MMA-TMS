@@ -660,3 +660,17 @@ export function computeWeighInReminder(params: {
     };
 }
 
+/**
+ * The acute-loss limit a bout snapshots from its ruleset: the long limit when the bout is 12 hours or more after the
+ * weigh-in, the short one otherwise (8 % and 5 % by default). Used by the suspensions and readiness screens (T-030 B).
+ */
+export function calculateSnapshotAcuteLimit(
+    weighInAt: string | Date,
+    boutAt: string | Date,
+    ruleset?: { acuteLossLimitPctLong?: number | null; acuteLossLimitPctShort?: number | null },
+): number {
+    const gapMs = new Date(boutAt).getTime() - new Date(weighInAt).getTime();
+    const longPct = ruleset?.acuteLossLimitPctLong ?? 8.0;
+    const shortPct = ruleset?.acuteLossLimitPctShort ?? 5.0;
+    return gapMs >= 12 * 60 * 60 * 1000 ? longPct : shortPct;
+}

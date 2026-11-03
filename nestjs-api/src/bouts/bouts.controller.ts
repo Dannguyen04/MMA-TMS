@@ -74,7 +74,13 @@ import {
   WeighInDto,
   WeighInResponseDto,
   WeightTrackResponseDto,
+  UpdateNutritionPlanDto,
+  NutritionPlanResponseDto,
+  NutritionCheckinDto,
+  NutritionCheckinParamsDto,
+  NutritionCheckinResponseDto,
 } from './bouts.dto.js';
+import { AiVideoInputDto, AiDecisionDto, AiSuggestionParamsDto, AiHistoryQueryDto, AiResponseDto, AiHistoryResponseDto } from './bouts.dto.js';
 import { BoutsService } from './bouts.service.js';
 
 @ApiTags('Bouts')
@@ -349,6 +355,81 @@ export class BoutsController {
     @Param() params: BoutIdParamsDto,
   ) {
     return this.boutsService.getRounds(this.requireActor(actor), params.id);
+  }
+
+  @Post('bouts/:id/ai/tactics')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'suggestAiTactics' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async suggestAiTactics(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: BoutIdParamsDto,) {
+    return this.boutsService.suggestAiTactics(this.requireActor(actor), params.id, randomUUID());
+  }
+
+  @Post('bouts/:id/ai/round-advice/:roundNo')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'suggestAiRoundAdvice' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async suggestAiRoundAdvice(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: RoundParamsDto,) {
+    return this.boutsService.suggestAiRoundAdvice(this.requireActor(actor), params.id, params.roundNo, randomUUID());
+  }
+
+  @Post('bouts/:id/ai/video-observations')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'suggestAiVideo' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async suggestAiVideo(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: BoutIdParamsDto, @Body() body: AiVideoInputDto,) {
+    return this.boutsService.suggestAiVideo(this.requireActor(actor), params.id, body, randomUUID());
+  }
+
+  @Get('bouts/:id/ai/suggestions')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.READ] })
+  @ApiOperation({ summary: 'getAiSuggestions' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiHistoryResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_INVALID_TRANSITION', 'The bout status forbids this operation')
+  async getAiSuggestions(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: BoutIdParamsDto, @Query() query: AiHistoryQueryDto,) {
+    return this.boutsService.getAiSuggestions(this.requireActor(actor), params.id, query.kind);
+  }
+
+  @Patch('bouts/:id/ai/suggestions/:suggestionId')
+  @HttpCode(HttpStatus.OK)
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({ summary: 'decideAiSuggestion' })
+  @ResponseMessage('Bout AI suggestion successfully')
+  @ApiSuccessEnvelope({ status: HttpStatus.OK, message: 'Bout AI suggestion successfully', model: AiResponseDto })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout permission and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope('BOUT_AI_ALREADY_DECIDED', 'The coach has already decided on this suggestion')
+  async decideAiSuggestion(@CurrentUser() actor: AuthenticatedUser | undefined, @Param() params: AiSuggestionParamsDto, @Body() body: AiDecisionDto,) {
+    return this.boutsService.decideAiSuggestion(this.requireActor(actor), params.id, params.suggestionId, body, randomUUID());
   }
 
   @Get('bouts/:id/corner-card')
@@ -711,6 +792,71 @@ export class BoutsController {
     return this.boutsService.getWeightTrack(
       this.requireActor(actor),
       params.id,
+    );
+  }
+
+  @Put('bouts/:id/nutrition-plan')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.UPDATE] })
+  @ApiOperation({
+    summary: 'Update bout nutrition plan',
+    description:
+      'Sets guidance for camp, fight week, and post-weigh-in phases. Cannot be modified once the bout is COMPLETED or CANCELLED.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.NUTRITION_PLAN_UPDATE)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.NUTRITION_PLAN_UPDATE,
+    model: NutritionPlanResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:update and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  @ApiConflictEnvelope(
+    'BOUT_INVALID_TRANSITION',
+    'The bout status forbids this operation',
+  )
+  async putNutritionPlan(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: BoutIdParamsDto,
+    @Body() body: UpdateNutritionPlanDto,
+  ) {
+    return this.boutsService.putNutritionPlan(
+      this.requireActor(actor),
+      params.id,
+      body,
+      randomUUID(),
+    );
+  }
+
+  @Put('bouts/:id/nutrition-checkins/:date')
+  @RequirePermissions({ allOf: [BOUT_PERMISSIONS.NUTRITION_CHECKIN] })
+  @ApiOperation({
+    summary: 'Record bout nutrition check-in',
+    description:
+      'Records daily nutrition adherence (ON_PLAN, SLIGHTLY_OFF, WAY_OFF) and optional note for a given academy date.',
+  })
+  @ResponseMessage(BOUT_RESPONSE_MESSAGES.NUTRITION_CHECKIN)
+  @ApiSuccessEnvelope({
+    status: HttpStatus.OK,
+    message: BOUT_RESPONSE_MESSAGES.NUTRITION_CHECKIN,
+    model: NutritionCheckinResponseDto,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope('Requires bout:nutrition_checkin and access to the fighter')
+  @ApiNotFoundEnvelope('BOUT_NOT_FOUND', 'Bout not found')
+  async putNutritionCheckin(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: NutritionCheckinParamsDto,
+    @Body() body: NutritionCheckinDto,
+  ) {
+    return this.boutsService.putNutritionCheckin(
+      this.requireActor(actor),
+      params.id,
+      params.date,
+      body,
+      randomUUID(),
     );
   }
 

@@ -14,8 +14,8 @@ interface IssueLike {
 
 /** The sentence for one issue. */
 export function scat6IssueMessage(issue: IssueLike): string {
-    if (issue.code === "invalid_type" && issue.expected === "boolean") return "Answer yes or no.";
-    if (issue.code === "invalid_union" && issue.discriminator === "performed") return "Say whether it was performed.";
+    if (issue.code === "invalid_type" && issue.expected === "boolean") return "Hãy trả lời có hoặc không.";
+    if (issue.code === "invalid_union" && issue.discriminator === "performed") return "Hãy cho biết có thực hiện không.";
     return issue.message;
 }
 

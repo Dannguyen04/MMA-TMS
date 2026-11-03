@@ -22,7 +22,7 @@ export function RestrictionSummary({
 }) {
     const t = locale ? createTranslator(locale) : null;
     return (
-        <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label={t ? t("clearanceCard.restrictions") : "Restrictions"}>
+        <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label={t ? t("clearanceCard.restrictions") : "Hạn chế"}>
             {restrictions.map((restriction) => {
                 const { icon: Icon, tone } = RESTRICTION_SEVERITY_META[restrictionSeverity(restriction)];
                 return (

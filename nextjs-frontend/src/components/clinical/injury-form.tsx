@@ -4,7 +4,7 @@ import { Activity, Info, RefreshCw } from "lucide-react";
 import { useState } from "react";
 
 import { AINotice } from "@/components/domain/ai-notice";
-import { BodyMap } from "@/components/domain/body-map";
+import { RegionModel } from "@/components/doctor/region-model";
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
 import { INJURY_SEVERITY_META } from "@/components/domain/status-badges";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import { createInjuryAction } from "@/lib/actions/clinical";
 import { BODY_REGION_LABELS, HEALTH_STATUS_LABELS, INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
 import type { AbnormalMovementAlert, BodyRegion, InjuryMechanism, InjurySeverity, InjuryType } from "@/lib/domain/types";
-import { addDaysToKey, daysBetweenKeys, formatShortDate, pluralize } from "@/lib/format";
+import { addDaysToKey, daysBetweenKeys, formatShortDate, pluralizeVi } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { BODY_REGION_GROUPS, INJURY_SEVERITY_DESCRIPTIONS, OPEN_INJURY_STATUS_DESCRIPTIONS } from "./clinical-copy";
 import { ObservationSummary, type ObservationSource } from "./observation-summary";
@@ -52,17 +52,17 @@ const SEVERITY_OPTIONS: ChoiceOption<InjurySeverity>[] = (Object.keys(INJURY_SEV
 }));
 const MECHANISMS = Object.keys(INJURY_MECHANISM_LABELS) as InjuryMechanism[];
 const RETURN_PICKS = [
-    { days: 7, label: "+1 week" },
-    { days: 14, label: "+2 weeks" },
-    { days: 28, label: "+4 weeks" },
-    { days: 42, label: "+6 weeks" },
+    { days: 7, label: "+1 tuần" },
+    { days: 14, label: "+2 tuần" },
+    { days: 28, label: "+4 tuần" },
+    { days: 42, label: "+6 tuần" },
 ];
 
 type OpenStatus = "active" | "recovering";
 
 const STATUS_OPTIONS: ChoiceOption<OpenStatus>[] = [
-    { value: "active", label: "Active", description: OPEN_INJURY_STATUS_DESCRIPTIONS.active, icon: Activity, tone: "danger" },
-    { value: "recovering", label: "Recovering", description: OPEN_INJURY_STATUS_DESCRIPTIONS.recovering, icon: RefreshCw, tone: "info" },
+    { value: "active", label: "Đang điều trị", description: OPEN_INJURY_STATUS_DESCRIPTIONS.active, icon: Activity, tone: "danger" },
+    { value: "recovering", label: "Đang phục hồi", description: OPEN_INJURY_STATUS_DESCRIPTIONS.recovering, icon: RefreshCw, tone: "info" },
 ];
 
 /** Records an injury: who and what, where on the body, severity and timeline, clinical findings and an optional AI observation link. */
@@ -109,7 +109,7 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
             {selectedAlert && (
                 <section aria-labelledby="injury-context-heading" className="flex min-w-0 flex-col gap-3 lg:col-start-2 lg:row-start-1">
                     <h2 id="injury-context-heading" className="text-sm font-semibold text-fg">
-                        Linked observation
+                        Quan sát liên kết
                     </h2>
                     <AINotice audience="doctor" compact />
                     <ObservationSummary alert={selectedAlert.alert} source={selectedAlert.source} />
@@ -117,10 +117,10 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
             )}
 
             <Card className="min-w-0 px-5 py-6 sm:px-6 lg:col-start-1 lg:row-span-2 lg:row-start-1">
-                <FormSection title="Fighter" description="Who was injured. Link an AI movement observation if one prompted this assessment.">
-                    <Field label="Fighter" htmlFor={id("fighterId")} error={error("fighterId")} required>
+                <FormSection title="Võ sĩ" description="Võ sĩ bị chấn thương. Liên kết quan sát AI nếu quan sát đó dẫn tới lần đánh giá này.">
+                    <Field label="Võ sĩ" htmlFor={id("fighterId")} error={error("fighterId")} required>
                         <Select {...control("fighterId", { required: true })} value={fighterId} onChange={(event) => changeFighter(event.target.value)} className="sm:max-w-sm">
-                            <option value="">Choose a fighter…</option>
+                            <option value="">Chọn võ sĩ…</option>
                             {fighters.map((option) => (
                                 <option key={option.id} value={option.id}>
                                     {option.name}
@@ -129,16 +129,16 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                         </Select>
                     </Field>
                     <Field
-                        label="Link AI movement observation"
+                        label="Liên kết quan sát AI"
                         htmlFor={id("linkedAlertId")}
                         optional
                         error={error("linkedAlertId")}
                         hint={
                             !fighterId
-                                ? "Choose a fighter first."
+                                ? "Hãy chọn võ sĩ trước."
                                 : fighterAlerts.length === 0
-                                  ? "No unlinked AI movement observations for this fighter."
-                                  : "Supporting information only. The link helps review the AI model against confirmed injuries."
+                                  ? "Võ sĩ này không có quan sát AI nào chưa liên kết."
+                                  : "Chỉ là thông tin hỗ trợ. Liên kết giúp đối chiếu mô hình AI với chấn thương đã xác định."
                         }
                     >
                         <Select
@@ -147,7 +147,7 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                             onChange={(event) => changeAlert(event.target.value)}
                             disabled={fighterAlerts.length === 0}
                         >
-                            <option value="">Not linked</option>
+                            <option value="">Không liên kết</option>
                             {fighterAlerts.map(({ alert }) => (
                                 <option key={alert.id} value={alert.id}>
                                     {formatShortDate(alert.detectedAt)} · {BODY_REGION_LABELS[alert.bodyRegion]} — {alert.pattern}
@@ -157,12 +157,12 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     </Field>
                 </FormSection>
 
-                <FormSection title="Injury" description="What the injury is, where it is and how serious it is.">
-                    <div className="grid grid-cols-1 gap-5 sm:grid-cols-[minmax(0,1fr)_auto]">
-                        <div className="flex min-w-0 flex-col gap-5">
-                            <Field label="Injury type" htmlFor={id("type")} error={error("type")} required>
+                <FormSection title="Chấn thương" description="Chấn thương gì, ở đâu và mức độ ra sao.">
+                    <div className="grid grid-cols-1 gap-5">
+                        <div className="grid min-w-0 grid-cols-1 items-start gap-5 sm:grid-cols-2">
+                            <Field label="Loại chấn thương" htmlFor={id("type")} error={error("type")} required>
                                 <Select {...control("type", { required: true })} value={type} onChange={(event) => setType(event.target.value as InjuryType | "")}>
-                                    <option value="">Choose a type…</option>
+                                    <option value="">Chọn loại…</option>
                                     {TYPES.map((value) => (
                                         <option key={value} value={value}>
                                             {INJURY_TYPE_LABELS[value]}
@@ -171,18 +171,18 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                                 </Select>
                             </Field>
                             <Field
-                                label="Body region"
+                                label="Vùng cơ thể"
                                 htmlFor={id("bodyRegion")}
                                 error={error("bodyRegion")}
                                 required
-                                hint="Left and right are the athlete's own sides."
+                                hint="Trái/phải tính theo cơ thể võ sĩ."
                             >
                                 <Select
                                     {...control("bodyRegion", { hint: true, required: true })}
                                     value={bodyRegion}
                                     onChange={(event) => setBodyRegion(event.target.value as BodyRegion | "")}
                                 >
-                                    <option value="">Choose a region…</option>
+                                    <option value="">Chọn vùng…</option>
                                     {BODY_REGION_GROUPS.map((group) => (
                                         <optgroup key={group.label} label={group.label}>
                                             {group.regions.map((region) => (
@@ -195,32 +195,15 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                                 </Select>
                             </Field>
                         </div>
-                        <div className="flex flex-col items-center gap-1.5 rounded-lg bg-surface-muted/60 px-4 py-3" aria-live="polite">
-                            <BodyMap
-                                size="sm"
-                                showLegend={false}
-                                highlights={
-                                    bodyRegion
-                                        ? [
-                                              {
-                                                  region: bodyRegion,
-                                                  tone: severity && INJURY_SEVERITY_META[severity].tone === "warning" ? "warning" : "danger",
-                                                  label: type ? INJURY_TYPE_LABELS[type] : "Selected region",
-                                              },
-                                          ]
-                                        : []
-                                }
-                            />
-                            <p className="text-center text-xs font-medium text-fg-muted">
-                                {bodyRegion ? BODY_REGION_LABELS[bodyRegion] : "No region selected"}
-                            </p>
+                        <div className="rounded-lg bg-surface-muted/60 px-2 py-2">
+                            <RegionModel targets={[{ region: bodyRegion }]} label={type ? INJURY_TYPE_LABELS[type] : "Vùng đã chọn"} height={360} legend={false} />
                         </div>
                     </div>
 
                     <ChoiceGroup
                         id={id("severity")}
                         name="severity"
-                        legend="Severity"
+                        legend="Mức độ"
                         required
                         options={SEVERITY_OPTIONS}
                         value={severity}
@@ -231,7 +214,7 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     <ChoiceGroup
                         id={id("status")}
                         name="status"
-                        legend="Current status"
+                        legend="Tình trạng hiện tại"
                         required
                         columns={2}
                         options={STATUS_OPTIONS}
@@ -241,9 +224,9 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     />
                 </FormSection>
 
-                <FormSection title="Timeline" description="When and how it happened, and when you expect the fighter back in full training.">
+                <FormSection title="Thời gian" description="Xảy ra khi nào, như thế nào và dự kiến khi nào võ sĩ tập lại đầy đủ.">
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <Field label="Occurred" htmlFor={id("occurredAt")} error={error("occurredAt")} required hint="Academy time (Ho Chi Minh City)">
+                        <Field label="Xảy ra" htmlFor={id("occurredAt")} error={error("occurredAt")} required hint="Giờ học viện (TP. Hồ Chí Minh)">
                             <Input
                                 {...control("occurredAt", { hint: true, required: true })}
                                 type="datetime-local"
@@ -252,7 +235,7 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                                 onChange={(event) => setOccurredAt(event.target.value)}
                             />
                         </Field>
-                        <Field label="Diagnosed" htmlFor={id("diagnosedAt")} error={error("diagnosedAt")} required>
+                        <Field label="Chẩn đoán" htmlFor={id("diagnosedAt")} error={error("diagnosedAt")} required>
                             <Input
                                 {...control("diagnosedAt", { required: true })}
                                 type="date"
@@ -262,9 +245,9 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                                 onChange={(event) => setDiagnosedAt(event.target.value)}
                             />
                         </Field>
-                        <Field label="Mechanism" htmlFor={id("mechanism")} error={error("mechanism")} required>
+                        <Field label="Cơ chế" htmlFor={id("mechanism")} error={error("mechanism")} required>
                             <Select {...control("mechanism", { required: true })} value={mechanism} onChange={(event) => setMechanism(event.target.value as InjuryMechanism | "")}>
-                                <option value="">How did it happen?</option>
+                                <option value="">Xảy ra như thế nào?</option>
                                 {MECHANISMS.map((value) => (
                                     <option key={value} value={value}>
                                         {INJURY_MECHANISM_LABELS[value]}
@@ -273,15 +256,15 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                             </Select>
                         </Field>
                         <Field
-                            label="Expected return to full training"
+                            label="Dự kiến tập lại đầy đủ"
                             htmlFor={id("expectedReturnAt")}
                             error={error("expectedReturnAt")}
                             className="sm:col-span-2"
                             optional
                             hint={
                                 expectedReturnAt && diagnosedAt
-                                    ? `${pluralize(daysBetweenKeys(diagnosedAt, expectedReturnAt), "day")} after diagnosis`
-                                    : "Leave empty if it can't be estimated yet."
+                                    ? `${pluralizeVi(daysBetweenKeys(diagnosedAt, expectedReturnAt), "day")} sau chẩn đoán`
+                                    : "Để trống nếu chưa ước tính được."
                             }
                         >
                             <div className="flex flex-col gap-2">
@@ -293,7 +276,7 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                                     onChange={(event) => setExpectedReturnAt(event.target.value)}
                                     className="sm:w-56"
                                 />
-                                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Set expected return from the diagnosis date">
+                                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Đặt ngày dự kiến trở lại tính từ ngày chẩn đoán">
                                     {RETURN_PICKS.map((pick) => (
                                         <Button
                                             key={pick.days}
@@ -314,13 +297,13 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     </div>
                 </FormSection>
 
-                <FormSection title="Clinical findings" description="Visible to you and other assigned doctors. Coaches never see clinical notes.">
+                <FormSection title="Dấu hiệu lâm sàng" description="Chỉ bạn và các bác sĩ phụ trách khác xem được. HLV không bao giờ thấy ghi chú lâm sàng.">
                     <Field
-                        label="Description"
+                        label="Mô tả"
                         htmlFor={id("description")}
                         error={error("description")}
                         required
-                        hint="Mechanism, symptoms, examination findings and any imaging results."
+                        hint="Cơ chế, triệu chứng, kết quả khám và chẩn đoán hình ảnh (nếu có)."
                     >
                         <Textarea
                             {...control("description", { hint: true, required: true })}
@@ -332,12 +315,12 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     </Field>
                 </FormSection>
 
-                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Record injury" pendingLabel="Recording injury…" />
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Ghi nhận chấn thương" pendingLabel="Đang ghi nhận chấn thương…" />
             </Card>
 
-            <aside aria-label="What happens next" className={cn("min-w-0 lg:col-start-2", selectedAlert ? "lg:row-start-2" : "lg:row-start-1")}>
+            <aside aria-label="Điều gì xảy ra tiếp theo" className={cn("min-w-0 lg:col-start-2", selectedAlert ? "lg:row-start-2" : "lg:row-start-1")}>
                 <Card>
-                    <CardHeader title="When you record this injury" icon={<Info />} />
+                    <CardHeader title="Khi bạn ghi nhận chấn thương này" icon={<Info />} />
                     <CardContent>
                         <ul className="flex flex-col gap-2.5 text-[13px] text-fg-muted">
                             <li className="flex gap-2">
@@ -345,22 +328,22 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                                 <span>
                                     {fighter
                                         ? fighter.healthStatus === "not_cleared"
-                                            ? `${fighter.name} stays ${HEALTH_STATUS_LABELS.not_cleared}.`
-                                            : `${fighter.name}'s health status changes to ${status === "recovering" ? HEALTH_STATUS_LABELS.recovery : HEALTH_STATUS_LABELS.injured}.`
-                                        : "The fighter's health status changes to Injured, or Recovery if recorded as recovering."}
+                                            ? `${fighter.name} vẫn ở trạng thái ${HEALTH_STATUS_LABELS.not_cleared}.`
+                                            : `Tình trạng sức khỏe của ${fighter.name} chuyển thành ${status === "recovering" ? HEALTH_STATUS_LABELS.recovery : HEALTH_STATUS_LABELS.injured}.`
+                                        : "Tình trạng sức khỏe của võ sĩ chuyển thành Chấn thương, hoặc Phục hồi nếu ghi là đang phục hồi."}
                                 </span>
                             </li>
                             <li className="flex gap-2">
                                 <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-fg-subtle" />
-                                <span>Coaches are asked to check Medical Clearance. They don&apos;t see the diagnosis or clinical notes.</span>
+                                <span>HLV được nhắc kiểm tra giấy phép. HLV không thấy chẩn đoán hay ghi chú lâm sàng.</span>
                             </li>
                             <li className="flex gap-2">
                                 <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-fg-subtle" />
-                                <span>The fighter sees the injury, treatments and recovery steps on their Health page.</span>
+                                <span>Võ sĩ thấy chấn thương, điều trị và các bước phục hồi trên trang Sức khỏe.</span>
                             </li>
                             <li className="flex gap-2">
                                 <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-fg-subtle" />
-                                <span className="font-medium text-fg">Medical Clearance doesn&apos;t change automatically — review it next.</span>
+                                <span className="font-medium text-fg">Giấy phép không tự thay đổi — hãy xem lại ở bước tiếp theo.</span>
                             </li>
                         </ul>
                     </CardContent>

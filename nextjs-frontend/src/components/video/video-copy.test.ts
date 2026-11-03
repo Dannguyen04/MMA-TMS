@@ -27,6 +27,9 @@ describe("video copy", () => {
         }
         expect(analysisSummary(vi, SUMMARIES[1])).toContain("107");
         expect(analysisSummary(vi, SUMMARIES[1])).toContain("12");
+        // The worker mapping now writes the movement status from the Vietnamese `labels.ts` constant.
+        const current = SUMMARIES[3].replace("Footage available for review", "Có Video để xem lại");
+        expect(analysisSummary(en, current)).toBe(SUMMARIES[3]);
     });
 
     it("shows summaries it does not recognise as written", () => {

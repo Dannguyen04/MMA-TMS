@@ -22,7 +22,7 @@ export function recordAudit(input: AuditEntryInput): AuditLog {
     const entry: AuditLog = {
         id: newId("log"),
         actorId: input.actor?.id ?? null,
-        actorName: input.actor?.name ?? "System",
+        actorName: input.actor?.name ?? "Hệ thống",
         actorRole: input.actor?.role ?? "system",
         action: input.action,
         resourceType: input.resourceType,
@@ -49,8 +49,8 @@ const CLINICAL_RESOURCE_TYPES: ReadonlySet<AuditResourceType> = new Set<AuditRes
     "clearance",
 ]);
 
-const RESTRICTED_LABEL = "Clinical record (restricted)";
-const RESTRICTED_DETAILS = "Visible to the medical team only.";
+const RESTRICTED_LABEL = "Hồ sơ lâm sàng (hạn chế)";
+const RESTRICTED_DETAILS = "Chỉ đội ngũ y tế xem được.";
 
 function isClinicalEntry(log: AuditLog): boolean {
     return CLINICAL_RESOURCE_TYPES.has(log.resourceType) || log.action.startsWith("fighter.health_status");

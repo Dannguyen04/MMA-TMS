@@ -254,7 +254,7 @@ export interface FormFooterProps {
 }
 
 /** A page form's footer: the form-level message, then Cancel and submit (large, stacked and full width on phones). */
-export function FormFooter({ message, cancelHref, pending, submitLabel, pendingLabel, cancelLabel = "Cancel", disabled }: FormFooterProps) {
+export function FormFooter({ message, cancelHref, pending, submitLabel, pendingLabel, cancelLabel = "Hủy", disabled }: FormFooterProps) {
     return (
         <div className="flex flex-col gap-3 border-t border-border pt-5">
             <FormMessage {...message} />

@@ -571,6 +571,9 @@ export const enScreensVideo = {
     "screens.video.player.seek": "Seek",
     "screens.video.player.timeOf": "{time} of {duration}",
     "screens.video.player.of": " of ",
+    "screens.video.player.previousDetection": "Previous detection",
+    "screens.video.player.nextDetection": "Next detection",
+    "screens.video.player.confidenceUnavailable": "confidence unavailable",
 
     /* Provenance */
     "screens.video.provenance.title": "Provenance",

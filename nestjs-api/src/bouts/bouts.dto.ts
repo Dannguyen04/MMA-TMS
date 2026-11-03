@@ -1,4 +1,11 @@
 import { createZodDto } from 'nestjs-zod';
+import { aiDecisionSchema, aiVideoInputSchema, aiSuggestionParamsSchema, aiHistoryQuerySchema, aiResponseSchema, aiHistoryResponseSchema } from './bout-analysis.model.js';
+export class AiVideoInputDto extends createZodDto(aiVideoInputSchema) {}
+export class AiDecisionDto extends createZodDto(aiDecisionSchema) {}
+export class AiSuggestionParamsDto extends createZodDto(aiSuggestionParamsSchema) {}
+export class AiHistoryQueryDto extends createZodDto(aiHistoryQuerySchema) {}
+export class AiResponseDto extends createZodDto(aiResponseSchema) {}
+export class AiHistoryResponseDto extends createZodDto(aiHistoryResponseSchema) {}
 import { coachTodoResponseSchema } from './bouts-todo.model.js';
 import {
   boutDetailResponseSchema,
@@ -16,6 +23,7 @@ import {
   listBoutsQuerySchema,
   readinessQuerySchema,
   readinessRowSchema,
+  readinessSuspensionSchema,
   requirementMutationResponseSchema,
   requirementParamsSchema,
   requirementRemovalResponseSchema,
@@ -24,12 +32,18 @@ import {
   catchweightSchema,
   recordResultResponseSchema,
   recordResultSchema,
+  recordResultSuspensionSchema,
   removeRequirementQuerySchema,
   updateBoutSchema,
   updateRequirementSchema,
   weighInResponseSchema,
   weighInSchema,
   weightTrackResponseSchema,
+  updateNutritionPlanSchema,
+  nutritionPlanResponseSchema,
+  nutritionCheckinBodySchema,
+  nutritionCheckinParamsSchema,
+  nutritionCheckinResponseSchema,
 } from './bouts.model.js';
 
 export class BoutIdParamsDto extends createZodDto(boutIdParamsSchema) {}
@@ -43,6 +57,9 @@ export class CreateBoutResponseDto extends createZodDto(createBoutResponseSchema
 export class FeasibilityQueryDto extends createZodDto(feasibilityQuerySchema) {}
 export class FeasibilityResponseDto extends createZodDto(feasibilityResponseSchema) {}
 export class ReadinessQueryDto extends createZodDto(readinessQuerySchema) {}
+export class ReadinessSuspensionDto extends createZodDto(
+  readinessSuspensionSchema,
+) {}
 export class ReadinessRowDto extends createZodDto(readinessRowSchema) {}
 export class UpdateBoutDto extends createZodDto(updateBoutSchema) {}
 export class StartCampDto extends createZodDto(startCampSchema) {}
@@ -76,6 +93,9 @@ export class RemoveRequirementQueryDto extends createZodDto(
 export class WeighInDto extends createZodDto(weighInSchema) {}
 export class CatchweightDto extends createZodDto(catchweightSchema) {}
 export class RecordResultDto extends createZodDto(recordResultSchema) {}
+export class RecordResultSuspensionDto extends createZodDto(
+  recordResultSuspensionSchema,
+) {}
 export class WeighInResponseDto extends createZodDto(weighInResponseSchema) {}
 export class RecordResultResponseDto extends createZodDto(
   recordResultResponseSchema,
@@ -83,6 +103,8 @@ export class RecordResultResponseDto extends createZodDto(
 import {
   opponentAnalysisInputSchema,
   opponentReviewInputSchema,
+  nextRoundPlanSchema,
+  roundAdviceSchema,
   roundInputSchema,
   roundParamsSchema,
   priorContextQuerySchema,
@@ -103,6 +125,8 @@ export class OpponentAnalysisDto extends createZodDto(
 export class OpponentReviewDto extends createZodDto(
   opponentReviewInputSchema,
 ) {}
+export class NextRoundPlanDto extends createZodDto(nextRoundPlanSchema) {}
+export class RoundAdviceDto extends createZodDto(roundAdviceSchema) {}
 export class RoundInputDto extends createZodDto(roundInputSchema) {}
 export class RoundParamsDto extends createZodDto(roundParamsSchema) {}
 export class PriorContextQueryDto extends createZodDto(
@@ -156,4 +180,21 @@ export class ResultPrefillResponseDto extends createZodDto(
     resultRound: z.number().int().min(1).max(12).nullable(),
     knockedDown: z.boolean().nullable(),
   }),
+) {}
+
+
+export class UpdateNutritionPlanDto extends createZodDto(
+  updateNutritionPlanSchema,
+) {}
+export class NutritionPlanResponseDto extends createZodDto(
+  nutritionPlanResponseSchema,
+) {}
+export class NutritionCheckinDto extends createZodDto(
+  nutritionCheckinBodySchema,
+) {}
+export class NutritionCheckinParamsDto extends createZodDto(
+  nutritionCheckinParamsSchema,
+) {}
+export class NutritionCheckinResponseDto extends createZodDto(
+  nutritionCheckinResponseSchema,
 ) {}

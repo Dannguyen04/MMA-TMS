@@ -337,7 +337,7 @@ describe("training API adapter", () => {
             // The first may have been saved, so the next one doesn't take its place.
             expect(sent(1)).toMatchObject({ exerciseId: "ex-b", orderIndex: 6 });
             expect(result.added).toHaveLength(1);
-            expect(result.failed).toEqual([{ index: 0, exerciseId: "ex-a", message: expect.stringContaining("may not have been saved") }]);
+            expect(result.failed).toEqual([{ index: 0, exerciseId: "ex-a", message: expect.stringContaining("có thể chưa được lưu") }]);
         });
 
         it("asks nothing when there are no exercises to add", async () => {

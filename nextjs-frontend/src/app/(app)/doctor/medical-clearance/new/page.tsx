@@ -23,7 +23,7 @@ import { usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { listDoctors, listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Update Medical Clearance" };
+export const metadata: Metadata = { title: "Cập nhật giấy phép" };
 
 /** Recent examinations offered as evidence for the decision. */
 const EXAMINATION_OPTIONS = 8;
@@ -82,11 +82,11 @@ export default async function GrantClearancePage(props: PageProps<"/doctor/medic
                 back={
                     preselected
                         ? { href: routes.doctor.fighter(preselected.id), label: preselected.name }
-                        : { href: routes.doctor.clearance, label: "Medical Clearance" }
+                        : { href: routes.doctor.clearance, label: "Giấy phép" }
                 }
-                eyebrow="Medical Clearance"
-                title={preselected ? `Update clearance for ${preselected.name}` : "Issue Medical Clearance"}
-                description="The new clearance replaces the current one immediately. Coaches plan training against it, and the fighter and their coaches are notified."
+                eyebrow="Giấy phép"
+                title={preselected ? `Cập nhật giấy phép cho ${preselected.name}` : "Cấp giấy phép"}
+                description="Giấy phép mới thay thế giấy phép hiện tại ngay lập tức. Võ sĩ và huấn luyện viên sẽ được thông báo."
             />
             <GrantClearanceForm
                 fighters={fighters}
@@ -116,34 +116,34 @@ async function IssueClearancePage({ searchParams }: PageProps<"/doctor/medical-c
     return (
         <>
             <PageHeader
-                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.clearance, label: "Medical Clearance" }}
-                eyebrow="Medical Clearance"
-                title={fighter ? `Issue clearance for ${fighter.name}` : "Issue Medical Clearance"}
-                description="Check the examination, then issue the clearance from it. Coaches plan training against it, and the fighter and their coaches are notified."
+                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.clearance, label: "Giấy phép" }}
+                eyebrow="Giấy phép"
+                title={fighter ? `Cấp giấy phép cho ${fighter.name}` : "Cấp giấy phép"}
+                description="Kiểm tra phiếu khám rồi cấp giấy phép từ phiếu đó. Huấn luyện viên lên lịch tập theo giấy phép; võ sĩ và huấn luyện viên sẽ được thông báo."
                 meta={fromExamination ? <ExamClearanceSteps current={2} /> : undefined}
             />
             <div className="flex flex-col gap-6">
                 {fighter && justExamined && (
-                    <Callout tone="success" icon={CircleCheck} role="status" title="Examination recorded">
-                        It&apos;s saved. Check it below, then issue the clearance so {fighter.name} can train within your decision.
+                    <Callout tone="success" icon={CircleCheck} role="status" title="Đã ghi phiếu khám">
+                        Đã lưu. Hãy kiểm tra bên dưới rồi cấp giấy phép để {fighter.name} có thể tập theo quyết định của bạn.
                     </Callout>
                 )}
                 {!fighter || !dossier ? (
                     <FighterChooser
                         fighters={fighters}
                         hrefFor={(fighterId) => hrefWith(routes.doctor.grantClearance, {}, { fighter: fighterId })}
-                        title="Who is the clearance for?"
+                        title="Cấp giấy phép cho võ sĩ nào?"
                         unreadable={fighter}
                     />
                 ) : positive.length === 0 ? (
                     <EmptyState
                         icon={<ShieldQuestion />}
-                        title="No examination to issue it from"
-                        description={`A clearance comes from ${fighter.name}'s current eligible examination. Record one first.`}
+                        title="Chưa có phiếu khám để cấp"
+                        description={`Giấy phép được cấp từ phiếu khám hợp lệ của ${fighter.name}. Hãy ghi phiếu khám trước.`}
                         action={
                             <ButtonLink href={hrefWith(routes.doctor.newExamination, {}, { fighter: fighter.id })}>
                                 <ClipboardPlus aria-hidden />
-                                New examination
+                                Phiếu khám mới
                             </ButtonLink>
                         }
                     />

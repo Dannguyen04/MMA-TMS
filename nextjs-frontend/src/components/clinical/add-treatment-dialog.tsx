@@ -38,22 +38,22 @@ export function AddTreatmentDialog({ injuryId, fighterId, mode, providerName, to
         <>
             <Button variant={variant} size="sm" onClick={() => setOpen(true)}>
                 <Plus aria-hidden />
-                Add treatment
+                Thêm điều trị
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
                 size="lg"
-                title="Add treatment"
+                title="Thêm điều trị"
                 description={
                     mode === "service"
-                        ? "Shared with the fighter on their Health page; coaches don't see it. Treatments can't be edited later."
-                        : "Treatments are shared with the fighter on their Health page. Coaches don't see them."
+                        ? "Võ sĩ xem được trên trang Sức khỏe; HLV không xem được. Điều trị không thể sửa sau khi lưu."
+                        : "Võ sĩ xem điều trị trên trang Sức khỏe. HLV không xem được."
                 }
                 action={mode === "service" ? recordTreatmentAction : addTreatmentAction}
-                submitLabel="Add treatment"
-                pendingLabel="Adding…"
-                onSuccess={(state) => toast({ title: "Treatment added", description: state.message })}
+                submitLabel="Thêm điều trị"
+                pendingLabel="Đang thêm…"
+                onSuccess={(state) => toast({ title: "Đã thêm điều trị", description: state.message })}
             >
                 {(form) =>
                     mode === "service" ? (
@@ -81,9 +81,9 @@ function TreatmentFields({ form, injuryId, providerName, today }: { form: Action
     return (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <input type="hidden" name="injuryId" value={injuryId} />
-            <Field label="Treatment type" {...field("type")} required>
+            <Field label="Loại điều trị" {...field("type")} required>
                 <Select {...control("type", { required: true })} defaultValue="">
-                    <option value="">Choose a type…</option>
+                    <option value="">Chọn loại…</option>
                     {TYPES.map((value) => (
                         <option key={value} value={value}>
                             {TREATMENT_TYPE_LABELS[value]}
@@ -91,7 +91,7 @@ function TreatmentFields({ form, injuryId, providerName, today }: { form: Action
                     ))}
                 </Select>
             </Field>
-            <Field label="Status" {...field("status")} required>
+            <Field label="Trạng thái" {...field("status")} required>
                 <Select {...control("status", { required: true })} value={status} onChange={(event) => setStatus(event.target.value as TreatmentStatus)}>
                     {STATUSES.map((value) => (
                         <option key={value} value={value}>
@@ -100,28 +100,28 @@ function TreatmentFields({ form, injuryId, providerName, today }: { form: Action
                     ))}
                 </Select>
             </Field>
-            <Field label="Description" {...field("description")} required className="sm:col-span-2">
-                <Input {...control("description", { required: true })} placeholder="e.g. Eccentric hamstring loading programme" maxLength={300} />
+            <Field label="Mô tả" {...field("description")} required className="sm:col-span-2">
+                <Input {...control("description", { required: true })} placeholder="VD: Chương trình tải lệch tâm cơ đùi sau" maxLength={300} />
             </Field>
-            <Field label="Provider" {...field("providerName")} required>
+            <Field label="Nơi thực hiện" {...field("providerName")} required>
                 <Input {...control("providerName", { required: true })} defaultValue={providerName} maxLength={120} />
             </Field>
-            <Field label="Frequency" {...field("frequency")} required hint="e.g. 3× per week, daily, once">
+            <Field label="Tần suất" {...field("frequency")} required hint="VD: 3 lần/tuần, hằng ngày, một lần">
                 <Input {...control("frequency", { hint: true, required: true })} maxLength={120} />
             </Field>
-            <Field label="Start date" {...field("startDate")} required>
+            <Field label="Ngày bắt đầu" {...field("startDate")} required>
                 <Input {...control("startDate", { required: true })} type="date" value={startDate} onChange={(event) => changeStart(event.target.value)} />
             </Field>
             <Field
-                label="End date"
+                label="Ngày kết thúc"
                 {...field("endDate")}
                 optional={status !== "completed"}
                 required={status === "completed"}
-                hint={status === "completed" ? "Required for a completed treatment." : "Leave empty for open-ended treatment."}
+                hint={status === "completed" ? "Bắt buộc với điều trị đã hoàn tất." : "Để trống nếu điều trị chưa có ngày kết thúc."}
             >
                 <Input {...control("endDate", { hint: true, required: status === "completed" })} type="date" min={startDate || undefined} />
             </Field>
-            <Field label="Notes" {...field("notes")} optional className="sm:col-span-2">
+            <Field label="Ghi chú" {...field("notes")} optional className="sm:col-span-2">
                 <Textarea {...control("notes")} rows={3} maxLength={1000} />
             </Field>
         </div>
@@ -138,19 +138,19 @@ function ServiceTreatmentFields({ form, injuryId, fighterId, today }: { form: Ac
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <input type="hidden" name="injuryId" value={injuryId} />
             <input type="hidden" name="fighterId" value={fighterId} />
-            <Field label="Treatment" {...field("treatmentType")} required hint="e.g. Physiotherapy, ice and compression, MRI referral" className="sm:col-span-2">
+            <Field label="Điều trị" {...field("treatmentType")} required hint="VD: Vật lý trị liệu, chườm lạnh và băng ép, chuyển chụp MRI" className="sm:col-span-2">
                 <Input {...control("treatmentType", { hint: true, required: true })} maxLength={MEDICAL_TEXT_LIMITS.treatmentType} />
             </Field>
-            <Field label="Date" {...field("treatmentDate")} required>
+            <Field label="Ngày" {...field("treatmentDate")} required>
                 <Input {...control("treatmentDate", { required: true })} type="date" value={treatmentDate} max={today} onChange={(event) => setTreatmentDate(event.target.value)} />
             </Field>
-            <Field label="Review on" {...field("nextReviewAt")} optional hint="When you'll check how it went.">
+            <Field label="Đánh giá lại ngày" {...field("nextReviewAt")} optional hint="Ngày bạn kiểm tra lại hiệu quả.">
                 <Input {...control("nextReviewAt", { hint: true })} type="date" min={treatmentDate || undefined} />
             </Field>
-            <Field label="Details" {...field("description")} optional className="sm:col-span-2">
+            <Field label="Chi tiết" {...field("description")} optional className="sm:col-span-2">
                 <Textarea {...control("description")} rows={3} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
             </Field>
-            <Field label="Outcome notes" {...field("outcomeNotes")} optional className="sm:col-span-2">
+            <Field label="Ghi chú kết quả" {...field("outcomeNotes")} optional className="sm:col-span-2">
                 <Textarea {...control("outcomeNotes")} rows={2} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
             </Field>
         </div>

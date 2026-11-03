@@ -14,6 +14,7 @@ import {
 import { appearance } from "@/i18n/appearance";
 import { hexToHsv, hsvToHex, normalizeHex, type Hsv } from "@/theme/appearance/color-math";
 import { radius, spacing, type, useThemePreference } from "@/theme";
+import { ArenaSurface } from "@/components/arena/arena-frame";
 
 const THUMB = 28;
 
@@ -187,8 +188,9 @@ function StepButton({
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
-      style={[styles.step, { borderColor: colors.line, backgroundColor: colors.surface }]}
+      style={[styles.step, { borderWidth: 0, borderRadius: 0, backgroundColor: "transparent" }]}
     >
+      <ArenaSurface/>
       <MaterialCommunityIcons name={icon} size={20} color={colors.ink} />
     </Pressable>
   );
@@ -402,7 +404,7 @@ const styles = StyleSheet.create({
   },
   segment: {
     flex: 1,
-    minHeight: 44,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.field - 2,

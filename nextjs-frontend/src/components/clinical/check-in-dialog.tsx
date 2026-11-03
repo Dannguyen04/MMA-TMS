@@ -25,9 +25,9 @@ export interface CheckInDialogProps {
 }
 
 const PAIN_ANCHORS = [
-    { value: 0, label: "No pain" },
-    { value: 5, label: "Moderate" },
-    { value: 10, label: "Worst imaginable" },
+    { value: 0, label: "Không đau" },
+    { value: 5, label: "Trung bình" },
+    { value: 10, label: "Đau tột độ" },
 ];
 
 /** "Log check-in" button with a dialog: date, pain slider, mobility and strength, and a note. */
@@ -39,17 +39,17 @@ export function CheckInDialog({ planId, fighterName, minDate, today, lastCheckIn
         <>
             <Button onClick={() => setOpen(true)}>
                 <NotebookPen aria-hidden />
-                Log check-in
+                Ghi kiểm tra
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
-                title="Log recovery check-in"
-                description={`How ${fighterName} is responding today. Pain is self-reported; mobility and strength are compared with the healthy side.`}
+                title="Ghi kiểm tra phục hồi"
+                description={`Đáp ứng hôm nay của ${fighterName}. Mức đau do võ sĩ tự báo; vận động và sức mạnh so với bên lành.`}
                 action={addCheckInAction}
-                submitLabel="Log check-in"
-                pendingLabel="Saving…"
-                onSuccess={(state) => toast({ title: "Check-in logged", description: state.message })}
+                submitLabel="Ghi kiểm tra"
+                pendingLabel="Đang lưu…"
+                onSuccess={(state) => toast({ title: "Đã ghi kiểm tra", description: state.message })}
             >
                 {(form) => <CheckInFields form={form} planId={planId} minDate={minDate} today={today} lastCheckIn={lastCheckIn} />}
             </ActionDialog>
@@ -81,19 +81,19 @@ function CheckInFields({ form, planId, minDate, today, lastCheckIn }: Omit<Check
             <input type="hidden" name="planId" value={planId} />
             {lastCheckIn && (
                 <InlineNote icon={History}>
-                    Last check-in {formatDate(lastCheckIn.date)}: pain {lastCheckIn.painLevel}/10, mobility {lastCheckIn.mobilityPct}%, strength{" "}
+                    Lần kiểm tra gần nhất {formatDate(lastCheckIn.date)}: đau {lastCheckIn.painLevel}/10, mobility {lastCheckIn.mobilityPct}%, sức mạnh{" "}
                     {lastCheckIn.strengthPct}%
                 </InlineNote>
             )}
 
-            <Field label="Date" htmlFor={control("date").id} error={error("date")} required>
+            <Field label="Ngày" htmlFor={control("date").id} error={error("date")} required>
                 <Input {...control("date", { required: true })} type="date" defaultValue={today} min={minDate} max={today} className="sm:max-w-48" />
             </Field>
 
             <ScaleSlider
                 id={control("painLevel").id}
                 name="painLevel"
-                label="Pain"
+                label="Đau"
                 min={0}
                 max={10}
                 value={painLevel}
@@ -101,18 +101,18 @@ function CheckInFields({ form, planId, minDate, today, lastCheckIn }: Omit<Check
                 formatValue={(level) => `${level}/10 · ${painLabel(level)}`}
                 anchors={PAIN_ANCHORS}
                 showTicks
-                hint="Self-reported by the fighter, from 0 (no pain) to 10 (worst imaginable)."
+                hint="Võ sĩ tự báo, từ 0 (không đau) đến 10 (đau tột độ)."
                 error={error("painLevel")}
                 required
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {percentField("mobilityPct", "Mobility", "Range of motion vs the healthy side, as a percentage")}
-                {percentField("strengthPct", "Strength", "Strength vs the healthy side, as a percentage")}
+                {percentField("mobilityPct", "Vận động", "Biên độ vận động so với bên lành, tính theo %")}
+                {percentField("strengthPct", "Sức mạnh", "Sức mạnh so với bên lành, tính theo %")}
             </div>
 
-            <Field label="Note" htmlFor={control("note").id} error={error("note")} optional>
-                <Textarea {...control("note")} rows={3} maxLength={500} placeholder="What was done, how it felt, anything that changed" />
+            <Field label="Ghi chú" htmlFor={control("note").id} error={error("note")} optional>
+                <Textarea {...control("note")} rows={3} maxLength={500} placeholder="Đã làm gì, cảm giác thế nào, có gì thay đổi" />
             </Field>
         </>
     );

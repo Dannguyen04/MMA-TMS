@@ -33,26 +33,26 @@ const TARGET_STATUS: Record<Transition, InjuryStatus> = { recovering: "recoverin
 export function InjuryStatusActions({ injuryId, fighterId, status, fighterName, canReopen, openPlanTitle, todayLabel }: InjuryStatusActionsProps) {
     const toast = useToast();
     const transition = useConfirmAction((next: Transition) => updateInjuryAction(IDLE, toFormData({ injuryId, fighterId, status: TARGET_STATUS[next] })), {
-        onSuccess: (state) => toast({ title: "Injury updated", description: state.message }),
+        onSuccess: (state) => toast({ title: "Đã cập nhật chấn thương", description: state.message }),
     });
 
     const copy: Record<Transition, { title: string; description: string; confirmLabel: string }> = {
         recovering: {
-            title: "Mark this injury as recovering?",
-            description: `${fighterName} moves out of the acute phase. Their health status is recalculated — usually to Recovery — and coaches continue to see only Medical Clearance.`,
-            confirmLabel: "Mark recovering",
+            title: "Chuyển chấn thương sang đang phục hồi?",
+            description: `${fighterName} ra khỏi giai đoạn cấp. Tình trạng sức khỏe được tính lại — thường là Phục hồi — và HLV vẫn chỉ thấy giấy phép.`,
+            confirmLabel: "Chuyển sang đang phục hồi",
         },
         resolved: {
-            title: "Resolve this injury?",
+            title: "Đánh dấu chấn thương đã khỏi?",
             description: canReopen
-                ? `This closes the injury record. ${fighterName}'s health status is recalculated from their clearance and any other open injuries, and the fighter and their coaches are notified. Medical Clearance does not change — review it separately.`
-                : `This closes the injury record for good: if it flares up again, record a new injury. Medical Clearance does not change — review it separately.`,
-            confirmLabel: "Resolve injury",
+                ? `Hồ sơ chấn thương sẽ được đóng. Tình trạng sức khỏe của ${fighterName} được tính lại từ giấy phép và các chấn thương đang mở khác; võ sĩ và HLV được thông báo. Giấy phép không thay đổi — hãy xem lại riêng.`
+                : `Hồ sơ chấn thương được đóng hẳn: nếu tái phát, hãy ghi chấn thương mới. Giấy phép không thay đổi — hãy xem lại riêng.`,
+            confirmLabel: "Đánh dấu đã khỏi",
         },
         reopen: {
-            title: "Reopen this injury?",
-            description: `The injury returns to Recovering and its resolved date is cleared. ${fighterName}'s health status is recalculated.`,
-            confirmLabel: "Reopen injury",
+            title: "Mở lại chấn thương này?",
+            description: `Chấn thương quay về Đang phục hồi và ngày khỏi bị xóa. Tình trạng sức khỏe của ${fighterName} được tính lại.`,
+            confirmLabel: "Mở lại chấn thương",
         },
     };
 
@@ -63,19 +63,19 @@ export function InjuryStatusActions({ injuryId, fighterId, status, fighterName, 
             {status === "active" && (
                 <Button variant="secondary" onClick={() => transition.request("recovering")}>
                     <RefreshCw aria-hidden />
-                    Mark recovering
+                    Chuyển sang đang phục hồi
                 </Button>
             )}
             {status !== "resolved" && (
                 <Button variant="secondary" onClick={() => transition.request("resolved")}>
                     <CircleCheck aria-hidden />
-                    Mark resolved
+                    Đánh dấu đã khỏi
                 </Button>
             )}
             {status === "resolved" && canReopen && (
                 <Button variant="secondary" onClick={() => transition.request("reopen")}>
                     <RotateCcw aria-hidden />
-                    Reopen injury
+                    Mở lại chấn thương
                 </Button>
             )}
 
@@ -89,11 +89,11 @@ export function InjuryStatusActions({ injuryId, fighterId, status, fighterName, 
                 {transition.payload === "resolved" && (
                     <div className="flex flex-col gap-3">
                         <InlineNote icon={CalendarCheck}>
-                            Resolved date: <span className="font-medium text-fg">{todayLabel}</span> (today — recorded when you confirm)
+                            Ngày khỏi: <span className="font-medium text-fg">{todayLabel}</span> (hôm nay — ghi khi bạn xác nhận)
                         </InlineNote>
                         {openPlanTitle && (
                             <InlineNote icon={TriangleAlert} tone="warning">
-                                The recovery plan “{openPlanTitle}” is still in progress. It stays open until you complete its final phase.
+                                Kế hoạch phục hồi “{openPlanTitle}” vẫn đang thực hiện và giữ mở cho đến khi hoàn tất giai đoạn cuối.
                             </InlineNote>
                         )}
                     </div>

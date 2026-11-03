@@ -5,23 +5,29 @@ import { forbidden } from '../shared/errors/access.error.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import { setAuditContext } from '../shared/utils/audit-context.util.js';
+import { SuspensionEffects } from './suspension.effects.js';
 import {
   mapSuspensionPersistenceError,
   suspensionAlreadyCleared,
+  suspensionNotAwaitingClearance,
   suspensionNotFound,
   suspensionValidationError,
 } from './suspensions.error.js';
 import {
   academyDateOf,
+  blockedTypesForMaxTier,
   clearSuspensionSchema,
   createSuspensionSchema,
   DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
   deriveRequiresClearance,
   encodeSuspensionCursor,
   endsOnFor,
+  gradedReturnFor,
+  maxAllowedTier,
   suspensionStatusOn,
   type ClearSuspensionInput,
   type CreateSuspensionInput,
+  type CreateSuspensionResponse,
   type ListSuspensionsQuery,
   type LossOfConsciousness,
   type SuspensionListResponse,
@@ -34,7 +40,10 @@ import {
 
 @Injectable()
 export class SuspensionsService {
-  constructor(private readonly repo: SuspensionsRepository) {}
+  constructor(
+    private readonly repo: SuspensionsRepository,
+    private readonly suspensionEffects: SuspensionEffects,
+  ) {}
 
   async listSuspensions(
     actor: AuthenticatedUser,
@@ -70,7 +79,7 @@ export class SuspensionsService {
     actor: AuthenticatedUser,
     input: CreateSuspensionInput,
     requestId: string,
-  ): Promise<SuspensionResponse> {
+  ): Promise<CreateSuspensionResponse> {
     const parsed = createSuspensionSchema.safeParse(input);
     if (!parsed.success) {
       throw suspensionValidationError(
@@ -96,14 +105,17 @@ export class SuspensionsService {
     if (!clearance.ok) {
       throw suspensionValidationError('Invalid requiresClearance for reason');
     }
-    const blockedSessionTypes = data.blockedSessionTypes ?? [
-      ...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
-    ];
+    const blockedSessionTypes =
+      data.maxTier !== undefined
+        ? blockedTypesForMaxTier(data.maxTier)
+        : (data.blockedSessionTypes ?? [
+            ...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES,
+          ]);
 
     try {
-      const created = await this.repo.transaction(async (tx) => {
+      const { created, effects } = await this.repo.transaction(async (tx) => {
         await setAuditContext(actor.authSubject, requestId, tx);
-        return this.repo.insertSuspension(
+        const row = await this.repo.insertSuspension(
           {
             fighterId: data.fighterId,
             boutId: null,
@@ -122,8 +134,18 @@ export class SuspensionsService {
           },
           tx,
         );
+        const effectResult = await this.suspensionEffects.runOnCreated(
+          [row],
+          tx,
+        );
+        return { created: row, effects: effectResult };
       });
-      return toSuspensionResponse(created, today);
+      await effects.afterCommit();
+      return {
+        ...toSuspensionResponse(created, today),
+        affectedSessions: effects.affectedSessions,
+        affectedPlans: effects.affectedPlans,
+      };
     } catch (error) {
       throw mapSuspensionPersistenceError(error);
     }
@@ -160,6 +182,10 @@ export class SuspensionsService {
         const locked = await this.repo.lockSuspensionById(id, tx);
         if (!locked) throw suspensionNotFound();
         if (locked.clearedAt !== null) throw suspensionAlreadyCleared();
+        const status = suspensionStatusOn(locked, academyDateOf(new Date()));
+        if (status !== 'AWAITING_CLEARANCE') {
+          throw suspensionNotAwaitingClearance(status);
+        }
         const cleared = await this.repo.clearSuspension(
           id,
           {
@@ -295,6 +321,7 @@ export function toSuspensionResponse(
     suggestedDays: row.suggestedDays,
     overrideReason: row.overrideReason,
     blockedSessionTypes: [...row.blockedSessionTypes],
+    maxAllowedTier: maxAllowedTier(row.blockedSessionTypes),
     requiresClearance: row.requiresClearance,
     clearedAt: row.clearedAt ? row.clearedAt.toISOString() : null,
     clearedById: row.clearedById,
@@ -303,5 +330,6 @@ export function toSuspensionResponse(
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     status: suspensionStatusOn(row, today),
+    gradedReturn: gradedReturnFor(row, today),
   };
 }

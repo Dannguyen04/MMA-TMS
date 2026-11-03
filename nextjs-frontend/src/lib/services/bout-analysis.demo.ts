@@ -7,11 +7,13 @@ import {
     type RoundInput,
     type RoundRecord,
 } from "@/lib/domain/round-advice";
+import type { OpponentAnalysisInput } from "@/lib/domain/opponent-analysis-form";
 import type { User } from "@/lib/domain/types";
 import type {
     BoutAnalysisDetail,
     GetBoutRoundsResult,
     GetCornerCardResult,
+    SaveOpponentAnalysisResult,
     UpsertBoutRoundResult,
 } from "./bout-analysis";
 import { demoCampStore, type DemoBoutRecord } from "./bouts.demo";
@@ -169,4 +171,31 @@ export async function upsertBoutRound(
 
     bout.boutRounds.sort((a, b) => a.roundNo - b.roundNo);
     return getBoutRounds(boutId);
+}
+
+export async function saveOpponentAnalysis(
+    boutId: string,
+    input: OpponentAnalysisInput,
+    actor: User,
+): Promise<SaveOpponentAnalysisResult> {
+    const bout = findBoutRecord(boutId);
+    if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
+
+    if (bout.phase === "COMPLETED" || bout.phase === "CANCELLED") {
+        return { ok: false, error: "BOUT_INVALID_TRANSITION" };
+    }
+
+    // Reviews are written after the bout, so a pre-bout edit keeps them as they were.
+    const previous = getAnalysis(bout);
+    bout.opponentAnalysis = {
+        profile: input.profile,
+        observations: input.observations,
+        tactics: input.tactics.map((t) => {
+            const review = previous.tactics?.find((old) => old.id === t.id)?.review;
+            return review ? { ...t, review } : t;
+        }),
+        updatedAt: new Date().toISOString(),
+        updatedById: actor.id,
+    };
+    return { ok: true };
 }

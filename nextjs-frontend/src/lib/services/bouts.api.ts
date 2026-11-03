@@ -6,7 +6,7 @@ import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } fro
 import type { BoutOutcome, CampBout, CompetitionRuleset, Suspension } from "@/lib/domain/bout";
 import type { RequirementUpdate } from "@/lib/domain/bout-rules";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
-import { suspensionDays, type SuspensionDraft } from "@/lib/domain/suspension-rules";
+import { suspensionDays, type SuspensionDraft } from "@/lib/domain/bout-suspension-rules";
 import { sessionTypeFor, TRAINING_TYPE_FOR } from "@/lib/domain/training-contract";
 import type { TrainingType } from "@/lib/domain/types";
 import {

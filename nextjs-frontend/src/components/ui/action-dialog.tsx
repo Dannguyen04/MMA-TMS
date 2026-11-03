@@ -18,6 +18,7 @@ export interface ActionDialogProps<T> {
     description?: ReactNode;
     size?: DialogProps["size"];
     action: FormAction<T>;
+    initialState?: ActionState<T>;
     submitLabel: ReactNode;
     pendingLabel?: string;
     submitVariant?: "primary" | "danger";
@@ -25,7 +26,10 @@ export interface ActionDialogProps<T> {
     onSuccess?(state: ActionState<T>): void;
     prepare?(fd: FormData): ActionState<T> | void;
     hiddenFields?: string[];
-    children: (form: ActionForm<T>) => ReactNode;
+    children?: (form: ActionForm<T>) => ReactNode;
+    /** Hide the default FormMessage when the form handles error display itself. */
+    showMessage?: boolean | ((state: ActionState<T>) => boolean);
+    submitDisabled?: boolean | ((state: ActionState<T>) => boolean);
 }
 
 /**
@@ -49,6 +53,7 @@ function ActionDialogInstance<T>({
     description,
     size,
     action,
+    initialState,
     submitLabel,
     pendingLabel,
     submitVariant = "primary",
@@ -56,6 +61,8 @@ function ActionDialogInstance<T>({
     prepare,
     hiddenFields,
     children,
+    showMessage,
+    submitDisabled,
 }: ActionDialogProps<T>) {
     const t = useT();
     const succeeded = useRef<ActionState<T> | null>(null);
@@ -63,6 +70,7 @@ function ActionDialogInstance<T>({
     const firstField = useRef<HTMLElement | null>(null);
 
     const form = useActionForm(action, {
+        initialState,
         prepare,
         hiddenFields,
         onSuccess: (state) => {
@@ -107,7 +115,7 @@ function ActionDialogInstance<T>({
                     <Button variant="secondary" onClick={onClose} disabled={form.pending}>
                         {t("common.cancel")}
                     </Button>
-                    <Button type="submit" form={form.formProps.id} variant={submitVariant} loading={form.pending}>
+                    <Button type="submit" form={form.formProps.id} variant={submitVariant} loading={form.pending} disabled={(typeof submitDisabled === "function" ? submitDisabled(form.state) : Boolean(submitDisabled)) || form.pending}>
                         {form.pending && pendingLabel ? pendingLabel : submitLabel}
                     </Button>
                 </>
@@ -115,9 +123,9 @@ function ActionDialogInstance<T>({
         >
             <form {...form.formProps} className="flex flex-col gap-5">
                 <div ref={findFirstField} className="contents">
-                    {children(form)}
+                    {children?.(form)}
                 </div>
-                <FormMessage {...form.message} />
+                {(typeof showMessage === "function" ? showMessage(form.state) : (showMessage ?? true)) && <FormMessage {...form.message} />}
             </form>
         </Dialog>
     );

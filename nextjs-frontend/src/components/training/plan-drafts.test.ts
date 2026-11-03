@@ -33,8 +33,8 @@ describe("plan exercise drafts", () => {
             ["jab-cross-hook pad drill", "ex-pads"],
             ["Hip 90/90 mobility flow", "ex-hips"],
         ]);
-        expect(drafts[0]).toMatchObject({ name: "Technical shadow boxing", exerciseId: null, included: false, categoryLabel: "Striking", sets: "3", durationMin: "9", targetRpe: "4" });
-        expect(drafts.at(-1)).toMatchObject({ categoryLabel: "Mobility", durationMin: "10" });
+        expect(drafts[0]).toMatchObject({ name: "Technical shadow boxing", exerciseId: null, included: false, categoryLabel: "Đòn đánh", sets: "3", durationMin: "9", targetRpe: "4" });
+        expect(drafts.at(-1)).toMatchObject({ categoryLabel: "Vận động", durationMin: "10" });
     });
 
     it("sends only ticked rows that are in the library, with trimmed values", () => {
@@ -52,7 +52,7 @@ describe("plan exercise drafts", () => {
             sets: "4",
             reps: "15",
             durationMin: "",
-            categoryLabel: "Strength",
+            categoryLabel: "Sức mạnh",
         });
     });
 

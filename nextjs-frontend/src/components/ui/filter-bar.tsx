@@ -107,7 +107,7 @@ export function FilterBar({ filters, label, className }: FilterBarProps) {
                                 {filter.label}
                             </label>
                             <Select id={id} value={searchParams.get(filter.name) ?? ""} onChange={(event) => update(filter.name, event.target.value)}>
-                                <option value="">{filter.allLabel ?? (locale === "vi" ? copy("All") : `All ${filter.label.toLowerCase()}`)}</option>
+                                <option value="">{filter.allLabel ?? (locale === "vi" ? copy("All") : `Tất cả ${filter.label.toLowerCase()}`)}</option>
                                 {filter.options.map((option) => (
                                     <option key={option.value} value={option.value}>
                                         {option.label}

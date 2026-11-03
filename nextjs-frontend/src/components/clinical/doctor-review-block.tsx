@@ -12,7 +12,7 @@ export function DoctorReviewBlock({ review, compact = false, className }: { revi
         <div className={cn("rounded-lg border border-border bg-surface-muted/60", compact ? "px-3 py-2.5" : "px-4 py-3", className)}>
             <p className="flex items-center gap-1.5 text-[13px] font-semibold text-fg">
                 <UserCheck aria-hidden className="size-4 text-fg-muted" />
-                Doctor&apos;s decision
+                Quyết định của bác sĩ
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                 <StatusBadge meta={DOCTOR_DECISION_META[review.decision]} size="sm" />

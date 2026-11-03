@@ -96,7 +96,7 @@ export interface PaginationProps {
     itemLabel?: string;
 }
 
-export function Pagination({ page, pageCount, total, pageSize, pathname, searchParams, itemLabel = "results", locale = "en" }: PaginationProps) {
+export function Pagination({ page, pageCount, total, pageSize, pathname, searchParams, itemLabel = "results", locale = "vi" }: PaginationProps) {
     const copy = createDemoCopy(locale);
     if (total === 0) return null;
     const from = (page - 1) * pageSize + 1;
