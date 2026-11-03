@@ -107,7 +107,7 @@ Phần lớn nền tảng đã có sẵn. Việc mới thực sự chỉ là b�
 | AI | `python-worker`, `coaching`, `jobs`, `admin/ai-jobs`, `admin/ai-models` | **Đóng băng phát triển, tính vào đồ án** | Không mở việc mới. Giữ worker chạy được; một chương báo cáo tổng hợp kết quả đã đo (tài liệu ở `docs/archive/ai`) và một demo ngắn chạy worker trên video có sẵn (quyết định 16) |
 | Dataset | `dataset-export`, bảng `dataset_*` | **Đóng băng** | Không |
 | Tuyển võ sĩ | `fighter-admissions`, `(applicant)`, `admin/admissions`, `coach/admissions` | **Đóng băng** | HLV tạo võ sĩ trực tiếp |
-| Cổng Doctor | 17 trang: examinations, recovery, ai-alerts, medical-records… | **Đóng băng** (trừ injuries) | Bác sĩ chỉ còn màn xác nhận hồ sơ |
+| Cổng Doctor | 17 trang: examinations, recovery, ai-alerts, medical-records… | **Giữ một phần** (Ken 03/11: demo bác sĩ như bình thường) | Dùng: injuries, yêu cầu xem xét, phiếu khám, trang võ sĩ (khối Đình chỉ, kết thúc sớm T-050). Các trang còn lại vẫn không mở việc mới |
 | Hiệu suất | `coach/performance`, `fighter/performance`, `progress_snapshots` | **Đóng băng** | Không |
 | Live video | `fighter/videos/live` | **Đóng băng** | Không |
 | Mobile | `reactnative-mobile` | **Đóng băng** | Làm web responsive thay thế |

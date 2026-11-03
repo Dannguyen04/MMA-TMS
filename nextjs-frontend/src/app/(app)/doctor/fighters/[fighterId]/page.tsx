@@ -22,6 +22,8 @@ import { loadDoctorRow } from "@/lib/services/doctor-board";
 import { getClearanceHistory, listExaminations, listInjuries, listRecoveryPlans, listReviewRequests } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter } from "@/lib/services/people";
+import { listSuspensions } from "@/lib/services/suspensions";
+import { EarlyEndSuspensionButton } from "@/app/(app)/coach/bouts/suspensions/early-end-suspension-button";
 import { param } from "@/lib/utils";
 
 type Kind = "injury" | "review" | "expiry" | "followup" | "milestone" | "exam";
@@ -59,7 +61,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const stored = await requireFighterAccess(user, fighterId);
     const now = new Date().toISOString();
 
-    const [row, examinations, injuries, clearances, plans, reviewRequests, observations] = await Promise.all([
+    const [row, examinations, injuries, clearances, plans, reviewRequests, observations, suspensions] = await Promise.all([
         loadDoctorRow(stored),
         listExaminations({ fighterIds: [stored.id] }),
         listInjuries({ fighterIds: [stored.id] }),
@@ -67,6 +69,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         listRecoveryPlans({ fighterIds: [stored.id] }),
         listReviewRequests(stored.id),
         medicalFeatureAvailable("aiObservations") ? nullIfServiceFails(listAlerts({ fighterIds: [stored.id] })) : Promise.resolve([]),
+        nullIfServiceFails(listSuspensions({ fighterId: stored.id }, user)),
     ]);
     if (!row) notFound();
     const { fighter, summary, training, competition, dossier, tag } = row;
@@ -225,6 +228,98 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     </Panel>
                     <Panel title="Chỉ số sinh tồn" id="sinh-hieu" aside={withVitals ? fmtDate(withVitals.date) : undefined}>
                         <Vitals v={withVitals?.vitals} />
+                    </Panel>
+                    <Panel title={suspensions ? `Đình chỉ · ${suspensions.length}` : "Đình chỉ"} id="dinh-chi">
+                        {suspensions === null ? (
+                            <p className="yt-muted">Không tải được danh sách đình chỉ</p>
+                        ) : suspensions.length ? (
+                            <ul className="hs-clr">
+                                {suspensions.map((s) => (
+                                    <li key={s.id}>
+                                        <b>
+                                            {s.reason === "MEDICAL"
+                                                ? s.issuedBy === "ORGANIZER"
+                                                    ? "Đình chỉ y tế (Ban tổ chức)"
+                                                    : "Đình chỉ y tế"
+                                                : s.reason === "KO"
+                                                  ? "Đình chỉ KO"
+                                                  : s.reason === "TKO"
+                                                    ? "Đình chỉ TKO"
+                                                    : s.reason === "DQ"
+                                                      ? "Truất quyền thi đấu"
+                                                      : s.reason === "MANDATORY_REST"
+                                                        ? "Nghỉ bắt buộc"
+                                                        : "Đình chỉ khác"}
+                                        </b>
+                                        <small>
+                                            {fmtDate(s.startsOn)} – {fmtDate(s.endsOn)}
+                                            {s.issuedBy === "ORGANIZER" && s.issuerReference ? ` · Ban tổ chức: ${s.issuerReference}` : ""}
+                                        </small>
+                                        <Pill
+                                            tone={
+                                                s.status === "ACTIVE"
+                                                    ? "red"
+                                                    : s.status === "AWAITING_CLEARANCE"
+                                                      ? "amber"
+                                                      : s.status === "ENDED"
+                                                        ? "green"
+                                                        : "neutral"
+                                            }
+                                        >
+                                            {s.status === "ACTIVE"
+                                                ? "Đang hiệu lực"
+                                                : s.status === "AWAITING_CLEARANCE"
+                                                  ? "Chờ xác nhận"
+                                                  : s.status === "ENDED"
+                                                    ? "Đã kết thúc"
+                                                    : "Chưa bắt đầu"}
+                                        </Pill>
+                                        {s.earlyEndExaminationId && (
+                                            <span style={{ gridColumn: "1 / -1", fontSize: "12px" }}>
+                                                <Link
+                                                    href={routes.doctor.examination(s.earlyEndExaminationId)}
+                                                    className="yt-go"
+                                                >
+                                                    {s.clearedAt
+                                                        ? `Kết thúc sớm ngày ${fmtDate(s.clearedAt)} theo phiếu khám`
+                                                        : "Kết thúc sớm theo phiếu khám"}{" "}
+                                                    <ArrowRight aria-hidden />
+                                                </Link>
+                                            </span>
+                                        )}
+                                        {s.liftReference && (
+                                            <span className="yt-muted" style={{ gridColumn: "1 / -1", fontSize: "12px" }}>
+                                                Ban tổ chức gỡ: {s.liftReference}
+                                            </span>
+                                        )}
+                                        {s.status === "ACTIVE" && s.reason === "MEDICAL" && s.issuedBy === "CLUB" && (
+                                            <span style={{ gridColumn: "1 / -1", marginTop: "4px" }}>
+                                                <EarlyEndSuspensionButton
+                                                    suspension={s}
+                                                    fighterName={fighter.name}
+                                                    examinations={examinations}
+                                                    doctorId={user.profileId ?? undefined}
+                                                    label="Kết thúc sớm"
+                                                />
+                                            </span>
+                                        )}
+                                        {s.status === "ACTIVE" && s.issuedBy === "ORGANIZER" && (
+                                            <span style={{ gridColumn: "1 / -1", marginTop: "4px" }}>
+                                                <EarlyEndSuspensionButton
+                                                    suspension={s}
+                                                    fighterName={fighter.name}
+                                                    examinations={examinations}
+                                                    doctorId={user.profileId ?? undefined}
+                                                    label="Ban tổ chức đã gỡ"
+                                                />
+                                            </span>
+                                        )}
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : (
+                            <p className="yt-muted">Không có đình chỉ nào.</p>
+                        )}
                     </Panel>
                 </div>
                 <div className="hs-col hs-col3">

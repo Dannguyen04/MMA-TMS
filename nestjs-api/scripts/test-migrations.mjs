@@ -1096,6 +1096,96 @@ try {
       '0',
     );
   });
+  check('M1-M6: 033 applies on ledger 11 and 25 without 026-032; issuer and early-end constraints; composite FK to the examination of the same fighter', () => {
+    const db = 'mma_033_on_025';
+    prepare(db);
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 25;
+    }))
+      migration(db, name);
+    const target = '033_suspension_early_end.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    const id = (n) => `00000000-0000-4000-8000-000000033${n}`;
+    const [fighter, fighter2, coach, doctorUser, doctor, exam, exam2, legacy] = [
+      id('0c1'), id('0c2'), id('0b1'), id('0b2'), id('0d1'), id('0e1'), id('0e2'), id('0a1'),
+    ];
+    psql(db, `
+      INSERT INTO auth.users(id) VALUES ('${id('0f1')}'), ('${id('0f2')}'), ('${id('0f3')}'), ('${id('0f4')}');
+      INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+        ('${id('0b3')}', '${id('0f1')}', 'f1-033@example.invalid', 'FIGHTER'),
+        ('${id('0b4')}', '${id('0f2')}', 'f2-033@example.invalid', 'FIGHTER'),
+        ('${coach}', '${id('0f3')}', 'c-033@example.invalid', 'COACH'),
+        ('${doctorUser}', '${id('0f4')}', 'd-033@example.invalid', 'DOCTOR');
+      INSERT INTO public.fighters(id, user_id, first_name, last_name, date_of_birth, weight_class) VALUES
+        ('${fighter}', '${id('0b3')}', 'Test', 'One', '2000-01-01', 'LIGHTWEIGHT'),
+        ('${fighter2}', '${id('0b4')}', 'Test', 'Two', '2000-01-01', 'LIGHTWEIGHT');
+      INSERT INTO public.sports_doctors(id, user_id, first_name, last_name, license_number)
+        VALUES ('${doctor}', '${doctorUser}', 'Test', 'Doctor', 'TEST-033');
+      INSERT INTO public.medical_examinations(id, fighter_id, doctor_id, recorded_by_id, scope, decision, examined_at, reason) VALUES
+        ('${exam}', '${fighter}', '${doctor}', '${doctorUser}', 'TRAINING', 'ELIGIBLE', '2026-11-05 02:00:00+00', 'Khám ổn'),
+        ('${exam2}', '${fighter2}', '${doctor}', '${doctorUser}', 'TRAINING', 'ELIGIBLE', '2026-11-05 02:00:00+00', 'Khám ổn');
+      INSERT INTO public.suspensions(id, fighter_id, reason, starts_on, ends_on, blocked_session_types, requires_clearance, created_by_id)
+        VALUES ('${legacy}', '${fighter}', 'MEDICAL', '2026-11-01', '2026-11-14', '{SPARRING}', false, '${coach}');
+    `);
+    // M1: applies on 011 + 025 without 026-032.
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version BETWEEN 26 AND 32;'),
+      '0',
+    );
+    migration(db, target);
+    assert.equal(
+      psql(db, "SELECT count(*) FROM mma_private.migration_history WHERE version = 33 AND name = '033_suspension_early_end.sql';"),
+      '1',
+    );
+    assert.equal(
+      psql(db, `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'suspension_issuer';`),
+      'CLUB,ORGANIZER',
+    );
+    // M2: existing row gets CLUB and NULLs.
+    assert.equal(
+      psql(db, `SELECT issued_by || ',' || (issuer_reference IS NULL) || ',' || (early_end_examination_id IS NULL) || ',' || (lift_reference IS NULL) FROM public.suspensions WHERE id = '${legacy}';`),
+      'CLUB,true,true,true',
+    );
+    const insert = (cols, vals, reason = 'MEDICAL', f = fighter) =>
+      `INSERT INTO public.suspensions(fighter_id, reason, starts_on, ends_on, blocked_session_types, requires_clearance, created_by_id${cols})
+       VALUES ('${f}', '${reason}', '2026-11-01', '2026-11-14', '{SPARRING}', false, '${coach}'${vals});`;
+    const cleared = `, cleared_at, cleared_by_id, clearance_note`;
+    const clearedVals = `, '2026-11-05 03:00:00+00', '${doctorUser}', 'Khám ổn, hết đau đầu'`;
+    const ref = `'Giải MMA Hà Nội 2026, QĐ 12/BTC ngày 31/10'`;
+    // M3: issuer rules.
+    rejects(db, insert(', issued_by', ", 'ORGANIZER'"), /ck_suspensions_issuer/);
+    rejects(db, insert(', issued_by, issuer_reference', `, 'ORGANIZER', ${ref}`, 'KO'), /ck_suspensions_issuer/);
+    rejects(db, insert(', issued_by, issuer_reference', `, 'CLUB', ${ref}`), /ck_suspensions_issuer/);
+    // M4: examination of another fighter (composite FK).
+    rejects(db, insert(`${cleared}, early_end_examination_id`, `${clearedVals}, '${exam2}'`), /fk_suspensions_early_end_examination/);
+    // M5: early-end basis rules.
+    rejects(
+      db,
+      insert(`${cleared}, issued_by, issuer_reference, early_end_examination_id, lift_reference`, `${clearedVals}, 'ORGANIZER', ${ref}, '${exam}', 'CV 15/BTC'`),
+      /ck_suspensions_early_end/,
+    );
+    rejects(db, insert(', early_end_examination_id', `, '${exam}'`), /ck_suspensions_early_end/);
+    rejects(db, insert(', issued_by, issuer_reference, lift_reference', `, 'ORGANIZER', ${ref}, 'CV 15/BTC'`), /ck_suspensions_early_end/);
+    rejects(db, insert(`${cleared}, lift_reference`, `${clearedVals}, 'CV 15/BTC'`), /ck_suspensions_early_end/);
+    rejects(
+      db,
+      insert(`${cleared}, issued_by, issuer_reference, early_end_examination_id`, `${clearedVals}, 'ORGANIZER', ${ref}, '${exam}'`),
+      /ck_suspensions_early_end/,
+    );
+    // M6: valid early ends.
+    psql(db, insert(`${cleared}, early_end_examination_id`, `${clearedVals}, '${exam}'`));
+    psql(db, insert(`${cleared}, issued_by, issuer_reference, lift_reference`, `${clearedVals}, 'ORGANIZER', ${ref}, 'CV 15/BTC ngày 04/11 gỡ đình chỉ'`));
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM public.suspensions WHERE early_end_examination_id IS NOT NULL OR lift_reference IS NOT NULL;'),
+      '2',
+    );
+    // M1: re-application and missing 025 are rejected.
+    rejects(db, sql, /033 already applied/);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 33;'), '1');
+    rejects('mma_024_no_023', sql, /033 requires migration 025/);
+    assert.equal(psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 33;'), '0');
+  });
   check('N1: 026 applies on ledger 24 without 025-032; rejects re-application, missing 024, collisions, and enforces fighter_id consistency', () => {
     const db = 'mma_026_on_024';
     prepare(db);

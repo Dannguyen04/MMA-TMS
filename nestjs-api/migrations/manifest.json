@@ -27,6 +27,7 @@
     "027_opponent_analysis_and_rounds.sql": "61185c95f58ed5b3221626f36987b8acdf07a7f8be044b662690cbb70ec18bf6",
     "030_between_round_plan.sql": "b90734c98f11026494afd68fb5035db1de7393a7438fa5345f7be1eefc808710",
     "031_bout_ai_suggestions.sql": "95299956698a6079f543ec1d5e2d82c6f57e96a0d71c5ed9c99f59ed9f550cda",
-    "032_session_status_pending.sql": "2a68bf9ba5ea242d4bcc47f327a7ed2d251ab232d21416adf550b11ac3c623f5"
+    "032_session_status_pending.sql": "2a68bf9ba5ea242d4bcc47f327a7ed2d251ab232d21416adf550b11ac3c623f5",
+    "033_suspension_early_end.sql": "a6b6757bf76d0a2c6910edcebd00f87efa114a86a768c232e23d1a274969f94a"
   }
 }

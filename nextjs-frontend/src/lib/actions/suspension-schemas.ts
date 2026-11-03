@@ -47,8 +47,39 @@ export function buildCreateSuspensionSchema(t: Translator) {
                 emptyToUndefined,
                 z.enum(["NONE", "UNDER_1_MIN", "OVER_1_MIN", "UNKNOWN"]).nullable().optional(),
             ),
+            issuedBy: z.preprocess(
+                emptyToUndefined,
+                z.enum(["CLUB", "ORGANIZER"]).optional(),
+            ).default("CLUB"),
+            issuerReference: z.preprocess(
+                emptyToUndefined,
+                z.string().trim().optional(),
+            ),
         })
         .superRefine((data, ctx) => {
+            if (data.issuedBy === "ORGANIZER") {
+                if (data.reason !== "MEDICAL") {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ["issuedBy"],
+                        message: t("suspensions.action.organizerMedicalOnly"),
+                    });
+                }
+                const ref = data.issuerReference?.trim() ?? "";
+                if (ref.length < 3 || ref.length > 200) {
+                    ctx.addIssue({
+                        code: z.ZodIssueCode.custom,
+                        path: ["issuerReference"],
+                        message: t("suspensions.action.issuerReferenceRequired"),
+                    });
+                }
+            } else if (data.issuerReference && data.issuerReference.trim().length > 0) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: ["issuerReference"],
+                    message: t("suspensions.action.clubIssuerReferenceForbidden"),
+                });
+            }
             if (data.maxTier !== undefined && data.blockedSessionTypes !== undefined) {
                 ctx.addIssue({
                     code: z.ZodIssueCode.custom,
@@ -91,4 +122,35 @@ export function buildClearSuspensionSchema(t: Translator) {
             .min(3, t("suspensions.action.clearanceNoteLength"))
             .max(500, t("suspensions.action.clearanceNoteLength")),
     });
+}
+
+export function buildEndSuspensionEarlySchema(t: Translator) {
+    return z
+        .object({
+            id: z.string().min(1),
+            note: z
+                .string()
+                .trim()
+                .min(3, t("suspensions.action.earlyEndNoteLength"))
+                .max(500, t("suspensions.action.earlyEndNoteLength")),
+            examinationId: z.preprocess(
+                emptyToUndefined,
+                z.string().trim().optional(),
+            ),
+            liftReference: z.preprocess(
+                emptyToUndefined,
+                z.string().trim().min(3, t("suspensions.action.liftReferenceLength")).max(200, t("suspensions.action.liftReferenceLength")).optional(),
+            ),
+        })
+        .superRefine((data, ctx) => {
+            const hasExam = Boolean(data.examinationId);
+            const hasLift = Boolean(data.liftReference);
+            if ((hasExam && hasLift) || (!hasExam && !hasLift)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    path: [hasLift ? "liftReference" : "examinationId"],
+                    message: t("suspensions.action.earlyEndOneBasisRequired"),
+                });
+            }
+        });
 }

@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AcademySettingsModule } from '../academy-settings/academy-settings.module.js';
 import { DatabaseModule } from '../database/database.module.js';
 import { SuspensionEffects } from './suspension.effects.js';
 import { SuspensionGate } from './suspension.gate.js';
@@ -9,12 +10,13 @@ import { SuspensionsService } from './suspensions.service.js';
 export { SuspensionEffects, SuspensionGate };
 
 /**
- * Deliberately imports only DatabaseModule (never BoutsModule or TrainingModule)
+ * Deliberately imports only DatabaseModule and AcademySettingsModule (which
+ * itself imports only DatabaseModule), never BoutsModule or TrainingModule,
  * because later T-007 rounds make both BoutsModule and TrainingModule import
  * SuspensionsModule.
  */
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, AcademySettingsModule],
   controllers: [SuspensionsController],
   providers: [
     SuspensionsRepository,

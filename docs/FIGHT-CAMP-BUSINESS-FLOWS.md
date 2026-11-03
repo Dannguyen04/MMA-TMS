@@ -587,7 +587,7 @@ Nhận xét review 27/10 yêu cầu "chặn theo cường độ, tập lại the
 
 **Chặn theo cường độ.** Khi tạo đình chỉ, HLV hoặc bác sĩ chọn "mức tối đa được tập" (bậc 1–5): app chặn mọi loại có bậc cao hơn. Vẫn chọn được từng loại như trước (không chọn cả hai cùng lúc). Mỗi đình chỉ hiện "mức tối đa được tập" tính từ các loại bị chặn; mặc định của đình chỉ thủ công (quyết định 22) tương ứng bậc 1.
 
-**Tập lại theo bậc sau KO/TKO.** Ngày bắt đầu `R` là ngày HLV hoặc bác sĩ xác nhận được tập lại (đình chỉ KO/TKO luôn cần xác nhận).
+**Tập lại theo bậc sau KO/TKO và MEDICAL.** Ngày bắt đầu `R` là ngày HLV hoặc bác sĩ xác nhận được tập lại, hoặc ngày kết thúc sớm (T-050); đình chỉ không cần xác nhận mà hết hạn tự nhiên thì `R = endsOn + 1`. Đình chỉ `MEDICAL` áp lộ trình này kể cả khi khám ổn (Ken 03/11, quyết định 5 của T-050).
 
 | Ngày | Được xếp và bắt đầu tới bậc | Tương ứng Amsterdam |
 | --- | --- | --- |
@@ -602,6 +602,18 @@ Buổi vượt bậc trong hai ngày này bị 409 `TRAINING_SUSPENSION_ACTIVE`,
 Nguồn: [Amsterdam 2022, BJSM](https://orbi.uliege.be/bitstream/2268/327382/1/bjsports-2024-109188.full.pdf); [CDC HEADS UP](https://www.cdc.gov/heads-up/guidelines/returning-to-sports.html); [ARP](https://mixedmartialarts.com/news/arp-issues-official-position-on-suspensions-and-concussion-management2a8b75a6-6eb2-4089-bd62-71f7b3a9a7df/); [Victoria, Non-fight periods and return to fight strategy](https://djsir.vic.gov.au/combat-sports/contestant-safety/non-fight-periods-and-return-to-fight-strategy).
 
 **Kết thúc đình chỉ cần xác nhận:** sau ngày kết thúc, HLV hoặc bác sĩ bấm "Xác nhận được tập lại", ghi căn cứ, không đính kèm ảnh giấy tờ (ví dụ "đã khám thần kinh, CT bình thường" hoặc "HLV xác nhận, không có khám"). Luật AIBA yêu cầu xác nhận bằng văn bản của bác sĩ thần kinh hoặc y học thể thao; không có giấy thì app ghi rõ "không có xác nhận y tế". Võ sĩ về trạng thái được tập. API từ chối 409 (`SUSPENSION_NOT_AWAITING_CLEARANCE`) nếu chưa tới `endsOn + 1` (T-049).
+
+**Kết thúc đình chỉ sớm, phải có căn cứ (T-050, Ken 03/11):** chỉ đình chỉ lý do `MEDICAL` đang `ACTIVE`. `KO`, `TKO`, `DQ`, `MANDATORY_REST`, `OTHER` không kết thúc sớm.
+
+| Nguồn đình chỉ | Ai bấm | Căn cứ bắt buộc | Chế độ không có bác sĩ |
+| --- | --- | --- | --- |
+| CLB (mặc định) | Bác sĩ được phân | Một phiếu khám TRAINING trong app do chính bác sĩ đó ghi, kết luận đủ điều kiện (có hoặc không hạn chế), ngày khám từ ngày bắt đầu đình chỉ, chưa bị thay, chưa hết hạn | Tắt (`MEDICAL_SUPERVISION_DISABLED`) |
+| Ban tổ chức (H5) | HLV hoặc bác sĩ được phân | Số/ngày văn bản gỡ của ban tổ chức; phiếu khám CLB không thay được | Vẫn làm được |
+
+- Khi tạo đình chỉ `MEDICAL`, HLV chọn nguồn; nguồn ban tổ chức bắt buộc ghi giải và văn bản đình chỉ.
+- Yêu cầu khám dùng luồng có sẵn của module medical; bác sĩ ghi phiếu khám rồi kết thúc sớm trên trang võ sĩ của mình.
+- Căn cứ pháp lý: Luật thi đấu VMMAF 2021 Điều 8 để kiểm tra y tế sau trận cho điều lệ từng giải và không quy định ai gỡ đình chỉ; quốc tế (AIBA, Minn. Stat. §341.27) cơ quan ra đình chỉ gỡ sau khi nhận văn bản của bác sĩ. Nguồn ở [T-050](./tickets/T-050-early-end-by-doctor-exam.md#căn-cứ-nghiệp-vụ).
+- Giới hạn đã biết: `/clear` với đình chỉ ban tổ chức đã quá hạn chưa đòi văn bản gỡ; app chưa phân biệt chấn thương đầu trong `MEDICAL` (mọi `MEDICAL` đều đi lộ trình theo bậc).
 
 ### F8. Đổi ngày, đổi hạng, huỷ
 

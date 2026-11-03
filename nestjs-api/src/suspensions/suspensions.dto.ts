@@ -7,6 +7,7 @@ import {
   conflictProposalResponseSchema,
   createSuspensionResponseSchema,
   createSuspensionSchema,
+  endSuspensionEarlySchema,
   gradedReturnSchema,
   listSuspensionsQuerySchema,
   suspensionIdParamsSchema,
@@ -22,6 +23,9 @@ export class ListSuspensionsQueryDto extends createZodDto(
 ) {}
 export class CreateSuspensionDto extends createZodDto(createSuspensionSchema) {}
 export class ClearSuspensionDto extends createZodDto(clearSuspensionSchema) {}
+export class EndSuspensionEarlyDto extends createZodDto(
+  endSuspensionEarlySchema,
+) {}
 export class AffectedSessionDto extends createZodDto(affectedSessionSchema) {}
 export class AffectedPlanDto extends createZodDto(affectedPlanSchema) {}
 export class GradedReturnDto extends createZodDto(gradedReturnSchema) {}

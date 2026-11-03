@@ -562,6 +562,10 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
             updatedAt: nowIso(),
             status: "ACTIVE",
             gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
         });
 
         // Setup future scheduled sparring session
@@ -841,6 +845,10 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
                 ceiling: 3,
                 fullReturnOn: addDaysToDate(today, 2),
             },
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
         });
 
         const activeList = await listSuspensions({ active: true }, mockAdmin);
@@ -1117,6 +1125,10 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
                 updatedAt: nowIso(),
                 status: "AWAITING_CLEARANCE",
                 gradedReturn: null,
+                issuedBy: "CLUB",
+                issuerReference: null,
+                earlyEndExaminationId: null,
+                liftReference: null,
             },
             {
                 id: suspIdB,
@@ -1139,6 +1151,10 @@ describe("T-030 Phần B2: Nền dữ liệu đình chỉ & sẵn sàng", () => 
                 updatedAt: nowIso(),
                 status: "ACTIVE",
                 gradedReturn: null,
+                issuedBy: "CLUB",
+                issuerReference: null,
+                earlyEndExaminationId: null,
+                liftReference: null,
             },
         );
 

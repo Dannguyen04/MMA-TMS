@@ -9,6 +9,7 @@ import type {
     AffectedSession,
     ConflictProposal,
     GradedReturn,
+    MedicalExamination,
     NotReadyReason,
     ReadinessActiveBout,
     ReadinessRow,
@@ -131,15 +132,21 @@ export function isInForceOn(
 }
 
 /**
- * Computes the graded-return state `{ ceiling, fullReturnOn }` for a head-injury
- * (`KO` / `TKO`) suspension on academy date `d` (YYYY-MM-DD), or `null` when not
+ * Computes the graded-return state `{ ceiling, fullReturnOn }` for a `KO`, `TKO`
+ * or `MEDICAL` suspension on academy date `d` (YYYY-MM-DD), or `null` when not
  * in the graded-return window.
+ *
+ * - Start date `R`:
+ *   - cleared (by `/clear` or an early end): `academyDateOf(clearedAt)`.
+ *   - not cleared, `requiresClearance = true`: `null`.
+ *   - not cleared, `requiresClearance = false`: `endsOn + 1`.
+ * - Ceiling by day: day `R` -> ceiling 3; day `R + 1` -> ceiling 4; from `R + 2` (`fullReturnOn`) -> `null`.
  */
 export function gradedReturnFor(
     suspension: SuspensionGradedReturnInput,
     d: string,
 ): GradedReturn | null {
-    if (suspension.reason !== "KO" && suspension.reason !== "TKO") {
+    if (!["KO", "TKO", "MEDICAL"].includes(suspension.reason ?? "")) {
         return null;
     }
     if (
@@ -150,15 +157,10 @@ export function gradedReturnFor(
     }
 
     let startDate: string;
-    if (suspension.requiresClearance) {
-        if (suspension.clearedAt === null || suspension.clearedAt === undefined) {
-            return null;
-        }
-        const clearedInstant =
-            suspension.clearedAt instanceof Date
-                ? suspension.clearedAt
-                : new Date(suspension.clearedAt);
-        startDate = academyDateOf(clearedInstant);
+    if (suspension.clearedAt !== null && suspension.clearedAt !== undefined) {
+        startDate = academyDateOf(new Date(suspension.clearedAt));
+    } else if (suspension.requiresClearance) {
+        return null;
     } else {
         startDate = addDaysToDate(suspension.endsOn, 1);
     }
@@ -171,6 +173,52 @@ export function gradedReturnFor(
         return { ceiling: 4, fullReturnOn };
     }
     return null;
+}
+
+/**
+ * Pure filter for examinations eligible to end a CLUB MEDICAL suspension early (T-050 W2).
+ * Rule 3 criteria:
+ * - same fighter;
+ * - recorded by the current doctor (when doctorId specified);
+ * - scope = TRAINING;
+ * - outcome fit or fit_with_restrictions;
+ * - academy date of examination >= suspension.startsOn;
+ * - not expired (validUntil is null or in the future).
+ */
+export function filterEarlyEndExaminations<
+    T extends Pick<
+        MedicalExamination,
+        "id" | "fighterId" | "doctorId" | "scope" | "outcome" | "date" | "validUntil"
+    >,
+>(
+    examinations: readonly T[],
+    suspension: { fighterId?: string; startsOn: string },
+    options: { doctorId?: string; now?: Date | string } = {},
+): T[] {
+    const now = options.now ? new Date(options.now) : new Date();
+
+    return examinations.filter((exam) => {
+        if (suspension.fighterId && exam.fighterId !== suspension.fighterId) {
+            return false;
+        }
+        if (options.doctorId && exam.doctorId !== options.doctorId) {
+            return false;
+        }
+        if (exam.scope !== "TRAINING") {
+            return false;
+        }
+        if (exam.outcome !== "fit" && exam.outcome !== "fit_with_restrictions") {
+            return false;
+        }
+        const examAcademyDate = academyDateOf(new Date(exam.date));
+        if (examAcademyDate < suspension.startsOn) {
+            return false;
+        }
+        if (exam.validUntil && new Date(exam.validUntil) <= now) {
+            return false;
+        }
+        return true;
+    });
 }
 
 export type RequiresClearanceResolution =

@@ -63,6 +63,10 @@ export const backendSuspensionSchema = z.object({
     gradedReturn: backendGradedReturnSchema.nullable(),
     affectedSessions: z.array(backendAffectedSessionSchema).optional(),
     affectedPlans: z.array(backendAffectedPlanSchema).optional(),
+    issuedBy: z.enum(["CLUB", "ORGANIZER"]).default("CLUB"),
+    issuerReference: z.string().nullable().default(null),
+    earlyEndExaminationId: z.string().nullable().default(null),
+    liftReference: z.string().nullable().default(null),
 });
 
 export const backendCreateSuspensionResponseSchema = backendSuspensionSchema.extend({
@@ -166,6 +170,14 @@ export interface CreateSuspensionInput {
     maxTier?: number;
     requiresClearance?: boolean;
     lossOfConsciousness?: "NONE" | "UNDER_1_MIN" | "OVER_1_MIN" | "UNKNOWN" | null;
+    issuedBy?: "CLUB" | "ORGANIZER";
+    issuerReference?: string;
+}
+
+export interface EndSuspensionEarlyInput {
+    note: string;
+    examinationId?: string;
+    liftReference?: string;
 }
 
 export interface ReadinessFilter {
@@ -273,6 +285,24 @@ export async function clearSuspension(id: string, clearanceNote: string, actor: 
         {
             method: "POST",
             body: JSON.stringify({ clearanceNote }),
+        },
+    );
+    return toSuspension(body);
+}
+
+export async function endSuspensionEarly(
+    id: string,
+    input: EndSuspensionEarlyInput,
+    actor: User,
+): Promise<Suspension> {
+    if (isDemoAuthEnabled()) return (await demoService()).endSuspensionEarly(id, input, actor);
+
+    const body = await authenticatedMutableApiRequest(
+        `/suspensions/${encodeURIComponent(id)}/end-early`,
+        backendSuspensionSchema,
+        {
+            method: "POST",
+            body: JSON.stringify(input),
         },
     );
     return toSuspension(body);

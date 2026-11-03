@@ -40,6 +40,10 @@ export function buildMockSuspensions(): Suspension[] {
             updatedAt: `${addDaysToDate(today, -10)}T08:00:00.000Z`,
             status: "ACTIVE",
             gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
         },
         // 2. Chờ xác nhận (Diego Alvarez)
         {
@@ -63,6 +67,10 @@ export function buildMockSuspensions(): Suspension[] {
             updatedAt: `${addDaysToDate(today, -40)}T08:00:00.000Z`,
             status: "AWAITING_CLEARANCE",
             gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
         },
         // 3. Đang tập lại bậc 3 hôm nay (Linh Phạm: KO được xác nhận hôm nay)
         {
@@ -89,6 +97,10 @@ export function buildMockSuspensions(): Suspension[] {
                 ceiling: 3,
                 fullReturnOn: addDaysToDate(today, 2),
             },
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
         },
         // 4. Nghỉ bắt buộc có buổi chờ xếp lại (Tariq Haddad)
         {
@@ -112,6 +124,10 @@ export function buildMockSuspensions(): Suspension[] {
             updatedAt: `${addDaysToDate(today, -1)}T08:00:00.000Z`,
             status: "ACTIVE",
             gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
         },
     ];
 }
