@@ -100,3 +100,22 @@ Nhánh `feat/ui-foundation` (P0) và `feat/ui-p1-p3` (P1–P3, tạo từ P0). T
 - Nhãn `painLabel` ("Worst imaginable") và `ApplicationStatusBadge` có hai bộ chữ tiếng Anh khác nhau, nên các trang chỉ truyền `locale` khi là tiếng Việt.
 
 **Chưa làm:** dùng offline, cập nhật giao diện trước khi server trả lời, tin nhắn lỗi của server action ở `lib/actions/video.ts`, `admin.ts`, `care-team.ts`, `admissions.ts`, `training.ts` vẫn tiếng Anh.
+
+## 6. Gộp `fight-camp` 9ab50a2 (03/11)
+
+`ui-foundation` gộp không xung đột. `ui-p1-p3` nhận `ui-foundation` đã gộp, có 9 file xung đột. Nguyên tắc vẫn như T-040: giữ hành vi của `fight-camp`, câu chữ đi qua từ điển.
+
+- **Trang trận đấu:** thẻ phân tích hiện ở mọi trận chưa huỷ, theo `fight-camp`. Dòng thời gian camp nằm ngay trên thẻ đó.
+- **Ô kiểm tra cấp phép:** nhận cả `body` (nhánh này) và `acknowledgeLabel` (T-030 B).
+- **Câu chữ tiếng Việt:** ngày 01/11, fogit-hd viết cứng câu tiếng Việt ở trình phát video, trang đang tải, thanh lọc và nhãn "Độ tin cậy thấp". Các câu đó được chép nguyên văn vào bản `vi` của từ điển. Ba nhãn trình phát được tách thành khoá riêng (`screens.video.player.previousDetection`, `nextDetection`, `confidenceUnavailable`), để các màn khác giữ câu cũ. Nhãn trạng thái bằng chứng chuyển động cũng lấy theo `MOVEMENT_REVIEW_LABELS`.
+- **Nhãn tiếng Việt trong `labels.ts`:** cùng commit đó đổi các hằng nhãn sang tiếng Việt. `video-copy.ts` vì thế dịch ngược được cả nhãn tiếng Anh (máy AI và bản ghi cũ) lẫn nhãn đang có trong `labels.ts`. Nếu không làm vậy, tóm tắt phân tích và nhãn đòn ở bản `vi` sẽ hiện nguyên tiếng Anh.
+- **Test đổi (đều của `fight-camp`):**
+  - `rules.test.ts` kiểm câu tiếng Anh bằng translator `en` và câu tiếng Việt bằng `vi`.
+  - `movement-evidence.test.ts` kiểm câu tiếng Anh, vì panel không có `locale` thì hiện tiếng Anh.
+- **Lệch nhỏ cần biết:** ở cảnh báo cấp phép, vùng cơ dùng từ điển `bodyRegion.*` ("Gân kheo trái"), còn `labels.ts` ghi "Cơ đùi sau trái". Hai bộ chữ này cần thống nhất (Fon hoặc fogit-hd).
+- **Baseline chữ viết cứng:** ghi nhận thêm các chuỗi `fight-camp` mang vào, gồm màn bác sĩ mới và hai trang lỗi đình chỉ, sẵn sàng của T-030 B. Không sửa code của các màn đó.
+- **`ui:smoke`** chấp nhận dấu `--` mà pnpm 12 chuyển vào script.
+- **Kết quả sau gộp:**
+  - `lint` và `typecheck` sạch.
+  - `test`: 121 file, 1149 test qua.
+  - `ui:smoke` ở `vi`, 390 và 1440 px: 366 trang, không lỗi runtime. 14 trang báo rộng quá màn hình, đều là màn bác sĩ mới ở 390 px (`/doctor/fighters`, `/doctor/examinations`, `/doctor/history` và trang chi tiết võ sĩ), cần báo Fon.
