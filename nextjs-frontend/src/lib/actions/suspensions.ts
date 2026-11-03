@@ -15,11 +15,13 @@ import { routes } from "@/lib/routes";
 import {
     clearSuspension as clearSuspensionService,
     createSuspension as createSuspensionService,
+    endSuspensionEarly as endSuspensionEarlyService,
 } from "@/lib/services/suspensions";
 import { getPlan, getSession } from "@/lib/services/training";
 import {
     buildClearSuspensionSchema,
     buildCreateSuspensionSchema,
+    buildEndSuspensionEarlySchema,
 } from "./suspension-schemas";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
 
@@ -33,6 +35,7 @@ function revalidateSuspensionPaths(fighterId?: string) {
     revalidatePath(routes.coach.dashboard);
     if (fighterId) {
         revalidatePath(routes.coach.fighter(fighterId));
+        revalidatePath(routes.doctor.fighter(fighterId));
     }
 }
 
@@ -51,9 +54,29 @@ function mapSuspensionActionError(
         if (error.code === "SUSPENSION_NOT_AWAITING_CLEARANCE") {
             return actionError(t("suspensions.action.notAwaitingClearance"));
         }
+        if (error.code === "MEDICAL_SUPERVISION_DISABLED") {
+            return actionError(t("suspensions.action.medicalSupervisionDisabled"));
+        }
+        if (error.code === "SUSPENSION_EARLY_END_NOT_ELIGIBLE") {
+            return actionError(t("suspensions.action.earlyEndNotEligible"));
+        }
+        if (error.code === "SUSPENSION_EARLY_END_EXAM_INVALID") {
+            const cause = (error.details as { cause?: string } | undefined)?.cause;
+            if (cause === "NOT_FOUND") return actionError(t("suspensions.action.examNotFound"));
+            if (cause === "OTHER_DOCTOR") return actionError(t("suspensions.action.examOtherDoctor"));
+            if (cause === "NOT_TRAINING") return actionError(t("suspensions.action.examNotTraining"));
+            if (cause === "NOT_ELIGIBLE") return actionError(t("suspensions.action.examNotEligible"));
+            if (cause === "BEFORE_SUSPENSION") return actionError(t("suspensions.action.examBeforeSuspension"));
+            if (cause === "SUPERSEDED") return actionError(t("suspensions.action.examSuperseded"));
+            if (cause === "EXPIRED") return actionError(t("suspensions.action.examExpired"));
+            return actionError(t("suspensions.action.examInvalid"));
+        }
         if (error.code === "VALIDATION_ERROR" || error.status === 422) {
             const fieldMap: Record<string, string> = {
                 clearanceNote: t("suspensions.action.clearanceNoteLength"),
+                note: t("suspensions.action.earlyEndNoteLength"),
+                liftReference: t("suspensions.action.liftReferenceLength"),
+                issuerReference: t("suspensions.action.issuerReferenceRequired"),
                 days: t("suspensions.action.daysRange"),
                 startsOn: t("suspensions.action.startsOnNotBeforeToday"),
                 maxTier: t("suspensions.action.maxTierAndTypesExclusive"),
@@ -187,6 +210,45 @@ export async function clearSuspensionAction(
         const cleared = await clearSuspensionService(id, clearanceNote, user);
         revalidateSuspensionPaths(cleared.fighterId);
         return actionSuccess(t("suspensions.action.cleared"), cleared);
+    } catch (error: unknown) {
+        return mapSuspensionActionError(error, t);
+    }
+}
+
+export async function endSuspensionEarlyAction(
+    _prev: ActionState<Suspension>,
+    formData: FormData,
+): Promise<ActionState<Suspension>> {
+    const [user, { t }] = await Promise.all([getCurrentUser(), getTranslator()]);
+    if (!user) return actionError(t("suspensions.action.unauthorized"));
+
+    if (user.role === "admin") {
+        return actionError(t("suspensions.action.adminClearForbidden"));
+    }
+
+    if (user.role !== "coach" && user.role !== "doctor") {
+        return actionError(t("suspensions.action.unauthorized"));
+    }
+
+    const raw = Object.fromEntries(formData.entries());
+    const schema = buildEndSuspensionEarlySchema(t);
+    const parsed = schema.safeParse(raw);
+    if (!parsed.success) return validationError(parsed.error, t("form.fixFields"));
+
+    const { id, note, examinationId, liftReference } = parsed.data;
+
+    try {
+        const ended = await endSuspensionEarlyService(
+            id,
+            {
+                note,
+                examinationId,
+                liftReference,
+            },
+            user,
+        );
+        revalidateSuspensionPaths(ended.fighterId);
+        return actionSuccess(t("suspensions.action.earlyEnded"), ended);
     } catch (error: unknown) {
         return mapSuspensionActionError(error, t);
     }

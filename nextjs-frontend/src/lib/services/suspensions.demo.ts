@@ -27,7 +27,12 @@ import type {
     User,
 } from "@/lib/domain/types";
 import { db, newId, nowIso } from "@/lib/mocks/db";
-import type { CreateSuspensionInput, ReadinessFilter, SuspensionFilter } from "./suspensions";
+import type {
+    CreateSuspensionInput,
+    EndSuspensionEarlyInput,
+    ReadinessFilter,
+    SuspensionFilter,
+} from "./suspensions";
 
 const forbidden = () => new ApiError({ message: "Forbidden", kind: "http", status: 403, code: "FORBIDDEN" });
 
@@ -145,6 +150,10 @@ export async function createSuspension(
         updatedAt: nowIso(),
         status: suspensionStatusOn({ startsOn, endsOn, requiresClearance, clearedAt: null }, today),
         gradedReturn: null,
+        issuedBy: input.issuedBy ?? "CLUB",
+        issuerReference: input.issuedBy === "ORGANIZER" ? (input.issuerReference ?? null) : null,
+        earlyEndExaminationId: null,
+        liftReference: null,
     };
 
     const fighterSuspensions = db().suspensions.filter((s) => s.fighterId === input.fighterId);
@@ -210,6 +219,81 @@ export async function clearSuspension(
     current.clearedAt = nowIso();
     current.clearedById = actor.id;
     current.clearanceNote = clearanceNote;
+    current.status = "ENDED";
+    current.gradedReturn = gradedReturnFor(current, today);
+
+    return { ...current };
+}
+
+export async function endSuspensionEarly(
+    id: string,
+    input: EndSuspensionEarlyInput,
+    actor: User,
+): Promise<Suspension> {
+    const current = db().suspensions.find((s) => s.id === id);
+    if (!current) {
+        throw new ApiError({
+            message: "Suspension not found",
+            kind: "http",
+            status: 404,
+            code: "SUSPENSION_NOT_FOUND",
+        });
+    }
+
+    if (current.clearedAt !== null) {
+        throw new ApiError({
+            message: "The suspension has already been cleared.",
+            kind: "http",
+            status: 409,
+            code: "SUSPENSION_ALREADY_CLEARED",
+        });
+    }
+
+    const today = academyDateOf(new Date());
+    const status = suspensionStatusOn(current, today);
+    if (current.reason !== "MEDICAL" || status !== "ACTIVE") {
+        throw new ApiError({
+            message: "Only active medical suspensions can be ended early.",
+            kind: "http",
+            status: 409,
+            code: "SUSPENSION_EARLY_END_NOT_ELIGIBLE",
+            details: { reason: current.reason, status },
+        });
+    }
+
+    if (current.issuedBy === "ORGANIZER") {
+        if (!input.liftReference || input.examinationId) {
+            throw new ApiError({
+                message: "Organizer suspension requires liftReference and must not have examinationId",
+                kind: "http",
+                status: 422,
+                code: "VALIDATION_ERROR",
+            });
+        }
+    } else {
+        if (!input.examinationId || input.liftReference) {
+            throw new ApiError({
+                message: "Club suspension requires examinationId and must not have liftReference",
+                kind: "http",
+                status: 422,
+                code: "VALIDATION_ERROR",
+            });
+        }
+        if (actor.role !== "doctor") {
+            throw new ApiError({
+                message: "Forbidden",
+                kind: "http",
+                status: 403,
+                code: "FORBIDDEN",
+            });
+        }
+    }
+
+    current.clearedAt = nowIso();
+    current.clearedById = actor.id;
+    current.clearanceNote = input.note;
+    current.earlyEndExaminationId = input.examinationId ?? null;
+    current.liftReference = input.liftReference ?? null;
     current.status = "ENDED";
     current.gradedReturn = gradedReturnFor(current, today);
 

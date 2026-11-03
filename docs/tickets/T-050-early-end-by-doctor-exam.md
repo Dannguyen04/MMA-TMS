@@ -1,6 +1,6 @@
 # T-050: kết thúc sớm đình chỉ MEDICAL có căn cứ (phiếu khám hoặc văn bản gỡ của ban tổ chức)
 
-- Trạng thái: **READY** (Ken duyệt bản đầy đủ 03/11: migration 033, 2 mã lỗi mới). Viết lại theo [review ticket](./T-050-TICKET-REVIEW.md).
+- Trạng thái: **APPROVED** 03/11 ([review](./T-050-REVIEW.md)). Ken duyệt bản đầy đủ 03/11: migration 033, 2 mã lỗi mới. Viết lại theo [review ticket](./T-050-TICKET-REVIEW.md).
 - Phạm vi: phần A backend `nestjs-api` (migration 033); phần B frontend `nextjs-frontend`. Điện thoại: không.
 - Người làm: Ken (Claude lead, `agy` code). Ken áp migration 033 lên Supabase.
 - Phụ thuộc: T-049 (DONE), T-045 (lộ trình theo bậc). Demo: [T-052](./T-052-demo-doctor-mode.md).
@@ -112,7 +112,8 @@ Thứ tự kiểm trong `SuspensionsService.endSuspensionEarly`, chép khuôn `c
 - **HLV, form tạo** (`coach/bouts/suspensions/create-suspension-panel.tsx`): lý do `MEDICAL` thì hiện chọn "Do CLB" / "Do ban tổ chức"; ban tổ chức thì ô "Giải và văn bản đình chỉ" bắt buộc. Lý do khác thì ẩn.
 - **HLV, danh sách** (`coach/bouts/suspensions/page.tsx`): đình chỉ `ORGANIZER` `ACTIVE` có nút "Ban tổ chức đã gỡ" mở hộp thoại (văn bản gỡ, ghi chú), khuôn `suspension-clearance-dialog.tsx`. Đình chỉ `MEDICAL` `CLUB` `ACTIVE` hiện dòng gợi ý "Muốn kết thúc sớm: gửi yêu cầu khám, bác sĩ được phân kết thúc sau khi khám" kèm link tới trang võ sĩ (`routes.coach`) nơi có `ReviewRequestCard`. Dòng nguồn: nhãn "Ban tổ chức: <issuerReference>".
 - **Bác sĩ** (`doctor/fighters/[fighterId]/page.tsx`, trang đã tải `listExaminations`): khối "Đình chỉ" liệt kê đình chỉ của võ sĩ (`GET /suspensions?fighterId=`). `MEDICAL` `CLUB` `ACTIVE`: nút "Kết thúc sớm" mở hộp thoại chọn phiếu khám (chỉ liệt kê phiếu `TRAINING`, kết luận đủ điều kiện, ngày khám ≥ ngày bắt đầu đình chỉ; không có phiếu nào thì báo và link `routes.doctor.newExamination`, nút gửi tắt), ô ghi chú, dòng "Võ sĩ sẽ tập lại theo bậc: hôm nay tới bậc 3, ngày mai bậc 4, từ ngày kia mọi bậc". `ORGANIZER` `ACTIVE`: nút "Ban tổ chức đã gỡ" như HLV. Trang bác sĩ đang viết chữ tiếng Việt trực tiếp: giữ cách đó.
-- **Đã kết thúc sớm**: dòng căn cứ "Kết thúc sớm theo phiếu khám ngày …" (link `routes.doctor.examination(id)` ở trang bác sĩ) hoặc "Ban tổ chức gỡ: <liftReference>".
+- **Đã kết thúc sớm**: dòng căn cứ "Kết thúc sớm ngày <clearedAt> theo phiếu khám" (trang bác sĩ thêm link `routes.doctor.examination(id)`; không đoán ngày khám khi không tìm thấy phiếu) hoặc "Ban tổ chức gỡ: <liftReference>".
+- Bộ lọc phiếu khám ở frontend chỉ dùng trường có thật của `MedicalExamination` (`fighterId`, `doctorId` = id hồ sơ bác sĩ `user.profileId`, `scope`, `outcome`, `date`, `validUntil`). Frontend không biết phiếu đã bị thay: backend trả `SUPERSEDED`, hộp thoại hiện câu lỗi đó (giới hạn đã biết).
 - i18n `vi`/`en` cho trang HLV trong `lib/i18n/messages/coach-bouts.{vi,en}.ts`.
 - Không trang mới, không thông báo mới.
 
@@ -222,7 +223,7 @@ Service test mock repo và `AcademySettingsRepository`; mock `lockSuspensionById
 | W5 | Action nhận 409 `SUSPENSION_EARLY_END_EXAM_INVALID` `cause EXPIRED`, và `MEDICAL_SUPERVISION_DISABLED` | Trả câu đã dịch theo từng mã/cause, không phải mã thô | vitest |
 | W6 | Form tạo của HLV: lý do `MEDICAL` | Có chọn nguồn; chọn ban tổ chức mà để trống văn bản thì báo lỗi; lý do `KO` thì không có chọn nguồn | vitest |
 | W7 | Danh sách HLV: SO `ACTIVE`, SC `ACTIVE` | SO có "Ban tổ chức đã gỡ"; SC không có nút kết thúc, có dòng gợi ý yêu cầu khám | vitest |
-| W8 | Đình chỉ đã kết thúc sớm theo X1; một cái theo `liftReference` | Hiện "Kết thúc sớm theo phiếu khám ngày 05/11/2026" / "Ban tổ chức gỡ: CV 15/BTC…" | vitest |
+| W8 | Đình chỉ kết thúc sớm ngày 05/11 theo X1 (phiếu khám ngày 03/11); một cái theo `liftReference` | Trang HLV hiện "Kết thúc sớm ngày 05/11/2026 theo phiếu khám" (ngày là `clearedAt`, không phải ngày khám) / "Ban tổ chức gỡ: CV 15/BTC…" | vitest |
 | W9 | i18n | Mọi khóa mới có cả `vi` và `en` (test dịch có sẵn qua) | vitest |
 
 ## Tiêu chí nghiệm thu

@@ -1312,6 +1312,8 @@ export interface ConflictProposal {
     action: ConflictAction;
 }
 
+export type SuspensionIssuer = "CLUB" | "ORGANIZER";
+
 export interface Suspension {
     id: string;
     fighterId: string;
@@ -1335,6 +1337,10 @@ export interface Suspension {
     gradedReturn: GradedReturn | null;
     affectedSessions?: AffectedSession[];
     affectedPlans?: AffectedPlan[];
+    issuedBy: SuspensionIssuer;
+    issuerReference: string | null;
+    earlyEndExaminationId: string | null;
+    liftReference: string | null;
 }
 
 export interface SuspensionCreation extends Suspension {

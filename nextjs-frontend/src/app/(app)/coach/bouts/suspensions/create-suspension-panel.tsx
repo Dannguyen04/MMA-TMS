@@ -36,6 +36,12 @@ export interface CreateSuspensionPanelProps {
     fighters: Array<{ id: string; name: string }>;
     locale: Locale;
     todayKey: string;
+    initialReason?: SuspensionReason;
+}
+
+/** Điều kiện hiển thị khối chọn nguồn đình chỉ (chỉ áp dụng cho lý do MEDICAL). */
+export function shouldShowSuspensionIssuer(reason: SuspensionReason): boolean {
+    return reason === "MEDICAL";
 }
 
 const DEFAULT_DAYS_BY_REASON: Record<SuspensionReason, number> = {
@@ -69,6 +75,7 @@ export function CreateSuspensionPanel({
     fighters,
     locale,
     todayKey,
+    initialReason,
 }: CreateSuspensionPanelProps) {
     const t = useT();
     const router = useRouter();
@@ -76,13 +83,15 @@ export function CreateSuspensionPanel({
 
     // Form states
     const [fighterId, setFighterId] = useState("");
-    const [reason, setReason] = useState<SuspensionReason>("KO");
+    const [reason, setReason] = useState<SuspensionReason>(initialReason ?? "KO");
     const [startsOn, setStartsOn] = useState(todayKey);
-    const [days, setDays] = useState("30");
+    const [days, setDays] = useState(String(DEFAULT_DAYS_BY_REASON[initialReason ?? "KO"]));
     const [mode, setMode] = useState<"tier" | "custom">("tier");
     const [maxTier, setMaxTier] = useState<number>(1);
     const [customBlockedTypes, setCustomBlockedTypes] = useState<SessionType[]>(["SPARRING"]);
     const [requiresClearance, setRequiresClearance] = useState<boolean>(true);
+    const [issuedBy, setIssuedBy] = useState<"CLUB" | "ORGANIZER">("CLUB");
+    const [issuerReference, setIssuerReference] = useState("");
 
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
     const [generalError, setGeneralError] = useState<string | null>(null);
@@ -106,6 +115,10 @@ export function CreateSuspensionPanel({
         if (clearanceRes.ok) {
             setRequiresClearance(clearanceRes.requiresClearance);
         }
+        if (newReason !== "MEDICAL") {
+            setIssuedBy("CLUB");
+            setIssuerReference("");
+        }
     };
 
     const daysNum = Number(days);
@@ -125,6 +138,8 @@ export function CreateSuspensionPanel({
         setMaxTier(1);
         setCustomBlockedTypes(["SPARRING"]);
         setRequiresClearance(true);
+        setIssuedBy("CLUB");
+        setIssuerReference("");
         setFormErrors({});
         setGeneralError(null);
         setCreatedResult(null);
@@ -154,11 +169,26 @@ export function CreateSuspensionPanel({
             return;
         }
 
+        if (reason === "MEDICAL" && issuedBy === "ORGANIZER") {
+            const trimmedRef = issuerReference.trim();
+            if (trimmedRef.length < 3 || trimmedRef.length > 200) {
+                setFormErrors({ issuerReference: t("suspensions.action.issuerReferenceRequired") });
+                return;
+            }
+        }
+
         const formData = new FormData();
         formData.set("fighterId", fighterId);
         formData.set("reason", reason);
         formData.set("startsOn", startsOn);
         formData.set("days", String(daysNum));
+
+        if (reason === "MEDICAL") {
+            formData.set("issuedBy", issuedBy);
+            if (issuedBy === "ORGANIZER") {
+                formData.set("issuerReference", issuerReference.trim());
+            }
+        }
 
         if (mode === "tier") {
             formData.set("maxTier", String(maxTier));
@@ -414,6 +444,54 @@ export function CreateSuspensionPanel({
                         variant="compact"
                         error={formErrors.reason}
                     />
+
+                    {/* 2b. Nguồn đình chỉ (chỉ khi lý do MEDICAL) */}
+                    {shouldShowSuspensionIssuer(reason) && (
+                        <div className="flex flex-col gap-4 p-4 rounded-xl border border-border bg-surface-muted/30">
+                            <ChoiceGroup<"CLUB" | "ORGANIZER">
+                                id="suspension-issued-by"
+                                name="issuedBy"
+                                legend={t("suspensions.panel.issuedByLegend")}
+                                options={[
+                                    { value: "CLUB", label: t("suspensions.panel.issuedByClub") },
+                                    { value: "ORGANIZER", label: t("suspensions.panel.issuedByOrganizer") },
+                                ]}
+                                value={issuedBy}
+                                onChange={(val) => {
+                                    setIssuedBy(val);
+                                    if (formErrors.issuerReference) {
+                                        setFormErrors((prev) => ({ ...prev, issuerReference: "" }));
+                                    }
+                                }}
+                                columns={2}
+                                variant="compact"
+                            />
+
+                            {issuedBy === "ORGANIZER" && (
+                                <Field
+                                    htmlFor="issuer-reference-input"
+                                    label={t("suspensions.panel.issuerReferenceLabel")}
+                                    required
+                                    error={formErrors.issuerReference}
+                                >
+                                    <Input
+                                        id="issuer-reference-input"
+                                        value={issuerReference}
+                                        onChange={(e) => {
+                                            setIssuerReference(e.target.value);
+                                            if (formErrors.issuerReference) {
+                                                setFormErrors((prev) => ({ ...prev, issuerReference: "" }));
+                                            }
+                                        }}
+                                        placeholder={t("suspensions.panel.issuerReferencePlaceholder")}
+                                        maxLength={200}
+                                        disabled={isPending}
+                                        required
+                                    />
+                                </Field>
+                            )}
+                        </div>
+                    )}
 
                     {/* 3. Ngày bắt đầu, Số ngày & Kết thúc tính sẵn */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

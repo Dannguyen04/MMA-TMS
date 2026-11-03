@@ -41,6 +41,8 @@ Chú ý: ADMIN không có `suspension:clear`.
 
 Xác nhận cho tập lại: bắt buộc `clearanceNote`; chỉ cho khi trạng thái ngày gọi là `AWAITING_CLEARANCE` (từ `ends_on + 1`, chỉ đình chỉ `requires_clearance`), khác thì 409 `SUSPENSION_NOT_AWAITING_CLEARANCE` với `details: { status }` (T-049); đã xác nhận rồi thì 409 `SUSPENSION_ALREADY_CLEARED` (kiểm trước); ghi `cleared_at`, `cleared_by_id` (ràng buộc `(cleared_at IS NULL) = (cleared_by_id IS NULL)`).
 
+Kết thúc sớm (T-050, migration 033): `POST /suspensions/:id/end-early`, chỉ đình chỉ `MEDICAL` đang `ACTIVE`. Ghi cùng các cột `cleared_*` nên `cleared_at` có thể **trước** `ends_on + 1`, luôn kèm căn cứ: `early_end_examination_id` (nguồn `issued_by = 'CLUB'`, bác sĩ được phân, phiếu khám TRAINING hợp lệ) hoặc `lift_reference` (nguồn `ORGANIZER`, HLV hoặc bác sĩ được phân). Lỗi: `SUSPENSION_EARLY_END_NOT_ELIGIBLE` `{ reason, status }`, `SUSPENSION_EARLY_END_EXAM_INVALID` `{ cause }`, `MEDICAL_SUPERVISION_DISABLED` (CLB ở chế độ `NONE`). `gradedReturnFor` áp cho `KO`, `TKO`, `MEDICAL`; ngày `R` lấy từ `cleared_at` khi có.
+
 Tạo thủ công: `bout_id` có thể NULL (H5, H6). Đình chỉ lý do KO tạo thủ công vẫn được đếm vào `priorCount` khi gợi ý cho lần sau (dùng ở 10).
 
 `override_reason` bắt buộc khi số ngày khác `suggested_days` (mã lỗi `SUSPENSION_OVERRIDE_REASON_REQUIRED` trong `bouts.error.ts`).

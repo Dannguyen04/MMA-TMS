@@ -15,7 +15,7 @@ import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { academyDateOf, daysBetweenDates, suspensionReasonLabel } from "@/lib/domain/suspension-rules";
 import type { Suspension } from "@/lib/domain/types";
-import { formatShortDate } from "@/lib/format";
+import { formatDate, formatShortDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural, type MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
@@ -24,6 +24,7 @@ import { listSuspensions, suspensionBoutNames } from "@/lib/services/suspensions
 import { param } from "@/lib/utils";
 import { ClearSuspensionButton } from "./clear-suspension-button";
 import { CreateSuspensionTrigger } from "./create-suspension-trigger";
+import { EarlyEndSuspensionButton } from "./early-end-suspension-button";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
@@ -152,6 +153,11 @@ export default async function CoachSuspensionsPage({
                                                 <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-surface-muted text-fg-muted border border-border">
                                                     {suspensionReasonLabel(suspension.reason, t)}
                                                 </span>
+                                                {suspension.issuedBy === "ORGANIZER" && suspension.issuerReference && (
+                                                    <span className="inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium bg-surface-muted text-fg-muted border border-border">
+                                                        {t("suspensions.row.organizerPrefix")}: {suspension.issuerReference}
+                                                    </span>
+                                                )}
                                                 {bout && (
                                                     <>
                                                         <span
@@ -172,6 +178,20 @@ export default async function CoachSuspensionsPage({
                                                     {formatShortDate(suspension.startsOn, locale)} –{" "}
                                                     {formatShortDate(suspension.endsOn, locale)}
                                                 </span>
+                                                {suspension.earlyEndExaminationId && suspension.clearedAt && (
+                                                    <span className="text-xs text-fg-muted">
+                                                        {t("suspensions.row.endedEarlyExam", {
+                                                            date: formatDate(suspension.clearedAt, locale),
+                                                        })}
+                                                    </span>
+                                                )}
+                                                {suspension.liftReference && (
+                                                    <span className="text-xs text-fg-muted">
+                                                        {t("suspensions.row.endedEarlyLift", {
+                                                            reference: suspension.liftReference,
+                                                        })}
+                                                    </span>
+                                                )}
                                                 {isActive && (
                                                     <ProgressBar
                                                         value={daysPassed}
@@ -186,6 +206,23 @@ export default async function CoachSuspensionsPage({
                                                     />
                                                 )}
                                             </div>
+
+                                            {isActive &&
+                                                suspension.reason === "MEDICAL" &&
+                                                suspension.issuedBy === "CLUB" && (
+                                                    <div className="mt-1 flex items-center gap-1.5 text-xs text-fg-muted">
+                                                        <span>{t("suspensions.row.earlyEndClubHint")}</span>
+                                                        {fighter && (
+                                                            <Link
+                                                                href={routes.coach.fighter(fighter.id)}
+                                                                className="font-medium text-primary hover:underline inline-flex items-center"
+                                                                aria-label={t("suspensions.row.earlyEndClubLinkAria")}
+                                                            >
+                                                                →
+                                                            </Link>
+                                                        )}
+                                                    </div>
+                                                )}
                                         </div>
                                     </div>
 
@@ -237,6 +274,13 @@ export default async function CoachSuspensionsPage({
                                         />
 
                                         <div className="flex items-center gap-2">
+                                            {isActive && suspension.issuedBy === "ORGANIZER" && (
+                                                <EarlyEndSuspensionButton
+                                                    suspension={suspension}
+                                                    fighterName={fighter?.name}
+                                                    label={t("suspensions.row.liftByOrganizerAction")}
+                                                />
+                                            )}
                                             {suspension.status === "AWAITING_CLEARANCE" && (
                                                 <ClearSuspensionButton
                                                     suspension={suspension}
