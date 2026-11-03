@@ -15,6 +15,8 @@ import { parseArgs } from "node:util";
 import { chromium } from "@playwright/test";
 
 const { values: args } = parseArgs({
+    // pnpm passes the `--` of `pnpm ui:smoke -- --base …` through to the script.
+    args: process.argv.slice(2).filter((arg, index) => !(index === 0 && arg === "--")),
     options: {
         base: { type: "string", default: "http://localhost:3000" },
         widths: { type: "string", default: "1440,390" },
