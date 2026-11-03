@@ -50,35 +50,35 @@ const lineList = (label: string) =>
                 .map((line) => line.trim())
                 .filter(Boolean),
         )
-        .pipe(z.array(z.string().max(200, `Keep each ${label} under 200 characters.`)).max(30, `List at most 30 ${label}s.`));
+        .pipe(z.array(z.string().max(200, `Mỗi ${label} tối đa 200 ký tự.`)).max(30, `Tối đa 30 ${label}.`));
 
 const currentYear = new Date().getUTCFullYear();
 
 const medicalRecordSchema = z.object({
-    fighterId: z.string().min(1, "The fighter is missing. Reload the page and try again."),
-    bloodType: z.string().trim().min(1, "Choose a blood type, or “Not recorded”.").max(20),
+    fighterId: z.string().min(1, "Thiếu thông tin võ sĩ. Hãy tải lại trang và thử lại."),
+    bloodType: z.string().trim().min(1, "Hãy chọn nhóm máu, hoặc “Chưa ghi nhận”.").max(20),
     allergies: lineList("allergy"),
     chronicConditions: lineList("condition"),
     medications: lineList("medication"),
     surgicalHistory: jsonArray(
         z.object({
             year: z
-                .number({ error: "Enter the year of the procedure." })
-                .int("Enter a four-digit year.")
-                .min(1950, "Enter a year from 1950 onwards.")
-                .max(currentYear, "The year can't be in the future."),
-            procedure: z.string().trim().min(1, "Describe the procedure.").max(200, "Keep the procedure under 200 characters."),
+                .number({ error: "Hãy nhập năm thực hiện thủ thuật." })
+                .int("Hãy nhập năm gồm bốn chữ số.")
+                .min(1950, "Hãy nhập năm từ 1950 trở đi.")
+                .max(currentYear, "Năm không thể ở tương lai."),
+            procedure: z.string().trim().min(1, "Hãy mô tả thủ thuật.").max(200, "Thủ thuật tối đa 200 ký tự."),
         }),
-        "surgical history",
+        "tiền sử phẫu thuật",
     ),
-    emergencyName: z.string().trim().max(120, "Keep the name under 120 characters."),
-    emergencyRelation: z.string().trim().max(60, "Keep the relationship under 60 characters."),
+    emergencyName: z.string().trim().max(120, "Tên tối đa 120 ký tự."),
+    emergencyRelation: z.string().trim().max(60, "Quan hệ tối đa 60 ký tự."),
     emergencyPhone: z
         .string()
         .trim()
-        .max(40, "Keep the phone number under 40 characters.")
-        .refine((value) => value === "" || /^\+?[\d\s().-]{6,}$/.test(value), "Enter a phone number using digits, spaces and an optional leading +."),
-    notes: z.string().trim().max(3000, "Keep clinical notes under 3,000 characters."),
+        .max(40, "Số điện thoại tối đa 40 ký tự.")
+        .refine((value) => value === "" || /^\+?[\d\s().-]{6,}$/.test(value), "Hãy nhập số điện thoại gồm chữ số, khoảng trắng và dấu + ở đầu (nếu có)."),
+    notes: z.string().trim().max(3000, "Ghi chú lâm sàng tối đa 3.000 ký tự."),
 });
 
 export async function updateMedicalRecordAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -118,26 +118,26 @@ export async function updateMedicalRecordAction(_prev: ActionState, formData: Fo
     if (!result.ok) return actionError(result.error);
 
     revalidateDoctorArea();
-    return actionSuccess("Medical record saved.");
+    return actionSuccess("Đã lưu bệnh án.");
 }
 
 /* ─── Examinations ────────────────────────────────────────────────────────── */
 
 const examinationSchema = z
     .object({
-        fighterId: z.string().min(1, "Choose the fighter you examined."),
+        fighterId: z.string().min(1, "Hãy chọn võ sĩ đã khám."),
         type: z.enum(EXAMINATION_TYPES, { error: "Choose the examination type." }),
-        date: z.string().refine(isDateTimeInputValue, "Enter the date and time of the examination."),
+        date: z.string().refine(isDateTimeInputValue, "Hãy nhập ngày giờ khám."),
         ...VITAL_FIELDS,
-        assessments: jsonArray(assessmentSchema, "assessments", { min: 1, minMessage: "Add at least one assessment." }),
+        assessments: jsonArray(assessmentSchema, "assessments", { min: 1, minMessage: "Hãy thêm ít nhất một đánh giá." }),
         outcome: z.enum(keysOf(EXAMINATION_OUTCOME_LABELS), { error: "Choose the examination outcome." }),
-        summary: z.string().trim().min(10, "Summarise the findings in a sentence or two.").max(3000, "Keep the summary under 3,000 characters."),
+        summary: z.string().trim().min(10, "Hãy tóm tắt kết quả trong một hai câu.").max(3000, "Tóm tắt tối đa 3.000 ký tự."),
         recommendations: z
             .string()
             .trim()
-            .min(1, "Add recommendations — for example training guidance or next steps.")
-            .max(3000, "Keep recommendations under 3,000 characters."),
-        followUpDate: z.string().trim().refine((value) => value === "" || isDateKey(value), "Enter a valid follow-up date."),
+            .min(1, "Hãy thêm khuyến nghị — ví dụ hướng dẫn tập luyện hoặc bước tiếp theo.")
+            .max(3000, "Khuyến nghị tối đa 3.000 ký tự."),
+        followUpDate: z.string().trim().refine((value) => value === "" || isDateKey(value), "Hãy nhập ngày tái khám hợp lệ."),
     })
     .superRefine((exam, ctx) => {
         checkBloodPressure(exam, ctx);
@@ -162,12 +162,12 @@ export async function createExaminationAction(_prev: ActionState, formData: Form
     const scat6 = text(formData, "type") === "baseline" ? scat6Field.safeParse(text(formData, "scat6")) : undefined;
     if (!parsed.success || scat6?.success === false) return validationError(new z.ZodError([...issuesOf(parsed), ...friendlyScat6Issues(scat6Issues(scat6))]));
     const input = parsed.data;
-    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
+    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Hãy chọn một võ sĩ bạn phụ trách." });
 
     const [day, time] = input.date.split("T");
     const examinedAt = academyWallClockToIso(day, time);
     if (isInFuture(examinedAt)) {
-        return actionError(FIX_FIELDS, { date: "The examination time can't be in the future." });
+        return actionError(FIX_FIELDS, { date: "Thời điểm khám không thể ở tương lai." });
     }
 
     const result = await createExamination(
@@ -194,33 +194,33 @@ export async function createExaminationAction(_prev: ActionState, formData: Form
 /* ─── Medical Clearance ───────────────────────────────────────────────────── */
 
 const restrictionSchema = z.object({
-    label: z.string().trim().min(1, "Give this restriction a label coaches will understand.").max(140, "Keep the label under 140 characters."),
+    label: z.string().trim().min(1, "Hãy đặt nội dung hạn chế mà HLV dễ hiểu.").max(140, "Nội dung tối đa 140 ký tự."),
     blockedTrainingTypes: z.array(z.enum(keysOf(TRAINING_TYPE_LABELS))).max(8),
     blockedTechniques: z.array(z.enum(TECHNIQUES)).max(8),
     blockedRegions: z.array(z.enum(keysOf(BODY_REGION_LABELS))).max(21),
-    maxRpe: z.number().int().min(1, "Max RPE must be between 1 and 10.").max(10, "Max RPE must be between 1 and 10.").nullable(),
+    maxRpe: z.number().int().min(1, "RPE tối đa phải từ 1 đến 10.").max(10, "RPE tối đa phải từ 1 đến 10.").nullable(),
 });
 
 const grantClearanceSchema = z
     .object({
-        fighterId: z.string().min(1, "Choose the fighter this clearance is for."),
+        fighterId: z.string().min(1, "Hãy chọn võ sĩ được cấp giấy phép."),
         level: z.enum(keysOf(CLEARANCE_LEVEL_LABELS), { error: "Choose a clearance level." }),
         validUntil: z.string().trim(),
         reason: z
             .string()
             .trim()
-            .min(10, "Give the clinical reason for this decision in a sentence or two.")
-            .max(2000, "Keep the reason under 2,000 characters."),
+            .min(10, "Hãy ghi lý do lâm sàng cho quyết định trong một hai câu.")
+            .max(2000, "Lý do tối đa 2.000 ký tự."),
         examinationId: z.string().trim(),
         restrictions: jsonArray(restrictionSchema, "restrictions"),
         confirmNotCleared: z.string(),
     })
     .superRefine((input, ctx) => {
         if (input.level !== "not_cleared" && !isDateKey(input.validUntil)) {
-            ctx.addIssue({ code: "custom", path: ["validUntil"], message: "Choose the date this clearance is valid until." });
+            ctx.addIssue({ code: "custom", path: ["validUntil"], message: "Hãy chọn ngày giấy phép hết hiệu lực." });
         }
         if (input.level === "restricted" && input.restrictions.length === 0) {
-            ctx.addIssue({ code: "custom", path: ["restrictions"], message: "Add at least one restriction, or choose full clearance." });
+            ctx.addIssue({ code: "custom", path: ["restrictions"], message: "Hãy thêm ít nhất một hạn chế, hoặc chọn được tập đầy đủ." });
         }
     });
 
@@ -239,18 +239,18 @@ export async function grantClearanceAction(_prev: ActionState, formData: FormDat
     });
     if (!parsed.success) return validationError(parsed.error);
     const input = parsed.data;
-    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
+    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Hãy chọn một võ sĩ bạn phụ trách." });
 
     if (input.level === "not_cleared" && input.confirmNotCleared !== "yes") {
-        return actionError("Confirm that this fighter must stop training before setting them as not cleared.");
+        return actionError("Hãy xác nhận võ sĩ phải dừng tập trước khi đặt là chưa được tập.");
     }
 
     let validUntil: string | null = null;
     if (input.level !== "not_cleared") {
         const days = daysBetween(new Date(), `${input.validUntil}T12:00:00Z`);
-        if (days < 0) return actionError(FIX_FIELDS, { validUntil: "The validity date can't be in the past." });
+        if (days < 0) return actionError(FIX_FIELDS, { validUntil: "Ngày hiệu lực không thể ở quá khứ." });
         if (days > MAX_CLEARANCE_DAYS) {
-            return actionError(FIX_FIELDS, { validUntil: "Issue clearances for 12 months at most, then re-examine." });
+            return actionError(FIX_FIELDS, { validUntil: "Chỉ cấp giấy phép tối đa 12 tháng, sau đó khám lại." });
         }
         validUntil = academyWallClockToIso(input.validUntil, "23:59");
     }
@@ -273,13 +273,13 @@ export async function grantClearanceAction(_prev: ActionState, formData: FormDat
 }
 
 const revokeSchema = z.object({
-    clearanceId: z.string().min(1, "The clearance is missing. Reload the page and try again."),
+    clearanceId: z.string().min(1, "Thiếu giấy phép. Hãy tải lại trang và thử lại."),
     fighterId: z.string(),
     reason: z
         .string()
         .trim()
-        .min(10, "Explain why the clearance is being revoked in a sentence or two.")
-        .max(1000, "Keep the reason under 1,000 characters."),
+        .min(10, "Hãy giải thích lý do thu hồi giấy phép trong một hai câu.")
+        .max(1000, "Lý do tối đa 1.000 ký tự."),
 });
 
 export async function revokeClearanceAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -293,7 +293,7 @@ export async function revokeClearanceAction(_prev: ActionState, formData: FormDa
     const scope = parsed.data.fighterId ? [parsed.data.fighterId] : accessibleFighterIds(auth.user);
     const clearance = (await listClearances({ fighterIds: scope })).find((c) => c.id === parsed.data.clearanceId);
     if (!clearance || !canAccessFighterClinically(auth.user, clearance.fighterId)) {
-        return actionError("This clearance isn't available. It may belong to a fighter you aren't assigned to.");
+        return actionError("Không truy cập được giấy phép này. Có thể nó thuộc võ sĩ bạn không phụ trách.");
     }
 
     try {
@@ -305,13 +305,13 @@ export async function revokeClearanceAction(_prev: ActionState, formData: FormDa
     }
 
     revalidateDoctorArea();
-    return actionSuccess("Medical Clearance revoked. The fighter is now not cleared and their coaches have been notified.");
+    return actionSuccess("Đã thu hồi giấy phép. Võ sĩ hiện chưa được tập và HLV đã được thông báo.");
 }
 
 /* ─── Health status ───────────────────────────────────────────────────────── */
 
 const healthStatusSchema = z.object({
-    fighterId: z.string().min(1, "The fighter is missing. Reload the page and try again."),
+    fighterId: z.string().min(1, "Thiếu thông tin võ sĩ. Hãy tải lại trang và thử lại."),
     status: z.enum(keysOf(HEALTH_STATUS_LABELS), { error: "Choose a health status." }),
 });
 
@@ -328,5 +328,5 @@ export async function updateHealthStatusAction(_prev: ActionState, formData: For
     if (!result.ok) return actionError(result.error);
 
     revalidateDoctorArea();
-    return actionSuccess(`Health status set to ${HEALTH_STATUS_LABELS[result.data.healthStatus]}.`);
+    return actionSuccess(`Đã đặt tình trạng sức khỏe: ${HEALTH_STATUS_LABELS[result.data.healthStatus]}.`);
 }

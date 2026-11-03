@@ -23,7 +23,7 @@ export interface InjuryCardProps {
 }
 
 /** Injury summary: what and where, severity + status, key dates and mechanism. */
-export function InjuryCard({ injury, now, href, headingLevel = 3, className, locale = "en" }: InjuryCardProps) {
+export function InjuryCard({ injury, now, href, headingLevel = 3, className, locale = "vi" }: InjuryCardProps) {
     const t = createTranslator(locale);
     const Heading = headingLevel === 2 ? "h2" : "h3";
     const title = injuryTitle(injury, locale);
@@ -72,7 +72,7 @@ export function InjuryCard({ injury, now, href, headingLevel = 3, className, loc
     );
 }
 
-function ReturnValue({ injury, now, locale = "en" }: { injury: Injury; now: string; locale?: Locale }) {
+function ReturnValue({ injury, now, locale = "vi" }: { injury: Injury; now: string; locale?: Locale }) {
     const t = createTranslator(locale);
     if (injury.resolvedAt) {
         return <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt, locale)}</time>;

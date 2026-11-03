@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 
 import { isApiError } from "@/api";
@@ -18,6 +18,8 @@ import {
   visibleScore,
 } from "@/screens/media/video-model";
 import { useTypography } from "@/theme";
+import { SkeletonRows } from "@/components/loading";
+import { videoTitle } from "@/i18n/server-text";
 
 function messageFor(error: unknown): string {
   if (!isApiError(error)) return media.generic;
@@ -108,12 +110,7 @@ export function VideoLibraryContent({
         </Pressable>
       ) : null}
 
-      {phase === "loading" ? (
-        <View style={styles.centerRow}>
-          <ActivityIndicator color={colors.accent} />
-          <Text style={{ color: colors.muted }}>{media.loading}</Text>
-        </View>
-      ) : null}
+      {phase === "loading" ? <SkeletonRows rows={4} /> : null}
 
       {phase === "error" ? (
         <Pressable accessibilityRole="button" accessibilityLabel={media.retry} onPress={load}>
@@ -141,7 +138,7 @@ export function VideoLibraryContent({
                 key={video.id}
                 testID={`video-row-${video.id}`}
                 accessibilityRole="button"
-                accessibilityLabel={`${video.title}, ${when}, ${listMeta(video)}, ${badge.label}${score == null ? "" : `, ${media.score} ${score}`}`}
+                accessibilityLabel={`${videoTitle(video.title)}, ${when}, ${listMeta(video)}, ${badge.label}${score == null ? "" : `, ${media.score} ${score}`}`}
                 onPress={() => onOpen(video.id)}
                 style={[styles.card, { borderColor: colors.line, backgroundColor: colors.surface }]}
               >
@@ -151,7 +148,7 @@ export function VideoLibraryContent({
                   </View>
                   <View style={styles.identityText}>
                     <Text style={[styles.cardTitle, { color: colors.ink, fontFamily: live.faces.semibold }]}>
-                      {video.title}
+                      {videoTitle(video.title)}
                     </Text>
                     {when ? <Text style={[styles.date, { color: colors.muted }]}>{when}</Text> : null}
                   </View>

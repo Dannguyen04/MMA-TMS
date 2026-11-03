@@ -110,7 +110,7 @@ describe("movement evidence contract", () => {
         data.recordingGuidance = [];
         const report = movementEvidenceSchema.parse(data);
         const html = renderToStaticMarkup(inPlayback(createElement(MovementEvidencePanel, { report })));
-        expect(html).toContain("New recording or reprocessing required");
+        expect(html).toContain("Cần quay mới hoặc xử lý lại");
         expect(html).not.toContain("aria-label=\"Review footage");
     });
 });

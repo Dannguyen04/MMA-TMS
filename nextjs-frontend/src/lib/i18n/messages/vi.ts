@@ -18,6 +18,7 @@ import { viScreensRoster } from "./screens-roster.vi";
 import { viScreensPerformance } from "./screens-performance.vi";
 import { viScreensTraining } from "./screens-training.vi";
 import type { en } from "./en";
+import { viScreensMisc } from "./screens-misc.vi";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
 export const vi = {
@@ -40,11 +41,13 @@ export const vi = {
     ...viScreensRoster,
     ...viScreensPerformance,
     ...viScreensTraining,
+    ...viScreensMisc,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
     "nav.Upcoming": "Sắp tới",
     "nav.Suspensions": "Đình chỉ",
+    "nav.Readiness": "Sẵn sàng",
     "nav.Training": "Tập luyện",
     "nav.Schedule": "Lịch tập",
     "nav.Plans": "Giáo án",

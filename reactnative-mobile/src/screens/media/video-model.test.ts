@@ -16,10 +16,10 @@ import {
 describe("video list fixture", () => {
   it("keeps order and puts score 70 only on record 4", () => {
     expect(VIDEO_LIST_FIXTURE.map((row) => row.title)).toEqual([
-      "Heavy bag",
-      "Shadow boxing",
-      "Shadow boxing",
-      "Heavy bag",
+      "Đánh bao",
+      "Đánh gió",
+      "Đánh gió",
+      "Đánh bao",
     ]);
     expect(VIDEO_LIST_FIXTURE.map((row) => row.analysisStatus)).toEqual(["DONE", "DONE", "FAILED", "DONE"]);
     expect(VIDEO_LIST_FIXTURE.map((row) => visibleScore(row.score))).toEqual([null, null, null, 70]);
@@ -43,7 +43,7 @@ describe("video list fixture", () => {
       [...VIDEO_LIST_FIXTURE, REFERENCED_VIDEO_DETAIL],
       REFERENCED_VIDEO_DETAIL.id,
     );
-    expect(opened?.title).toBe("Heavy bag");
+    expect(opened?.title).toBe("Đánh bao");
     expect(visibleScore(opened && "score" in opened ? opened.score : null)).toBeNull();
     expect(REFERENCED_VIDEO_DETAIL.processingStatus).toBe("PROCESSED");
     expect(REFERENCED_VIDEO_DETAIL.analysisStatus).toBe("DONE");
@@ -137,5 +137,25 @@ describe("upload form", () => {
     expect(sent.phase).toBe("sent");
     expect(sent.analysisComplete).toBe(false);
     expect(uploadFormReducer(withFile, { type: "appearanceChanged" })).toBe(withFile);
+  });
+});
+
+describe("Phase 5 C: unknown backend codes never show raw", () => {
+  const { analysisBadge, videoProcessingBadge, listBadge, trainingLabel, angleLabel, anglePhrase } = jest.requireActual("./video-model") as typeof import("./video-model");
+  it("unknown job / video status: \"Chưa rõ\", neutral", () => {
+    expect(analysisBadge("COMPLETED")).toEqual({ label: "Chưa rõ", tone: "neutral" });
+    expect(videoProcessingBadge("ARCHIVED_X")).toEqual({ label: "Chưa rõ", tone: "neutral" });
+    expect(listBadge("PROCESSED", { status: "WEIRD" } as never)).toEqual({ label: "Chưa rõ", tone: "neutral" });
+  });
+  it("known statuses keep their label and tone", () => {
+    expect(analysisBadge("DONE").label).toBe("Xong");
+    expect(analysisBadge("FAILED")).toEqual({ label: "Thất bại", tone: analysisBadge("FAILED").tone });
+    expect(analysisBadge("FAILED").tone).not.toBe("neutral");
+    expect(videoProcessingBadge("FAILED").tone).toBe("danger");
+  });
+  it("unknown training type / camera angle: \"Chưa rõ\"", () => {
+    expect(trainingLabel("NEW_TYPE")).toBe("Chưa rõ");
+    expect(angleLabel("TOP_DOWN")).toBe("Chưa rõ");
+    expect(anglePhrase("TOP_DOWN")).toBe("Chưa rõ");
   });
 });

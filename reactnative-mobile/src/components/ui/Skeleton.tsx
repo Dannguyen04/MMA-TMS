@@ -16,7 +16,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
   if (reduced) {
     return (
-      <View accessibilityLabel="Loading" accessibilityRole="progressbar">
+      <View accessibilityLabel="Đang tải" accessibilityRole="progressbar">
         {block}
       </View>
     );
@@ -24,7 +24,7 @@ export function Skeleton({ className }: SkeletonProps) {
 
   return (
     <MotiView
-      accessibilityLabel="Loading"
+      accessibilityLabel="Đang tải"
       accessibilityRole="progressbar"
       from={{ opacity: 0.45 }}
       animate={{ opacity: 1 }}

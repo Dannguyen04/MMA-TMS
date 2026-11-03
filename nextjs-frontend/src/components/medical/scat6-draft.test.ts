@@ -90,8 +90,8 @@ describe("scat6FromDraft", () => {
         expect(scat6InputSchema.safeParse(record).success).toBe(true);
         expect(record).toMatchObject({
             administeredAt: "2026-09-01T02:00:00.000Z",
-            immediateAssessment: { performed: false, reason: "Baseline assessment, no injury." },
-            dualTaskGait: { performed: false, reason: "Not done at this baseline." },
+            immediateAssessment: { performed: false, reason: "Đánh giá nền, không chấn thương." },
+            dualTaskGait: { performed: false, reason: "Không thực hiện ở lần khám nền này." },
             background: { adhd: false, notes: null },
             symptoms: { performed: true, percentOfNormal: 100, worseWithPhysicalActivity: false },
         });
@@ -180,7 +180,7 @@ describe("quick fills", () => {
         draft.symptoms.ratings[3] = "0";
         draft.symptoms.worseWithMentalActivity = true;
         const result = fillNoSymptoms(draft);
-        expect(result?.filled).toContain("21 ratings set to 0");
+        expect(result?.filled).toContain("21 mục đánh giá được đặt về 0");
         expect(result?.draft.symptoms.ratings.every((rating) => rating === "0")).toBe(true);
         expect(result?.draft.symptoms).toMatchObject({ worseWithPhysicalActivity: false, worseWithMentalActivity: true, percentOfNormal: "" });
         // The doctor's draft itself is untouched.
@@ -194,7 +194,7 @@ describe("quick fills", () => {
         const draft = emptyScat6Draft(START);
         draft.background.adhd = false;
         const result = fillNoBackground(draft);
-        expect(result?.filled).toMatch(/^4 conditions set to No/);
+        expect(result?.filled).toMatch(/^4 tình trạng đặt là Không/);
         expect(result?.draft.background).toMatchObject({ adhd: false, hospitalisedForHeadInjury: false, depressionAnxietyOrOtherPsychological: false });
 
         draft.background.headacheDisorderOrMigraine = true;
@@ -205,7 +205,7 @@ describe("quick fills", () => {
         const draft = emptyScat6Draft(START);
         const all = fillToggleRow(draft, "orientation.answers", true);
         expect(all?.draft.orientation.answers).toEqual([true, true, true, true, true]);
-        expect(all?.filled).toBe("5 of 5 ticked.");
+        expect(all?.filled).toBe("Đã đánh dấu 5/5.");
         expect(fillToggleRow(must(all), "orientation.answers", false)).toBeNull();
 
         const ticked = toggleItem(draft, "immediateMemory.trials.1", 4, true);
@@ -214,7 +214,7 @@ describe("quick fills", () => {
         expect(fillToggleRow(ticked, "immediateMemory.trials.1", true)).toBeNull();
 
         const none = fillToggleRow(draft, "delayedRecall.words", false);
-        expect(none?.filled).toBe("None recalled: 0 of 10 ticked.");
+        expect(none?.filled).toBe("Không nhớ từ nào: đã đánh dấu 0/10.");
         expect(none?.draft.marked["delayedRecall.words"]).toBe(true);
     });
 
@@ -245,9 +245,9 @@ describe("scat6Problems", () => {
         const draft = emptyScat6Draft(START);
         const problems = scat6Problems(draft);
         const byPath = Object.fromEntries(problems.map((problem) => [problem.path, problem]));
-        expect(byPath["background.adhd"]).toMatchObject({ step: "history", message: "Answer yes or no." });
-        expect(byPath["immediateAssessment.performed"]).toMatchObject({ step: "history", message: "Say whether it was performed." });
-        expect(byPath["orientation.answers"]).toMatchObject({ step: "memory", message: "Tick the orientation answers given correctly, or choose “None correct”." });
+        expect(byPath["background.adhd"]).toMatchObject({ step: "history", message: "Hãy trả lời có hoặc không." });
+        expect(byPath["immediateAssessment.performed"]).toMatchObject({ step: "history", message: "Hãy cho biết có thực hiện không." });
+        expect(byPath["orientation.answers"]).toMatchObject({ step: "memory", message: "Đánh dấu các câu định hướng trả lời đúng, hoặc chọn “Không câu nào đúng”." });
         expect(byPath["immediateMemory.trials.2"]).toMatchObject({ step: "memory" });
         expect(byPath["delayedRecall.words"]).toMatchObject({ step: "balance" });
         expect(byPath["dualTaskGait.performed"]).toMatchObject({ step: "balance" });
@@ -258,7 +258,7 @@ describe("scat6Problems", () => {
     it("holds delayed recall to 5 minutes after the last memory trial", () => {
         const draft = filledDraft();
         draft.delayedRecall.startedAt = "2026-09-01T09:09";
-        expect(scat6Problems(draft)).toEqual([{ path: "delayedRecall.startedAt", step: "balance", message: "Start delayed recall at least 5 minutes after the last Immediate Memory trial." }]);
+        expect(scat6Problems(draft)).toEqual([{ path: "delayedRecall.startedAt", step: "balance", message: "Bắt đầu nhớ lại có trì hoãn ít nhất 5 phút sau lượt Trí nhớ tức thời cuối." }]);
         draft.delayedRecall.startedAt = "2026-09-01T09:11";
         expect(scat6Problems(draft)).toEqual([]);
     });

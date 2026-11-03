@@ -35,6 +35,7 @@ describe("session filters", () => {
       "SKIPPED",
       "CANCELLED",
       "ABANDONED",
+      "PENDING",
     ]);
     expect(fighter.sessionStatus.SCHEDULED).toBe("Đã lên lịch");
     expect(fighter.sessionStatus.IN_PROGRESS).toBe("Đang tập");

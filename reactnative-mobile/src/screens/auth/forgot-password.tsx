@@ -56,6 +56,15 @@ export function ForgotPasswordScreen() {
       onBack={() => router.replace("/login")}
       backDisabled={submitting}
       backLabel={vi.forgot.back}
+      action={
+        <AuthVisionButton
+          testID="forgot-submit"
+          title={vi.forgot.submit}
+          onPress={onSubmit}
+          loading={submitting}
+          disabled={!canSubmit}
+        />
+      }
     >
       <AuthVisionField
         label={vi.forgot.email}
@@ -75,13 +84,6 @@ export function ForgotPasswordScreen() {
         textContentType="emailAddress"
         returnKeyType="done"
         onSubmitEditing={onSubmit}
-      />
-      <AuthVisionButton
-        testID="forgot-submit"
-        title={vi.forgot.submit}
-        onPress={onSubmit}
-        loading={submitting}
-        disabled={!canSubmit}
       />
     </AuthVisionShell>
   );

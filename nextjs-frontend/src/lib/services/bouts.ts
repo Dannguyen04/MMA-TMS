@@ -12,7 +12,7 @@ import type { BoutOutcome, CampBout, CancelReason, CompetitionRuleset, Nutrition
 import { boutLimitKg, isRunningPhase } from "@/lib/domain/bout";
 import { awaitsWeighInDecision, requirementCode, type RequirementUpdate } from "@/lib/domain/bout-rules";
 import { wayOffCount } from "@/lib/domain/nutrition";
-import { blockingSuspensions as findBlockingSuspensions, type SuspensionDraft } from "@/lib/domain/suspension-rules";
+import { blockingSuspensions as findBlockingSuspensions, type SuspensionDraft } from "@/lib/domain/bout-suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
 import type { PlanAdherence, WeightStatus } from "@/lib/domain/weight-chart";
 import type { WeightTrack } from "@/lib/domain/weight-track";
@@ -325,7 +325,8 @@ async function usesCustomLimit(rulesetId: string): Promise<boolean> {
     return !ruleset || ruleset.weightClasses.length === 0;
 }
 
-const weightWarningStatusSchema = z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]);
+/** Camp weight status; the suspensions service reads it on the readiness board too. */
+export const weightWarningStatusSchema = z.enum(["ON_TRACK", "ABOVE_TARGET", "OVER_LIMIT", "NOT_WEIGHED", "NEUTRAL"]);
 export const feasibilitySchema = z.object({
     status: weightWarningStatusSchema,
     remainingPct: z.number().nullable(),

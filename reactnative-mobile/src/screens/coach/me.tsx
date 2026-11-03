@@ -2,12 +2,12 @@ import { Pressable, Text } from "react-native";
 import { useRouter } from "expo-router";
 
 import { AppearanceLink } from "@/components/appearance/appearance-link";
-import { ThemeToggle } from "@/components/auth/theme-toggle";
 import { coach } from "@/i18n/coach";
 import { coachProfileId, fighterDisplayName } from "@/screens/coach/coach-error";
 import { CoachBanner, CoachCard, CoachScaffold } from "@/screens/coach/coach-ui";
 import { useSession } from "@/session/session-context";
 import { type, useThemePreference } from "@/theme";
+import { coachHref } from "@/navigation/role-href";
 
 export function CoachMeScreen() {
   const { colors } = useThemePreference();
@@ -27,7 +27,6 @@ export function CoachMeScreen() {
 
   return (
     <CoachScaffold title={coach.tabs.me}>
-      <ThemeToggle />
       <CoachCard>
         <Text style={[type.title, { color: colors.ink }]}>
           {coach.greeting}
@@ -42,22 +41,22 @@ export function CoachMeScreen() {
         {!profileId ? <CoachBanner message={coach.assignNeedProfile} /> : null}
       </CoachCard>
       <CoachCard>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/danh-gia")}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(coachHref.assessments)}>
           <Text style={[type.link, { color: colors.lotus }]}>Hồ sơ nhập học</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/video-analysis")}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(coachHref.videoAnalysis)}>
           <Text style={[type.link, { color: colors.lotus }]}>Duyệt video</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/goals")}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(coachHref.goals)}>
           <Text style={[type.link, { color: colors.lotus }]}>Mục tiêu</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/performance")}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(coachHref.performance)}>
           <Text style={[type.link, { color: colors.lotus }]}>Hiệu suất</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/clearance")}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(coachHref.clearance)}>
           <Text style={[type.link, { color: colors.lotus }]}>Giấy phép</Text>
         </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => router.push("/thong-bao")}>
+        <Pressable accessibilityRole="button" onPress={() => router.push(coachHref.notifications)}>
           <Text style={[type.link, { color: colors.lotus }]}>Thông báo</Text>
         </Pressable>
       </CoachCard>

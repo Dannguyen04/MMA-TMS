@@ -23,7 +23,7 @@ export interface RevokeClearanceButtonProps {
     className?: string;
 }
 
-const REASON_HINT = "Saved to the clearance history and shared with other doctors assigned to this fighter.";
+const REASON_HINT = "Lưu vào lịch sử giấy phép và chia sẻ với các bác sĩ khác phụ trách võ sĩ này.";
 
 /** Revokes an active clearance after a confirmation that requires a clinical reason. */
 export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, size = "sm", emphasis = "default", className }: RevokeClearanceButtonProps) {
@@ -37,8 +37,8 @@ export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, siz
         onSuccess: () =>
             toast({
                 tone: "warning",
-                title: `${fighterName} is now Not Cleared`,
-                description: "Their coaches and the fighter have been notified. Training stays blocked until you issue a new clearance.",
+                title: `${fighterName} hiện chưa được tập`,
+                description: "Võ sĩ và HLV đã được thông báo. Võ sĩ không được tập cho đến khi có giấy phép mới.",
             }),
         onError: (state) => {
             if (!state.fieldErrors?.reason) return;
@@ -61,16 +61,16 @@ export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, siz
                 }}
             >
                 <ShieldOff aria-hidden />
-                Revoke
-                <span className="sr-only"> {fighterName}&apos;s clearance</span>
+                Thu hồi
+                <span className="sr-only"> {fighterName}— giấy phép</span>
             </Button>
             <ConfirmDialog
                 {...revoke.dialogProps}
-                title={`Revoke ${fighterName}'s clearance?`}
-                description="Coaches and the fighter will be notified immediately and training will be blocked until you issue a new clearance."
-                confirmLabel="Revoke clearance"
+                title={`Thu hồi giấy phép của ${fighterName}?`}
+                description="Võ sĩ và HLV sẽ được thông báo ngay; võ sĩ không được tập cho đến khi có giấy phép mới."
+                confirmLabel="Thu hồi giấy phép"
             >
-                <Field label="Reason for revoking" htmlFor={reasonId} required hint={REASON_HINT} error={reasonError}>
+                <Field label="Lý do thu hồi" htmlFor={reasonId} required hint={REASON_HINT} error={reasonError}>
                     <Textarea
                         ref={reasonRef}
                         id={reasonId}
@@ -82,7 +82,7 @@ export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, siz
                             setReason(event.target.value);
                             setReasonEdited(true);
                         }}
-                        placeholder="e.g. New head impact in sparring — withdrawn pending concussion screening."
+                        placeholder="VD: Va chạm đầu khi đấu tập — thu hồi chờ tầm soát chấn động."
                     />
                 </Field>
             </ConfirmDialog>

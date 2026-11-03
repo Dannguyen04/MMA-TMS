@@ -55,7 +55,7 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
         // A SCAT6 answer left blank (or a tick row nobody marked) is marked in place instead of being sent as "none".
         prepare: () => {
             const problems = type === "baseline" ? scat6.validateAll() : null;
-            if (problems) return { status: "error", message: "Some SCAT6 answers still need attention. They're marked below.", fieldErrors: problems };
+            if (problems) return { status: "error", message: "Một số câu trả lời SCAT6 cần xem lại. Đã đánh dấu bên dưới.", fieldErrors: problems };
         },
     });
     const id = (name: string) => `exam-${name}`;
@@ -85,11 +85,11 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
     return (
         <form {...form.formProps}>
             <Card className="px-5 py-6 sm:px-6">
-                <FormSection title="Patient & visit" description="Who you examined, what kind of examination it was, and when.">
+                <FormSection title="Bệnh nhân & lần khám" description="Khám ai, loại khám gì và khi nào.">
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <Field label="Fighter" htmlFor={id("fighterId")} error={error("fighterId")} required>
+                        <Field label="Võ sĩ" htmlFor={id("fighterId")} error={error("fighterId")} required>
                             <Select {...form.control("fighterId", { required: true })} value={fighterId} onChange={(event) => setFighterId(event.target.value)}>
-                                <option value="">Choose a fighter…</option>
+                                <option value="">Chọn võ sĩ…</option>
                                 {fighters.map((option) => (
                                     <option key={option.id} value={option.id}>
                                         {option.name}
@@ -97,7 +97,7 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                                 ))}
                             </Select>
                         </Field>
-                        <Field label="Date and time" htmlFor={id("date")} error={error("date")} required hint="Academy time (Ho Chi Minh City)">
+                        <Field label="Ngày giờ" htmlFor={id("date")} error={error("date")} required hint="Giờ học viện (TP. Hồ Chí Minh)">
                             <Input
                                 {...form.control("date", { hint: true, required: true })}
                                 type="datetime-local"
@@ -112,15 +112,15 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                 </FormSection>
 
                 <FormSection
-                    title="Vitals"
-                    description="Reference ranges update as you type. Readings outside them are flagged for a recheck, not blocked."
+                    title="Sinh hiệu"
+                    description="Ngưỡng tham chiếu cập nhật khi bạn nhập. Chỉ số ngoài ngưỡng được đánh dấu để đo lại, không bị chặn."
                 >
                     <VitalsFields form={form} value={vitals} onChange={setVitals} weightLimitKg={fighter?.weightLimitKg ?? null} required />
                 </FormSection>
 
                 <FormSection
-                    title="Assessments"
-                    description="One row per area examined. Describe every abnormal finding so the record is useful at follow-up."
+                    title="Đánh giá"
+                    description="Mỗi dòng một vùng khám. Mô tả mọi dấu hiệu bất thường để hồ sơ hữu ích khi tái khám."
                 >
                     <AssessmentsField form={form} type={type} rows={rows} />
                 </FormSection>
@@ -138,12 +138,12 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                     </>
                 )}
 
-                <FormSection title="Outcome & plan" description="Your conclusion, what the fighter and staff should do next, and when to review.">
+                <FormSection title="Kết luận & kế hoạch" description="Kết luận của bạn, việc võ sĩ và ban huấn luyện cần làm tiếp và khi nào xem lại.">
                     <div>
                         <ChoiceGroup
                             id={id("outcome")}
                             name="outcome"
-                            legend="Outcome"
+                            legend="Kết luận"
                             required
                             columns={3}
                             options={OUTCOME_OPTIONS}
@@ -155,17 +155,17 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                             {fighter && outcome && (
                                 <InlineNote icon={Info} tone={outcomeMismatch ? "info" : "neutral"} className="mt-2">
                                     {outcomeMismatch
-                                        ? `This outcome points to “${CLEARANCE_LEVEL_LABELS[CLEARANCE_LEVEL_FOR_OUTCOME[outcome]]}”, but ${fighter.name}'s clearance is currently ${currentLevel ? `“${CLEARANCE_LEVEL_LABELS[currentLevel]}”` : fighter.clearanceState === "expired" ? "expired" : "not on file"}. Saving doesn't change the clearance — you'll be offered an update next.`
-                                        : "Consistent with the current Medical Clearance."}
+                                        ? `Kết luận này tương ứng “${CLEARANCE_LEVEL_LABELS[CLEARANCE_LEVEL_FOR_OUTCOME[outcome]]}”, nhưng giấy phép hiện tại của ${fighter.name} là ${currentLevel ? `“${CLEARANCE_LEVEL_LABELS[currentLevel]}”` : fighter.clearanceState === "expired" ? "đã hết hạn" : "chưa có"}. Lưu phiếu không đổi giấy phép — hệ thống sẽ đề nghị cập nhật ở bước sau.`
+                                        : "Khớp với giấy phép hiện tại."}
                                 </InlineNote>
                             )}
                         </div>
                     </div>
 
-                    <Field label="Summary of findings" htmlFor={id("summary")} error={error("summary")} required hint="Visible to the fighter on their Health page.">
+                    <Field label="Tóm tắt kết quả khám" htmlFor={id("summary")} error={error("summary")} required hint="Võ sĩ xem được trên trang Sức khỏe.">
                         <Textarea {...form.control("summary", { hint: true, required: true })} rows={3} value={summary} onChange={(event) => setSummary(event.target.value)} />
                     </Field>
-                    <Field label="Recommendations" htmlFor={id("recommendations")} error={error("recommendations")} required hint="Training guidance, treatment and next steps.">
+                    <Field label="Khuyến nghị" htmlFor={id("recommendations")} error={error("recommendations")} required hint="Hướng dẫn tập luyện, điều trị và bước tiếp theo.">
                         <Textarea
                             {...form.control("recommendations", { hint: true, required: true })}
                             rows={3}
@@ -173,17 +173,17 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                             onChange={(event) => setRecommendations(event.target.value)}
                         />
                     </Field>
-                    <FollowUpField form={form} examDay={examDay} value={followUpDate} onChange={setFollowUpDate} hint="Appears on your dashboard as the date approaches." />
+                    <FollowUpField form={form} examDay={examDay} value={followUpDate} onChange={setFollowUpDate} hint="Hiện trên trang Hôm nay khi gần đến ngày." />
                 </FormSection>
 
                 <div className="flex flex-col gap-3 border-t border-border pt-5">
                     <FormMessage {...form.message} />
                     <div className="flex flex-wrap items-center justify-end gap-2">
                         <Link href={routes.doctor.examinations} className={buttonClasses({ variant: "secondary" })}>
-                            Cancel
+                            Hủy
                         </Link>
                         <Button type="submit" loading={form.pending}>
-                            {form.pending ? "Saving examination…" : "Save examination"}
+                            {form.pending ? "Đang lưu phiếu khám…" : "Lưu phiếu khám"}
                         </Button>
                     </div>
                 </div>
@@ -194,7 +194,7 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
 
 function PatientContext({ fighter }: { fighter: ExamFighterOption | null }) {
     if (!fighter) {
-        return <p className="rounded-lg bg-surface-muted px-4 py-3 text-[13px] text-fg-muted">Choose a fighter to see their current clearance and last examination.</p>;
+        return <p className="rounded-lg bg-surface-muted px-4 py-3 text-[13px] text-fg-muted">Chọn võ sĩ để xem giấy phép hiện tại và lần khám gần nhất.</p>;
     }
     const last = fighter.lastExamination;
     return (
@@ -207,7 +207,7 @@ function PatientContext({ fighter }: { fighter: ExamFighterOption | null }) {
                 </div>
                 {fighter.clearanceValidUntil && fighter.clearanceState !== "none" && (
                     <p className="text-xs text-fg-muted">
-                        Clearance {fighter.clearanceState === "expired" ? "expired" : "valid until"} {formatDate(fighter.clearanceValidUntil)}
+                        Giấy phép {fighter.clearanceState === "expired" ? "expired" : "hiệu lực đến"} {formatDate(fighter.clearanceValidUntil)}
                     </p>
                 )}
             </div>
@@ -215,35 +215,35 @@ function PatientContext({ fighter }: { fighter: ExamFighterOption | null }) {
                 {last ? (
                     <>
                         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-fg-muted">
-                            Last examination: <span className="font-medium text-fg">{examinationTitle(last)}</span>
+                            Lần khám gần nhất: <span className="font-medium text-fg">{examinationTitle(last)}</span>
                             <span>{formatDate(last.date)}</span>
                             <ExaminationOutcomeBadge outcome={last.outcome} size="sm" />
                         </p>
                         {last.vitals && (
                         <dl className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-fg-muted">
                                 <div className="flex gap-1">
-                                    <dt>Weight</dt>
+                                    <dt>Cân nặng</dt>
                                     <dd className="font-medium text-fg">{formatNumber(last.vitals.weightKg, 1)} kg</dd>
                                 </div>
                                 <div className="flex gap-1">
-                                    <dt>Resting HR</dt>
+                                    <dt>Mạch nghỉ</dt>
                                     <dd className="font-medium text-fg">{last.vitals.restingHeartRate} bpm</dd>
                                 </div>
                                 <div className="flex gap-1">
-                                    <dt>BP</dt>
+                                    <dt>Huyết áp</dt>
                                     <dd className="font-medium text-fg">
                                         {last.vitals.bloodPressureSystolic}/{last.vitals.bloodPressureDiastolic}
                                     </dd>
                                 </div>
                                 <div className="flex gap-1">
-                                    <dt>Class limit</dt>
+                                    <dt>Giới hạn hạng cân</dt>
                                     <dd className="font-medium text-fg">{formatNumber(fighter.weightLimitKg, 1)} kg</dd>
                                 </div>
                             </dl>
                         )}
                     </>
                 ) : (
-                    <p className="text-fg-muted">No previous examinations — this will be their first. A baseline physical is recommended.</p>
+                    <p className="text-fg-muted">Chưa có phiếu khám nào — đây sẽ là lần đầu. Nên khám nền.</p>
                 )}
             </div>
         </div>

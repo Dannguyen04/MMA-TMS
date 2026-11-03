@@ -19,7 +19,7 @@ export interface CheckInChartsProps {
 }
 
 /** Recovery check-ins over time: pain on its own 0–10 chart, mobility and strength together as % of the healthy side. No dual axes. */
-export function CheckInCharts({ checkIns, audience, className, locale = "en" }: CheckInChartsProps) {
+export function CheckInCharts({ checkIns, audience, className, locale = "vi" }: CheckInChartsProps) {
     const t = createTranslator(locale);
     const labels = checkIns.map((checkIn) => formatShortDate(checkIn.date, locale));
     const first = checkIns[0];

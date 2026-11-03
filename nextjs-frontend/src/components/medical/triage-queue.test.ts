@@ -73,7 +73,7 @@ describe("buildTriageQueue", () => {
             serviceForms: true,
         });
         expect(items).toHaveLength(1);
-        expect(items[0]).toMatchObject({ kind: "Not cleared", detail: "Found not eligible on 25 Sept 2026" });
+        expect(items[0]).toMatchObject({ kind: "Not cleared", detail: "Found not eligible on 25/09/2026" });
     });
 
     it("asks for the baseline, not a new decision, when only the baseline is missing", () => {
@@ -95,7 +95,7 @@ describe("buildTriageQueue", () => {
         expect(items).toHaveLength(1);
         expect(items[0]).toMatchObject({
             kind: "Baseline needed",
-            detail: "Last examined 20 Sept 2026",
+            detail: "Last examined 20/09/2026",
             action: { href: "/doctor/examinations/new?fighter=e&scope=TRAINING&type=baseline", label: "Start baseline exam" },
         });
     });

@@ -25,10 +25,12 @@ export interface DateBlockProps {
     /** The viewer's language; English when omitted. */
     locale?: Locale;
     className?: string;
+    /** Render dimmed with line-through for pending reschedule sessions. */
+    pending?: boolean;
 }
 
 /** Calendar tile: short weekday over the day number, in the academy timezone. */
-export function DateBlock({ date, highlighted = false, locale = "en", className }: DateBlockProps) {
+export function DateBlock({ date, highlighted = false, locale = "en", className, pending = false }: DateBlockProps) {
     const dayNumber = Number(dayKey(date).slice(8));
     return (
         <span
@@ -41,7 +43,7 @@ export function DateBlock({ date, highlighted = false, locale = "en", className 
             <span aria-hidden className={cn("text-[11px] font-semibold uppercase", highlighted ? "text-primary-fg" : "text-fg-muted")}>
                 {weekdayFmts[locale].format(new Date(date))}
             </span>
-            <span aria-hidden className="mt-1 text-lg font-semibold">
+            <span aria-hidden className={cn("mt-1 text-lg font-semibold", pending && "line-through text-fg-muted")}>
                 {dayNumber}
             </span>
             <span className="sr-only">{formatDate(date, locale)}</span>
@@ -96,7 +98,7 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
             >
                 <p className="flex items-center gap-1.5 whitespace-nowrap text-fg-muted">
                     <TrainingTypeIcon type={session.type} labelled locale={locale} className="size-3.5 shrink-0" />
-                    <time dateTime={session.scheduledAt} className="font-medium text-fg">
+                    <time dateTime={session.scheduledAt} className={cn("font-medium", session.status === "pending" ? "line-through text-fg-muted" : "text-fg")}>
                         {formatTime(session.scheduledAt)}
                     </time>
                     {session.durationMin !== null && (
@@ -127,7 +129,7 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                 className,
             )}
         >
-            {showDate && <DateBlock date={session.scheduledAt} locale={locale} />}
+            {showDate && <DateBlock date={session.scheduledAt} locale={locale} pending={session.status === "pending"} className={session.status === "pending" ? "opacity-60" : undefined} />}
             <div className="flex min-w-0 flex-1 flex-col gap-1">
                 {fighter && <FighterIdentity fighter={fighter} size="sm" showMeta={false} className="mb-0.5" />}
                 <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
@@ -141,7 +143,7 @@ export function SessionListItem({ session, coachName, fighter, href, compact = f
                     </li>
                     <li className="inline-flex items-center gap-1.5">
                         <Clock aria-hidden className="size-3.5 text-fg-subtle" />
-                        <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt)}</time>
+                        <time dateTime={session.scheduledAt} className={session.status === "pending" ? "line-through text-fg-muted" : undefined}>{formatTime(session.scheduledAt)}</time>
                         {session.durationMin !== null && (
                             <>
                                 <span aria-hidden>·</span>

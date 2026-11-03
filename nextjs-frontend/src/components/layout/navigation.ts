@@ -91,6 +91,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
                     tabs: [
                         { label: "Upcoming", href: routes.coach.bouts },
                         { label: "Suspensions", href: routes.coach.suspensions },
+                        { label: "Readiness", href: routes.coach.readiness },
                     ],
                 },
                 { label: "Roster", href: routes.coach.fighters, icon: Users },

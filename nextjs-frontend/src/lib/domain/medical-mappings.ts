@@ -112,7 +112,7 @@ export function restrictionFromAllowLists(restrictions: ClinicalRestrictions, id
     const allowedTechniques = restrictions.allowedTechniqueTypes;
     return {
         id,
-        label: restrictions.notes?.trim() || "Medical restrictions",
+        label: restrictions.notes?.trim() || "Hạn chế y tế",
         blockedTrainingTypes: allowedSessions === null ? [] : TRAINING_TYPES.filter((type) => !sessionTypesFor(type).some((code) => allowedSessions.includes(code))),
         blockedTechniques:
             allowedTechniques === null

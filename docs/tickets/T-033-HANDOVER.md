@@ -1,0 +1,96 @@
+# T-033 Handover
+
+- Nhánh: feat/T-033-opponent-analysis-ui (tạo từ `sync/T-004-fight-camp`)
+- Trạng thái: IN REVIEW
+- Người thực hiện: Codex viết `opponent-analysis-form.ts` (WIP 8afa647) rồi hết quota; Gemini hết quota ngay lượt đầu; phần còn lại Claude làm theo quyết định của chủ dự án ngày 27/10. Không có review độc lập: chủ dự án hoặc một dev nên đọc diff trước khi merge.
+
+## Thay đổi
+
+- `nextjs-frontend/src/lib/domain/opponent-analysis-form.ts`: hàm thuần chuyển dữ liệu form thành body `PUT /bouts/:id/opponent-analysis`; kiểm R13, giới hạn 6/5, bằng chứng (link http/https hoặc ghi chú), id duy nhất, hiệp ≤ số hiệp dự kiến; giữ `profile`, `sessionIds`, `evidenceTime` từ bản ghi hiện có; bỏ `review`. Thêm `analysisFieldErrors` dịch mã lỗi sang chữ theo từng ô.
+- `nextjs-frontend/src/lib/domain/opponent-analysis-form.test.ts`: 9 test.
+- `nextjs-frontend/src/lib/services/bout-analysis.ts`: `saveOpponentAnalysis` (API: PUT, map 404/409/422). `bout-analysis.demo.ts`: bản demo ghi vào `demoCampStore()`, từ chối khi `COMPLETED`/`CANCELLED`, giữ `review` cũ của chiến thuật.
+- `nextjs-frontend/src/lib/actions/bout-analysis.ts`: `saveOpponentAnalysisAction`; thêm path `/opponent-analysis` vào `revalidateBoutAnalysisPaths`.
+- `nextjs-frontend/src/app/(app)/coach/bouts/[boutId]/opponent-analysis/`: `page.tsx`, `opponent-analysis-view.tsx` (form quan sát và chiến thuật, chỉ đọc khi trận xong hoặc huỷ).
+- `.../[boutId]/page.tsx`: thẻ lối vào hiện ở mọi phase trừ `CANCELLED`; link "Phân tích đối thủ" luôn có, thẻ góc đài và ghi hiệp vẫn chỉ ở `WEIGHED_IN`/`COMPLETED`.
+- `.../corner-card/corner-card-view.tsx`: link "Phân tích đối thủ".
+- `nextjs-frontend/src/lib/i18n/messages/bout-analysis.{en,vi}.ts`: chữ mới.
+- **Mở rộng (mục 8–12 của ticket):**
+  - `nextjs-frontend/src/lib/domain/opponent-analysis-insights.ts` (+ test, 8 ca): `tacticInsights` (dùng `buildCornerCard`), `planFindings` (P1–P6), `matchupNotes` (C1–C4).
+  - `opponent-analysis-form.ts`: nhận `profile` và `sessionIds` từ form; form không gửi thì giữ giá trị cũ; bỏ buổi tập trùng.
+  - `page.tsx`: nạp buổi tập của võ sĩ từ `campStartedOn` (bỏ buổi huỷ) và chỉ số của võ sĩ.
+  - `opponent-analysis-view.tsx`: hai cột; trái là hồ sơ, quan sát, chiến thuật (nhãn tự tính, chọn buổi tập); phải (dính khi cuộn) là "App kiểm tra kế hoạch" và "App so sánh", cập nhật khi nhập.
+
+## Thiết kế lại giao diện (27/10, sau góp ý của chủ dự án)
+
+Đo bản trước ở 390 px: trang cao 8,2 màn hình, 130 ô nhập (88 checkbox), 94 vùng bấm dưới 24 px, khung "App kiểm tra kế hoạch" nằm dưới nút Lưu (y = 6.017). Bản mới:
+
+- Thứ tự theo việc của HLV: **kế hoạch còn thiếu gì** (đầu trang trên điện thoại, cột phải dính trên desktop) → đối thủ (một dòng tóm tắt + bảng số đo, bấm "Sửa" mới mở form) → quan sát → chiến thuật.
+- Quan sát và chiến thuật hiện dạng dòng đọc nhanh (QSn, loại, mức chắc chắn, bằng chứng, "Căn cứ của chiến thuật #n"; chiến thuật: căn cứ, hiệp, trạng thái tập, thứ tự trên thẻ). Bấm dòng mới mở trình sửa; dòng có lỗi tự mở và viền đỏ.
+- Loại, mức chắc chắn, hiệp, tư thế: nút chọn một chạm thay cho dropdown. Căn cứ và buổi tập: nút bật/tắt cao 44 px thay cho checkbox; buổi tập nằm trong mục thu gọn "Chọn buổi tập (n đã gắn · m đã tập)", chia nhóm "Đã tập" / "Chưa tập".
+- Cảnh báo cần sửa luôn hiện; gợi ý (mức info) thu gọn sau "Xem n gợi ý". Mỗi dòng có nút hành động.
+- Thanh Lưu dính đáy (trên thanh tab điện thoại), báo "Có thay đổi chưa lưu".
+- Đo lại ở 390 px: trang 3,0 màn hình; kiểm tra kế hoạch ở y = 311; nút Lưu trong màn đầu; 0 vùng bấm dưới 36 px. Desktop 1280 px: 1,8 màn hình.
+
+## Gợi ý quan sát từ video (Gemini, mục 13–16 của ticket)
+
+- `nextjs-frontend/src/lib/domain/opponent-video-suggestions.ts` (+ test, 6 ca): kiểm link YouTube, đọc kết quả model (bỏ mục sai, tối đa 6), đổi mốc thời gian thành giây, link mở video đúng mốc, chuyển gợi ý thành quan sát.
+- `nextjs-frontend/src/lib/services/opponent-video-ai.ts` (server-only): gọi `generateContent` với `file_data` YouTube, `responseSchema`, `MEDIA_RESOLUTION_LOW`; thử lại một lần khi 5xx; lưu kết quả vào `os.tmpdir()/fight-camp-opponent-video-ai`; ghi mã lỗi HTTP vào log máy chủ (không ghi key).
+- `lib/actions/bout-analysis.ts`: `suggestObservationsFromVideoAction` (kiểm quyền HLV và võ sĩ như các action khác).
+- `opponent-analysis-form.ts`: nhận `evidenceTime` từ form (trước đây luôn lấy từ bản ghi cũ).
+- `opponent-analysis-view.tsx`: nút "Gợi ý từ video (AI)" và khung gợi ý (Nhận / Bỏ / Xem ở mm:ss).
+- Thử thật với `https://www.youtube.com/watch?v=dKw5POIXlsI` (trận "FREE FIGHT" của Caio Borralho, kênh UFC): lượt đầu Gemini trả 503, thử lại thành công, 3 gợi ý sau 135 giây; lượt sau từ cache, 0 giây. Gọi thẳng API ngoài app cùng video: 44–170 giây.
+
+## Đối chiếu tiêu chí nghiệm thu
+
+Kiểm bằng Playwright (Chrome) trên demo mode, `next dev -p 3002`:
+
+| Tiêu chí | Kết quả |
+| --- | --- |
+| 1. Form nạp phân tích hiện có | PASS: 4 quan sát, 4 chiến thuật |
+| 2. Lưu xong thẻ góc đài hiện chiến thuật mới, lời dặn vẫn chạy | PASS: chiến thuật 5 "Khi đối thủ lùi thẳng…" có nhãn "Chưa luyện"; ghi hiệp 1 ra "Lời dặn giữa hiệp (trước hiệp 2)" |
+| 3. Chiến thuật không căn cứ bị chặn; nút thêm tắt khi đủ | PASS: "Chọn ít nhất một quan sát làm căn cứ." tại dòng; "Thêm chiến thuật" tắt ở 5/5 |
+| 4. Quan sát thiếu bằng chứng bị chặn | PASS: "Cần link hoặc ghi chú bằng chứng." tại dòng |
+| 5. Link ở trận đang `CAMP` | PASS: `/coach/bouts/b-emma-nordic` |
+| 6. Test của hàm thuần | `opponent-analysis-form.test.ts`, 9 test |
+| 7. Không thêm lỗi so với baseline | Xem dưới |
+| Mở rộng: bảng so số đo | PASS: dòng "Sải tay (cm) 176 / 185 / −9" tô đậm, tư thế "Nghịch / Thuận"; không còn câu giảng giải hay dòng số trận |
+| Mở rộng: kiểm tra kế hoạch | PASS: 2 dòng "Chiến thuật chưa có buổi tập", 2 dòng "mới xếp lịch, chưa có buổi tập nào hoàn thành" |
+| Mở rộng: nút sửa nhanh | PASS: thêm sơ hở "Lùi thẳng khi bị ép góc" → bấm "Tạo chiến thuật" → chiến thuật mới có chữ "Khi đối thủ lùi thẳng khi bị ép góc thì ", đã chọn căn cứ, cảnh báo mất |
+| Mở rộng: gắn buổi tập | PASS: 17 buổi đã tập, 1 chưa tập; chọn buổi chưa tập → "Đã xếp lịch, chưa tập"; chọn thêm buổi đã tập → "Đã luyện"; lưu xong thẻ góc đài hiện chiến thuật mới |
+
+## Lệnh đã chạy
+
+```text
+$ pnpm --filter nextjs-frontend exec vitest run src/lib/domain/opponent-analysis-form.test.ts src/lib/domain/opponent-analysis-insights.test.ts
+ Test Files  3 passed (3)
+      Tests  25 passed (25)
+
+$ pnpm --filter nextjs-frontend lint
+$ eslint
+(exit 0)
+
+$ pnpm --filter nextjs-frontend typecheck
+$ next typegen && tsc --noEmit
+✓ Types generated successfully
+(exit 0)
+
+$ pnpm --filter nextjs-frontend test
+ Test Files  105 passed | 1 skipped (106)
+      Tests  955 passed | 2 skipped (957)
+```
+
+## Lệch so với ticket
+
+- Thông báo lưu thành công hiện bằng toast, không phải `FormMessage`: `revalidatePath` làm form mount lại nên state của `useActionForm` mất. Link "Thẻ góc đài" luôn hiện (khi trận ở `WEIGHED_IN`/`COMPLETED`) thay vì chỉ sau khi lưu.
+- Kiểm tra chạy ở server action (cùng hàm thuần), không chạy trước ở client: `prepare` của `useActionForm` giữ closure của lần render đầu nên đọc `draft` cũ.
+
+## Câu hỏi / việc còn mở
+
+- Gợi ý AI: cache nằm trong thư mục tạm của máy chủ, chỉ hợp cho demo; bản thật nên lưu trong database theo trận. Cần ghi ngoại lệ của quyết định 16/20 vào [Phạm vi](../SCOPE-FIGHT-CAMP.md#quyết-định-và-câu-hỏi). Máy chạy demo phải có `GEMINI_API_KEY` trong `nextjs-frontend/.env.local`.
+
+- Thẻ góc đài (frontend `buildCornerCard` và backend) vẫn coi chiến thuật có gắn bất kỳ buổi tập nào là "Đã luyện"; màn soạn chặt hơn (chỉ tính buổi đã tập xong). Nên thống nhất định nghĩa R14 ở cả hai chỗ trong một ticket sau, vì phải sửa backend.
+- Quy tắc P1–P7, C1–C3 và các ngưỡng (`MIN_TACTICS`, `REACH_GAP_CM`, `HEIGHT_GAP_CM`) là đề xuất của nhóm, chưa có trong [Luồng nghiệp vụ](../FIGHT-CAMP-BUSINESS-FLOWS.md); cần ghi vào tài liệu và chờ HLV chuyên môn duyệt như R20–R24.
+- Dữ liệu demo của trận Diego gắn `ts-1`, `ts-2` không có trong lịch tập demo, nên màn hiện "1 buổi tập khác đã gắn".
+
+- `typecheck` báo "Demo and mock pipeline modes are disabled in production builds" nếu worktree có `.env.local` đặt `APP_DATA_MODE=demo`, vì `next typegen` chạy ở chế độ production. Không phải lỗi của ticket; chạy typecheck khi không có file đó.
+- Trang ghi hiệp có sẵn cũng không giữ được thông báo "Đã lưu hiệp N." sau khi lưu (cùng nguyên nhân mount lại); ngoài phạm vi.

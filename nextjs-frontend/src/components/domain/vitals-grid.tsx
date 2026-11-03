@@ -24,7 +24,7 @@ export interface VitalsGridProps {
 }
 
 /** Examination vitals with a "Normal" / "Check" indicator per reading against athlete reference ranges. */
-export function VitalsGrid({ vitals, weightLimitKg, locale = "en", className }: VitalsGridProps) {
+export function VitalsGrid({ vitals, weightLimitKg, locale = "vi", className }: VitalsGridProps) {
     const t = createTranslator(locale);
     const assessments = assessVitals(vitals, weightLimitKg);
 

@@ -120,9 +120,9 @@ const jobById = (id: string) => record(mockAIJobs, id, "AI job");
 const alertById = (id: string) => record(mockAbnormalMovementAlerts, id, "AI alert");
 const clearanceById = (id: string) => record(mockMedicalClearances, id, "clearance");
 const examinationById = (id: string) => record(mockMedicalExaminations, id, "examination");
-const recoveryPlanById = (id: string) => record(mockRecoveryPlans, id, "recovery plan");
+const recoveryPlanById = (id: string) => record(mockRecoveryPlans, id, "kế hoạch phục hồi");
 const sessionById = (id: string) => record(mockTrainingSessions, id, "training session");
-const planById = (id: string) => record(mockTrainingPlans, id, "training plan");
+const planById = (id: string) => record(mockTrainingPlans, id, "giáo án");
 
 function analysisOf(videoId: string): AIAnalysis {
     const video = videoById(videoId);
@@ -1421,7 +1421,7 @@ function aiAudit(): AuditSeed[] {
     for (const alert of mockAbnormalMovementAlerts) {
         const review = alert.doctorReview;
         if (!review || review.reviewedAt < AUDIT_WINDOW_START) continue;
-        const decision = review.decision === "follow_up" ? "Follow-up" : review.decision === "acknowledged" ? "Acknowledged" : "Dismissed";
+        const decision = review.decision === "follow_up" ? "Theo dõi" : review.decision === "acknowledged" ? "Acknowledged" : "Dismissed";
         entries.push(
             audit(
                 review.reviewedAt,

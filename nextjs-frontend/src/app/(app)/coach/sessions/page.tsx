@@ -36,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const VIEWS = ["week", "list"] as const;
-const STATUSES: SessionStatus[] = ["scheduled", "in_progress", "completed", "missed", "cancelled"];
+const STATUSES: SessionStatus[] = ["scheduled", "in_progress", "completed", "missed", "cancelled", "pending"];
 const TRAINING_TYPES = Object.keys(TRAINING_TYPE_LABELS) as TrainingType[];
 const AWAITING_LIMIT = 6;
 const LIST_PAGE_SIZE = 15;

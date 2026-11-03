@@ -41,7 +41,7 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
     const [, startToggle] = useTransition();
     // The payload records whether a next phase existed, so the toast after closing reads right once the plan has moved on.
     const advance = useConfirmAction<{ hasNext: boolean }>(() => advancePhaseAction({ planId: plan.id }), {
-        onSuccess: (result, { hasNext }) => toast({ title: hasNext ? "Next phase started" : "Recovery plan completed", description: result.message }),
+        onSuccess: (result, { hasNext }) => toast({ title: hasNext ? "Đã bắt đầu giai đoạn tiếp theo" : "Đã hoàn tất kế hoạch phục hồi", description: result.message }),
     });
 
     const [optimisticPlan, applyToggle] = useOptimistic(plan, (current: RecoveryPlan, toggle: MilestoneToggle) => ({
@@ -65,9 +65,9 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
             applyToggle({ phaseId: phase.id, index, done });
             const result = await setMilestoneAction({ planId: plan.id, phaseId: phase.id, milestoneIndex: index, done });
             if (result.status === "success") {
-                toast({ title: done ? "Milestone done" : "Milestone reopened", description: phase.milestones[index]?.label });
+                toast({ title: done ? "Đã đạt mốc" : "Đã mở lại mốc", description: phase.milestones[index]?.label });
             } else {
-                toast({ tone: "error", title: "Couldn't update the milestone", description: result.message });
+                toast({ tone: "error", title: "Không cập nhật được mốc", description: result.message });
             }
         });
     };
@@ -77,7 +77,7 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:gap-8">
                 <ProgressBar
                     value={progress}
-                    label="Overall recovery progress"
+                    label="Tiến độ phục hồi chung"
                     showLabel
                     tone={optimisticPlan.status === "completed" ? "success" : "info"}
                     className="flex-1"
@@ -92,7 +92,7 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                             <p className="text-[11px] font-semibold tracking-wide text-info-fg uppercase">
-                                Phase {currentIndex + 1} of {optimisticPlan.phases.length} · now
+                                Giai đoạn {currentIndex + 1}/{optimisticPlan.phases.length} · hiện tại
                             </p>
                             <h3 id={`${baseId}-current`} className="text-base font-semibold text-fg">
                                 {current.name}
@@ -106,7 +106,7 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
                         {isActive && (
                             <Button variant="secondary" onClick={() => advance.request({ hasNext: next !== null })} className="self-start">
                                 <SkipForward aria-hidden />
-                                {next ? "Advance to next phase" : "Complete plan"}
+                                {next ? "Chuyển sang giai đoạn tiếp theo" : "Hoàn tất kế hoạch"}
                             </Button>
                         )}
                     </div>
@@ -122,7 +122,7 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
 
             {optimisticPlan.phases.some((phase) => phase.status !== "current") && (
                 <div className="flex flex-col gap-2">
-                    <h3 className="text-[13px] font-semibold text-fg">Other phases</h3>
+                    <h3 className="text-[13px] font-semibold text-fg">Các giai đoạn khác</h3>
                     {optimisticPlan.phases.map((phase, index) =>
                         phase.status === "current" ? null : (
                             <details key={phase.id} className="group rounded-lg border border-border bg-surface">
@@ -131,8 +131,8 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
                                     <span className="min-w-0 flex-1">
                                         <span className="block truncate text-sm font-medium text-fg">{phase.name}</span>
                                         <span className="text-xs text-fg-muted">
-                                            {RECOVERY_PHASE_STATUS_TEXT[phase.status]} · {phase.milestones.filter((m) => m.done).length} of {phase.milestones.length}{" "}
-                                            milestones
+                                            {RECOVERY_PHASE_STATUS_TEXT[phase.status]} · {phase.milestones.filter((m) => m.done).length}/{phase.milestones.length}{" "}
+                                            mốc
                                         </span>
                                     </span>
                                     <ChevronDown aria-hidden className="size-4 shrink-0 text-fg-subtle transition-transform group-open:rotate-180" />
@@ -144,7 +144,7 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
                                         idPrefix={baseId}
                                         editable={isActive && phase.status === "completed"}
                                         onToggle={toggle}
-                                        note={phase.status === "upcoming" ? "Milestones can be ticked once this phase starts." : undefined}
+                                        note={phase.status === "upcoming" ? "Có thể đánh dấu mốc khi giai đoạn này bắt đầu." : undefined}
                                     />
                                 </div>
                             </details>
@@ -156,18 +156,18 @@ export function RecoveryTracker({ plan, now }: RecoveryTrackerProps) {
             <ConfirmDialog
                 {...advance.dialogProps}
                 tone="primary"
-                title={next ? `Start “${next.name}”?` : "Complete this recovery plan?"}
+                title={next ? `Bắt đầu “${next.name}”?` : "Hoàn tất kế hoạch phục hồi này?"}
                 description={
                     next
-                        ? `“${current?.name ?? "The current phase"}” is marked completed and the fighter is notified that the next phase has started.`
-                        : "The final phase is marked completed and the plan closes. The injury and Medical Clearance don't change — update them separately."
+                        ? `“${current?.name ?? "Giai đoạn hiện tại"}” được đánh dấu hoàn tất và võ sĩ được báo giai đoạn tiếp theo đã bắt đầu.`
+                        : "Giai đoạn cuối được đánh dấu hoàn tất và kế hoạch đóng lại. Chấn thương và giấy phép không đổi — hãy cập nhật riêng."
                 }
-                confirmLabel={next ? "Start next phase" : "Complete plan"}
+                confirmLabel={next ? "Bắt đầu giai đoạn tiếp theo" : "Hoàn tất kế hoạch"}
             >
                 {openMilestones > 0 && (
                     <InlineNote icon={TriangleAlert} tone="warning">
-                        {openMilestones === 1 ? "1 milestone" : `${openMilestones} milestones`} in this phase{" "}
-                        {openMilestones === 1 ? "isn't" : "aren't"} done yet. Move on only if your clinical assessment supports it.
+                        {openMilestones === 1 ? "1 mốc" : `${openMilestones} mốc`} trong giai đoạn này{" "}
+                        {openMilestones === 1 ? "chưa" : "chưa"} hoàn thành. Chỉ chuyển tiếp nếu đánh giá lâm sàng của bạn cho phép.
                     </InlineNote>
                 )}
             </ConfirmDialog>
@@ -193,15 +193,15 @@ function MilestoneList({
     const doneCount = phase.milestones.filter((m) => m.done).length;
     return (
         <fieldset className={cn("min-w-0", className)}>
-            <legend className="sr-only">{phase.name} milestones</legend>
+            <legend className="sr-only">Các mốc của {phase.name}</legend>
             <p aria-live="polite" className="mb-2 text-[13px] font-semibold text-fg">
-                Milestones
+                Các mốc
                 <span className="ml-1.5 font-normal text-fg-muted">
-                    ({doneCount} of {phase.milestones.length} done)
+                    ({doneCount}/{phase.milestones.length} đã đạt)
                 </span>
             </p>
             {phase.milestones.length === 0 ? (
-                <p className="text-[13px] text-fg-muted">No milestones in this phase.</p>
+                <p className="text-[13px] text-fg-muted">Giai đoạn này chưa có mốc.</p>
             ) : (
                 <ul className="grid gap-x-6 gap-y-2.5 sm:grid-cols-2">
                     {phase.milestones.map((milestone, index) => (

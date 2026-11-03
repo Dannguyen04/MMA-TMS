@@ -19,7 +19,7 @@ import { listFighters } from "@/lib/services/people";
 import { listVideos } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "AI movement observations" };
+export const metadata: Metadata = { title: "Quan sát AI" };
 
 const PATH = routes.doctor.aiAlerts;
 const PAGE_SIZE = 8;
@@ -27,27 +27,27 @@ const FILTERS = ["new", "follow_up", "acknowledged", "dismissed", "all"] as cons
 type AlertView = (typeof FILTERS)[number];
 
 const SEGMENTS: { value: AlertView; label: string; icon: SegmentedLinkItem["icon"] }[] = [
-    { value: "new", label: "New", icon: BellRing },
-    { value: "follow_up", label: "Follow-up", icon: CalendarClock },
-    { value: "acknowledged", label: "Acknowledged", icon: CircleCheck },
-    { value: "dismissed", label: "Dismissed", icon: CircleX },
-    { value: "all", label: "All", icon: Layers },
+    { value: "new", label: "Mới", icon: BellRing },
+    { value: "follow_up", label: "Theo dõi", icon: CalendarClock },
+    { value: "acknowledged", label: "Đã xác nhận", icon: CircleCheck },
+    { value: "dismissed", label: "Đã bỏ qua", icon: CircleX },
+    { value: "all", label: "Tất cả", icon: Layers },
 ];
 
 const EMPTY_COPY: Record<AlertView, { title: string; description: string }> = {
     new: {
-        title: "No new observations to review",
-        description: "You're up to date. New AI movement observations from analysed training footage appear here.",
+        title: "Không có quan sát mới cần xem",
+        description: "Đã xem hết. Quan sát AI mới từ Video tập luyện sẽ hiện ở đây.",
     },
     follow_up: {
-        title: "No observations awaiting follow-up",
-        description: "Observations you mark for follow-up appear here until you record a new decision.",
+        title: "Không có quan sát chờ theo dõi",
+        description: "Các quan sát cần theo dõi sẽ hiện ở đây đến khi bạn ghi quyết định mới.",
     },
-    acknowledged: { title: "No acknowledged observations", description: "Observations you acknowledge as clinically plausible appear here." },
-    dismissed: { title: "No dismissed observations", description: "Observations you dismiss as not clinically relevant appear here." },
+    acknowledged: { title: "Chưa có quan sát đã xác nhận", description: "Các quan sát bạn xác nhận có ý nghĩa lâm sàng sẽ hiện ở đây." },
+    dismissed: { title: "Chưa có quan sát bị bỏ qua", description: "Các quan sát bạn bỏ qua sẽ hiện ở đây." },
     all: {
-        title: "No AI movement observations yet",
-        description: "When the AI flags an unusual movement pattern in your fighters' footage, it appears here for review.",
+        title: "Chưa có quan sát AI",
+        description: "Khi AI phát hiện mẫu chuyển động bất thường trong Video tập luyện, quan sát sẽ hiện ở đây để xem xét.",
     },
 };
 
@@ -56,8 +56,8 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
     if (!medicalFeatureAvailable("aiObservations")) {
         return (
             <>
-                <PageHeader title="AI movement observations" />
-                <FeatureUnavailable title="AI movement observations aren't available yet" />
+                <PageHeader title="Quan sát AI" />
+                <FeatureUnavailable title="Quan sát AI chưa khả dụng" />
             </>
         );
     }
@@ -81,8 +81,8 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
     return (
         <>
             <PageHeader
-                title="AI movement observations"
-                description={`Movement patterns the AI flagged in your fighters' training footage, compared with their own earlier footage.${reviews ? " Review each one and record your clinical decision." : ""}`}
+                title="Quan sát AI"
+                description={`Mẫu chuyển động AI đánh dấu trong Video tập luyện, so với video trước của chính võ sĩ.${reviews ? " Xem từng quan sát và ghi quyết định lâm sàng." : ""}`}
             />
 
             <div className="flex flex-col gap-5">
@@ -90,7 +90,7 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
 
                 {reviews && (
                     <SegmentedLinks
-                        label="Filter observations by review status"
+                        label="Lọc quan sát theo trạng thái"
                         items={SEGMENTS.map((segment) => ({
                             href: hrefWith(PATH, {}, { status: segment.value === "new" ? null : segment.value }),
                             label: segment.label,
@@ -101,7 +101,7 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
                     />
                 )}
 
-                <section aria-label={`${SEGMENTS.find((segment) => segment.value === view)?.label ?? "All"} observations`}>
+                <section aria-label={`Quan sát: ${SEGMENTS.find((segment) => segment.value === view)?.label ?? "Tất cả"}`}>
                     {page.total === 0 ? (
                         <EmptyState
                             icon={<Radar />}
@@ -110,7 +110,7 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
                             action={
                                 view !== "all" && visible.length > 0 ? (
                                     <ButtonLink href={hrefWith(PATH, {}, { status: "all" })} variant="secondary">
-                                        View all observations
+                                        Xem mọi quan sát
                                     </ButtonLink>
                                 ) : undefined
                             }
@@ -143,7 +143,7 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
                                         pageSize={page.pageSize}
                                         pathname={PATH}
                                         searchParams={params}
-                                        itemLabel="observations"
+                                        itemLabel="quan sát"
                                     />
                                 </div>
                             )}

@@ -22,6 +22,7 @@ import { enScreens } from "./screens.en";
 import { enScreensRoster } from "./screens-roster.en";
 import { enScreensPerformance } from "./screens-performance.en";
 import { enScreensTraining } from "./screens-training.en";
+import { enScreensMisc } from "./screens-misc.en";
 
 export const en = {
     ...enDemoFlow,
@@ -43,12 +44,14 @@ export const en = {
     ...enScreensRoster,
     ...enScreensPerformance,
     ...enScreensTraining,
+    ...enScreensMisc,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
     "nav.Bouts": "Bouts",
     "nav.Upcoming": "Upcoming",
     "nav.Suspensions": "Suspensions",
+    "nav.Readiness": "Readiness",
     "nav.Training": "Training",
     "nav.Schedule": "Schedule",
     "nav.Plans": "Plans",

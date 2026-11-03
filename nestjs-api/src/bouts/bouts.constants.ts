@@ -6,6 +6,7 @@ export const BOUT_PERMISSIONS = {
   UPDATE: 'bout:update',
   RESULT: 'bout:result',
   REQUIREMENT: 'bout:requirement',
+  NUTRITION_CHECKIN: 'bout:nutrition_checkin',
 } as const;
 
 export const BOUT_RESPONSE_MESSAGES = {
@@ -27,5 +28,6 @@ export const BOUT_RESPONSE_MESSAGES = {
   WEIGH_IN: 'Record official weigh-in successfully',
   CATCHWEIGHT: 'Agree catchweight successfully',
   RESULT: 'Record bout result successfully',
+  NUTRITION_PLAN_UPDATE: 'Update bout nutrition plan successfully',
+  NUTRITION_CHECKIN: 'Record bout nutrition check-in successfully',
 } as const;
-

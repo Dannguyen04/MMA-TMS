@@ -26,19 +26,19 @@ export interface FindingsInput {
     scat6: { status: "ADMINISTERED" | "NOT_ADMINISTERED"; reason: string } | null;
 }
 
-const HYDRATION: Record<string, string> = { good: "good", fair: "fair", poor: "poor" };
+const HYDRATION: Record<string, string> = { good: "tốt", fair: "trung bình", poor: "kém" };
 
 function vitalsLine(vitals: FindingsInput["vitals"]): string | null {
     const value = (raw: string) => raw.trim();
     const readings = [
-        value(vitals.weightKg) && `weight ${value(vitals.weightKg)} kg`,
-        value(vitals.restingHeartRate) && `resting heart rate ${value(vitals.restingHeartRate)} bpm`,
-        value(vitals.bloodPressureSystolic) && value(vitals.bloodPressureDiastolic) && `blood pressure ${value(vitals.bloodPressureSystolic)}/${value(vitals.bloodPressureDiastolic)} mmHg`,
-        value(vitals.temperatureC) && `temperature ${value(vitals.temperatureC)} °C`,
-        value(vitals.spo2Pct) && `SpO₂ ${value(vitals.spo2Pct)}%`,
-        HYDRATION[vitals.hydration] && `hydration ${HYDRATION[vitals.hydration]}`,
+        value(vitals.weightKg) && `cân nặng ${value(vitals.weightKg)} kg`,
+        value(vitals.restingHeartRate) && `mạch nghỉ ${value(vitals.restingHeartRate)} lần/phút`,
+        value(vitals.bloodPressureSystolic) && value(vitals.bloodPressureDiastolic) && `huyết áp ${value(vitals.bloodPressureSystolic)}/${value(vitals.bloodPressureDiastolic)} mmHg`,
+        value(vitals.temperatureC) && `nhiệt độ ${value(vitals.temperatureC)} °C`,
+        value(vitals.spo2Pct) && `SpO2 ${value(vitals.spo2Pct)}%`,
+        HYDRATION[vitals.hydration] && `mức nước ${HYDRATION[vitals.hydration]}`,
     ].filter(Boolean);
-    return readings.length > 0 ? `Vitals: ${readings.join(", ")}.` : null;
+    return readings.length > 0 ? `Sinh hiệu: ${readings.join(", ")}.` : null;
 }
 
 function areasLine(label: string, rows: readonly AssessmentRowDraft[]): string | null {
@@ -53,13 +53,13 @@ export function findingsSummary(input: FindingsInput): string {
     const lines = [
         input.type ? `${EXAMINATION_TYPE_LABELS[input.type]}.` : null,
         vitalsLine(input.vitals),
-        areasLine("Normal", named.filter((row) => row.result === "normal")),
-        areasLine("Abnormal", named.filter((row) => row.result === "abnormal")),
-        areasLine("Inconclusive", named.filter((row) => row.result === "inconclusive")),
+        areasLine("Bình thường", named.filter((row) => row.result === "normal")),
+        areasLine("Bất thường", named.filter((row) => row.result === "abnormal")),
+        areasLine("Chưa kết luận", named.filter((row) => row.result === "inconclusive")),
         input.scat6
             ? input.scat6.status === "ADMINISTERED"
-                ? "SCAT6 administered; the medical service calculates its scores."
-                : `SCAT6 not administered${input.scat6.reason.trim() ? `: ${input.scat6.reason.trim().replace(/[.\s]+$/, "")}` : ""}.`
+                ? "Đã thực hiện SCAT6; dịch vụ y tế tự tính điểm."
+                : `Không thực hiện SCAT6${input.scat6.reason.trim() ? `: ${input.scat6.reason.trim().replace(/[.\s]+$/, "")}` : ""}.`
             : null,
     ].filter((line): line is string => Boolean(line));
     // A type alone says nothing about the findings.

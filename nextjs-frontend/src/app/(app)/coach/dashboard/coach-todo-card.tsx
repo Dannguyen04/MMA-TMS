@@ -71,13 +71,17 @@ export function CoachTodoCard({ todo, fighterNames, t, locale }: CoachTodoCardPr
                                 {items.map((item) => (
                                     <li key={`${item.boutId}-${item.source}`}>
                                         <Link
-                                            href={routes.coach.bout(item.boutId)}
+                                            href={
+                                                item.source === "SUSPENSION_AWAITING_CLEARANCE" || item.source === "TRAINING_CONFLICTS_WITH_SUSPENSION"
+                                                    ? routes.coach.suspensions
+                                                    : routes.coach.bout(item.boutId)
+                                            }
                                             className="flex items-center gap-3 px-5 py-2.5 hover:bg-surface-hover focus-visible:bg-surface-hover"
                                         >
                                             <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
                                                 <p className="max-w-full truncate text-sm font-medium text-fg">{fighterNames.get(item.fighterId) ?? t("weight.fighterFallback")}</p>
                                                 <p className={URGENT.has(item.source) ? "text-xs font-medium text-warning-fg" : "text-xs font-medium text-fg"}>
-                                                    {text(item, t, locale)}
+                                                    {coachTodoText(item, t, locale)}
                                                 </p>
                                                 <p className="max-w-full truncate text-xs text-fg-muted">{item.eventName}</p>
                                             </div>
@@ -95,7 +99,7 @@ export function CoachTodoCard({ todo, fighterNames, t, locale }: CoachTodoCardPr
     );
 }
 
-function text(item: CoachTodoItem, t: Translator, locale: Locale): string {
+export function coachTodoText(item: CoachTodoItem, t: Translator, locale: Locale): string {
     return t(TEXT[item.source], {
         count: item.count ?? 0,
         date: item.dueOn ? formatShortDate(`${item.dueOn}T12:00:00+07:00`, locale) : "",

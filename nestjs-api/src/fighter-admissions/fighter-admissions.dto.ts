@@ -27,7 +27,7 @@ export class ListApplicationsQueryDto extends createZodDto(
 export class ListOwnApplicationsQueryDto extends createZodDto(
   listOwnApplicationsQuerySchema,
 ) {}
-export class AssignCoachDto extends createZodDto(assignCoachBodySchema) {}
+export class AdmissionAssignCoachDto extends createZodDto(assignCoachBodySchema) {}
 export class SubmitAssessmentDto extends createZodDto(
   submitAssessmentBodySchema,
 ) {}

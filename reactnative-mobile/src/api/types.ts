@@ -50,10 +50,15 @@ export type FighterPublicProfile = {
   profileImageUrl?: string | null;
 };
 
+/** Hồ sơ HLV / bác sĩ (coachProfileSchema / doctorProfileSchema + id trong users.model.ts). */
 export type NamedPublicProfile = {
   id: string;
   firstName: string;
   lastName: string;
+  isHeadCoach?: boolean;
+  specialization?: string | null;
+  licenseNumber?: string;
+  profileImageUrl?: string | null;
 };
 
 export type PublicUser = {
@@ -142,6 +147,8 @@ export const SESSION_STATUSES = [
   "SKIPPED",
   "CANCELLED",
   "ABANDONED",
+  /** T-036 A: chờ HLV xếp lại vì đình chỉ; chỉ sang SCHEDULED hoặc CANCELLED (training.constants.ts:25). */
+  "PENDING",
 ] as const;
 export type SessionStatus = (typeof SESSION_STATUSES)[number];
 

@@ -18,6 +18,9 @@ import {
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
   boutRounds,
+  boutAiSuggestions,
+  boutNutritionCheckins,
+  type BoutNutritionCheckinRow,
   trainingSessions,
   boutRequirements,
   bouts,
@@ -44,6 +47,7 @@ import {
   decodeBoutCursor,
   type BoutStatus,
   type WeightMeasurementInput,
+  type NutritionAdherence,
 } from './bouts.model.js';
 import type { SessionType } from '../suspensions/suspensions.model.js';
 
@@ -412,6 +416,52 @@ export class BoutsRepository {
 
   async listRounds(boutId: string, database: DatabaseExecutor = this.db) {
     return database.select().from(boutRounds).where(eq(boutRounds.boutId, boutId)).orderBy(asc(boutRounds.roundNo));
+  }
+
+  async aiParticipantContext(fighterId: string, coachId: string) {
+    const [fighter] = await this.db.select({
+      firstName: fighters.firstName, lastName: fighters.lastName,
+      stance: fighters.dominantStance, heightCm: fighters.heightCm, reachCm: fighters.reachCm,
+    }).from(fighters).where(eq(fighters.id, fighterId));
+    const [coach] = await this.db.select({ firstName: coaches.firstName, lastName: coaches.lastName })
+      .from(coaches).where(eq(coaches.id, coachId));
+    return { fighter, coach };
+  }
+
+  async findAiCache(values: Pick<typeof boutAiSuggestions.$inferInsert, 'boutId' | 'kind' | 'roundNo' | 'model' | 'inputHash'>, database: DatabaseExecutor = this.db) {
+    const [row] = await database.select().from(boutAiSuggestions).where(and(
+      eq(boutAiSuggestions.boutId, values.boutId), eq(boutAiSuggestions.kind, values.kind),
+      values.roundNo == null ? isNull(boutAiSuggestions.roundNo) : eq(boutAiSuggestions.roundNo, values.roundNo),
+      eq(boutAiSuggestions.model, values.model), eq(boutAiSuggestions.inputHash, values.inputHash),
+      eq(boutAiSuggestions.status, 'OK'),
+    )).orderBy(desc(boutAiSuggestions.createdAt)).limit(1);
+    return row;
+  }
+
+  async insertAiSuggestion(values: typeof boutAiSuggestions.$inferInsert, database: DatabaseExecutor) {
+    const [row] = await database.insert(boutAiSuggestions).values(values).returning();
+    if (!row) throw new Error('AI suggestion insert returned no row');
+    return row;
+  }
+
+  async listAiSuggestions(boutId: string, kind?: typeof boutAiSuggestions.$inferSelect['kind']) {
+    return this.db.select().from(boutAiSuggestions).where(and(
+      eq(boutAiSuggestions.boutId, boutId), kind ? eq(boutAiSuggestions.kind, kind) : undefined,
+    )).orderBy(desc(boutAiSuggestions.createdAt), desc(boutAiSuggestions.id)).limit(20);
+  }
+
+  async lockAiSuggestion(boutId: string, id: string, database: DatabaseExecutor) {
+    const [row] = await database.select().from(boutAiSuggestions).where(and(
+      eq(boutAiSuggestions.boutId, boutId), eq(boutAiSuggestions.id, id),
+    )).for('update');
+    return row;
+  }
+
+  async decideAiSuggestion(id: string, values: Pick<typeof boutAiSuggestions.$inferInsert, 'decision' | 'acceptedItemIds' | 'decidedAt'>, database: DatabaseExecutor) {
+    const [row] = await database.update(boutAiSuggestions).set(values).where(and(
+      eq(boutAiSuggestions.id, id), isNull(boutAiSuggestions.decision),
+    )).returning();
+    return row;
   }
 
   async upsertRound(
@@ -807,5 +857,45 @@ export class BoutsRepository {
         desc(bouts.createdAt),
         desc(bouts.id),
       );
+  }
+
+  async upsertNutritionCheckin(
+    data: {
+      boutId: string;
+      fighterId: string;
+      academyDate: string;
+      adherence: NutritionAdherence;
+      note: string | null;
+      recordedById: string;
+    },
+    database: DatabaseExecutor = this.db,
+  ): Promise<BoutNutritionCheckinRow> {
+    const [row] = await database
+      .insert(boutNutritionCheckins)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [boutNutritionCheckins.boutId, boutNutritionCheckins.academyDate],
+        set: {
+          adherence: data.adherence,
+          note: data.note,
+          recordedById: data.recordedById,
+        },
+      })
+      .returning();
+    return row;
+  }
+
+  async findNutritionCheckinsForBout(
+    boutId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<Array<{ date: string; adherence: NutritionAdherence }>> {
+    return database
+      .select({
+        date: boutNutritionCheckins.academyDate,
+        adherence: boutNutritionCheckins.adherence,
+      })
+      .from(boutNutritionCheckins)
+      .where(eq(boutNutritionCheckins.boutId, boutId))
+      .orderBy(asc(boutNutritionCheckins.academyDate));
   }
 }

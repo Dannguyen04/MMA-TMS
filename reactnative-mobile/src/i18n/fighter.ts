@@ -66,7 +66,9 @@ export const fighter = {
     SKIPPED: "Bỏ buổi",
     CANCELLED: "Đã hủy",
     ABANDONED: "Dừng giữa chừng",
+    PENDING: "Chờ xếp lại",
   },
+  pendingLine: "HLV sẽ xếp lại buổi này",
   sessionType: {
     SHADOW_BOXING: "Đấm bóng ma",
     PAD_WORK: "Đấm đích",

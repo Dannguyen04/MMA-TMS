@@ -191,6 +191,8 @@ const eligibilitySchema = z.object({
     eligible: z.boolean(),
     // A reason the interface doesn't know yet is kept as "other medical reason": never dropped, never failing the dossier.
     reasons: z.array(z.string()).transform(eligibilityReasonsFrom),
+    // Who supervises the academy's medical gate. Older services omit it; an unknown value reads as absent.
+    supervision: z.enum(["DOCTOR", "NONE"]).optional().catch(undefined),
 });
 
 const dossierSchema = z.object({

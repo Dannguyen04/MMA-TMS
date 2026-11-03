@@ -38,11 +38,11 @@ function todayKey(): string {
 
 /** A whole number posted from a numeric input, within [min, max]. */
 function wholeNumber(label: string, min: number, max: number) {
-    const range = `${label} must be a whole number from ${min} to ${max}.`;
+    const range = `${label} phải là số nguyên từ ${min} đến ${max}.`;
     return z
         .string()
         .trim()
-        .min(1, `Enter the ${label.toLowerCase()}.`)
+        .min(1, `Hãy nhập ${label.toLowerCase()}.`)
         .transform((value) => Number(value))
         .pipe(z.number({ error: range }).int(range).min(min, range).max(max, range));
 }
@@ -52,29 +52,29 @@ function wholeNumber(label: string, min: number, max: number) {
 
 const createInjurySchema = z
     .object({
-        fighterId: z.string().min(1, "Choose the injured fighter."),
+        fighterId: z.string().min(1, "Hãy chọn võ sĩ bị chấn thương."),
         type: z.enum(keysOf(INJURY_TYPE_LABELS), { error: "Choose the injury type." }),
         bodyRegion: z.enum(keysOf(BODY_REGION_LABELS), { error: "Choose the body region." }),
         severity: z.enum(keysOf(INJURY_SEVERITY_LABELS), { error: "Choose a severity." }),
         status: z.enum(["active", "recovering"], { error: "Choose the current status." }),
         mechanism: z.enum(keysOf(INJURY_MECHANISM_LABELS), { error: "Choose how the injury happened." }),
-        occurredAt: z.string().refine(isDateTimeInputValue, "Enter the date and time the injury happened."),
-        diagnosedAt: z.string().refine(isDateKey, "Enter the date of diagnosis."),
-        expectedReturnAt: optionalDate("Enter a valid date, or leave it empty if return can't be estimated yet."),
+        occurredAt: z.string().refine(isDateTimeInputValue, "Hãy nhập ngày giờ xảy ra chấn thương."),
+        diagnosedAt: z.string().refine(isDateKey, "Hãy nhập ngày chẩn đoán."),
+        expectedReturnAt: optionalDate("Hãy nhập ngày hợp lệ, hoặc để trống nếu chưa ước tính được ngày trở lại."),
         description: z
             .string()
             .trim()
-            .min(20, "Describe the clinical findings in a sentence or two.")
-            .max(3000, "Keep the description under 3,000 characters."),
+            .min(20, "Hãy mô tả dấu hiệu lâm sàng trong một hai câu.")
+            .max(3000, "Mô tả tối đa 3.000 ký tự."),
         linkedAlertId: z.string().trim(),
     })
     .superRefine((input, ctx) => {
         const occurredDay = input.occurredAt.slice(0, 10);
         if (isDateKey(input.diagnosedAt) && input.diagnosedAt < occurredDay) {
-            ctx.addIssue({ code: "custom", path: ["diagnosedAt"], message: "The diagnosis can't be dated before the injury." });
+            ctx.addIssue({ code: "custom", path: ["diagnosedAt"], message: "Ngày chẩn đoán không thể trước ngày chấn thương." });
         }
         if (input.expectedReturnAt && isDateKey(input.diagnosedAt) && input.expectedReturnAt < input.diagnosedAt) {
-            ctx.addIssue({ code: "custom", path: ["expectedReturnAt"], message: "The expected return must be on or after the diagnosis date." });
+            ctx.addIssue({ code: "custom", path: ["expectedReturnAt"], message: "Ngày dự kiến trở lại phải từ ngày chẩn đoán trở đi." });
         }
     });
 
@@ -97,21 +97,21 @@ export async function createInjuryAction(_prev: ActionState, formData: FormData)
     });
     if (!parsed.success) return validationError(parsed.error);
     const input = parsed.data;
-    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Choose one of your assigned fighters." });
+    if (!canAccessFighterClinically(auth.user, input.fighterId)) return actionError(NOT_ASSIGNED, { fighterId: "Hãy chọn một võ sĩ bạn phụ trách." });
 
     const [occurredDay, occurredTime] = input.occurredAt.split("T");
     const occurredAt = academyWallClockToIso(occurredDay, occurredTime);
     if (isInFuture(occurredAt)) {
-        return actionError(FIX_FIELDS, { occurredAt: "The injury time can't be in the future." });
+        return actionError(FIX_FIELDS, { occurredAt: "Thời điểm chấn thương không thể ở tương lai." });
     }
     if (input.diagnosedAt > todayKey()) {
-        return actionError(FIX_FIELDS, { diagnosedAt: "The diagnosis date can't be in the future." });
+        return actionError(FIX_FIELDS, { diagnosedAt: "Ngày chẩn đoán không thể ở tương lai." });
     }
 
     if (input.linkedAlertId && medicalFeatureAvailable("aiObservations")) {
         const detail = await getAlertDetail(input.linkedAlertId);
         if (!detail || detail.alert.fighterId !== input.fighterId) {
-            return actionError(FIX_FIELDS, { linkedAlertId: "Choose an AI movement observation for this fighter, or leave it unlinked." });
+            return actionError(FIX_FIELDS, { linkedAlertId: "Hãy chọn một quan sát AI của võ sĩ này, hoặc để không liên kết." });
         }
     }
 
@@ -141,15 +141,15 @@ export async function createInjuryAction(_prev: ActionState, formData: FormData)
 }
 
 const updateInjurySchema = z.object({
-    injuryId: z.string().min(1, "The injury is missing. Reload the page and try again."),
+    injuryId: z.string().min(1, "Thiếu thông tin chấn thương. Hãy tải lại trang và thử lại."),
     fighterId: z.string(),
     status: z.enum(keysOf(INJURY_STATUS_LABELS), { error: "Choose a status." }),
 });
 
 const INJURY_STATUS_MESSAGES: Record<InjuryStatus, string> = {
-    active: "Injury marked as active.",
-    recovering: "Injury marked as recovering.",
-    resolved: "Injury resolved. The fighter and their coaches have been notified.",
+    active: "Đã chuyển chấn thương sang đang điều trị.",
+    recovering: "Đã chuyển chấn thương sang đang phục hồi.",
+    resolved: "Chấn thương đã khỏi. Võ sĩ và HLV đã được thông báo.",
 };
 
 export async function updateInjuryAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -164,9 +164,9 @@ export async function updateInjuryAction(_prev: ActionState, formData: FormData)
         ? ((await listInjuries({ fighterIds: [parsed.data.fighterId] })).find((candidate) => candidate.id === parsed.data.injuryId) ?? null)
         : await getInjury(parsed.data.injuryId);
     if (!injury || !canAccessFighterClinically(auth.user, injury.fighterId)) {
-        return actionError("This injury record isn't available. It may belong to a fighter you aren't assigned to.");
+        return actionError("Không truy cập được hồ sơ chấn thương này. Có thể nó thuộc võ sĩ bạn không phụ trách.");
     }
-    if (injury.status === parsed.data.status) return actionSuccess(`The injury is already ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}.`);
+    if (injury.status === parsed.data.status) return actionSuccess(`Chấn thương đã ở trạng thái ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}.`);
 
     const reopened = injury.status === "resolved";
     let result: Awaited<ReturnType<typeof updateInjury>>;
@@ -179,7 +179,7 @@ export async function updateInjuryAction(_prev: ActionState, formData: FormData)
 
     revalidateClinical();
     return actionSuccess(
-        reopened ? `Injury reopened as ${INJURY_STATUS_LABELS[result.data.status].toLowerCase()}.` : INJURY_STATUS_MESSAGES[result.data.status],
+        reopened ? `Đã mở lại chấn thương ở trạng thái ${INJURY_STATUS_LABELS[result.data.status].toLowerCase()}.` : INJURY_STATUS_MESSAGES[result.data.status],
     );
 }
 
@@ -187,25 +187,25 @@ export async function updateInjuryAction(_prev: ActionState, formData: FormData)
 
 const addTreatmentSchema = z
     .object({
-        injuryId: z.string().min(1, "The injury is missing. Reload the page and try again."),
+        injuryId: z.string().min(1, "Thiếu thông tin chấn thương. Hãy tải lại trang và thử lại."),
         type: z.enum(keysOf(TREATMENT_TYPE_LABELS), { error: "Choose the treatment type." }),
-        description: z.string().trim().min(3, "Describe the treatment.").max(300, "Keep the description under 300 characters."),
-        providerName: z.string().trim().min(2, "Enter who provides this treatment.").max(120, "Keep the provider under 120 characters."),
-        frequency: z.string().trim().min(2, "Enter how often it happens, e.g. “3× per week”.").max(120, "Keep the frequency under 120 characters."),
-        startDate: z.string().refine(isDateKey, "Enter the start date."),
-        endDate: optionalDate("Enter a valid end date, or leave it empty for open-ended treatment."),
+        description: z.string().trim().min(3, "Hãy mô tả điều trị.").max(300, "Mô tả tối đa 300 ký tự."),
+        providerName: z.string().trim().min(2, "Hãy nhập nơi thực hiện điều trị.").max(120, "Nơi thực hiện tối đa 120 ký tự."),
+        frequency: z.string().trim().min(2, "Hãy nhập tần suất, VD “3 lần/tuần”.").max(120, "Tần suất tối đa 120 ký tự."),
+        startDate: z.string().refine(isDateKey, "Hãy nhập ngày bắt đầu."),
+        endDate: optionalDate("Hãy nhập ngày kết thúc hợp lệ, hoặc để trống nếu chưa có ngày kết thúc."),
         status: z.enum(keysOf(TREATMENT_STATUS_LABELS), { error: "Choose a status." }),
-        notes: z.string().trim().max(1000, "Keep notes under 1,000 characters."),
+        notes: z.string().trim().max(1000, "Ghi chú tối đa 1.000 ký tự."),
     })
     .superRefine((input, ctx) => {
         if (input.endDate && isDateKey(input.startDate) && input.endDate < input.startDate) {
-            ctx.addIssue({ code: "custom", path: ["endDate"], message: "The end date must be on or after the start date." });
+            ctx.addIssue({ code: "custom", path: ["endDate"], message: "Ngày kết thúc phải từ ngày bắt đầu trở đi." });
         }
         if (input.status === "completed" && !input.endDate) {
-            ctx.addIssue({ code: "custom", path: ["endDate"], message: "Add the end date for a completed treatment." });
+            ctx.addIssue({ code: "custom", path: ["endDate"], message: "Hãy thêm ngày kết thúc cho điều trị đã hoàn tất." });
         }
         if (input.status === "completed" && input.endDate > todayKey()) {
-            ctx.addIssue({ code: "custom", path: ["endDate"], message: "A completed treatment can't end in the future." });
+            ctx.addIssue({ code: "custom", path: ["endDate"], message: "Điều trị đã hoàn tất không thể kết thúc ở tương lai." });
         }
     });
 
@@ -247,8 +247,8 @@ export async function addTreatmentAction(_prev: ActionState, formData: FormData)
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    const added = result.data.status ? ` as ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}` : "";
-    return actionSuccess(`${treatmentTitle(result.data)} added${added}.`);
+    const added = result.data.status ? ` ở trạng thái ${TREATMENT_STATUS_LABELS[result.data.status].toLowerCase()}` : "";
+    return actionSuccess(`Đã thêm ${treatmentTitle(result.data)}${added}.`);
 }
 
 const treatmentStatusSchema = z.object({
@@ -263,70 +263,70 @@ export async function updateTreatmentStatusAction(input: { injuryId: string; tre
     if (!medicalFeatureAvailable("treatmentStatus")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = treatmentStatusSchema.safeParse(input);
-    if (!parsed.success) return actionError("That status change couldn't be read. Reload the page and try again.");
+    if (!parsed.success) return actionError("Không đọc được thay đổi trạng thái. Hãy tải lại trang và thử lại.");
 
     const detail = await getInjuryDetail(parsed.data.injuryId);
     const treatment = detail?.treatments.find((t) => t.id === parsed.data.treatmentId);
     if (!detail || !treatment || !canAccessFighterClinically(auth.user, detail.injury.fighterId)) {
-        return actionError("This treatment isn't available. It may belong to a fighter you aren't assigned to.");
+        return actionError("Không truy cập được điều trị này. Có thể nó thuộc võ sĩ bạn không phụ trách.");
     }
 
     const result = await updateTreatmentStatus(treatment.id, parsed.data.status, auth.user);
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    return actionSuccess(`${treatmentTitle(result.data)} marked ${TREATMENT_STATUS_LABELS[parsed.data.status].toLowerCase()}.`);
+    return actionSuccess(`Đã chuyển ${treatmentTitle(result.data)} sang ${TREATMENT_STATUS_LABELS[parsed.data.status].toLowerCase()}.`);
 }
 
 /* ─── Recovery plans ──────────────────────────────────────────────────────── */
 
 const phaseSchema = z
     .object({
-        name: z.string().trim().min(2, "Name this phase.").max(80, "Keep the phase name under 80 characters."),
-        goal: z.string().trim().min(5, "Describe what this phase should achieve.").max(300, "Keep the goal under 300 characters."),
-        startDate: z.string().refine(isDateKey, "Enter the phase start date."),
-        endDate: z.string().refine(isDateKey, "Enter the phase end date."),
+        name: z.string().trim().min(2, "Hãy đặt tên giai đoạn.").max(80, "Tên giai đoạn tối đa 80 ký tự."),
+        goal: z.string().trim().min(5, "Hãy mô tả mục tiêu của giai đoạn.").max(300, "Mục tiêu tối đa 300 ký tự."),
+        startDate: z.string().refine(isDateKey, "Hãy nhập ngày bắt đầu giai đoạn."),
+        endDate: z.string().refine(isDateKey, "Hãy nhập ngày kết thúc giai đoạn."),
         milestones: z
-            .array(z.string().trim().max(160, "Keep each milestone under 160 characters."))
+            .array(z.string().trim().max(160, "Mỗi mốc tối đa 160 ký tự."))
             .transform((items) => items.filter(Boolean))
             .pipe(
-                z.array(z.string()).min(1, "Add at least one milestone so progress can be tracked.").max(12, "Use at most 12 milestones per phase."),
+                z.array(z.string()).min(1, "Hãy thêm ít nhất một mốc để theo dõi tiến độ.").max(12, "Mỗi giai đoạn tối đa 12 mốc."),
             ),
     })
     .superRefine((phase, ctx) => {
         if (isDateKey(phase.startDate) && isDateKey(phase.endDate) && phase.endDate < phase.startDate) {
-            ctx.addIssue({ code: "custom", path: ["endDate"], message: "The phase must end on or after its start date." });
+            ctx.addIssue({ code: "custom", path: ["endDate"], message: "Giai đoạn phải kết thúc từ ngày bắt đầu trở đi." });
         }
     });
 
 const createRecoveryPlanSchema = z
     .object({
-        injuryId: z.string().min(1, "Choose the injury this plan is for."),
-        title: z.string().trim().min(3, "Give the plan a short title.").max(120, "Keep the title under 120 characters."),
-        startDate: z.string().refine(isDateKey, "Enter the plan start date."),
-        targetReturnDate: z.string().refine(isDateKey, "Enter the target return date."),
+        injuryId: z.string().min(1, "Hãy chọn chấn thương cho kế hoạch."),
+        title: z.string().trim().min(3, "Hãy đặt tên ngắn cho kế hoạch.").max(120, "Tên tối đa 120 ký tự."),
+        startDate: z.string().refine(isDateKey, "Hãy nhập ngày bắt đầu kế hoạch."),
+        targetReturnDate: z.string().refine(isDateKey, "Hãy nhập ngày mục tiêu trở lại."),
         phases: jsonArray(phaseSchema, "phases", {
             min: 1,
-            minMessage: "Add at least one recovery phase.",
+            minMessage: "Hãy thêm ít nhất một giai đoạn phục hồi.",
             max: 10,
-            maxMessage: "Use at most 10 phases.",
+            maxMessage: "Tối đa 10 giai đoạn.",
         }),
     })
     .superRefine((plan, ctx) => {
         if (!isDateKey(plan.startDate) || !isDateKey(plan.targetReturnDate)) return;
         if (plan.targetReturnDate < plan.startDate) {
-            ctx.addIssue({ code: "custom", path: ["targetReturnDate"], message: "The target return must be on or after the start date." });
+            ctx.addIssue({ code: "custom", path: ["targetReturnDate"], message: "Ngày mục tiêu trở lại phải từ ngày bắt đầu trở đi." });
         }
         plan.phases.forEach((phase, index) => {
             if (phase.startDate < plan.startDate) {
-                ctx.addIssue({ code: "custom", path: ["phases", index, "startDate"], message: "A phase can't start before the plan." });
+                ctx.addIssue({ code: "custom", path: ["phases", index, "startDate"], message: "Giai đoạn không thể bắt đầu trước kế hoạch." });
             }
             if (phase.endDate > plan.targetReturnDate) {
-                ctx.addIssue({ code: "custom", path: ["phases", index, "endDate"], message: "This phase ends after the target return date." });
+                ctx.addIssue({ code: "custom", path: ["phases", index, "endDate"], message: "Giai đoạn này kết thúc sau ngày mục tiêu trở lại." });
             }
             const previous = plan.phases[index - 1];
             if (previous && phase.startDate < previous.startDate) {
-                ctx.addIssue({ code: "custom", path: ["phases", index, "startDate"], message: "Phases must be in date order." });
+                ctx.addIssue({ code: "custom", path: ["phases", index, "startDate"], message: "Các giai đoạn phải theo thứ tự ngày." });
             }
         });
     });
@@ -347,7 +347,7 @@ export async function createRecoveryPlanAction(_prev: ActionState, formData: For
 
     const injury = await getInjury(input.injuryId);
     if (!injury || !canAccessFighterClinically(auth.user, injury.fighterId))
-        return actionError(NOT_ASSIGNED, { injuryId: "Choose an injury of one of your assigned fighters." });
+        return actionError(NOT_ASSIGNED, { injuryId: "Hãy chọn chấn thương của võ sĩ bạn phụ trách." });
 
     const result = await createRecoveryPlan(
         {
@@ -372,12 +372,12 @@ export async function createRecoveryPlanAction(_prev: ActionState, formData: For
 }
 
 const checkInSchema = z.object({
-    planId: z.string().min(1, "The recovery plan is missing. Reload the page and try again."),
-    date: z.string().refine(isDateKey, "Enter the check-in date."),
-    painLevel: wholeNumber("Pain level", 0, 10),
-    mobilityPct: wholeNumber("Mobility", 0, 100),
-    strengthPct: wholeNumber("Strength", 0, 100),
-    note: z.string().trim().max(500, "Keep the note under 500 characters."),
+    planId: z.string().min(1, "Thiếu kế hoạch phục hồi. Hãy tải lại trang và thử lại."),
+    date: z.string().refine(isDateKey, "Hãy nhập ngày kiểm tra."),
+    painLevel: wholeNumber("Mức đau", 0, 10),
+    mobilityPct: wholeNumber("Vận động", 0, 100),
+    strengthPct: wholeNumber("Sức mạnh", 0, 100),
+    note: z.string().trim().max(500, "Ghi chú tối đa 500 ký tự."),
 });
 
 export async function addCheckInAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -400,8 +400,8 @@ export async function addCheckInAction(_prev: ActionState, formData: FormData): 
     if (!plan || !canAccessFighterClinically(auth.user, plan.fighterId)) return actionError(NOT_ASSIGNED);
 
     const today = todayKey();
-    if (input.date > today) return actionError(FIX_FIELDS, { date: "The check-in date can't be in the future." });
-    if (input.date < dayKey(plan.startDate)) return actionError(FIX_FIELDS, { date: "The check-in can't be dated before the plan started." });
+    if (input.date > today) return actionError(FIX_FIELDS, { date: "Ngày kiểm tra không thể ở tương lai." });
+    if (input.date < dayKey(plan.startDate)) return actionError(FIX_FIELDS, { date: "Ngày kiểm tra không thể trước ngày bắt đầu kế hoạch." });
 
     const result = await addRecoveryCheckIn(
         plan.id,
@@ -417,7 +417,7 @@ export async function addCheckInAction(_prev: ActionState, formData: FormData): 
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    return actionSuccess(`Check-in logged: pain ${input.painLevel}/10, mobility ${input.mobilityPct}%, strength ${input.strengthPct}%.`);
+    return actionSuccess(`Đã ghi kiểm tra: đau ${input.painLevel}/10, vận động ${input.mobilityPct}%, sức mạnh ${input.strengthPct}%.`);
 }
 
 const milestoneSchema = z.object({
@@ -433,7 +433,7 @@ export async function setMilestoneAction(input: { planId: string; phaseId: strin
     if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = milestoneSchema.safeParse(input);
-    if (!parsed.success) return actionError("That milestone couldn't be read. Reload the page and try again.");
+    if (!parsed.success) return actionError("Không đọc được mốc. Hãy tải lại trang và thử lại.");
 
     const plan = await getRecoveryPlan(parsed.data.planId);
     if (!plan || !canAccessFighterClinically(auth.user, plan.fighterId)) return actionError(NOT_ASSIGNED);
@@ -442,7 +442,7 @@ export async function setMilestoneAction(input: { planId: string; phaseId: strin
     if (!result.ok) return actionError(result.error);
 
     revalidateClinical();
-    return actionSuccess(parsed.data.done ? "Milestone marked done." : "Milestone marked not done.");
+    return actionSuccess(parsed.data.done ? "Đã đánh dấu mốc đạt." : "Đã bỏ đánh dấu mốc.");
 }
 
 export async function advancePhaseAction(input: { planId: string }): Promise<ActionState> {
@@ -451,7 +451,7 @@ export async function advancePhaseAction(input: { planId: string }): Promise<Act
     if (!medicalFeatureAvailable("recoveryPhasesAndCheckIns")) return actionError(FEATURE_UNAVAILABLE_MESSAGE);
 
     const parsed = z.object({ planId: z.string().min(1) }).safeParse(input);
-    if (!parsed.success) return actionError("The recovery plan is missing. Reload the page and try again.");
+    if (!parsed.success) return actionError("Thiếu kế hoạch phục hồi. Hãy tải lại trang và thử lại.");
 
     const plan = await getRecoveryPlan(parsed.data.planId);
     if (!plan || !canAccessFighterClinically(auth.user, plan.fighterId)) return actionError(NOT_ASSIGNED);
@@ -462,22 +462,22 @@ export async function advancePhaseAction(input: { planId: string }): Promise<Act
     revalidateClinical();
     const current = result.data.phases.find((phase) => phase.status === "current");
     return actionSuccess(
-        current ? `Moved to the next phase: ${current.name}.` : "Recovery plan completed. Update the injury and Medical Clearance when you're ready.",
+        current ? `Đã chuyển sang giai đoạn tiếp theo: ${current.name}.` : "Đã hoàn tất kế hoạch phục hồi. Hãy cập nhật chấn thương và giấy phép khi sẵn sàng.",
     );
 }
 
 /* ─── AI movement observations ────────────────────────────────────────────── */
 
 const reviewAlertSchema = z.object({
-    alertId: z.string().min(1, "The observation is missing. Reload the page and try again."),
+    alertId: z.string().min(1, "Thiếu quan sát. Hãy tải lại trang và thử lại."),
     decision: z.enum(["acknowledged", "follow_up", "dismissed"], { error: "Choose your decision." }),
-    note: z.string().trim().min(10, "Add a short clinical note explaining your decision.").max(1000, "Keep the note under 1,000 characters."),
+    note: z.string().trim().min(10, "Hãy thêm ghi chú lâm sàng ngắn giải thích quyết định.").max(1000, "Ghi chú tối đa 1.000 ký tự."),
 });
 
 const DECISION_MESSAGES = {
-    acknowledged: "Observation acknowledged.",
-    follow_up: "Follow-up scheduled. Coaches have been told to check Medical Clearance — without clinical detail.",
-    dismissed: "Observation dismissed.",
+    acknowledged: "Đã xác nhận quan sát.",
+    follow_up: "Đã hẹn theo dõi. HLV được báo kiểm tra giấy phép — không kèm chi tiết lâm sàng.",
+    dismissed: "Đã bỏ qua quan sát.",
 } as const;
 
 export async function reviewAlertAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
@@ -494,7 +494,7 @@ export async function reviewAlertAction(_prev: ActionState, formData: FormData):
 
     const detail = await getAlertDetail(parsed.data.alertId);
     if (!detail || !canAccessFighterClinically(auth.user, detail.alert.fighterId)) {
-        return actionError("This observation isn't available. It may belong to a fighter you aren't assigned to.");
+        return actionError("Không truy cập được quan sát này. Có thể nó thuộc võ sĩ bạn không phụ trách.");
     }
 
     const result = await reviewAlert(detail.alert.id, { decision: parsed.data.decision, note: parsed.data.note }, auth.user);

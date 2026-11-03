@@ -28,11 +28,17 @@ import type {
     Treatment,
     User,
     Video,
+    Bout,
+    CompetitionRuleset,
+    Suspension,
 } from "@/lib/domain/types";
 import type { Applicant, Application } from "@/lib/domain/admissions";
 import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
 import { mockApplicants, mockApplications } from "./admissions";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
+import { mockRulesets, mockBouts, mockBoutMeasurements, type MockWeightMeasurement } from "./bouts";
+import { applySuspensionSideEffects } from "@/lib/domain/suspension-rules";
+import { buildMockSuspensions } from "./suspensions";
 import {
     mockInjuries,
     mockMedicalClearances,
@@ -86,10 +92,14 @@ export interface MockDatabase {
     /** Self-registered accounts that can apply but aren't fighters yet. */
     applicants: Applicant[];
     admissionApplications: Application[];
+    rulesets: CompetitionRuleset[];
+    bouts: Bout[];
+    boutMeasurements: MockWeightMeasurement[];
+    suspensions: Suspension[];
 }
 
-function seedData(): MockDatabase {
-    return {
+export function seedData(): MockDatabase {
+    const seed: MockDatabase = {
         users: mockUsers,
         fighters: mockFighters,
         coaches: mockCoaches,
@@ -97,8 +107,8 @@ function seedData(): MockDatabase {
         roleDefinitions: mockRoleDefinitions,
         settings: mockSystemSettings,
         exercises: mockExercises,
-        trainingPlans: mockTrainingPlans,
-        trainingSessions: mockTrainingSessions,
+        trainingPlans: mockTrainingPlans.map((p) => ({ ...p })),
+        trainingSessions: mockTrainingSessions.map((s) => ({ ...s })),
         planExercises: [],
         coachFeedback: mockCoachFeedback,
         goals: mockGoals,
@@ -120,11 +130,24 @@ function seedData(): MockDatabase {
         auditLogs: mockAuditLogs,
         applicants: mockApplicants,
         admissionApplications: mockApplications,
+        rulesets: mockRulesets,
+        bouts: mockBouts,
+        boutMeasurements: mockBoutMeasurements,
+        suspensions: buildMockSuspensions(),
     };
+    for (const susp of seed.suspensions) {
+        applySuspensionSideEffects(
+            susp,
+            seed.suspensions,
+            seed.trainingSessions,
+            seed.trainingPlans,
+        );
+    }
+    return seed;
 }
 
 /** FNV-1a hash of the serialized seed — identical for every bundle that loads the same seed. */
-function fingerprint(data: MockDatabase): string {
+export function fingerprint(data: MockDatabase): string {
     const text = JSON.stringify(data);
     let hash = 2166136261;
     for (let i = 0; i < text.length; i++) {

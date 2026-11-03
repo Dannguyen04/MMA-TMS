@@ -36,7 +36,7 @@ export function ObservationSummary({ alert, source, href, headingLevel = 3, clas
                     <Radar className="size-4" />
                 </span>
                 <div className="min-w-0">
-                    <p className="text-xs font-semibold tracking-wide text-ai-fg uppercase">AI movement observation</p>
+                    <p className="text-xs font-semibold tracking-wide text-ai-fg uppercase">Quan sát AI</p>
                     <Heading className="mt-0.5 text-sm leading-snug font-semibold text-pretty text-fg">{alert.pattern}</Heading>
                 </div>
             </div>
@@ -54,19 +54,19 @@ export function ObservationSummary({ alert, source, href, headingLevel = 3, clas
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-fg-muted">
                     <div>
-                        <dt className="sr-only">Body region</dt>
+                        <dt className="sr-only">Vùng cơ thể</dt>
                         <dd>{BODY_REGION_LABELS[alert.bodyRegion]}</dd>
                     </div>
                     <div>
-                        <dt className="sr-only">Detected</dt>
+                        <dt className="sr-only">Phát hiện</dt>
                         <dd>
-                            Detected <time dateTime={alert.detectedAt}>{formatDate(alert.detectedAt)}</time>
+                            Phát hiện <time dateTime={alert.detectedAt}>{formatDate(alert.detectedAt)}</time>
                         </dd>
                     </div>
                     {source && (
                         <div>
-                            <dt className="sr-only">Source footage</dt>
-                            <dd>{TRAINING_TYPE_LABELS[source.trainingType]} video</dd>
+                            <dt className="sr-only">Video nguồn</dt>
+                            <dd>Video {TRAINING_TYPE_LABELS[source.trainingType].toLowerCase()}</dd>
                         </div>
                     )}
                 </div>
@@ -75,7 +75,7 @@ export function ObservationSummary({ alert, source, href, headingLevel = 3, clas
             {alert.doctorReview ? (
                 <DoctorReviewBlock review={alert.doctorReview} compact />
             ) : (
-                <p className="text-[13px] text-fg-muted">No doctor has reviewed this observation yet.</p>
+                <p className="text-[13px] text-fg-muted">Chưa có bác sĩ nào xem quan sát này.</p>
             )}
 
             {href && (
@@ -83,7 +83,7 @@ export function ObservationSummary({ alert, source, href, headingLevel = 3, clas
                     href={href}
                     className="inline-flex w-fit items-center gap-1 rounded-md text-[13px] font-medium text-primary-soft-fg hover:underline"
                 >
-                    Open observation
+                    Mở quan sát
                     <ArrowRight aria-hidden className="size-3.5" />
                 </Link>
             )}
