@@ -2,8 +2,9 @@
 
 import dynamic from "next/dynamic";
 import Image from "next/image";
-import { Component, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
+import { Component, useEffect, useState, useSyncExternalStore, type ReactNode, type RefObject } from "react";
 
+import { useGraphicsTier } from "@/components/fighter-3d/use-graphics";
 import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { ARENA_PLATE } from "./arena-plate";
@@ -26,13 +27,21 @@ interface FighterStageProps {
 /**
  * The fixed stage behind the whole page. Shows the fighter cutout over the arena plate as a poster
  * until WebGL is ready (or for good, without WebGL), then the live octagon. The poster loads the
- * same files as the scene, so neither is downloaded twice. Decorative: hidden from assistive tech.
+ * same files as the scene, so neither is downloaded twice. The scene starts only once the page has
+ * loaded and the browser is idle, so the hero copy and its intro never wait on WebGL. Decorative:
+ * hidden from assistive tech.
  */
 export function FighterStage({ story, labels, compact, animate, ready, onReady }: FighterStageProps) {
     const t = useT();
     const webgl = useSyncExternalStore(subscribeNever, supportsWebGL, () => null);
+    const tier = useGraphicsTier();
     const [failed, setFailed] = useState(false);
+    const [armed, setArmed] = useState(false);
     const live = webgl === true && !failed;
+
+    useEffect(() => {
+        if (live) return afterPageSettles(() => setArmed(true));
+    }, [live]);
 
     const register = (id: LabelId) => (element: HTMLElement | null) => {
         const registry = labels.current;
@@ -58,10 +67,10 @@ export function FighterStage({ story, labels, compact, animate, ready, onReady }
                     className="absolute bottom-0 left-1/2 h-[88svh] w-auto max-w-none -translate-x-1/2 object-contain lg:left-[64%]"
                 />
             </div>
-            {live && (
+            {live && armed && tier && (
                 <SceneBoundary onError={() => setFailed(true)}>
                     <div className={cn("absolute inset-0 transition-opacity duration-[1400ms]", ready ? "opacity-100" : "opacity-0")}>
-                        <FighterScene story={story} labels={labels} compact={compact} animate={animate} onReady={onReady} />
+                        <FighterScene story={story} labels={labels} compact={compact} lite={tier === "lite"} animate={animate} onReady={onReady} />
                     </div>
                 </SceneBoundary>
             )}
@@ -83,6 +92,23 @@ export function FighterStage({ story, labels, compact, animate, ready, onReady }
             )}
         </div>
     );
+}
+
+/** Runs `start` after the load event, in the first idle slot (at most a second later). */
+function afterPageSettles(start: () => void): () => void {
+    let idle = 0;
+    let timer = 0;
+    const schedule = () => {
+        if (typeof window.requestIdleCallback === "function") idle = window.requestIdleCallback(start, { timeout: 1000 });
+        else timer = window.setTimeout(start, 150);
+    };
+    if (document.readyState === "complete") schedule();
+    else window.addEventListener("load", schedule, { once: true });
+    return () => {
+        window.removeEventListener("load", schedule);
+        if (idle) window.cancelIdleCallback(idle);
+        window.clearTimeout(timer);
+    };
 }
 
 let webglSupport: boolean | undefined;

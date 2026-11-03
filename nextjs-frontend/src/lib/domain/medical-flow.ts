@@ -26,16 +26,16 @@ const AFTER_INJURY: readonly ExaminationType[] = ["post_injury", "return_to_play
  * the doctor confirms. A competition examination only backs a competition clearance.
  */
 export function suggestClearanceType(input: { scope: ExaminationScope; examinationType: ExaminationType | null; activeInjuries: number }): ClearanceTypeSuggestion {
-    if (input.scope === "COMPETITION") return { type: "COMPETITION", preselect: true, reason: "A competition examination backs a competition clearance." };
+    if (input.scope === "COMPETITION") return { type: "COMPETITION", preselect: true, reason: "Phiếu khám thi đấu làm căn cứ cho giấy phép thi đấu." };
     if (input.activeInjuries > 0) {
-        const injuries = input.activeInjuries === 1 ? "an active injury" : `${input.activeInjuries} active injuries`;
-        return { type: "RETURN_FROM_INJURY", preselect: false, reason: `The fighter has ${injuries}, so this looks like a return from injury. Confirm the type.` };
+        const injuries = input.activeInjuries === 1 ? "một chấn thương đang điều trị" : `${input.activeInjuries} chấn thương đang điều trị`;
+        return { type: "RETURN_FROM_INJURY", preselect: false, reason: `Võ sĩ có ${injuries}, nên đây có vẻ là trở lại sau chấn thương. Hãy xác nhận loại.` };
     }
-    if (input.examinationType === "baseline") return { type: "TRAINING", preselect: true, reason: "A baseline with no active injury backs a training clearance." };
+    if (input.examinationType === "baseline") return { type: "TRAINING", preselect: true, reason: "Khám nền không có chấn thương làm căn cứ cho giấy phép tập luyện." };
     if (input.examinationType && AFTER_INJURY.includes(input.examinationType)) {
-        return { type: "RETURN_FROM_INJURY", preselect: false, reason: "This examination follows an injury, so this looks like a return from injury. Confirm the type." };
+        return { type: "RETURN_FROM_INJURY", preselect: false, reason: "Phiếu khám này sau chấn thương, nên đây có vẻ là trở lại sau chấn thương. Hãy xác nhận loại." };
     }
-    return { type: "TRAINING", preselect: false, reason: "No active injury is recorded. Confirm the type." };
+    return { type: "TRAINING", preselect: false, reason: "Không có chấn thương đang điều trị. Hãy xác nhận loại." };
 }
 
 /** The suggestion, but only when the examination's scope can back that type. */

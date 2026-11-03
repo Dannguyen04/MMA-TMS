@@ -75,7 +75,7 @@ export function ErrorState({ title, description, icon, action, compact, classNam
 export function FeatureUnavailable({
     title,
     service = "medical",
-    description = `The ${service} service doesn't offer this yet. It will appear here once it does.`,
+    description = `Dịch vụ ${service} chưa hỗ trợ mục này. Mục sẽ hiện ở đây khi có.`,
     compact,
     className,
 }: {

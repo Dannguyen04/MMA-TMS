@@ -2,6 +2,7 @@
 
 import type { PointerEvent } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { ChartLegend } from "./chart-legend";
 import { ChartSurface } from "./chart-surface";
@@ -76,13 +77,15 @@ export function BarChart({
     decimals = 0,
     className,
 }: BarChartProps) {
+    const t = useT();
     const grouped = !stacked && series.length > 1;
     const targetCount = grouped ? labels.length * series.length : labels.length;
     const { active, pointAt, handlers } = useActiveIndex(targetCount);
     const format = formatValue ?? ((value: number) => formatChartValue(value, { decimals, suffix: valueSuffix }));
     const scale = niceScale(0, largestColumn(labels.length, series, stacked) || 1, yTicks);
+    const copy = { noData: t("chart.noData"), total: t("screens.performance.total") };
 
-    const readout = active ? describeTarget(active.index, labels, series, grouped, stacked, format, details) : null;
+    const readout = active ? describeTarget(active.index, labels, series, grouped, stacked, format, copy, details) : null;
 
     return (
         <div className={cn("flex flex-col gap-3", className)}>
@@ -90,7 +93,7 @@ export function BarChart({
             <ChartSurface
                 ariaLabel={ariaLabel}
                 height={height}
-                keyboardHint={`Use the left and right arrow keys to read the value of each ${grouped ? "bar" : "column"}.`}
+                keyboardHint={grouped ? t("screens.performance.chart.hintBars") : t("screens.performance.chart.hintColumns")}
                 announcement={active?.source === "keyboard" && readout ? readout.announcement : ""}
                 handlers={handlers}
             >
@@ -315,11 +318,12 @@ function describeTarget(
     grouped: boolean,
     stacked: boolean,
     format: (value: number) => string,
+    copy: { noData: string; total: string },
     details: BarDetail[] = [],
 ): Readout {
     const formatCell = (s: BarSeries, category: number) => {
         const value = valueAt(s.values, category);
-        return value === null ? "No data" : format(value);
+        return value === null ? copy.noData : format(value);
     };
 
     if (grouped) {
@@ -336,12 +340,12 @@ function describeTarget(
     const shown = stacked ? [...series].reverse() : series.slice(0, 1);
     const rows: TooltipRow[] = shown.map((s) => ({ id: s.id, label: s.label, color: s.color, value: formatCell(s, index) }));
     if (stacked && series.length > 1) {
-        rows.push({ id: "__total", label: "Total", value: format(columnTotal(series, index, true)) });
+        rows.push({ id: "__total", label: copy.total, value: format(columnTotal(series, index, true)) });
     }
     if (!stacked) {
         for (const detail of details) {
             const value = valueAt(detail.values, index);
-            rows.push({ id: `__detail-${detail.id}`, label: detail.label, value: value === null ? "No data" : format(value) });
+            rows.push({ id: `__detail-${detail.id}`, label: detail.label, value: value === null ? copy.noData : format(value) });
         }
     }
     return {

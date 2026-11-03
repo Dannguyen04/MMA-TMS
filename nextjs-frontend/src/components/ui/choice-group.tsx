@@ -3,6 +3,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { TONE_SOFT, type Tone } from "./tone";
 
@@ -65,6 +66,7 @@ export function ChoiceGroup<T extends string>({
     const errorId = `${id}-error`;
     const describedBy = error ? errorId : hint ? hintId : undefined;
     const compact = variant === "compact";
+    const t = useT();
 
     return (
         <fieldset
@@ -81,7 +83,7 @@ export function ChoiceGroup<T extends string>({
                         <span className="ml-0.5 text-danger-fg" aria-hidden>
                             *
                         </span>
-                        <span className="sr-only"> (required)</span>
+                        <span className="sr-only"> {t("screens.shared.required")}</span>
                     </>
                 )}
             </legend>

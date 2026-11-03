@@ -83,4 +83,15 @@ So với `fix/T-032-demo-fixes` (934 qua): thêm 4 test, không thêm lỗi. Ki�
 
 - **Ken (A):** frontend giả định `GET /bouts/:id` trả `nutritionPlan.{camp,fightWeek,postWeighIn} = { text, author, updatedAt, updatedById }`, mỗi khoá có thể vắng hoặc `null`, và `/weight-track` trả `nutrition: [{ date, adherence }]` với `date` là ngày được hỏi. Khác thì báo để sửa `bouts-contract.ts`.
 - **Fon (B2):** việc ghi câu trả lời ở API mode (`recordNutritionCheckin` trong `lib/services/bouts.ts`) vẫn lưu vào bộ nhớ. B2 đổi sang `PUT /bouts/:id/nutrition-checkins/:date`. Phần đọc ở nhánh này đã sẵn sàng. Đổi nhãn giai đoạn cũng làm đổi tiêu đề ô kế hoạch trên `/fighter/bout`.
-- Chưa thử API mode với backend thật, vì phần A chưa có trên remote.
+- Chưa chạy API mode với backend thật trên máy này (không có `.env` trong worktree). Hợp đồng đã đối chiếu với code phần A trên `fight-camp`, xem mục dưới.
+
+## Cập nhật 03/11: gộp `fight-camp` (9ab50a2)
+
+- Phần A (Ken) và T-040 A đã có trên `fight-camp`. Merge có 2 chỗ xung đột, đều ở dòng import: giữ `nutritionPhaseFor`, `ADHERENCE_VALUES`, `nextNutritionPlan` của nhánh này và lấy `bout-suspension-rules` của T-030 B (`coach/bouts/[boutId]/page.tsx`, `lib/services/bouts.ts`).
+- Đối chiếu hợp đồng với `nestjs-api/src/bouts` của phần A, không lệch chỗ nào:
+  - `GET /bouts/:id` trả `nutritionPlan.{camp,fightWeek,postWeighIn} = { text, author, updatedAt, updatedById }`, mỗi khoá có thể vắng (`bouts.service.ts`, khối `nutritionPlan: (bout.nutritionPlan ?? {})`). Danh sách trận không có trường này, nên frontend dùng bản dự phòng.
+  - `PUT /bouts/:id/nutrition-plan` nhận `{ text ≤ 2000, author ≤ 100 }` cho từng giai đoạn và thay cả khối (`updateNutritionPlanSchema`, `putNutritionPlan`), đúng như `nutritionPlanBody()`.
+  - `currentNutritionPhase(status)` ở backend trùng `nutritionPhaseFor(phase)` ở frontend.
+  - `/weight-track` trả `nutrition: [{ date, adherence }]` với `adherence` thuộc `ON_PLAN | SLIGHTLY_OFF | WAY_OFF`, khớp `ADHERENCE_VALUES`.
+- Lần chạy lại sau merge: `lint` sạch, `typecheck` (`APP_DATA_MODE=api`) sạch, `test` 116 file qua, 1140 test qua, 2 bỏ qua.
+- Nhánh vẫn chuyển về bộ nhớ khi API trả 404 (backend cũ). Có thể bỏ nhánh dự phòng này sau khi production có migration 026.

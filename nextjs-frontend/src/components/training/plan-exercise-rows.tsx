@@ -4,12 +4,14 @@ import { Check, LibraryBig, Plus, Search, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { TermHint } from "@/components/domain/term-hint";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/form";
-import { EXERCISE_CATEGORY_LABELS } from "@/lib/domain/labels";
+import { exerciseCategoryLabel } from "@/lib/domain/labels";
 import type { Exercise } from "@/lib/domain/types";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { foldName } from "@/lib/query";
 import { cn } from "@/lib/utils";
 import { draftFromLibrary, sentDrafts, type PlanExerciseDraft } from "./plan-drafts";
@@ -29,11 +31,11 @@ export interface PlanExerciseRowsProps {
 
 type NumberField = "sets" | "reps" | "durationMin" | "targetRpe";
 
-const NUMBER_FIELDS: { field: NumberField; label: string; max: number }[] = [
-    { field: "sets", label: "Sets", max: 20 },
-    { field: "reps", label: "Reps", max: 200 },
-    { field: "durationMin", label: "Min", max: 240 },
-    { field: "targetRpe", label: "RPE", max: 10 },
+const NUMBER_FIELDS: { field: NumberField; label: MessageKey; max: number }[] = [
+    { field: "sets", label: "screens.training.exerciseRows.sets", max: 20 },
+    { field: "reps", label: "screens.training.exerciseRows.reps", max: 200 },
+    { field: "durationMin", label: "screens.training.exerciseRows.min", max: 240 },
+    { field: "targetRpe", label: "screens.training.exerciseRows.rpe", max: 10 },
 ];
 
 const MAX_RESULTS = 8;
@@ -47,6 +49,8 @@ export function PlanExerciseRows({ idPrefix, rows, onChange, library, error, mar
     const sentIndex = new Map(sentDrafts(rows).map((row, index) => [row.key, index]));
     const missing = rows.filter((row) => row.exerciseId === null);
     const keySeq = useRef(0);
+    const t = useT();
+    const locale = useLocale();
 
     const update = (key: string, patch: Partial<PlanExerciseDraft>) => {
         onChange(rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
@@ -58,7 +62,7 @@ export function PlanExerciseRows({ idPrefix, rows, onChange, library, error, mar
     };
     const add = (exercise: Exercise) => {
         keySeq.current += 1;
-        onChange([...rows, draftFromLibrary(exercise, `${idPrefix}-added-${keySeq.current}-${exercise.id}`)]);
+        onChange([...rows, draftFromLibrary(exercise, `${idPrefix}-added-${keySeq.current}-${exercise.id}`, t)]);
         markEdited("exercises");
     };
 
@@ -66,32 +70,30 @@ export function PlanExerciseRows({ idPrefix, rows, onChange, library, error, mar
         <div className="flex flex-col gap-4">
             {rows.length > 0 && (
                 <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-fg-muted">
-                    <span>Leave anything you don&apos;t prescribe empty.</span>
+                    <span>{t("screens.training.exerciseRows.leaveEmpty")}</span>
                     <span className="inline-flex items-center gap-0.5">
-                        Sets <TermHint term="sets" />
+                        {t("screens.training.exerciseRows.sets")} <TermHint term="sets" locale={locale} />
                     </span>
                     <span className="inline-flex items-center gap-0.5">
-                        Reps <TermHint term="reps" />
+                        {t("screens.training.exerciseRows.reps")} <TermHint term="reps" locale={locale} />
                     </span>
                     <span className="inline-flex items-center gap-0.5">
-                        Min <TermHint term="exerciseMinutes" />
+                        {t("screens.training.exerciseRows.min")} <TermHint term="exerciseMinutes" locale={locale} />
                     </span>
                     <span className="inline-flex items-center gap-0.5">
-                        RPE <TermHint term="rpe" />
+                        {t("screens.training.exerciseRows.rpe")} <TermHint term="rpe" locale={locale} />
                     </span>
                 </p>
             )}
 
             {missing.length > 0 && (
                 <InlineNote icon={LibraryBig} tone="warning">
-                    {missing.length === 1 ? "One exercise isn't" : `${missing.length} exercises aren't`} in the exercise library yet, so{" "}
-                    {missing.length === 1 ? "it's" : "they're"} skipped. An administrator can add {missing.length === 1 ? "it" : "them"} from the exercise
-                    library page.
+                    {missing.length === 1 ? t("screens.training.exerciseRows.missing.one") : t("screens.training.exerciseRows.missing", { n: missing.length })}
                 </InlineNote>
             )}
 
             {rows.length === 0 ? (
-                <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-fg-muted">{emptyText ?? "No exercises yet. Add some from the library below."}</p>
+                <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-fg-muted">{emptyText ?? t("screens.training.exerciseRows.empty")}</p>
             ) : (
                 <ol className="flex flex-col divide-y divide-border rounded-lg border border-border">
                     {rows.map((row) => (
@@ -133,6 +135,7 @@ function PlanExerciseRow({
     const errorFor = (field: string) => (sentIndex === undefined ? undefined : error(`exercises.${sentIndex}.${field}`));
     const messages = [...NUMBER_FIELDS.map(({ field }) => errorFor(field)), errorFor("notes"), errorFor("exerciseId")].filter((message): message is string => Boolean(message));
     const errorId = `${id}-error`;
+    const t = useT();
 
     return (
         <li className={cn("flex flex-col gap-3 px-3 py-3 sm:px-4", !row.included && "bg-surface-muted/60")}>
@@ -151,13 +154,13 @@ function PlanExerciseRow({
                         {row.categoryLabel}
                         {!inLibrary && (
                             <Badge tone="warning" size="sm" icon={LibraryBig}>
-                                Not in library
+                                {t("screens.training.exerciseRows.notInLibrary")}
                             </Badge>
                         )}
-                        {inLibrary && !row.included && <span className="text-fg-subtle">· Left out</span>}
+                        {inLibrary && !row.included && <span className="text-fg-subtle">· {t("screens.training.exerciseRows.leftOut")}</span>}
                     </span>
                 </label>
-                <Button variant="ghost" size="icon-sm" onClick={onRemove} aria-label={`Remove ${row.name}`} className="-mt-1 -mr-1 hover:text-danger-fg">
+                <Button variant="ghost" size="icon-sm" onClick={onRemove} aria-label={t("screens.training.exerciseRows.remove", { name: row.name })} className="-mt-1 -mr-1 hover:text-danger-fg">
                     <X aria-hidden />
                 </Button>
             </div>
@@ -170,8 +173,8 @@ function PlanExerciseRow({
                             return (
                                 <div key={field} className="flex min-w-0 flex-col gap-1">
                                     <label htmlFor={controlId} className="text-xs font-medium text-fg-muted">
-                                        {label}
-                                        <span className="sr-only"> for {row.name}</span>
+                                        {t(label)}
+                                        <span className="sr-only"> {t("screens.training.exerciseRows.forName", { name: row.name })}</span>
                                     </label>
                                     <Input
                                         id={controlId}
@@ -191,13 +194,13 @@ function PlanExerciseRow({
                         })}
                     </div>
                     <label htmlFor={`${id}-notes`} className="sr-only">
-                        Notes for {row.name}
+                        {t("screens.training.exerciseRows.notesFor", { name: row.name })}
                     </label>
                     <Input
                         id={`${id}-notes`}
                         value={row.notes}
                         onChange={(event) => onUpdate({ notes: event.target.value })}
-                        placeholder="Note for the fighter (optional)"
+                        placeholder={t("screens.training.exerciseRows.notePlaceholder")}
                         maxLength={500}
                         aria-invalid={errorFor("notes") ? true : undefined}
                         aria-describedby={errorFor("notes") ? errorId : undefined}
@@ -219,23 +222,24 @@ function LibraryPicker({ idPrefix, library, addedIds, onAdd }: { idPrefix: strin
     const [query, setQuery] = useState("");
     const searchId = useId();
     const resultsId = `${idPrefix}-library-results`;
+    const t = useT();
 
     if (library.length === 0) {
         return (
             <InlineNote icon={LibraryBig}>
-                The exercise library is empty, so there&apos;s nothing to add yet. An administrator can import the starter library from the exercise library page.
+                {t("screens.training.exerciseRows.libraryEmpty")}
             </InlineNote>
         );
     }
 
     const needle = foldName(query);
-    const matches = needle ? library.filter((exercise) => foldName(`${exercise.name} ${EXERCISE_CATEGORY_LABELS[exercise.category]}`).includes(needle)) : [];
+    const matches = needle ? library.filter((exercise) => foldName(`${exercise.name} ${exerciseCategoryLabel(t, exercise.category)}`).includes(needle)) : [];
     const shown = matches.slice(0, MAX_RESULTS);
 
     return (
         <div className="flex flex-col gap-2 rounded-lg bg-surface-muted p-3">
             <label htmlFor={searchId} className="text-sm font-medium text-fg">
-                Add from the library
+                {t("screens.training.exerciseRows.addFromLibrary")}
             </label>
             <div className="relative">
                 <Search aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-fg-subtle" />
@@ -251,33 +255,33 @@ function LibraryPicker({ idPrefix, library, addedIds, onAdd }: { idPrefix: strin
                         const only = shown.length === 1 ? shown[0] : undefined;
                         if (only && !addedIds.has(only.id)) onAdd(only);
                     }}
-                    placeholder={`Search ${library.length} exercises`}
+                    placeholder={t("screens.training.exerciseRows.search", { n: library.length })}
                     aria-controls={resultsId}
                     autoComplete="off"
                     className="pl-9"
                 />
             </div>
             <div id={resultsId} aria-live="polite">
-                {needle && shown.length === 0 && <p className="px-1 py-1 text-[13px] text-fg-muted">No exercise matches &ldquo;{query.trim()}&rdquo;.</p>}
+                {needle && shown.length === 0 && <p className="px-1 py-1 text-[13px] text-fg-muted">{t("screens.training.exerciseRows.noMatch", { query: query.trim() })}</p>}
                 {shown.length > 0 && (
-                    <ul className="flex flex-col gap-1" aria-label="Matching exercises">
+                    <ul className="flex flex-col gap-1" aria-label={t("screens.training.exerciseRows.matching")}>
                         {shown.map((exercise) => {
                             const added = addedIds.has(exercise.id);
                             return (
                                 <li key={exercise.id} className="flex items-center justify-between gap-3 rounded-md bg-surface px-3 py-1.5">
                                     <span className="min-w-0">
                                         <span className="block truncate text-sm text-fg">{exercise.name}</span>
-                                        <span className="block text-xs text-fg-muted">{EXERCISE_CATEGORY_LABELS[exercise.category]}</span>
+                                        <span className="block text-xs text-fg-muted">{exerciseCategoryLabel(t, exercise.category)}</span>
                                     </span>
-                                    <Button variant="secondary" size="sm" disabled={added} onClick={() => onAdd(exercise)} aria-label={added ? `${exercise.name} added` : `Add ${exercise.name}`}>
+                                    <Button variant="secondary" size="sm" disabled={added} onClick={() => onAdd(exercise)} aria-label={added ? t("screens.training.exerciseRows.addedName", { name: exercise.name }) : t("screens.training.exerciseRows.addName", { name: exercise.name })}>
                                         {added ? <Check aria-hidden /> : <Plus aria-hidden />}
-                                        {added ? "Added" : "Add"}
+                                        {added ? t("screens.training.exerciseRows.added") : t("screens.training.exerciseRows.add")}
                                     </Button>
                                 </li>
                             );
                         })}
                         {matches.length > shown.length && (
-                            <li className="px-1 text-xs text-fg-subtle">{matches.length - shown.length} more. Keep typing to narrow the list.</li>
+                            <li className="px-1 text-xs text-fg-subtle">{t("screens.training.exerciseRows.more", { n: matches.length - shown.length })}</li>
                         )}
                     </ul>
                 )}

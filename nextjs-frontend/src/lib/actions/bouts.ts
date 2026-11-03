@@ -30,7 +30,7 @@ import {
 } from "@/lib/domain/bout-rules";
 import { TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { readPlanAnswer, readPlanAuthor, readPlanText } from "@/lib/domain/nutrition";
-import { readClearanceNote, suggestSuspension, suspensionReasonFor, validateSuspension, MANUAL_SUSPENSION_REASONS, SUSPENSION_REASONS } from "@/lib/domain/suspension-rules";
+import { readClearanceNote, suggestSuspension, suspensionReasonFor, validateSuspension, MANUAL_SUSPENSION_REASONS, SUSPENSION_REASONS } from "@/lib/domain/bout-suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
 import { parseSelfWeight } from "@/lib/domain/weight-input";
 import { dayKey, formatDate, formatNumber } from "@/lib/format";

@@ -8,14 +8,20 @@ import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { CoachReviewStateBadge } from "@/components/video/video-badges";
-import { formatReviewCounts, reviewCounts } from "@/lib/domain/ai-review";
-import { FINDING_CATEGORY_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
-import type { AIAnalysis, Video as VideoRecord } from "@/lib/domain/types";
-import { formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { reviewCounts } from "@/lib/domain/ai-review";
+import { techniqueLabel, trainingTypeLabel } from "@/lib/domain/labels";
+import type { AIAnalysis, FindingCategory, Video as VideoRecord } from "@/lib/domain/types";
+import { formatDateTime, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { CardLink } from "./card-link";
 
 const FINDINGS_SHOWN = 3;
+
+function findingCategoryLabel(t: Translator, category: FindingCategory): string {
+    return category === "movement_quality" ? t("screens.roster.analysis.movementQuality") : techniqueLabel(t, category);
+}
 
 export interface AnalysisSummaryCardProps {
     video: VideoRecord | null;
@@ -26,30 +32,39 @@ export interface AnalysisSummaryCardProps {
     /** Server time (ISO). */
     now: string;
     className?: string;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
 }
 
 /** The latest completed AI analysis for a fighter: summary, confidence, review state and the findings to check first. */
-export function AnalysisSummaryCard({ video, analysis, videoHref, libraryHref, uploadHref, now, className }: AnalysisSummaryCardProps) {
+export function AnalysisSummaryCard({ video, analysis, videoHref, libraryHref, uploadHref, now, className, locale = "en" }: AnalysisSummaryCardProps) {
+    const t = createTranslator(locale);
     const findings = analysis
         ? [...analysis.findings].sort((a, b) => Number(a.review !== null) - Number(b.review !== null) || a.confidence - b.confidence).slice(0, FINDINGS_SHOWN)
         : [];
     const counts = analysis ? reviewCounts(analysis) : null;
-    const toReview = counts ? formatReviewCounts(counts) : [];
+    const toReview = counts
+        ? ([
+              [counts.unreviewedFindings, "screens.roster.analysis.unreviewed"],
+              [counts.lowConfidenceFindings, "screens.roster.analysis.lowConfidenceFindings"],
+              [counts.lowConfidenceDetections, "review.lowConfidence"],
+          ] as const).flatMap(([count, key]) => (count ? [plural(t, key, count)] : []))
+        : [];
 
     return (
         <Card className={cn("min-w-0", className)}>
-            <CardHeader title="Latest AI analysis" icon={<Sparkles />} action={<CardLink href={libraryHref}>All videos</CardLink>} />
+            <CardHeader title={t("screens.roster.analysis.title")} icon={<Sparkles />} action={<CardLink href={libraryHref}>{t("screens.roster.analysis.allVideos")}</CardLink>} />
             <CardContent className="flex flex-col gap-4">
                 {!video || !analysis ? (
                     <EmptyState
                         compact
                         icon={<Video />}
-                        title="No analysed footage yet"
-                        description="Upload a training clip to get AI technique findings you can confirm or correct."
+                        title={t("screens.roster.analysis.emptyTitle")}
+                        description={t("screens.roster.analysis.emptyDesc")}
                         action={
                             <ButtonLink href={uploadHref} variant="secondary" size="sm">
                                 <Upload aria-hidden />
-                                Upload video
+                                {t("screens.roster.overview.uploadVideo")}
                             </ButtonLink>
                         }
                         className="pt-0"
@@ -71,39 +86,41 @@ export function AnalysisSummaryCard({ video, analysis, videoHref, libraryHref, u
                                     )}
                                 </p>
                                 <p className="mt-0.5 text-[13px] text-fg-muted">
-                                    {TRAINING_TYPE_LABELS[video.trainingType]} · analysed{" "}
-                                    <time dateTime={analysis.processedAt} title={formatDateTime(analysis.processedAt)}>
-                                        {formatRelative(analysis.processedAt, now)}
+                                    {trainingTypeLabel(t, video.trainingType)} · {t("screens.roster.analysis.analysed")}{" "}
+                                    <time dateTime={analysis.processedAt} title={formatDateTime(analysis.processedAt, locale)}>
+                                        {formatRelative(analysis.processedAt, now, locale)}
                                     </time>{" "}
-                                    · {pluralize(analysis.findings.length, "finding")}
+                                    · {plural(t, "screens.roster.analysis.findings", analysis.findings.length)}
                                 </p>
-                                <p className="mt-0.5 text-[13px] text-fg-muted">{toReview.length > 0 ? `To review: ${toReview.join(" · ")}` : "Nothing left to review"}</p>
+                                <p className="mt-0.5 text-[13px] text-fg-muted">
+                                    {toReview.length > 0 ? t("screens.roster.analysis.toReview", { items: toReview.join(" · ") }) : t("screens.roster.analysis.nothingToReview")}
+                                </p>
                                 <div className="mt-2 flex flex-wrap gap-1.5">
-                                    <AIGeneratedBadge size="sm" />
-                                    <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" />
-                                    <CoachReviewStateBadge reviewed={analysis.coachReview !== null} lowConfidenceCount={counts?.lowConfidenceDetections} size="sm" />
+                                    <AIGeneratedBadge size="sm" locale={locale} />
+                                    <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" locale={locale} />
+                                    <CoachReviewStateBadge reviewed={analysis.coachReview !== null} lowConfidenceCount={counts?.lowConfidenceDetections} size="sm" locale={locale} />
                                 </div>
                             </div>
                         </div>
 
                         <p className="rounded-lg bg-surface-muted px-3.5 py-2.5 text-sm text-pretty text-fg">
-                            <span className="sr-only">AI-generated summary: </span>
+                            <span className="sr-only">{t("screens.roster.analysis.summarySr")}</span>
                             {analysis.summary}
                         </p>
 
                         {findings.length > 0 && (
                             <div>
-                                <h3 className="mb-2 text-[13px] font-semibold text-fg">Findings to check first</h3>
+                                <h3 className="mb-2 text-[13px] font-semibold text-fg">{t("screens.roster.analysis.checkFirst")}</h3>
                                 <ul className="flex flex-col divide-y divide-border rounded-lg border border-border">
                                     {findings.map((finding) => (
                                         <li key={finding.id} className="flex flex-col gap-1.5 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                             <p className="min-w-0 text-sm">
-                                                <span className="block text-xs text-fg-muted">{FINDING_CATEGORY_LABELS[finding.category]}</span>
+                                                <span className="block text-xs text-fg-muted">{findingCategoryLabel(t, finding.category)}</span>
                                                 <span className="font-medium text-fg">{finding.title}</span>
                                             </p>
                                             <span className="flex shrink-0 flex-wrap gap-1.5">
-                                                <ConfidenceBadge confidence={finding.confidence} size="sm" />
-                                                <ReviewStateBadge review={finding.review} confidence={finding.confidence} size="sm" />
+                                                <ConfidenceBadge confidence={finding.confidence} size="sm" locale={locale} />
+                                                <ReviewStateBadge review={finding.review} confidence={finding.confidence} size="sm" locale={locale} />
                                             </span>
                                         </li>
                                     ))}
@@ -111,7 +128,7 @@ export function AnalysisSummaryCard({ video, analysis, videoHref, libraryHref, u
                             </div>
                         )}
 
-                        <AINotice audience="coach" compact />
+                        <AINotice audience="coach" compact locale={locale} />
                     </>
                 )}
             </CardContent>

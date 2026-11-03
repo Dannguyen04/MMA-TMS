@@ -9,7 +9,7 @@ import {
   AuthVisionField,
   AuthVisionShell,
 } from "@/components/auth/auth-vision-shell";
-import { authDark, authType } from "@/components/auth/auth-vision-tokens";
+import { authType, useAuthColors } from "@/components/auth/auth-vision-tokens";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";
 import { mapApiMessage } from "@/session/map-api-message";
@@ -59,6 +59,7 @@ export function LoginScreen() {
       });
   };
 
+  const c = useAuthColors();
   const canLeave = typeof router.canGoBack === "function" && router.canGoBack();
 
   return (
@@ -70,10 +71,24 @@ export function LoginScreen() {
           Keyboard.dismiss();
           setDemoOpen(true);
         }}
-        footer={
-          <Text style={[authType.caption, styles.footerText]}>
+        action={
+          <AuthVisionButton
+            testID="login-submit"
+            title={vi.login.submit}
+            onPress={onSubmit}
+            loading={submitting}
+            disabled={!canSubmit}
+          />
+        }
+        link={
+          <Link href="/forgot-password" style={[authType.link, styles.forgot, { color: c.ink }]}>
+            {vi.login.forgot}
+          </Link>
+        }
+        below={
+          <Text style={[authType.caption, styles.footerText, { color: c.ink }]}>
             {vi.login.noAccount}{" "}
-            <Link href="/register" style={[authType.link, { color: authDark.gold }]}>
+            <Link href="/register" style={[authType.link, { color: c.accent }]}>
               {vi.login.create}
             </Link>
           </Text>
@@ -117,17 +132,7 @@ export function LoginScreen() {
             returnKeyType="done"
             onSubmitEditing={onSubmit}
           />
-          <Link href="/forgot-password" style={[authType.link, styles.forgot]}>
-            {vi.login.forgot}
-          </Link>
         </View>
-        <AuthVisionButton
-          testID="login-submit"
-          title={vi.login.submit}
-          onPress={onSubmit}
-          loading={submitting}
-          disabled={!canSubmit}
-        />
       </AuthVisionShell>
       <AuthDemoSwitch open={demoOpen} onClose={() => setDemoOpen(false)} />
     </>
@@ -136,17 +141,15 @@ export function LoginScreen() {
 
 const styles = StyleSheet.create({
   credentials: {
-    gap: 16,
+    gap: 12,
     width: "100%",
   },
   forgot: {
-    color: authDark.gold,
-    alignSelf: "flex-end",
     minHeight: 44,
     textAlignVertical: "center",
+    textDecorationLine: "underline",
   },
   footerText: {
-    color: authDark.muted,
     textAlign: "center",
   },
 });

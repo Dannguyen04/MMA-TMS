@@ -17,7 +17,7 @@ export interface ActionState<T = undefined> {
 export const IDLE: ActionState = { status: "idle" };
 
 /** Form-level message when individual fields carry the errors. */
-export const FIX_FIELDS = "Please fix the highlighted fields.";
+export const FIX_FIELDS = "Vui lòng sửa các trường được đánh dấu.";
 
 export function actionError(message: string, fieldErrors?: Record<string, string>): ActionState<never> {
     return { status: "error", message, fieldErrors };

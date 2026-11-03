@@ -1,17 +1,9 @@
-import { Text, View } from "react-native";
+import { useLocalSearchParams } from "expo-router";
 
-import { media } from "@/i18n/media";
-import { useFighterPalette } from "@/screens/fighter/redesign/palette";
-import { FighterStack } from "@/screens/fighter/redesign/shell";
+import { EvidenceRoute } from "@/screens/media/evidence/evidence-route";
 
-export default function FighterVideoReviewRoute() {
-  const colors = useFighterPalette();
-  return (
-    <FighterStack>
-      <View style={{ paddingHorizontal: 20, gap: 8 }}>
-        <Text style={{ color: colors.ink, fontSize: 22, fontWeight: "700" }}>Duyệt bằng chứng</Text>
-        <Text style={{ color: colors.muted }}>{media.reviewOwner}</Text>
-      </View>
-    </FighterStack>
-  );
+/** `/video/xem?id=<videoId>` — video, khung xương và bằng chứng (chỉ đọc). */
+export default function FighterVideoEvidenceRoute() {
+  const params = useLocalSearchParams<{ id?: string; jobId?: string }>();
+  return <EvidenceRoute role="fighter" params={params} listHref="/video" canRequestAnalysis />;
 }

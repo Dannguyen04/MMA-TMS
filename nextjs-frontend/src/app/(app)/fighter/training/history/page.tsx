@@ -114,6 +114,7 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                     </h2>
                     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
                         <StatCard
+                            locale={locale}
                             label={t("training.fighterHistory.statCompleted")}
                             value={current.completed}
                             unit={t("training.fighterHistory.unitSessions")}
@@ -121,6 +122,7 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                             delta={countDelta(current.completed, previous.completed, true, t("training.fighterHistory.deltaVsPrev"))}
                         />
                         <StatCard
+                            locale={locale}
                             label={t("training.fighterHistory.statMissed")}
                             value={current.missed}
                             unit={t("training.fighterHistory.unitSessions")}
@@ -128,16 +130,18 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                             delta={countDelta(current.missed, previous.missed, false, t("training.fighterHistory.deltaVsPrev"))}
                         />
                         <StatCard
+                            locale={locale}
                             label={t("training.fighterHistory.statTime")}
                             value={formatMinutes(current.minutes)}
                             icon={<Timer />}
                             delta={minutesDelta(current.minutes, previous.minutes, t("training.fighterHistory.deltaVsPrev"))}
                         />
                         <StatCard
+                            locale={locale}
                             label={t("training.fighterHistory.statAvgRpe")}
                             value={current.avgRpe === null ? "—" : formatNumber(current.avgRpe, 1)}
                             icon={<Gauge />}
-                            hint={current.avgRpe === null ? t("training.fighterHistory.noCompletedSessions") : rpeLabel(current.avgRpe)}
+                            hint={current.avgRpe === null ? t("training.fighterHistory.noCompletedSessions") : rpeLabel(current.avgRpe, t)}
                         />
                     </div>
                 </section>
@@ -204,6 +208,7 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
                                 sort={{ pathname, searchParams: params, sort, dir }}
                             />
                             <Pagination
+                                locale={locale}
                                 page={page.page}
                                 pageCount={page.pageCount}
                                 total={page.total}

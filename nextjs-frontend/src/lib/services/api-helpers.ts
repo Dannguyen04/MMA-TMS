@@ -50,7 +50,7 @@ export async function nullIfUnreadable<T>(request: Promise<T>): Promise<T | null
  */
 export function unsupportedOperation(operation: string, missingCapability: string): never {
     throw new ApiError({
-        message: `${operation} is unavailable because the backend does not yet support ${missingCapability}.`,
+        message: `${operation} chưa khả dụng vì hệ thống chưa hỗ trợ ${missingCapability}.`,
         kind: "http",
         status: 501,
         code: "API_OPERATION_UNSUPPORTED",
@@ -103,7 +103,7 @@ function pageContents<T>(page: NumberedPage<T>): { items: T[]; total: number; ha
         : { items: page.items, total: page.total, hasNextPage: page.page * page.limit < page.total };
 }
 
-const paginationLimit = (limit: string) => new ApiError({ message: `The service ${limit}.`, kind: "invalid_response", code: "PAGINATION_LIMIT_EXCEEDED" });
+const paginationLimit = (limit: string) => new ApiError({ message: `Dịch vụ ${limit}.`, kind: "invalid_response", code: "PAGINATION_LIMIT_EXCEEDED" });
 
 /**
  * Reads every page of a `?page=&limit=` list endpoint: the first page gives the total, the rest are read together.
@@ -116,14 +116,14 @@ export async function drainNumberedPages<T extends z.ZodType>(
 ): Promise<z.output<T>[]> {
     const read = async (page: number) => {
         const response: NumberedPage<z.output<T>> = await authenticatedApiRequest(queryPath(path, { page, limit: PAGE_SIZE, ...values }), numberedPageSchema(itemSchema));
-        if (response.total > MAX_ITEMS) throw paginationLimit(`returned more than the configured ${MAX_ITEMS} item limit`);
+        if (response.total > MAX_ITEMS) throw paginationLimit(`trả về vượt giới hạn ${MAX_ITEMS} mục`);
         return pageContents(response);
     };
     const first = await read(1);
     if (!first.hasNextPage) return first.items;
     // The service may cap the page size below the one asked for; the first page shows the size it uses.
     const pageCount = Math.ceil(first.total / Math.max(first.items.length, 1));
-    if (pageCount > MAX_PAGES) throw paginationLimit(`exceeded the configured ${MAX_PAGES} page limit`);
+    if (pageCount > MAX_PAGES) throw paginationLimit(`vượt giới hạn ${MAX_PAGES} trang`);
     const rest = await Promise.all(Array.from({ length: pageCount - 1 }, (_, index) => read(index + 2)));
     return [first, ...rest].flatMap((page) => page.items);
 }

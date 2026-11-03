@@ -132,6 +132,7 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
                             <>
                                 <NotificationList notifications={page.items} now={now} locale={locale} />
                                 <Pagination
+                                    locale={locale}
                                     page={page.page}
                                     pageCount={page.pageCount}
                                     total={page.total}

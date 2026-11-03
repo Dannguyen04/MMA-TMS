@@ -1,0 +1,48 @@
+/* Round replay: the advice caret while lines are written out, and results arriving. */
+
+.typing::after {
+    content: "";
+    display: inline-block;
+    width: 2px;
+    height: 1em;
+    margin-left: 2px;
+    vertical-align: -0.15em;
+    background: currentColor;
+    animation: caret 900ms steps(1) infinite;
+}
+
+@keyframes caret {
+    50% {
+        opacity: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .typing::after {
+        animation: none;
+    }
+}
+
+/* A result panel arriving after a choice. */
+.rise {
+    animation: rise 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .rise {
+        animation-name: fade;
+    }
+}
+
+@keyframes fade {
+    from {
+        opacity: 0;
+    }
+}

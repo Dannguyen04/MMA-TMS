@@ -4,7 +4,6 @@ import { Pressable, ScrollView, StyleSheet, Text, View, type TextStyle } from "r
 import { useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ThemeToggle } from "@/components/auth/theme-toggle";
 import { blocked } from "@/i18n/blocked";
 import { vi } from "@/i18n/vi";
 import {
@@ -18,6 +17,8 @@ import {
   viLineHeight,
   type LiveTypography,
 } from "@/theme";
+import { FeatureUnavailable } from "@/components/feature-unavailable";
+import { useReadableWidth } from "@/components/readable-width";
 
 /** Admin-only type scale: larger than the shared caption/label sizes. */
 export const adminType = {
@@ -96,6 +97,7 @@ export function AdminShell({
   onBack: boolean;
   children?: ReactNode;
 }) {
+  const readable = useReadableWidth();
   const { colors } = useThemePreference();
   const at = useAdminType();
   const insets = useSafeAreaInsets();
@@ -112,9 +114,8 @@ export function AdminShell({
         ) : (
           <Text style={[type.wordmark, { color: colors.ink }]}>{vi.brand.wordmark}</Text>
         )}
-        <ThemeToggle />
       </View>
-      <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[styles.scroll, readable]} keyboardShouldPersistTaps="handled">
         {title ? (
           <View style={styles.heading}>
             <Text style={[at.screenTitle, { color: colors.ink }]}>{title}</Text>
@@ -150,18 +151,7 @@ export function AdminPage({
 }
 
 function AdminBlockedNotice({ extra }: { extra?: string }) {
-  const { colors } = useThemePreference();
-  const at = useAdminType();
-  return (
-    <View style={[styles.notice, { borderLeftColor: colors.inkMuted }]}>
-      <View style={styles.noticeHead}>
-        <Ionicons name="lock-closed-outline" size={22} color={colors.inkMuted} />
-        <Text style={[at.section, styles.flex, { color: colors.ink }]}>{blocked.title}</Text>
-      </View>
-      <Text style={[at.body, { color: colors.inkMuted }]}>{extra ?? blocked.body}</Text>
-      {extra ? <Text style={[at.meta, { color: colors.inkMuted }]}>{blocked.body}</Text> : null}
-    </View>
-  );
+  return <FeatureUnavailable description={extra} />;
 }
 
 export function AdminLink({ href, label }: { href: Href; label: string }) {

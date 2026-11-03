@@ -1,6 +1,6 @@
 "use client";
 
-import { useT } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ShieldAlert, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
@@ -59,6 +59,7 @@ const HINTED_FIELDS = new Set<keyof PlanFormValues>(["objective", "weeklySession
  */
 export function PlanForm({ action, fighters, clearances, defaults, now, cancelHref, serviceForm }: PlanFormProps) {
     const t = useT();
+    const locale = useLocale();
     const PHASE_OPTIONS = PHASES.map((value) => ({ value, label: trainingPhaseLabel(t, value) }));
     const form = useActionForm(action, { id: "plan" });
     const [values, setValues] = useState(defaults);
@@ -80,7 +81,7 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                         {fighter && (
                             <div className="flex flex-col gap-1.5">
                                 <p className="text-sm font-medium text-fg">{t("training.planForm.fighter")}</p>
-                                <FighterIdentity fighter={fighter} showHealth />
+                                <FighterIdentity fighter={fighter} showHealth locale={locale} />
                             </div>
                         )}
                         <Field label={t("training.planForm.title")} htmlFor="plan-title" required error={error("title")}>
@@ -92,7 +93,7 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                                 maxLength={120}
                             />
                         </Field>
-                        <Field label={t("training.planForm.objective")} htmlFor="plan-objective" optional info={<TermHint term="planObjective" />} error={error("objective")} hint={t("training.planForm.hintObjective")}>
+                        <Field label={t("training.planForm.objective")} htmlFor="plan-objective" optional info={<TermHint term="planObjective" locale={locale} />} error={error("objective")} hint={t("training.planForm.hintObjective")}>
                             <Textarea {...input("objective")} value={values.objective} onChange={(event) => set("objective", event.target.value)} rows={3} maxLength={600} />
                         </Field>
                     </FormSection>
@@ -106,7 +107,7 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
                             name="phase"
                             legend={
                                 <span className="inline-flex items-center gap-1.5">
-                                    {t("training.planForm.phase")} <TermHint term="trainingPhase" />
+                                    {t("training.planForm.phase")} <TermHint term="trainingPhase" locale={locale} />
                                 </span>
                             }
                             required

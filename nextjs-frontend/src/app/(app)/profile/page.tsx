@@ -16,7 +16,7 @@ import { presentFacts } from "@/components/domain/domain-format";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireUser } from "@/lib/auth/session";
-import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { weightClassLabel } from "@/lib/domain/labels";
 import type { Fighter, User } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
@@ -67,7 +67,7 @@ async function roleSections(user: User, now: string, locale: Locale): Promise<Ro
             const [coaches, doctors] = await Promise.all([coachesForFighter(fighter.id), doctorsForFighter(fighter.id)]);
             return {
                 nickname: fighter.nickname,
-                facts: presentFacts(fighter.primaryDiscipline, WEIGHT_CLASS_LABELS[fighter.weightClass], fighter.nationality),
+                facts: presentFacts(fighter.primaryDiscipline, weightClassLabel(fighter.weightClass, locale), fighter.nationality),
                 main: (
                     <>
                         <BodyMetricsCard fighter={fighter} canLog={platformFeatureAvailable("bodyMetrics")} locale={locale} />

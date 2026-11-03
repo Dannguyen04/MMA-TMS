@@ -63,8 +63,18 @@ export {
   listFighterMedicalHistory,
   listFighterReviewRequests,
 } from "./medical";
-export { listNotifications, markNotificationRead } from "./notifications";
-export { listUsers } from "./users";
+export { getUnreadNotificationCount, listNotifications, markNotificationRead } from "./notifications";
+export {
+  createUser,
+  deleteUser,
+  listUsers,
+  updateUser,
+  type CoachProfileInput,
+  type CreateUserInput,
+  type DoctorProfileInput,
+  type FighterProfileInput,
+  type UpdateUserInput,
+} from "./users";
 export { getApiHello, getHealth } from "./system";
 export {
   addTrainingPlanExercise,

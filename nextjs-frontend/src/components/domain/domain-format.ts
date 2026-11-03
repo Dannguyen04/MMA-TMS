@@ -1,4 +1,4 @@
-import { formatNumber, pluralize } from "@/lib/format";
+import { formatNumber, pluralizeVi } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 
 /**
@@ -14,7 +14,7 @@ export function formatMeasure(value: number, unit: string): string {
 }
 
 /** Whole-day distance as words: "today", "tomorrow", "in 5 days", "yesterday", "3 days ago". */
-export function describeDaysUntil(days: number, locale: Locale = "en"): string {
+export function describeDaysUntil(days: number, locale: Locale = "vi"): string {
     if (locale === "vi") {
         if (days === 0) return "hôm nay";
         if (days === 1) return "ngày mai";
@@ -24,11 +24,11 @@ export function describeDaysUntil(days: number, locale: Locale = "en"): string {
     if (days === 0) return "today";
     if (days === 1) return "tomorrow";
     if (days === -1) return "yesterday";
-    return days > 0 ? `in ${pluralize(days, "day")}` : `${pluralize(-days, "day")} ago`;
+    return days > 0 ? `sau ${pluralizeVi(days, "day")}` : `${pluralizeVi(-days, "day")} trước`;
 }
 
 /** Shown in place of a profile value the API hasn't provided yet. */
-export const NOT_RECORDED = "Not recorded";
+export const NOT_RECORDED = "Chưa ghi nhận";
 
 /** "1920×1080 · 30 fps", or the not-recorded label before the footage's metadata has been read. */
 export function formatVideoResolution(video: { resolution: string; fps: number }): string {

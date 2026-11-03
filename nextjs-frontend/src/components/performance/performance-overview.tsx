@@ -7,7 +7,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { TECHNIQUES } from "@/lib/domain/labels";
 import type { Technique } from "@/lib/domain/types";
-import { formatDate, pluralize } from "@/lib/format";
+import { formatDate } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { getPerformanceHistory, getPerformanceSummary } from "@/lib/services/performance";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { PerformanceKpis } from "./performance-kpis";
@@ -39,7 +41,10 @@ export interface PerformanceOverviewProps {
  * volume, speed and training load. Shared by the fighter's own page and the coach's fighter tab.
  */
 export async function PerformanceOverview({ fighterId, fighterName, audience, headingLevel = 2, techniqueHref, emptyAction }: PerformanceOverviewProps) {
-    if (!platformFeatureAvailable("performance")) return <FeatureUnavailable service="training" title="Performance scores aren't available yet" />;
+    const { t, locale } = await getTranslator();
+    if (!platformFeatureAvailable("performance")) {
+        return <FeatureUnavailable service="training" title={t("screens.performance.unavailable")} description={t("screens.performance.unavailableDesc")} />;
+    }
     const [history, summary] = await Promise.all([getPerformanceHistory(fighterId, CHART_WEEKS + 1), getPerformanceSummary(fighterId)]);
     const heading = headingLevel === 2 ? "h2" : "h3";
 
@@ -47,11 +52,11 @@ export async function PerformanceOverview({ fighterId, fighterName, audience, he
         return (
             <EmptyState
                 icon={<ChartLine />}
-                title="No performance data yet"
+                title={t("screens.performance.overview.emptyTitle")}
                 description={
                     audience === "fighter"
-                        ? "Scores appear after your first analysed training videos and coach-rated sessions."
-                        : `Scores appear after ${fighterName}'s first analysed training videos and coach-rated sessions.`
+                        ? t("screens.performance.overview.emptyFighter")
+                        : t("screens.performance.overview.emptyCoach", { name: fighterName })
                 }
                 action={emptyAction}
             />
@@ -59,44 +64,65 @@ export async function PerformanceOverview({ fighterId, fighterName, audience, he
     }
 
     const weeks = throughWeek(history, summary.latest.weekStart).slice(-CHART_WEEKS);
-    const labels = weeks.map((week) => weekLabel(week.weekStart));
-    const scores = Object.fromEntries(TECHNIQUES.map((t) => [t, weeks.map((week) => week.scores[t])])) as Record<Technique, number[]>;
-    const subject = audience === "fighter" ? "You have" : `${fighterName.split(" ")[0]} has`;
+    const labels = weeks.map((week) => weekLabel(week.weekStart, locale));
+    const scores = Object.fromEntries(TECHNIQUES.map((technique) => [technique, weeks.map((week) => week.scores[technique])])) as Record<Technique, number[]>;
+    const firstName = fighterName.split(" ")[0];
+    const completeWeeks = plural(t, "screens.performance.completeWeeks", weeks.length);
 
     return (
         <div className="flex flex-col gap-6">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-fg-muted">
                 <span>
-                    Week of <time dateTime={summary.latest.weekStart}>{formatDate(summary.latest.weekStart)}</time>
-                    <span className="text-fg-subtle"> · latest complete week</span>
+                    {t("screens.performance.weekOfPrefix")}
+                    <time dateTime={summary.latest.weekStart}>{formatDate(summary.latest.weekStart, locale)}</time>
+                    <span className="text-fg-subtle">{t("screens.performance.latestCompleteSuffix")}</span>
                 </span>
                 <span className="flex items-center gap-1">
-                    <AIGeneratedBadge size="sm" label="AI-assisted scores" />
+                    <AIGeneratedBadge size="sm" label={t("screens.performance.aiScores")} />
                     <ScoreInfo />
                 </span>
             </div>
 
             {summary.comparisonWeeks < COMPARISON_WEEKS && (
-                <Callout tone="info" icon={Info} title={summary.comparisonWeeks === 0 ? "Early days" : "Comparisons are still settling"}>
+                <Callout
+                    tone="info"
+                    icon={Info}
+                    title={summary.comparisonWeeks === 0 ? t("screens.performance.overview.earlyDays") : t("screens.performance.overview.settling")}
+                >
                     {summary.comparisonWeeks === 0
-                        ? `${subject} ${pluralize(weeks.length, "complete week")} of data so far. Changes, trends and the 4-week comparison appear as more weeks are completed — the current week is added once it ends.`
-                        : `${subject} ${pluralize(summary.comparisonWeeks, "earlier week")} to compare with, so changes use a shorter average until 4 weeks are available.`}
+                        ? audience === "fighter"
+                            ? t("screens.performance.overview.earlyFighter", { weeks: completeWeeks })
+                            : t("screens.performance.overview.earlyCoach", { name: firstName, weeks: completeWeeks })
+                        : audience === "fighter"
+                          ? t("screens.performance.overview.settlingFighter", { weeks: plural(t, "screens.performance.earlierWeeks", summary.comparisonWeeks) })
+                          : t("screens.performance.overview.settlingCoach", {
+                                name: firstName,
+                                weeks: plural(t, "screens.performance.earlierWeeks", summary.comparisonWeeks),
+                            })}
                 </Callout>
             )}
 
-            <PerformanceKpis summary={summary} techniqueHref={techniqueHref} />
+            <PerformanceKpis summary={summary} techniqueHref={techniqueHref} locale={locale} />
 
-            <TechniqueScoresCard summary={summary} weeks={weeks} heading={heading} techniqueHref={techniqueHref} />
+            <TechniqueScoresCard summary={summary} weeks={weeks} heading={heading} techniqueHref={techniqueHref} locale={locale} />
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
                 <div className="min-w-0 lg:col-span-5">
-                    <TechniqueProfileCard weeks={weeks} heading={heading} />
+                    <TechniqueProfileCard weeks={weeks} heading={heading} locale={locale} />
                 </div>
                 <Card className="min-w-0 lg:col-span-7">
-                    <CardHeader as={heading} title="Technique trends" description={`Weekly scores · ${pluralize(weeks.length, "complete week")}`} />
+                    <CardHeader
+                        as={heading}
+                        title={t("screens.performance.overview.trendsTitle")}
+                        description={t("screens.performance.overview.trendsDesc", { weeks: completeWeeks })}
+                    />
                     <CardContent>
                         {weeks.length < 2 ? (
-                            <EmptyState compact title="Trends appear after 2 complete weeks" description="Each technique's weekly score will be charted here." />
+                            <EmptyState
+                                compact
+                                title={t("screens.performance.overview.trendsEmptyTitle")}
+                                description={t("screens.performance.overview.trendsEmptyDesc")}
+                            />
                         ) : (
                             <TechniqueTrendsChart labels={labels} scores={scores} />
                         )}
@@ -105,9 +131,9 @@ export async function PerformanceOverview({ fighterId, fighterName, audience, he
             </div>
 
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 xl:grid-cols-3">
-                <StrikeVolumeCard weeks={weeks} heading={heading} className="h-full" />
-                <SpeedCard weeks={weeks} heading={heading} className="h-full" />
-                <TrainingLoadCard weeks={weeks} heading={heading} className="h-full lg:col-span-2 xl:col-span-1" />
+                <StrikeVolumeCard weeks={weeks} heading={heading} className="h-full" locale={locale} />
+                <SpeedCard weeks={weeks} heading={heading} className="h-full" locale={locale} />
+                <TrainingLoadCard weeks={weeks} heading={heading} className="h-full lg:col-span-2 xl:col-span-1" locale={locale} />
             </div>
         </div>
     );

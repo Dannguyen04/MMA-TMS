@@ -8,22 +8,27 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { pluralize } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { listGoals } from "@/lib/services/goals";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
-export const metadata: Metadata = { title: "Goals" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.performance.goals") };
+}
 
 export default async function FighterGoalsPage() {
     const user = await requireRole("fighter");
     if (!user.profileId) notFound();
     const fighterId = requireFighterId(user, user.profileId);
+    const { t, locale } = await getTranslator();
     if (!platformFeatureAvailable("goals")) {
         return (
             <>
-                <PageHeader title="Goals" />
-                <FeatureUnavailable service="training" title="Goals aren't available yet" />
+                <PageHeader title={t("screens.performance.goals")} />
+                <FeatureUnavailable service="training" title={t("screens.performance.goalsUnavailable")} description={t("screens.performance.unavailableDesc")} />
             </>
         );
     }
@@ -35,33 +40,33 @@ export default async function FighterGoalsPage() {
     return (
         <>
             <PageHeader
-                title="Goals"
+                title={t("screens.performance.goals")}
                 description={
                     goals.length === 0
-                        ? "Measurable targets your coaches set with you."
-                        : `${pluralize(active.length, "goal")} in progress${atRisk > 0 ? `, ${atRisk} at risk` : ""}. Progress updates each time your coach logs a new measurement.`
+                        ? t("screens.performance.fighterGoals.emptyIntro")
+                        : `${plural(t, "screens.performance.goalsInProgress", active.length)}${atRisk > 0 ? t("screens.performance.fighterGoals.atRisk", { n: atRisk }) : ""}. ${t("screens.performance.fighterGoals.updates")}`
                 }
                 meta={
                     <p className="flex items-center gap-1.5 text-[13px] text-fg-subtle">
                         <Info aria-hidden className="size-3.5" />
-                        Goals are managed by your coaches — talk to them to adjust a target or due date.
+                        {t("screens.performance.fighterGoals.managed")}
                     </p>
                 }
             />
             {goals.length === 0 ? (
                 <EmptyState
                     icon={<Target />}
-                    title="No goals yet"
-                    description="Your coaches set goals from your training and video analysis. Ask them about a target you'd like to work towards."
+                    title={t("screens.performance.fighterGoals.emptyTitle")}
+                    description={t("screens.performance.fighterGoals.emptyDesc")}
                     action={
                         <ButtonLink href={routes.fighter.performance} variant="secondary">
                             <ChartLine aria-hidden />
-                            Review your performance
+                            {t("screens.performance.fighterGoals.review")}
                         </ButtonLink>
                     }
                 />
             ) : (
-                <GoalGroups goals={goals} now={now} heading="h2" noActiveText="No goals in progress right now — your coaches will set the next one." />
+                <GoalGroups goals={goals} now={now} heading="h2" noActiveText={t("screens.performance.fighterGoals.noActive")} locale={locale} />
             )}
         </>
     );

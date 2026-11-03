@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ClipboardList, Printer, ShieldAlert, TriangleAlert } from "lucide-react";
+import { ClipboardList, Printer, ShieldAlert, Swords, TriangleAlert } from "lucide-react";
 
 import { useT } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
@@ -78,6 +78,13 @@ export function CornerCardView({
                             </h2>
                         </div>
                         <div className="flex flex-wrap items-center gap-2 print:hidden">
+                            <Link
+                                href={`${routes.coach.bout(boutId)}/opponent-analysis`}
+                                className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-fg transition hover:bg-surface-muted"
+                            >
+                                <Swords aria-hidden className="size-3.5 shrink-0" />
+                                <span>{t("boutAnalysis.nav.opponentAnalysis")}</span>
+                            </Link>
                             <Link
                                 href={`${routes.coach.bout(boutId)}/rounds`}
                                 className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3 text-xs font-medium text-fg transition hover:bg-surface-muted"

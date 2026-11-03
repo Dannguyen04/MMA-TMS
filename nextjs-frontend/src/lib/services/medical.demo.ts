@@ -86,7 +86,7 @@ function findDoctor(doctorId: string): Doctor | null {
     return db().doctors.find((d) => d.id === doctorId || d.userId === doctorId) ?? null;
 }
 
-const NOT_A_DOCTOR = "Only the assigned sports doctor can record this.";
+const NOT_A_DOCTOR = "Chỉ bác sĩ thể thao phụ trách mới ghi được mục này.";
 
 /** Doctor profile id recorded on clinical entities created by `actor`; null when the actor isn't a sports doctor. */
 function actingDoctorId(actor: User): string | null {
@@ -158,7 +158,7 @@ export async function getMedicalRecord(fighterId: string): Promise<MedicalRecord
 export async function updateMedicalRecord(fighterId: string, patch: MedicalRecordPatch, actor: User): Promise<MedicalResult<MedicalRecord>> {
     const store = db();
     const fighter = findFighter(fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
     const doctorId = actingDoctorId(actor);
     if (!doctorId) return failure(NOT_A_DOCTOR);
 
@@ -169,7 +169,7 @@ export async function updateMedicalRecord(fighterId: string, patch: MedicalRecor
             id: newId("mr"),
             fighterId,
             primaryDoctorId: doctorId,
-            bloodType: "Not recorded",
+            bloodType: "Chưa ghi nhận",
             allergies: [],
             chronicConditions: [],
             medications: [],
@@ -191,8 +191,8 @@ export async function updateMedicalRecord(fighterId: string, patch: MedicalRecor
         action: opened ? "medical_record.create" : "medical_record.update",
         resourceType: "medical_record",
         resourceId: record.id,
-        resourceLabel: `Medical record — ${fighter.name}`,
-        details: changed.length > 0 ? `Updated fields: ${changed.join(", ")}` : null,
+        resourceLabel: `Bệnh án — ${fighter.name}`,
+        details: changed.length > 0 ? `Trường đã cập nhật: ${changed.join(", ")}` : null,
     });
     return success(record);
 }
@@ -244,11 +244,11 @@ function scat6Record(input: Scat6Input): Scat6Record {
 export async function createExamination(input: CreateExaminationInput, actor: User): Promise<MedicalResult<MedicalExamination>> {
     const store = db();
     const fighter = findFighter(input.fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
     const doctorId = actingDoctorId(actor);
     if (!doctorId) return failure(NOT_A_DOCTOR);
     if (input.scat6?.status === "ADMINISTERED" && ageFromBirthDate(fighter.dateOfBirth, input.scat6.administeredAt) < SCAT6.MIN_AGE_YEARS) {
-        return failure(`${fighter.name} was under 13 when the SCAT6 was administered. Record it as not administered.`);
+        return failure(`${fighter.name} dưới 13 tuổi khi thực hiện SCAT6. Hãy ghi là không thực hiện.`);
     }
 
     const examination: MedicalExamination = { ...input, id: newId("ex"), doctorId, scat6: input.scat6 ? scat6Record(input.scat6) : null };
@@ -273,13 +273,13 @@ export async function createExamination(input: CreateExaminationInput, actor: Us
         action: "examination.create",
         resourceType: "examination",
         resourceId: examination.id,
-        resourceLabel: `Examination — ${fighter.name}`,
+        resourceLabel: `Phiếu khám — ${fighter.name}`,
     });
     notifyUsers({
         userIds: fighterUserIds(fighter.id),
         category: "medical",
-        title: "Examination recorded",
-        body: `${findDoctor(examination.doctorId)?.name ?? actor.name} recorded your ${examinationTitle(examination).toLowerCase()}. See the outcome and recommendations on your Health page.`,
+        title: "Đã ghi phiếu khám",
+        body: `${findDoctor(examination.doctorId)?.name ?? actor.name} đã ghi phiếu ${examinationTitle(examination).toLowerCase()} của bạn. Xem kết luận và khuyến nghị trên trang Sức khỏe.`,
         href: routes.fighter.health,
     });
     return success(examination);
@@ -376,13 +376,13 @@ export type CreateInjuryInput = Pick<
 export async function createInjury(input: CreateInjuryInput, actor: User): Promise<MedicalResult<Injury>> {
     const store = db();
     const fighter = findFighter(input.fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
     const doctorId = actingDoctorId(actor);
     if (!doctorId) return failure(NOT_A_DOCTOR);
 
     const alert = input.linkedAlertId ? store.abnormalMovementAlerts.find((a) => a.id === input.linkedAlertId) : undefined;
     if (input.linkedAlertId && alert?.fighterId !== fighter.id) {
-        return failure("The linked AI movement observation does not belong to this fighter.");
+        return failure("Quan sát AI được liên kết không thuộc võ sĩ này.");
     }
 
     const { status = "active", ...fields } = input;
@@ -397,22 +397,22 @@ export async function createInjury(input: CreateInjuryInput, actor: User): Promi
         action: "injury.create",
         resourceType: "injury",
         resourceId: injury.id,
-        resourceLabel: `Injury record — ${fighter.name}`,
-        details: alert ? `Linked AI observation ${alert.id}` : null,
+        resourceLabel: `Hồ sơ chấn thương — ${fighter.name}`,
+        details: alert ? `Đã liên kết quan sát AI ${alert.id}` : null,
     });
     notifyUsers({
         userIds: coachUserIds(fighter.id),
         category: "medical",
         severity: "warning",
-        title: `New injury recorded for ${fighter.name}`,
-        body: `${fighter.name} has a new injury recorded — check Medical Clearance before planning training.`,
+        title: `Ghi nhận chấn thương mới của ${fighter.name}`,
+        body: `${fighter.name} có chấn thương mới — hãy kiểm tra giấy phép trước khi lên lịch tập.`,
         href: routes.coach.clearance,
     });
     notifyUsers({
         userIds: fighterUserIds(fighter.id),
         category: "medical",
-        title: "Injury recorded",
-        body: "Your sports doctor recorded an injury in your health record. Treatment, recovery steps and any training restrictions will appear on your Health page.",
+        title: "Đã ghi nhận chấn thương",
+        body: "Bác sĩ thể thao đã ghi một chấn thương vào hồ sơ sức khỏe của bạn. Điều trị, các bước phục hồi và hạn chế tập luyện sẽ hiện trên trang Sức khỏe.",
         href: routes.fighter.injury(injury.id),
     });
     return success(injury);
@@ -432,14 +432,14 @@ export type UpdateInjuryPatch = Partial<
 export async function updateInjury(id: string, patch: UpdateInjuryPatch, actor: User): Promise<MedicalResult<Injury>> {
     const store = db();
     const injury = store.injuries.find((i) => i.id === id);
-    if (!injury) return failure("Injury not found.");
+    if (!injury) return failure("Không tìm thấy chấn thương.");
     const fighter = findFighter(injury.fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
 
     if (patch.linkedAlertId !== undefined && patch.linkedAlertId !== injury.linkedAlertId) {
         const next = patch.linkedAlertId ? store.abnormalMovementAlerts.find((a) => a.id === patch.linkedAlertId) : undefined;
         if (patch.linkedAlertId && next?.fighterId !== injury.fighterId) {
-            return failure("The linked AI movement observation does not belong to this fighter.");
+            return failure("Quan sát AI được liên kết không thuộc võ sĩ này.");
         }
         const previous = store.abnormalMovementAlerts.find((a) => a.id === injury.linkedAlertId);
         if (previous?.linkedInjuryId === injury.id) previous.linkedInjuryId = null;
@@ -459,10 +459,10 @@ export async function updateInjury(id: string, patch: UpdateInjuryPatch, actor: 
         action: resolvedNow ? "injury.resolve" : "injury.update",
         resourceType: "injury",
         resourceId: injury.id,
-        resourceLabel: `Injury record — ${fighter.name}`,
+        resourceLabel: `Hồ sơ chấn thương — ${fighter.name}`,
         details: joinDetails([
-            changed.length > 0 ? `Updated fields: ${changed.join(", ")}` : null,
-            previousStatus !== injury.status ? `Status: ${INJURY_STATUS_LABELS[previousStatus]} → ${INJURY_STATUS_LABELS[injury.status]}` : null,
+            changed.length > 0 ? `Trường đã cập nhật: ${changed.join(", ")}` : null,
+            previousStatus !== injury.status ? `Trạng thái: ${INJURY_STATUS_LABELS[previousStatus]} → ${INJURY_STATUS_LABELS[injury.status]}` : null,
         ]),
     });
 
@@ -471,15 +471,15 @@ export async function updateInjury(id: string, patch: UpdateInjuryPatch, actor: 
             userIds: fighterUserIds(fighter.id),
             category: "medical",
             severity: "success",
-            title: "Injury resolved",
-            body: "Your sports doctor marked your injury as resolved. Check your Medical Clearance before returning to full training.",
+            title: "Chấn thương đã khỏi",
+            body: "Bác sĩ thể thao đã đánh dấu chấn thương của bạn đã khỏi. Hãy kiểm tra giấy phép trước khi tập lại đầy đủ.",
             href: routes.fighter.injury(injury.id),
         });
         notifyUsers({
             userIds: coachUserIds(fighter.id),
             category: "medical",
-            title: `Injury resolved for ${fighter.name}`,
-            body: `${fighter.name}'s injury has been marked resolved — check Medical Clearance for their current training status.`,
+            title: `Chấn thương của ${fighter.name} đã khỏi`,
+            body: `Chấn thương của ${fighter.name} đã được đánh dấu khỏi — hãy kiểm tra giấy phép để biết tình trạng tập hiện tại.`,
             href: routes.coach.clearance,
         });
     }
@@ -497,10 +497,10 @@ export type AddTreatmentInput = Pick<Treatment, "injuryId" | "providerName" | "t
 export async function addTreatment(input: AddTreatmentInput, actor: User): Promise<MedicalResult<Treatment>> {
     const store = db();
     const injury = store.injuries.find((i) => i.id === input.injuryId);
-    if (!injury) return failure("Injury not found.");
+    if (!injury) return failure("Không tìm thấy chấn thương.");
     const fighter = findFighter(injury.fighterId);
-    if (!fighter) return failure("Fighter not found.");
-    if (input.endDate && input.endDate < input.startDate) return failure("The end date must be after the start date.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
+    if (input.endDate && input.endDate < input.startDate) return failure("Ngày kết thúc phải sau ngày bắt đầu.");
 
     const now = nowIso();
     const { status: requestedStatus, ...fields } = input;
@@ -513,14 +513,14 @@ export async function addTreatment(input: AddTreatmentInput, actor: User): Promi
         action: "treatment.create",
         resourceType: "treatment",
         resourceId: treatment.id,
-        resourceLabel: `Treatment — ${fighter.name}`,
-        details: `Status: ${TREATMENT_STATUS_LABELS[status]}`,
+        resourceLabel: `Điều trị — ${fighter.name}`,
+        details: `Trạng thái: ${TREATMENT_STATUS_LABELS[status]}`,
     });
     notifyUsers({
         userIds: fighterUserIds(fighter.id),
         category: "medical",
-        title: "Treatment added",
-        body: `${treatmentTitle(treatment)} has been added to your treatment plan (${treatment.frequency}).`,
+        title: "Đã thêm điều trị",
+        body: `Đã thêm ${treatmentTitle(treatment)} vào kế hoạch điều trị của bạn (${treatment.frequency}).`,
         href: routes.fighter.injury(injury.id),
     });
     return success(treatment);
@@ -529,7 +529,7 @@ export async function addTreatment(input: AddTreatmentInput, actor: User): Promi
 /** Changes a treatment's status; completing it fills in a missing end date. */
 export async function updateTreatmentStatus(id: string, status: TreatmentStatus, actor: User): Promise<MedicalResult<Treatment>> {
     const treatment = db().treatments.find((t) => t.id === id);
-    if (!treatment) return failure("Treatment not found.");
+    if (!treatment) return failure("Không tìm thấy điều trị.");
     if (treatment.status === status) return success(treatment);
 
     const previous = treatment.status;
@@ -541,8 +541,8 @@ export async function updateTreatmentStatus(id: string, status: TreatmentStatus,
         action: "treatment.status_change",
         resourceType: "treatment",
         resourceId: treatment.id,
-        resourceLabel: `Treatment — ${findFighter(treatment.fighterId)?.name ?? treatment.fighterId}`,
-        details: `Status: ${previous ? TREATMENT_STATUS_LABELS[previous] : "not set"} → ${TREATMENT_STATUS_LABELS[status]}`,
+        resourceLabel: `Điều trị — ${findFighter(treatment.fighterId)?.name ?? treatment.fighterId}`,
+        details: `Trạng thái: ${previous ? TREATMENT_STATUS_LABELS[previous] : "chưa đặt"} → ${TREATMENT_STATUS_LABELS[status]}`,
     });
     return success(treatment);
 }
@@ -616,14 +616,14 @@ export interface CreateRecoveryPlanInput {
 export async function createRecoveryPlan(input: CreateRecoveryPlanInput, actor: User): Promise<MedicalResult<RecoveryPlan>> {
     const store = db();
     const injury = store.injuries.find((i) => i.id === input.injuryId);
-    if (!injury) return failure("Injury not found.");
+    if (!injury) return failure("Không tìm thấy chấn thương.");
     const fighter = findFighter(injury.fighterId);
-    if (!fighter) return failure("Fighter not found.");
-    if (injury.status === "resolved") return failure("This injury is resolved. Reopen it before creating a recovery plan.");
-    if (input.phases.length === 0) return failure("Add at least one recovery phase.");
-    if (input.targetReturnDate < input.startDate) return failure("The target return date must be after the start date.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
+    if (injury.status === "resolved") return failure("Chấn thương đã khỏi. Hãy mở lại trước khi tạo kế hoạch phục hồi.");
+    if (input.phases.length === 0) return failure("Hãy thêm ít nhất một giai đoạn phục hồi.");
+    if (input.targetReturnDate < input.startDate) return failure("Ngày mục tiêu trở lại phải sau ngày bắt đầu.");
     if (store.recoveryPlans.some((p) => p.injuryId === injury.id && p.status !== "completed")) {
-        return failure("This injury already has a recovery plan in progress.");
+        return failure("Chấn thương này đã có kế hoạch phục hồi đang thực hiện.");
     }
     const doctorId = actingDoctorId(actor);
     if (!doctorId) return failure(NOT_A_DOCTOR);
@@ -655,21 +655,21 @@ export async function createRecoveryPlan(input: CreateRecoveryPlanInput, actor: 
         action: "recovery_plan.create",
         resourceType: "recovery_plan",
         resourceId: plan.id,
-        resourceLabel: `Recovery plan — ${fighter.name}`,
-        details: `${plan.phases.length} phases`,
+        resourceLabel: `Kế hoạch phục hồi — ${fighter.name}`,
+        details: `${plan.phases.length} giai đoạn`,
     });
     notifyUsers({
         userIds: fighterUserIds(fighter.id),
         category: "medical",
-        title: "Recovery plan ready",
-        body: `Your recovery plan "${plan.title}" has started.${plan.targetReturnDate ? ` Target return: ${formatDate(plan.targetReturnDate)}.` : ""}`,
+        title: "Kế hoạch phục hồi đã sẵn sàng",
+        body: `Kế hoạch phục hồi "${plan.title}" của bạn đã bắt đầu.${plan.targetReturnDate ? ` Mục tiêu trở lại: ${formatDate(plan.targetReturnDate)}.` : ""}`,
         href: routes.fighter.injury(injury.id),
     });
     notifyUsers({
         userIds: coachUserIds(fighter.id),
         category: "medical",
-        title: `Recovery plan started for ${fighter.name}`,
-        body: `A return-to-training plan has started for ${fighter.name}. Check Medical Clearance for current training restrictions.`,
+        title: `Đã bắt đầu kế hoạch phục hồi cho ${fighter.name}`,
+        body: `Đã bắt đầu kế hoạch trở lại tập cho ${fighter.name}. Hãy kiểm tra giấy phép để biết hạn chế tập hiện tại.`,
         href: routes.coach.clearance,
     });
     return success(plan);
@@ -686,11 +686,11 @@ const PAIN_INCREASE_FLAG = 2;
 /** Adds a check-in (kept in date order) and informs the responsible doctor when someone else logged it. */
 export async function addRecoveryCheckIn(planId: string, checkIn: RecoveryCheckInInput, actor: User): Promise<MedicalResult<RecoveryPlan>> {
     const plan = db().recoveryPlans.find((p) => p.id === planId);
-    if (!plan) return failure("Recovery plan not found.");
-    if (plan.status === "completed") return failure("This recovery plan is already completed.");
+    if (!plan) return failure("Không tìm thấy kế hoạch phục hồi.");
+    if (plan.status === "completed") return failure("Kế hoạch phục hồi này đã hoàn tất.");
     const inRange = (value: number, max: number) => Number.isFinite(value) && value >= 0 && value <= max;
-    if (!Number.isInteger(checkIn.painLevel) || !inRange(checkIn.painLevel, 10)) return failure("Pain level must be a whole number from 0 to 10.");
-    if (!inRange(checkIn.mobilityPct, 100) || !inRange(checkIn.strengthPct, 100)) return failure("Mobility and strength must be between 0 and 100%.");
+    if (!Number.isInteger(checkIn.painLevel) || !inRange(checkIn.painLevel, 10)) return failure("Mức đau phải là số nguyên từ 0 đến 10.");
+    if (!inRange(checkIn.mobilityPct, 100) || !inRange(checkIn.strengthPct, 100)) return failure("Vận động và sức mạnh phải từ 0 đến 100%.");
 
     const fighter = findFighter(plan.fighterId);
     const previousPain = plan.checkIns.at(-1)?.painLevel ?? null;
@@ -709,21 +709,21 @@ export async function addRecoveryCheckIn(planId: string, checkIn: RecoveryCheckI
         action: "recovery_plan.check_in",
         resourceType: "recovery_plan",
         resourceId: plan.id,
-        resourceLabel: `Recovery plan — ${fighter?.name ?? plan.fighterId}`,
+        resourceLabel: `Kế hoạch phục hồi — ${fighter?.name ?? plan.fighterId}`,
     });
 
     const doctor = findDoctor(plan.doctorId);
     if (doctor?.userId && doctor.userId !== actor.id) {
         const painRose = previousPain !== null && entry.painLevel - previousPain >= PAIN_INCREASE_FLAG;
-        const name = fighter?.name ?? "A fighter";
+        const name = fighter?.name ?? "Một võ sĩ";
         notifyUsers({
             userIds: [doctor.userId],
             category: "medical",
             severity: painRose ? "warning" : "info",
-            title: painRose ? `Pain increased at ${name}'s check-in` : `New recovery check-in from ${name}`,
+            title: painRose ? `Mức đau tăng ở lần kiểm tra của ${name}` : `Kiểm tra phục hồi mới từ ${name}`,
             body: painRose
-                ? `Reported pain rose from ${previousPain}/10 to ${entry.painLevel}/10. Review the recovery plan.`
-                : `Pain ${entry.painLevel}/10, mobility ${entry.mobilityPct}%, strength ${entry.strengthPct}%.`,
+                ? `Mức đau tăng từ ${previousPain}/10 lên ${entry.painLevel}/10. Hãy xem lại kế hoạch phục hồi.`
+                : `Đau ${entry.painLevel}/10, vận động ${entry.mobilityPct}%, sức mạnh ${entry.strengthPct}%.`,
             href: routes.doctor.recoveryPlan(plan.id),
         });
     }
@@ -739,12 +739,12 @@ export async function setMilestone(
     actor: User,
 ): Promise<MedicalResult<RecoveryPlan>> {
     const plan = db().recoveryPlans.find((p) => p.id === planId);
-    if (!plan) return failure("Recovery plan not found.");
+    if (!plan) return failure("Không tìm thấy kế hoạch phục hồi.");
     const phaseNumber = plan.phases.findIndex((p) => p.id === phaseId);
-    if (phaseNumber === -1) return failure("Recovery phase not found.");
+    if (phaseNumber === -1) return failure("Không tìm thấy giai đoạn phục hồi.");
     const phase = plan.phases[phaseNumber];
     if (!Number.isInteger(milestoneIndex) || milestoneIndex < 0 || milestoneIndex >= phase.milestones.length) {
-        return failure("Milestone not found.");
+        return failure("Không tìm thấy mốc.");
     }
     const milestone = phase.milestones[milestoneIndex];
     if (milestone.done === done) return success(plan);
@@ -755,8 +755,8 @@ export async function setMilestone(
         action: "recovery_plan.milestone_update",
         resourceType: "recovery_plan",
         resourceId: plan.id,
-        resourceLabel: `Recovery plan — ${findFighter(plan.fighterId)?.name ?? plan.fighterId}`,
-        details: `Phase ${phaseNumber + 1}, milestone ${milestoneIndex + 1} marked ${done ? "done" : "not done"}`,
+        resourceLabel: `Kế hoạch phục hồi — ${findFighter(plan.fighterId)?.name ?? plan.fighterId}`,
+        details: `Giai đoạn ${phaseNumber + 1}, mốc ${milestoneIndex + 1}: ${done ? "đã đạt" : "chưa đạt"}`,
     });
     return success(plan);
 }
@@ -767,12 +767,12 @@ export async function setMilestone(
  */
 export async function advanceRecoveryPhase(planId: string, actor: User): Promise<MedicalResult<RecoveryPlan>> {
     const plan = db().recoveryPlans.find((p) => p.id === planId);
-    if (!plan) return failure("Recovery plan not found.");
-    if (plan.status !== "active") return failure("Only an active recovery plan can move to its next phase.");
+    if (!plan) return failure("Không tìm thấy kế hoạch phục hồi.");
+    if (plan.status !== "active") return failure("Chỉ kế hoạch đang thực hiện mới chuyển được giai đoạn.");
 
     const currentIndex = plan.phases.findIndex((p) => p.status === "current");
     const nextIndex = plan.phases.findIndex((p, index) => index > currentIndex && p.status === "upcoming");
-    if (currentIndex === -1 && nextIndex === -1) return failure("There is no remaining phase to move to.");
+    if (currentIndex === -1 && nextIndex === -1) return failure("Không còn giai đoạn nào để chuyển.");
 
     if (currentIndex !== -1) plan.phases[currentIndex].status = "completed";
     const nextPhase = nextIndex === -1 ? null : plan.phases[nextIndex];
@@ -785,17 +785,17 @@ export async function advanceRecoveryPhase(planId: string, actor: User): Promise
         action: nextPhase ? "recovery_plan.phase_advance" : "recovery_plan.complete",
         resourceType: "recovery_plan",
         resourceId: plan.id,
-        resourceLabel: `Recovery plan — ${fighter?.name ?? plan.fighterId}`,
-        details: nextPhase ? `Now in phase ${nextIndex + 1} of ${plan.phases.length}` : "All phases completed",
+        resourceLabel: `Kế hoạch phục hồi — ${fighter?.name ?? plan.fighterId}`,
+        details: nextPhase ? `Đang ở giai đoạn ${nextIndex + 1}/${plan.phases.length}` : "Đã hoàn tất mọi giai đoạn",
     });
     notifyUsers({
         userIds: fighterUserIds(plan.fighterId),
         category: "medical",
         severity: "success",
-        title: nextPhase ? `Next recovery phase: ${nextPhase.name}` : "Recovery plan completed",
+        title: nextPhase ? `Giai đoạn phục hồi tiếp theo: ${nextPhase.name}` : "Đã hoàn tất kế hoạch phục hồi",
         body: nextPhase
-            ? `You've moved on to "${nextPhase.name}". ${nextPhase.goal}`
-            : "You've completed every phase of your recovery plan. Your sports doctor will confirm your Medical Clearance before full training.",
+            ? `Bạn đã chuyển sang "${nextPhase.name}". ${nextPhase.goal}`
+            : "Bạn đã hoàn tất mọi giai đoạn của kế hoạch phục hồi. Bác sĩ thể thao sẽ xác nhận giấy phép trước khi bạn tập lại đầy đủ.",
         href: routes.fighter.injury(plan.injuryId),
     });
     return success(plan);
@@ -865,7 +865,7 @@ export async function listReviewRequests(fighterId: string): Promise<MedicalRevi
 export async function createReviewRequest(fighterId: string, reason: string, actor: User): Promise<MedicalResult<MedicalReviewRequest>> {
     const store = db();
     const fighter = findFighter(fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
 
     const request: MedicalReviewRequest = {
         id: newId("mrr"),
@@ -880,12 +880,12 @@ export async function createReviewRequest(fighterId: string, reason: string, act
     };
     store.medicalReviewRequests.push(request);
 
-    recordAudit({ actor, action: "medical_review.request", resourceType: "fighter", resourceId: fighter.id, resourceLabel: `Medical review — ${fighter.name}` });
+    recordAudit({ actor, action: "medical_review.request", resourceType: "fighter", resourceId: fighter.id, resourceLabel: `Xem xét y tế — ${fighter.name}` });
     notifyUsers({
         userIds: staffUserIdsForFighter(fighter.id, ["doctor"]).filter((userId) => userId !== actor.id),
         category: "medical",
-        title: `Medical review requested for ${fighter.name}`,
-        body: `${actor.name} asked for a review: “${request.reason}”. Training is paused until you record an examination.`,
+        title: `Yêu cầu xem xét y tế cho ${fighter.name}`,
+        body: `${actor.name} yêu cầu xem xét: “${request.reason}”. Việc tập tạm dừng cho đến khi bạn ghi phiếu khám.`,
         href: routes.doctor.fighter(fighter.id),
     });
     return success(request);
@@ -910,9 +910,9 @@ export interface GrantClearanceInput {
 }
 
 const CLEARANCE_SUMMARY_FOR_FIGHTER: Record<ClearanceLevel, string> = {
-    full: "You are cleared for full training.",
-    restricted: "You are cleared to train with restrictions.",
-    not_cleared: "You are not cleared to train until your sports doctor re-examines you. Follow your recovery plan in the meantime.",
+    full: "Bạn được tập đầy đủ.",
+    restricted: "Bạn được tập có hạn chế.",
+    not_cleared: "Bạn chưa được tập cho đến khi bác sĩ thể thao khám lại. Trong thời gian này hãy theo kế hoạch phục hồi.",
 };
 
 /**
@@ -922,15 +922,15 @@ const CLEARANCE_SUMMARY_FOR_FIGHTER: Record<ClearanceLevel, string> = {
 export async function grantClearance(input: GrantClearanceInput, actor: User): Promise<MedicalResult<MedicalClearance>> {
     const store = db();
     const fighter = findFighter(input.fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
     const doctorId = actingDoctorId(actor);
     if (!doctorId) return failure(NOT_A_DOCTOR);
-    if (!input.reason.trim()) return failure("Give a reason for this clearance decision.");
-    if (input.level === "restricted" && input.restrictions.length === 0) return failure("Add at least one restriction for a restricted clearance.");
-    if (input.validUntil && daysBetween(new Date(), input.validUntil) < 0) return failure("The validity date cannot be in the past.");
+    if (!input.reason.trim()) return failure("Hãy ghi lý do cho quyết định cấp phép.");
+    if (input.level === "restricted" && input.restrictions.length === 0) return failure("Hãy thêm ít nhất một hạn chế cho giấy phép có hạn chế.");
+    if (input.validUntil && daysBetween(new Date(), input.validUntil) < 0) return failure("Ngày hiệu lực không thể ở quá khứ.");
     if (input.examinationId) {
         const examination = store.medicalExaminations.find((e) => e.id === input.examinationId);
-        if (examination?.fighterId !== fighter.id) return failure("The linked examination does not belong to this fighter.");
+        if (examination?.fighterId !== fighter.id) return failure("Phiếu khám liên kết không thuộc võ sĩ này.");
     }
 
     const superseded = store.medicalClearances.filter((c) => c.fighterId === fighter.id && c.status === "active");
@@ -963,26 +963,26 @@ export async function grantClearance(input: GrantClearanceInput, actor: User): P
         action: "clearance.grant",
         resourceType: "clearance",
         resourceId: clearance.id,
-        resourceLabel: `Medical Clearance — ${fighter.name}`,
-        details: superseded.length > 0 ? `Superseded ${superseded.map((c) => c.id).join(", ")}` : null,
+        resourceLabel: `Giấy phép — ${fighter.name}`,
+        details: superseded.length > 0 ? `Thay thế ${superseded.map((c) => c.id).join(", ")}` : null,
     });
 
     const levelLabel = CLEARANCE_LEVEL_LABELS[clearance.level];
 
-    const validity = clearance.validUntil ? ` Valid until ${formatDate(clearance.validUntil)}.` : "";
-    const restrictionList = clearance.restrictions.length > 0 ? ` Restrictions: ${clearance.restrictions.map((r) => r.label).join("; ")}.` : "";
+    const validity = clearance.validUntil ? ` Hiệu lực đến ${formatDate(clearance.validUntil)}.` : "";
+    const restrictionList = clearance.restrictions.length > 0 ? ` Hạn chế: ${clearance.restrictions.map((r) => r.label).join("; ")}.` : "";
     const severity = clearance.level === "full" ? "success" : "warning";
     const coachBody: Record<ClearanceLevel, string> = {
-        full: `${fighter.name} is cleared for full training.${validity}`,
-        restricted: `${fighter.name} is cleared to train with restrictions.${restrictionList}${validity} Check planned sessions for conflicts.`,
-        not_cleared: `${fighter.name} is not cleared to train. Pause planned sessions until a sports doctor clears them.`,
+        full: `${fighter.name} được tập đầy đủ.${validity}`,
+        restricted: `${fighter.name} được tập có hạn chế.${restrictionList}${validity} Hãy kiểm tra các buổi đã lên lịch có xung đột không.`,
+        not_cleared: `${fighter.name} chưa được tập. Hãy tạm dừng các buổi đã lên lịch cho đến khi bác sĩ thể thao cấp phép.`,
     };
 
     notifyUsers({
         userIds: fighterUserIds(fighter.id),
         category: "clearance",
         severity,
-        title: `Medical Clearance updated: ${levelLabel}`,
+        title: `Giấy phép được cập nhật: ${levelLabel}`,
         body: `${CLEARANCE_SUMMARY_FOR_FIGHTER[clearance.level]}${clearance.level === "restricted" ? restrictionList : ""}${clearance.level === "not_cleared" ? "" : validity}`,
         href: routes.fighter.health,
     });
@@ -997,8 +997,8 @@ export async function grantClearance(input: GrantClearanceInput, actor: User): P
     notifyUsers({
         userIds: otherDoctorUserIds(fighter.id, actor),
         category: "clearance",
-        title: `Medical Clearance updated for ${fighter.name}`,
-        body: `${findDoctor(clearance.doctorId)?.name ?? actor.name} set ${fighter.name} to ${levelLabel}.${validity}`,
+        title: `Đã cập nhật giấy phép cho ${fighter.name}`,
+        body: `${findDoctor(clearance.doctorId)?.name ?? actor.name} đặt ${fighter.name}: ${levelLabel}.${validity}`,
         href: routes.doctor.clearance,
     });
     return success(clearance);
@@ -1007,11 +1007,11 @@ export async function grantClearance(input: GrantClearanceInput, actor: User): P
 /** Revokes an active clearance, marks the fighter Not Cleared and notifies everyone involved. */
 export async function revokeClearance(clearanceId: string, reason: string, actor: User): Promise<MedicalResult<MedicalClearance>> {
     const clearance = db().medicalClearances.find((c) => c.id === clearanceId);
-    if (!clearance) return failure("Clearance not found.");
-    if (clearance.status !== "active") return failure("Only an active clearance can be revoked.");
-    if (!reason.trim()) return failure("Give a reason for revoking this clearance.");
+    if (!clearance) return failure("Không tìm thấy giấy phép.");
+    if (clearance.status !== "active") return failure("Chỉ thu hồi được giấy phép đang hiệu lực.");
+    if (!reason.trim()) return failure("Hãy ghi lý do thu hồi giấy phép.");
     const fighter = findFighter(clearance.fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
 
     clearance.status = "revoked";
     clearance.revokedAt = nowIso();
@@ -1023,29 +1023,29 @@ export async function revokeClearance(clearanceId: string, reason: string, actor
         action: "clearance.revoke",
         resourceType: "clearance",
         resourceId: clearance.id,
-        resourceLabel: `Medical Clearance — ${fighter.name}`,
+        resourceLabel: `Giấy phép — ${fighter.name}`,
     });
     notifyUsers({
         userIds: fighterUserIds(fighter.id),
         category: "clearance",
         severity: "warning",
-        title: "Medical Clearance revoked",
-        body: "Your Medical Clearance has been revoked and you are not cleared to train. Your sports doctor will explain the next steps.",
+        title: "Đã thu hồi giấy phép",
+        body: "Giấy phép của bạn đã bị thu hồi và bạn chưa được tập. Bác sĩ thể thao sẽ giải thích các bước tiếp theo.",
         href: routes.fighter.health,
     });
     notifyUsers({
         userIds: coachUserIds(fighter.id),
         category: "clearance",
         severity: "warning",
-        title: `${fighter.name} is not cleared`,
-        body: `${fighter.name}'s Medical Clearance was revoked. Pause planned sessions until a sports doctor clears them again.`,
+        title: `${fighter.name} chưa được tập`,
+        body: `Giấy phép của ${fighter.name} đã bị thu hồi. Hãy tạm dừng các buổi đã lên lịch cho đến khi bác sĩ thể thao cấp phép lại.`,
         href: routes.coach.clearance,
     });
     notifyUsers({
         userIds: otherDoctorUserIds(fighter.id, actor),
         category: "clearance",
         severity: "warning",
-        title: `Medical Clearance revoked for ${fighter.name}`,
+        title: `Đã thu hồi giấy phép của ${fighter.name}`,
         body: `${actor.name}: ${clearance.revokedReason}`,
         href: routes.doctor.clearance,
     });
@@ -1055,7 +1055,7 @@ export async function revokeClearance(clearanceId: string, reason: string, actor
 /** Sets a fighter's health status directly (e.g. to "monitoring") and tells their coaches. */
 export async function updateHealthStatus(fighterId: string, status: HealthStatus, actor: User): Promise<MedicalResult<Fighter>> {
     const fighter = findFighter(fighterId);
-    if (!fighter) return failure("Fighter not found.");
+    if (!fighter) return failure("Không tìm thấy võ sĩ.");
     if (fighter.healthStatus === status) return success(fighter);
 
     fighter.healthStatus = status;
@@ -1065,14 +1065,14 @@ export async function updateHealthStatus(fighterId: string, status: HealthStatus
         action: "fighter.health_status_update",
         resourceType: "fighter",
         resourceId: fighter.id,
-        resourceLabel: `Health status — ${fighter.name}`,
+        resourceLabel: `Tình trạng sức khỏe — ${fighter.name}`,
     });
     notifyUsers({
         userIds: coachUserIds(fighter.id),
         category: "medical",
         severity: status === "healthy" ? "success" : status === "monitoring" ? "info" : "warning",
         title: `${fighter.name}: ${HEALTH_STATUS_LABELS[status]}`,
-        body: `${fighter.name}'s health status changed to ${HEALTH_STATUS_LABELS[status]}. ${HEALTH_STATUS_DESCRIPTIONS[status]}`,
+        body: `Tình trạng sức khỏe của ${fighter.name} chuyển thành ${HEALTH_STATUS_LABELS[status]}. ${HEALTH_STATUS_DESCRIPTIONS[status]}`,
         href: routes.coach.clearance,
     });
     return success(fighter);

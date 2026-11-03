@@ -33,7 +33,9 @@ import {
 } from "@/components/medical/medical-ui";
 import { medical } from "@/i18n/medical";
 import { mapApiMessage } from "@/session/map-api-message";
-import { type, useThemePreference } from "@/theme";
+import { type, useThemePreference } from "@/theme";
+import { FilterSelect } from "@/components/filter-sheet";
+import { SkeletonRows } from "@/components/loading";
 
 const PAGE_SIZE = 20;
 
@@ -182,35 +184,27 @@ export function MedicalHistoryContent({
       </View>
 
       {tab === "history" ? (
-        <View style={medicalStyles.chips}>
-          <MedicalChip label={medical.filterAll} selected={recordType === ""} onPress={() => setRecordType("")} />
-          {MEDICAL_HISTORY_RECORD_TYPES.map((value) => (
-            <MedicalChip
-              key={value}
-              label={recordTypeLabel(value)}
-              selected={recordType === value}
-              onPress={() => setRecordType(value)}
-            />
-          ))}
-        </View>
+        <FilterSelect
+          label="Loại hồ sơ"
+          options={[{ value: "" as const, label: medical.filterAll }, ...MEDICAL_HISTORY_RECORD_TYPES.map((value) => ({ value, label: recordTypeLabel(value) }))]}
+          value={recordType}
+          allValue=""
+          onChange={setRecordType}
+        />
       ) : (
-        <View style={medicalStyles.chips}>
-          <MedicalChip label={medical.filterAll} selected={scope === ""} onPress={() => setScope("")} />
-          {EXAMINATION_SCOPES.map((value) => (
-            <MedicalChip
-              key={value}
-              label={scopeLabel(value)}
-              selected={scope === value}
-              onPress={() => setScope(value)}
-            />
-          ))}
-        </View>
+        <FilterSelect
+          label="Phạm vi khám"
+          options={[{ value: "" as const, label: medical.filterAll }, ...EXAMINATION_SCOPES.map((value) => ({ value, label: scopeLabel(value) }))]}
+          value={scope}
+          allValue=""
+          onChange={setScope}
+        />
       )}
 
       {active.error ? <MedicalLink label={medical.retry} onPress={active.reload} /> : null}
 
       <MedicalCard>
-        {active.loading && active.rows.length === 0 ? <MedicalMuted text={medical.loading} /> : null}
+        {active.loading && active.rows.length === 0 ? <SkeletonRows rows={3} avatar={false} /> : null}
         {!active.loading && active.rows.length === 0 && !active.error ? (
           <MedicalMuted text={tab === "history" ? medical.historyEmpty : medical.examsEmpty} />
         ) : null}

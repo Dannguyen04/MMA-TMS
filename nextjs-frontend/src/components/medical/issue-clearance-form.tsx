@@ -49,9 +49,9 @@ export interface IssueClearanceFormProps {
 }
 
 const CLEARANCE_TYPE_DESCRIPTIONS: Record<ClearanceType, string> = {
-    TRAINING: "Routine training clearance.",
-    RETURN_FROM_INJURY: "Back to training after an injury, usually with limits.",
-    COMPETITION: "Clears the fighter to compete in a bout.",
+    TRAINING: "Giấy phép tập luyện thường quy.",
+    RETURN_FROM_INJURY: "Trở lại tập sau chấn thương, thường có giới hạn.",
+    COMPETITION: "Cho phép võ sĩ thi đấu một trận.",
 };
 
 const CLEARANCE_TYPE_TERMS: Record<ClearanceType, GlossaryTerm> = {
@@ -94,7 +94,7 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
     const examOptions: ChoiceOption<string>[] = examinations.map((candidate) => ({
         value: candidate.id,
         label: `${EXAMINATION_SCOPE_LABELS[candidate.scope]} — ${EXAMINATION_DECISION_LABELS[candidate.decision]}`,
-        description: `Examined ${formatDate(candidate.examinedAt)}${candidate.validUntil ? ` · valid until ${formatDate(candidate.validUntil)}` : ""}`,
+        description: `Khám ${formatDate(candidate.examinedAt)}${candidate.validUntil ? ` · hiệu lực đến ${formatDate(candidate.validUntil)}` : ""}`,
     }));
     const typeOptions: ChoiceOption<ClearanceType>[] = types.map((value) => ({
         value,
@@ -103,7 +103,7 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
         extra:
             suggestion?.type === value && types.length > 1 ? (
                 <Badge tone="info" size="sm" className="mt-1.5">
-                    Suggested
+                    Gợi ý
                 </Badge>
             ) : undefined,
     }));
@@ -118,11 +118,11 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                     {unconfirmed && <input type="hidden" name={RECONCILE_FIELD} value="1" />}
 
                     {examinations.length > 1 ? (
-                        <FormSection title="Examination" description="A clearance comes from the current positive examination of its scope.">
+                        <FormSection title="Phiếu khám" description="Giấy phép được cấp từ phiếu khám đạt hiện hành của phạm vi đó.">
                             <ChoiceGroup
                                 id="issue-clearance-exam"
                                 name="examinationId"
-                                legend="Examination"
+                                legend="Phiếu khám"
                                 legendVisuallyHidden
                                 required
                                 variant="compact"
@@ -143,11 +143,11 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
 
                     {exam && (
                         <>
-                            <FormSection title="Clearance" info={<TermHint term="medicalClearance" />} description="What it clears the fighter for, and when.">
+                            <FormSection title="Giấy phép" info={<TermHint term="medicalClearance" />} description="Cho phép võ sĩ làm gì và trong thời gian nào.">
                                 <ChoiceGroup
                                     id="issue-clearance-type"
                                     name="clearanceType"
-                                    legend="Type"
+                                    legend="Loại"
                                     required
                                     columns={types.length > 1 ? 2 : 1}
                                     variant="compact"
@@ -159,7 +159,7 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                                 />
                                 {types.length > 1 && (
                                     <p className="-mt-2 text-[13px] text-fg-muted">
-                                        About the types:{" "}
+                                        Về các loại:{" "}
                                         {types.map((value, index) => (
                                             <span key={value}>
                                                 {index > 0 && ", "}
@@ -173,31 +173,31 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                                     <Callout
                                         tone="warning"
                                         icon={TriangleAlert}
-                                        title="Already issued"
+                                        title="Đã cấp"
                                         role={existing ? "status" : "note"}
                                         action={
                                             <Link href={clearancesHref} className="text-[13px] font-medium text-primary-soft-fg hover:underline">
-                                                View clearances
+                                                Xem giấy phép
                                             </Link>
                                         }
                                     >
-                                        A {CLEARANCE_TYPE_LABELS[shownExisting.clearanceType].toLowerCase()} clearance from this examination has been in place since {formatDate(shownExisting.issuedAt)}
-                                        {shownExisting.validUntil ? `, valid until ${formatDate(shownExisting.validUntil)}` : ", with no end date"}. Revoke it first if it needs to change.
+                                        A {CLEARANCE_TYPE_LABELS[shownExisting.clearanceType].toLowerCase()} giấy phép từ phiếu khám này có hiệu lực từ {formatDate(shownExisting.issuedAt)}
+                                        {shownExisting.validUntil ? `, hiệu lực đến ${formatDate(shownExisting.validUntil)}` : ", không thời hạn"}. Hãy thu hồi trước nếu cần thay đổi.
                                     </Callout>
                                 )}
 
                                 {changeDates ? (
                                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                                        <Field label="Starts" htmlFor={control("validFrom").id} error={error("validFrom")} optional hint="Leave empty to start when you issue it.">
+                                        <Field label="Bắt đầu" htmlFor={control("validFrom").id} error={error("validFrom")} optional hint="Để trống để bắt đầu khi cấp.">
                                             <Input {...control("validFrom", { hint: true })} type="date" min={examDay} />
                                         </Field>
                                         <Field
-                                            label="Ends"
+                                            label="Kết thúc"
                                             htmlFor={control("validUntil").id}
                                             error={error("validUntil")}
                                             optional
                                             info={<TermHint term="validUntil" />}
-                                            hint={examLastDay ? `Leave empty to end with the examination on ${formatDate(exam.validUntil ?? "")}.` : "Leave empty for no end date."}
+                                            hint={examLastDay ? `Để trống để kết thúc cùng phiếu khám vào ${formatDate(exam.validUntil ?? "")}.` : "Để trống nếu không thời hạn."}
                                         >
                                             <Input {...control("validUntil", { hint: true })} type="date" min={today} max={examLastDay} />
                                         </Field>
@@ -207,34 +207,34 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                                         <p className="flex items-start gap-2">
                                             <CalendarRange aria-hidden className="mt-px size-4 shrink-0" />
                                             <span>
-                                                Starts <span className="font-medium text-fg">when you issue it</span> and{" "}
+                                                Bắt đầu <span className="font-medium text-fg">khi cấp</span> and{" "}
                                                 {exam.validUntil ? (
                                                     <>
-                                                        ends <span className="font-medium text-fg">{formatDate(exam.validUntil)}</span>, with the examination&apos;s decision.
+                                                        ends <span className="font-medium text-fg">{formatDate(exam.validUntil)}</span>, theo quyết định của phiếu khám.
                                                     </>
                                                 ) : (
                                                     <>
-                                                        has <span className="font-medium text-fg">no end date</span>, like the examination&apos;s decision.
+                                                        has <span className="font-medium text-fg">không thời hạn</span>, như quyết định của phiếu khám.
                                                     </>
                                                 )}
                                             </span>
                                         </p>
                                         <Button variant="ghost" size="sm" onClick={() => setChangeDates(true)}>
-                                            Change dates
+                                            Đổi ngày
                                         </Button>
                                     </div>
                                 )}
                             </FormSection>
 
-                            <FormSection title="Limits" info={<TermHint term="restrictions" />} description="Copied from the examination. You can narrow them, never widen them.">
+                            <FormSection title="Giới hạn" info={<TermHint term="restrictions" />} description="Sao chép từ phiếu khám. Có thể thu hẹp, không thể mở rộng.">
                                 <RestrictionFields key={exam.id} form={form} idPrefix="issue-clearance" defaults={exam.restrictions} bound={exam.restrictions} />
-                                <Field label="Notes" htmlFor={control("notes").id} error={error("notes")} optional hint="Shown with the clearance to coaches and the fighter.">
+                                <Field label="Ghi chú" htmlFor={control("notes").id} error={error("notes")} optional hint="Hiển thị cùng giấy phép cho HLV và võ sĩ.">
                                     <Textarea {...control("notes", { hint: true })} rows={3} maxLength={MEDICAL_TEXT_LIMITS.clearanceNotes} />
                                 </Field>
                             </FormSection>
 
                             <InlineNote icon={Info} className="mb-5">
-                                Coaches plan {fighter.name}&apos;s sessions against it straight away. Clearances can&apos;t be edited: to change one, revoke it and issue a new one.
+                                HLV lên lịch {fighter.name}theo giấy phép này ngay. Giấy phép không thể sửa: muốn thay đổi, hãy thu hồi và cấp mới.
                             </InlineNote>
                         </>
                     )}
@@ -243,8 +243,8 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                         message={form.message}
                         cancelHref={cancelHref}
                         pending={form.pending}
-                        submitLabel={unconfirmed ? "Try again" : "Issue clearance"}
-                        pendingLabel={unconfirmed ? "Checking the record…" : "Issuing…"}
+                        submitLabel={unconfirmed ? "Thử lại" : "Cấp giấy phép"}
+                        pendingLabel={unconfirmed ? "Đang kiểm tra hồ sơ…" : "Đang cấp…"}
                         disabled={!exam || Boolean(issued)}
                     />
                 </Card>

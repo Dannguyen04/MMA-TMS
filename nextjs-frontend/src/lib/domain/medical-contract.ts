@@ -139,6 +139,8 @@ export interface MedicalEligibility {
     scope: ExaminationScope;
     eligible: boolean;
     reasons: EligibilityReason[];
+    /** "DOCTOR" when the academy's doctors supervise the gate (an open review then pauses training); absent on older services and in demo data. */
+    supervision?: "DOCTOR" | "NONE";
 }
 
 export interface RecoveryMilestone {
@@ -167,101 +169,101 @@ export interface MedicalReviewRequest {
 /* ─── Labels ──────────────────────────────────────────────────────────────── */
 
 export const ELIGIBILITY_REASON_LABELS: Record<EligibilityReason, string> = {
-    EXAMINATION_REQUIRED: "Baseline examination required",
-    REVIEW_REQUEST_PENDING: "Medical review pending",
-    EXAMINATION_NOT_ELIGIBLE: "Not eligible after examination",
-    CLEARANCE_REQUIRED: "Clearance required",
-    CLEARANCE_EXPIRED: "Clearance expired",
-    SESSION_TYPE_RESTRICTED: "Session type restricted",
-    OTHER_MEDICAL_REASON: "Other medical reason",
+    EXAMINATION_REQUIRED: "Cần khám nền",
+    REVIEW_REQUEST_PENDING: "Đang chờ xem xét y tế",
+    EXAMINATION_NOT_ELIGIBLE: "Không đủ điều kiện sau khám",
+    CLEARANCE_REQUIRED: "Cần giấy phép",
+    CLEARANCE_EXPIRED: "Giấy phép hết hạn",
+    SESSION_TYPE_RESTRICTED: "Loại buổi tập bị hạn chế",
+    OTHER_MEDICAL_REASON: "Lý do y tế khác",
 };
 
 /** What each reason means for the fighter and what happens next, in plain words. */
 export const ELIGIBILITY_REASON_DESCRIPTIONS: Record<EligibilityReason, string> = {
-    EXAMINATION_REQUIRED: "Every fighter needs a baseline examination by their sports doctor, with a SCAT6, before training.",
-    REVIEW_REQUEST_PENDING: "A medical review has been requested. Training waits until a sports doctor records an examination.",
-    EXAMINATION_NOT_ELIGIBLE: "The latest examination found the fighter not eligible to train. A new examination is needed first.",
-    CLEARANCE_REQUIRED: "There is no valid Medical Clearance on file. A sports doctor needs to issue one.",
-    CLEARANCE_EXPIRED: "The Medical Clearance has expired. A sports doctor needs to renew it.",
-    SESSION_TYPE_RESTRICTED: "This type of session isn't allowed under the current medical restrictions.",
-    OTHER_MEDICAL_REASON: "The medical service gave another reason that this app can't show yet. Ask the sports doctor before training.",
+    EXAMINATION_REQUIRED: "Mọi võ sĩ cần được bác sĩ thể thao khám nền, kèm SCAT6, trước khi tập.",
+    REVIEW_REQUEST_PENDING: "Đã có yêu cầu xem xét y tế. Việc tập chờ đến khi bác sĩ thể thao ghi phiếu khám.",
+    EXAMINATION_NOT_ELIGIBLE: "Lần khám gần nhất kết luận võ sĩ không đủ điều kiện tập. Cần khám mới trước.",
+    CLEARANCE_REQUIRED: "Chưa có giấy phép hợp lệ. Bác sĩ thể thao cần cấp giấy phép.",
+    CLEARANCE_EXPIRED: "Giấy phép đã hết hạn. Bác sĩ thể thao cần gia hạn.",
+    SESSION_TYPE_RESTRICTED: "Loại buổi tập này không được phép theo hạn chế y tế hiện tại.",
+    OTHER_MEDICAL_REASON: "Dịch vụ y tế trả về lý do khác mà ứng dụng chưa hiển thị được. Hãy hỏi bác sĩ thể thao trước khi tập.",
 };
 
 export const BODY_JOINT_LABELS: Record<BodyJoint, string> = {
-    LEFT_SHOULDER: "Left shoulder",
-    RIGHT_SHOULDER: "Right shoulder",
-    LEFT_ELBOW: "Left elbow",
-    RIGHT_ELBOW: "Right elbow",
-    LEFT_WRIST: "Left wrist",
-    RIGHT_WRIST: "Right wrist",
-    LEFT_HIP: "Left hip",
-    RIGHT_HIP: "Right hip",
-    LEFT_KNEE: "Left knee",
-    RIGHT_KNEE: "Right knee",
-    LEFT_ANKLE: "Left ankle",
-    RIGHT_ANKLE: "Right ankle",
-    SPINE_CORE: "Spine and core",
+    LEFT_SHOULDER: "Vai trái",
+    RIGHT_SHOULDER: "Vai phải",
+    LEFT_ELBOW: "Khuỷu tay trái",
+    RIGHT_ELBOW: "Khuỷu tay phải",
+    LEFT_WRIST: "Cổ tay trái",
+    RIGHT_WRIST: "Cổ tay phải",
+    LEFT_HIP: "Hông trái",
+    RIGHT_HIP: "Hông phải",
+    LEFT_KNEE: "Gối trái",
+    RIGHT_KNEE: "Gối phải",
+    LEFT_ANKLE: "Cổ chân trái",
+    RIGHT_ANKLE: "Cổ chân phải",
+    SPINE_CORE: "Cột sống và vùng lõi",
 };
 
 export const SESSION_TYPE_LABELS: Record<SessionType, string> = {
-    SHADOW_BOXING: "Shadow boxing",
-    PAD_WORK: "Pad work",
-    HEAVY_BAG: "Heavy bag",
-    SPARRING: "Sparring",
-    GRAPPLING: "Grappling",
-    STRENGTH_CONDITIONING: "Strength & conditioning",
-    RECOVERY: "Recovery",
-    PHYSICAL_THERAPY: "Physical therapy",
+    SHADOW_BOXING: "Đánh gió",
+    PAD_WORK: "Đánh đích",
+    HEAVY_BAG: "Đánh bao",
+    SPARRING: "Đấu tập",
+    GRAPPLING: "Vật",
+    STRENGTH_CONDITIONING: "Sức mạnh & thể lực",
+    RECOVERY: "Phục hồi",
+    PHYSICAL_THERAPY: "Vật lý trị liệu",
 };
 
 export const TECHNIQUE_TYPE_LABELS: Record<TechniqueType, string> = {
-    JAB: "Jab",
-    CROSS: "Cross",
-    LEAD_HOOK: "Lead hook",
-    REAR_HOOK: "Rear hook",
-    LEAD_UPPERCUT: "Lead uppercut",
-    REAR_UPPERCUT: "Rear uppercut",
-    LEAD_LOW_KICK: "Lead low kick",
-    REAR_LOW_KICK: "Rear low kick",
-    LEAD_MIDDLE_KICK: "Lead middle kick",
-    REAR_MIDDLE_KICK: "Rear middle kick",
-    LEAD_HIGH_KICK: "Lead high kick",
-    REAR_HIGH_KICK: "Rear high kick",
-    FRONT_TEEP: "Front teep",
-    SPINNING_BACK_FIST: "Spinning back fist",
+    JAB: "Đấm thẳng tay trước",
+    CROSS: "Đấm thẳng tay sau",
+    LEAD_HOOK: "Móc tay trước",
+    REAR_HOOK: "Móc tay sau",
+    LEAD_UPPERCUT: "Móc lên tay trước",
+    REAR_UPPERCUT: "Móc lên tay sau",
+    LEAD_LOW_KICK: "Đá thấp chân trước",
+    REAR_LOW_KICK: "Đá thấp chân sau",
+    LEAD_MIDDLE_KICK: "Đá tầm trung chân trước",
+    REAR_MIDDLE_KICK: "Đá tầm trung chân sau",
+    LEAD_HIGH_KICK: "Đá cao chân trước",
+    REAR_HIGH_KICK: "Đá cao chân sau",
+    FRONT_TEEP: "Đạp trước",
+    SPINNING_BACK_FIST: "Xoay người đấm mu tay",
 };
 
 export const CLEARANCE_TYPE_LABELS: Record<ClearanceType, string> = {
-    TRAINING: "Training",
-    COMPETITION: "Competition",
-    RETURN_FROM_INJURY: "Return from injury",
+    TRAINING: "Tập luyện",
+    COMPETITION: "Thi đấu",
+    RETURN_FROM_INJURY: "Trở lại sau chấn thương",
 };
 
 export const EXAMINATION_SCOPE_LABELS: Record<ExaminationScope, string> = {
-    TRAINING: "Training",
-    COMPETITION: "Competition",
+    TRAINING: "Tập luyện",
+    COMPETITION: "Thi đấu",
 };
 
 export const EXAMINATION_SCOPE_DESCRIPTIONS: Record<ExaminationScope, string> = {
-    TRAINING: "Whether the fighter may train. It can close open medical review requests.",
-    COMPETITION: "Whether the fighter may compete in a bout.",
+    TRAINING: "Võ sĩ có được tập hay không. Có thể đóng các yêu cầu xem xét đang mở.",
+    COMPETITION: "Võ sĩ có được thi đấu hay không.",
 };
 
 export const EXAMINATION_DECISION_LABELS: Record<ExaminationDecision, string> = {
-    ELIGIBLE: "Eligible",
-    ELIGIBLE_WITH_RESTRICTIONS: "Eligible with restrictions",
-    NOT_ELIGIBLE: "Not eligible",
+    ELIGIBLE: "Đủ điều kiện",
+    ELIGIBLE_WITH_RESTRICTIONS: "Đủ điều kiện có hạn chế",
+    NOT_ELIGIBLE: "Không đủ điều kiện",
 };
 
 export const EXAMINATION_DECISION_DESCRIPTIONS: Record<ExaminationDecision, string> = {
-    ELIGIBLE: "No limits. Issue a clearance next so the fighter can train.",
-    ELIGIBLE_WITH_RESTRICTIONS: "Allowed within the limits you set. Issue a clearance next.",
-    NOT_ELIGIBLE: "Training stops. Active clearances of this scope are revoked straight away.",
+    ELIGIBLE: "Không giới hạn. Cấp giấy phép tiếp theo để võ sĩ được tập.",
+    ELIGIBLE_WITH_RESTRICTIONS: "Được phép trong giới hạn bạn đặt. Cấp giấy phép tiếp theo.",
+    NOT_ELIGIBLE: "Dừng tập. Giấy phép đang hiệu lực của phạm vi này bị thu hồi ngay.",
 };
 
 export const REQUESTER_ROLE_LABELS: Record<MedicalReviewRequest["requesterRole"], string> = {
-    FIGHTER: "Fighter",
-    COACH: "Coach",
-    DOCTOR: "Doctor",
-    ADMIN: "Admin",
+    FIGHTER: "Võ sĩ",
+    COACH: "HLV",
+    DOCTOR: "Bác sĩ",
+    ADMIN: "Quản trị",
 };

@@ -25,7 +25,7 @@ export function ChapterTitle({ id, children, className }: { id: string; children
 /** Frosted panel that keeps copy readable over the 3D stage. */
 export function Panel({ children, className, ...props }: { children: ReactNode; className?: string } & React.HTMLAttributes<HTMLDivElement>) {
     return (
-        <div className={cn("rounded-2xl border border-white/10 bg-landing-ink/55 shadow-[0_24px_80px_-32px_rgb(0_0_0/0.9)] backdrop-blur-xl", className)} {...props}>
+        <div className={cn("rounded-2xl border border-white/10 bg-landing-ink/55 shadow-[0_24px_80px_-32px_rgb(0_0_0/0.9)] backdrop-blur-xl lite:bg-landing-ink/90", className)} {...props}>
             {children}
         </div>
     );

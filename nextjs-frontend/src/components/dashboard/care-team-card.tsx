@@ -31,13 +31,20 @@ function specialtyToShow({ title, specialty }: CareTeamMember): string | null {
     return words && !comparable(title).includes(words) ? specialty : null;
 }
 
-/** The sports doctors and coaches looking after a fighter. */
+/** The sports doctors and coaches looking after a fighter, and who arranges the ones still missing. */
 export function CareTeamCard({ members, className, locale = "en" }: { members: CareTeamMember[]; className?: string; locale?: Locale }) {
     const t = createTranslator(locale);
     const groups: { label: string; items: CareTeamMember[]; empty: string }[] = [
-        { label: t("careTeam.sportsMedicine"), empty: t("careTeam.noDoctor"), items: members.filter((member) => member.role === "doctor") },
-        { label: t("careTeam.coaching"), empty: t("careTeam.noCoach"), items: members.filter((member) => member.role === "coach") },
-
+        {
+            label: t("careTeam.sportsMedicine"),
+            items: members.filter((member) => member.role === "doctor"),
+            empty: t("careTeam.noDoctor"),
+        },
+        {
+            label: t("careTeam.coaching"),
+            items: members.filter((member) => member.role === "coach"),
+            empty: t("careTeam.noCoach"),
+        },
     ];
 
     return (

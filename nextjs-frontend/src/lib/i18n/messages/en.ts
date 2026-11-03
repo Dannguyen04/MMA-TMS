@@ -17,6 +17,12 @@ import { enFighterToday } from "./fighter-today.en";
 import { enHealth } from "./health.en";
 import { enTraining } from "./training.en";
 import { enLanding } from "./landing.en";
+import { enFigure3d } from "./figure3d.en";
+import { enScreens } from "./screens.en";
+import { enScreensRoster } from "./screens-roster.en";
+import { enScreensPerformance } from "./screens-performance.en";
+import { enScreensTraining } from "./screens-training.en";
+import { enScreensMisc } from "./screens-misc.en";
 
 export const en = {
     ...enDemoFlow,
@@ -33,12 +39,19 @@ export const en = {
     ...enHealth,
     ...enTraining,
     ...enLanding,
+    ...enFigure3d,
+    ...enScreens,
+    ...enScreensRoster,
+    ...enScreensPerformance,
+    ...enScreensTraining,
+    ...enScreensMisc,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
     "nav.Bouts": "Bouts",
     "nav.Upcoming": "Upcoming",
     "nav.Suspensions": "Suspensions",
+    "nav.Readiness": "Readiness",
     "nav.Training": "Training",
     "nav.Schedule": "Schedule",
     "nav.Plans": "Plans",

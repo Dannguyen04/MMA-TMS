@@ -59,6 +59,7 @@ describe("hubTabsFor", () => {
             tabs: [
                 { label: "Upcoming", href: routes.coach.bouts },
                 { label: "Suspensions", href: routes.coach.suspensions },
+                { label: "Readiness", href: routes.coach.readiness },
             ],
         });
         expect(hubTabsFor("doctor", routes.doctor.injuries)).toEqual({

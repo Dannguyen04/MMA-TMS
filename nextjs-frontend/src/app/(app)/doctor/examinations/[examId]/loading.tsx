@@ -1,5 +1,5 @@
-import { DetailSkeleton } from "@/components/ui/skeleton";
+import { ListSkeleton } from "@/components/doctor/ui";
 
 export default function Loading() {
-    return <DetailSkeleton label="Loading examination" />;
+    return <ListSkeleton label="Đang tải dữ liệu y tế" />;
 }

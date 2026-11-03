@@ -93,12 +93,12 @@ export function CoachFighterDetailScreen() {
     setPlans([]);
   }, []);
 
-  const load = useCallback(() => {
+  const load = useCallback((mode?: unknown) => {
     if (!fighterId || isDemo) return;
     const seq = ++seqRef.current;
     setError("");
-    setLoading(true);
-    void getFighter(fighterId)
+    if (mode !== "refresh") setLoading(true);
+    return getFighter(fighterId)
       .then((profile) => {
         if (seq !== seqRef.current) return;
         setAccessLost(false);
@@ -130,6 +130,7 @@ export function CoachFighterDetailScreen() {
       })
       .catch((cause: unknown) => {
         if (seq !== seqRef.current) return;
+        if (mode === "refresh" && !lostAccess(cause)) throw cause;
         resetAll();
         if (lostAccess(cause)) {
           setAccessLost(true);
@@ -150,7 +151,7 @@ export function CoachFighterDetailScreen() {
   );
 
   return (
-    <CoachScaffold title={fighter ? fighterDisplayName(fighter) : coach.fighterDetail} inStack>
+    <CoachScaffold title={fighter ? fighterDisplayName(fighter) : coach.fighterDetail} inStack onRefresh={() => load("refresh")}>
       {accessLost ? (
         <CoachCard onPress={() => router.replace(coachHref("/(coach)/fighters"))}>
           <Text style={[type.link, { color: colors.lotus }]}>{coach.backToRoster}</Text>
@@ -209,7 +210,7 @@ export function CoachFighterDetailScreen() {
             ) : loading ? (
               <SkeletonBlock colors={colors} height={80} label={coach.loading} />
             ) : (
-              <Text style={[type.body, { color: colors.inkMuted }]}>{coach.loading}</Text>
+              <Text style={[type.body, { color: colors.inkMuted }]}>—</Text>
             )}
             <Text style={[type.link, { color: colors.lotus }]}>{coach.openMedical}</Text>
           </CoachCard>

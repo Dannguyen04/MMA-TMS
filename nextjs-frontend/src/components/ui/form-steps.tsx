@@ -11,6 +11,7 @@ import {
     type ReactNode,
 } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
 import { focusFirstInvalid } from "./form";
@@ -74,6 +75,7 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
     const [stepError, setStepError] = useState<string | null>(null);
     const rootRef = useRef<HTMLDivElement>(null);
     const lastHandledState = useRef<StepState | undefined>(state);
+    const t = useT();
 
     const active = steps[activeIndex] ?? steps[0];
     const isLast = activeIndex === steps.length - 1;
@@ -104,7 +106,7 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
             const missing = missingRequiredControls(current);
             if (missing.length > 0) {
                 const names = [...new Set(missing.map((item) => item.label).filter(Boolean))];
-                setStepError(names.length > 0 ? `Fill in ${names.join(", ")} to continue.` : "Fill in the required fields to continue.");
+                setStepError(names.length > 0 ? t("screens.training.formSteps.fillIn", { fields: names.join(", ") }) : t("screens.training.formSteps.fillInRequired"));
                 missing[0].element.focus();
                 return;
             }
@@ -146,9 +148,9 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
     return (
         <StepsContext.Provider value={{ activeId: active.id, goTo }}>
             <div ref={rootRef} className={cn("flex scroll-mt-24 flex-col gap-6", className)} onKeyDown={onKeyDown}>
-                <nav aria-label="Form steps">
+                <nav aria-label={t("screens.training.formSteps.nav")}>
                     <p className="mb-2 text-xs font-medium text-fg-subtle sm:hidden">
-                        Step {activeIndex + 1} of {steps.length}: <span className="text-fg">{active.label}</span>
+                        {t("screens.training.formSteps.stepOf", { n: activeIndex + 1, total: steps.length })} <span className="text-fg">{active.label}</span>
                     </p>
                     <ol className="grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
                         {steps.map((step, index) => {
@@ -182,11 +184,11 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
                                         <span className="min-w-0 max-sm:sr-only">
                                             <span className={cn("block truncate text-sm font-semibold", current ? "text-fg" : "text-fg-muted")}>
                                                 {step.label}
-                                                {step.optional && <span className="ml-1 text-xs font-normal text-fg-subtle">(optional)</span>}
+                                                {step.optional && <span className="ml-1 text-xs font-normal text-fg-subtle">{t("screens.training.formSteps.optional")}</span>}
                                             </span>
                                             {step.description && <span className="block truncate text-xs text-fg-subtle max-md:hidden">{step.description}</span>}
                                         </span>
-                                        <span className="sr-only">{done && !current ? "(completed)" : current ? "(current step)" : ""}</span>
+                                        <span className="sr-only">{done && !current ? t("screens.training.formSteps.completed") : current ? t("screens.training.formSteps.current") : ""}</span>
                                     </button>
                                 </li>
                             );
@@ -209,19 +211,19 @@ export function FormSteps({ steps, state, submit, cancel, message, validateStep,
                             {activeIndex > 0 && (
                                 <Button variant="secondary" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" onClick={() => show(activeIndex - 1)}>
                                     <ArrowLeft aria-hidden />
-                                    Back
+                                    {t("screens.training.formSteps.back")}
                                 </Button>
                             )}
                             {active.optional && !isLast && (
                                 <Button variant="ghost" size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" onClick={() => show(steps.length - 1)}>
-                                    Skip
+                                    {t("screens.training.formSteps.skip")}
                                 </Button>
                             )}
                             {isLast ? (
                                 submit
                             ) : (
                                 <Button size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" onClick={next}>
-                                    Next
+                                    {t("screens.training.formSteps.next")}
                                     <ArrowRight aria-hidden />
                                 </Button>
                             )}

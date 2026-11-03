@@ -10,9 +10,9 @@ import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 
 export const RECOVERY_PHASE_STATUS_TEXT: Record<RecoveryPhaseStatus, string> = {
-    completed: "Completed",
-    current: "Current phase",
-    upcoming: "Upcoming",
+    completed: "Hoàn tất",
+    current: "Giai đoạn hiện tại",
+    upcoming: "Sắp tới",
 };
 
 export interface RecoveryProgressProps {
@@ -24,7 +24,7 @@ export interface RecoveryProgressProps {
 }
 
 /** Recovery plan stepper: overall progress, target return, phases and current milestones. */
-export function RecoveryProgress({ plan, now, className, locale = "en" }: RecoveryProgressProps) {
+export function RecoveryProgress({ plan, now, className, locale = "vi" }: RecoveryProgressProps) {
     if (plan.milestones || plan.legacyMilestones) return <MilestoneProgress plan={plan} now={now} className={className} locale={locale} />;
     const t = createTranslator(locale);
     const progress = recoveryProgressPct(plan);
@@ -80,7 +80,7 @@ export function RecoveryProgress({ plan, now, className, locale = "en" }: Recove
 }
 
 /** How many milestones are reached, and the next ones to reach, for a milestone plan. */
-function MilestoneProgress({ plan, now, className, locale = "en" }: RecoveryProgressProps) {
+function MilestoneProgress({ plan, now, className, locale = "vi" }: RecoveryProgressProps) {
     const t = createTranslator(locale);
     const milestones = plan.milestones ?? [];
     const reached = milestones.filter((milestone) => milestone.isCompleted).length;
@@ -115,7 +115,7 @@ function MilestoneProgress({ plan, now, className, locale = "en" }: RecoveryProg
                                         {milestone.targetDate && (
                                             <span className="text-fg-muted">
                                                 {" "}
-                                                · {locale === "vi" ? `hạn ${formatShortDate(milestone.targetDate, locale)}` : `by ${formatShortDate(milestone.targetDate, locale)}`}
+                                                · {locale === "vi" ? `hạn ${formatShortDate(milestone.targetDate, locale)}` : `trước ${formatShortDate(milestone.targetDate, locale)}`}
                                             </span>
                                         )}
                                     </span>
@@ -137,7 +137,7 @@ export function RecoveryTargetReturn({
     plan,
     now,
     className,
-    locale = "en",
+    locale = "vi",
 }: {
     plan: Pick<RecoveryPlan, "status" | "targetReturnDate">;
     now: string;
@@ -171,7 +171,7 @@ export function RecoveryPhaseSteps({
     phases,
     detail,
     className,
-    locale = "en",
+    locale = "vi",
 }: {
     phases: RecoveryPhase[];
     detail: "goal" | "milestones";

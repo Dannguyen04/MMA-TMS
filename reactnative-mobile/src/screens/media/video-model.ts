@@ -1,12 +1,13 @@
 import type { AnalysisJob, VideoCameraAngle, VideoRecord, VideoTrainingType } from "@/api/media";
 import { media } from "@/i18n/media";
+import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 import { uploadIssue, type UploadDraft, type UploadIssue } from "@/screens/media/upload-rules";
 
 /** Demo/test order only. The screens load `GET /videos` and never render this list. */
 export const VIDEO_LIST_FIXTURE = [
   {
     id: "fixture-heavy-bag-plain",
-    title: "Heavy bag",
+    title: "Đánh bao",
     createdAt: "2026-09-29T02:00:00.000Z",
     trainingType: "HEAVY_BAG",
     cameraAngle: "SIDE",
@@ -15,7 +16,7 @@ export const VIDEO_LIST_FIXTURE = [
   },
   {
     id: "fixture-shadow-plain",
-    title: "Shadow boxing",
+    title: "Đánh gió",
     createdAt: "2026-09-29T02:00:00.000Z",
     trainingType: "SHADOW_BOXING",
     cameraAngle: "SIDE",
@@ -24,7 +25,7 @@ export const VIDEO_LIST_FIXTURE = [
   },
   {
     id: "fixture-shadow-failed",
-    title: "Shadow boxing",
+    title: "Đánh gió",
     createdAt: "2026-09-29T02:00:00.000Z",
     trainingType: "SHADOW_BOXING",
     cameraAngle: "SIDE",
@@ -33,7 +34,7 @@ export const VIDEO_LIST_FIXTURE = [
   },
   {
     id: "fixture-heavy-bag-scored",
-    title: "Heavy bag",
+    title: "Đánh bao",
     createdAt: "2026-09-29T02:00:00.000Z",
     trainingType: "HEAVY_BAG",
     cameraAngle: "SIDE",
@@ -48,7 +49,7 @@ export const VIDEO_LIST_FIXTURE = [
  */
 export const REFERENCED_VIDEO_DETAIL = {
   id: "referenced-heavy-bag",
-  title: "Heavy bag",
+  title: "Đánh bao",
   createdAt: "2026-09-29T02:00:00.000Z",
   trainingType: "HEAVY_BAG",
   cameraAngle: "SIDE",
@@ -89,15 +90,15 @@ export function formatVideoDate(iso: string): string {
 }
 
 export function trainingLabel(value: string): string {
-  return media.training[value as keyof typeof media.training] ?? value;
+  return media.training[value as keyof typeof media.training] ?? UNKNOWN_VALUE;
 }
 
 export function angleLabel(value: string): string {
-  return media.angle[value as keyof typeof media.angle] ?? value;
+  return media.angle[value as keyof typeof media.angle] ?? UNKNOWN_VALUE;
 }
 
 export function anglePhrase(value: string): string {
-  return media.anglePhrase[value as keyof typeof media.anglePhrase] ?? value;
+  return media.anglePhrase[value as keyof typeof media.anglePhrase] ?? UNKNOWN_VALUE;
 }
 
 export function videoCountLabel(count: number): string {
@@ -121,15 +122,16 @@ const JOB_TONE: Record<string, StatusTone> = {
 export function analysisBadge(status: string): StatusBadge {
   const known = media.job[status as keyof typeof media.job];
   return {
-    label: known ?? status,
-    tone: JOB_TONE[status] ?? "neutral",
+    // Phase 5 C: an unknown backend code shows "Chưa rõ" (neutral), never the raw code.
+    label: known ?? UNKNOWN_VALUE,
+    tone: known ? JOB_TONE[status] ?? "neutral" : "neutral",
   };
 }
 
 export function videoProcessingBadge(status: string): StatusBadge {
   const known = media.videoStatus[status as keyof typeof media.videoStatus];
-  const tone: StatusTone = status === "FAILED" || status === "REJECTED" ? "danger" : "neutral";
-  return { label: known ?? status, tone };
+  const tone: StatusTone = known && (status === "FAILED" || status === "REJECTED") ? "danger" : "neutral";
+  return { label: known ?? UNKNOWN_VALUE, tone };
 }
 
 /** Analysis job wins when one exists. A processed file without a job is not "Xong". */

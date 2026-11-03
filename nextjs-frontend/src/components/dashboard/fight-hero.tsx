@@ -8,7 +8,7 @@ import { plannedEndMs, rpeTextFor } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
 import { CornerTag } from "@/components/ui/corner-tag";
 import type { FighterJourney as Journey } from "@/lib/domain/journey";
-import { WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
+import { weightClassLabel } from "@/lib/domain/labels";
 import { isLowConfidence } from "@/lib/domain/rules";
 import type { AIFeedback, TrainingPhase, TrainingSession, UpcomingBout } from "@/lib/domain/types";
 import { formatConfidence, formatDateTime, formatPercent, formatRelative, formatShortDate, formatTime, formatWeekdayDate } from "@/lib/format";
@@ -80,7 +80,7 @@ export function FightHero({ bout, campStart, plan, journey, analysis, next, now,
             <div className="relative isolate flex min-w-0 flex-col gap-4 px-6 py-6 text-white sm:px-7">
                 <div aria-hidden className="absolute inset-0 -z-10 chamfer-tl cage-hatch bg-hero-bg" />
                 {journey ? (
-                    <FighterJourney journey={journey} variant="full" ground="hero" hideNextAction />
+                    <FighterJourney journey={journey} variant="full" ground="hero" hideNextAction locale={locale} />
                 ) : bout ? (
                     <>
                         <Camp bout={bout} campStart={campStart} now={now} t={t} locale={locale} />
@@ -117,7 +117,7 @@ function Camp({ bout, campStart, now, t, locale }: { bout: UpcomingBout; campSta
                 <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">{bout.event}</h2>
                 <p className="mt-1 text-[15px] text-white/85">
                     {t("bout.versus", { opponent: bout.opponent })} · <time dateTime={bout.date}>{formatWeekdayDate(bout.date, locale)}</time> ·{" "}
-                    {WEIGHT_CLASS_LABELS[bout.weightClass]}
+                    {weightClassLabel(bout.weightClass, locale)}
                 </p>
             </div>
             <p className="flex items-end gap-3">

@@ -2,6 +2,7 @@
 
 import type { PointerEvent } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { cn } from "@/lib/utils";
 import { ChartLegend } from "./chart-legend";
 import { ChartSurface } from "./chart-surface";
@@ -56,8 +57,9 @@ const MIN_WRAP_GAIN = 8;
  * reads every series on one axis.
  */
 export function RadarChart({ ariaLabel, axes, series, max = 100, size = 300, valueSuffix = "", decimals = 0, className }: RadarChartProps) {
+    const t = useT();
     const { active, pointAt, handlers } = useActiveIndex(axes.length, { wrap: true, initial: "first" });
-    const format = (value: number | null) => (value === null ? "No data" : formatChartValue(value, { decimals, suffix: valueSuffix }));
+    const format = (value: number | null) => (value === null ? t("chart.noData") : formatChartValue(value, { decimals, suffix: valueSuffix }));
 
     const announcement =
         active?.source === "keyboard"
@@ -70,7 +72,7 @@ export function RadarChart({ ariaLabel, axes, series, max = 100, size = 300, val
             <ChartSurface
                 ariaLabel={ariaLabel}
                 height={size}
-                keyboardHint="Use the left and right arrow keys to read the values on each axis."
+                keyboardHint={t("screens.performance.chart.hintAxes")}
                 announcement={announcement}
                 handlers={handlers}
             >

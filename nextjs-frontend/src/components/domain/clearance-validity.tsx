@@ -4,7 +4,7 @@ import { createDemoCopy } from "@/lib/i18n/demo-copy";
 import type { Locale } from "@/lib/i18n/config";
 import { clearanceDaysRemaining, clearanceExpiresSoon, type ClearanceState } from "@/lib/domain/rules";
 import type { MedicalClearance } from "@/lib/domain/types";
-import { formatDate, pluralize } from "@/lib/format";
+import { formatDate, pluralizeVi } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 import { ClearanceBadge } from "./status-badges";
@@ -59,8 +59,8 @@ function describeValidity(clearance: MedicalClearance | null, state: ClearanceSt
 
     const date = { iso: clearance.validUntil, text: formatDate(clearance.validUntil, locale) };
     return clearanceExpiresSoon(clearance, warningDays, now)
-        ? { date, status: { text: locale === "en" ? `Expires ${describeDaysUntil(days)}` : days === 0 ? copy("Expires today") : copy("Expires in {n} days", { n: days }), emphasis: "warning", icon: TriangleAlert } }
-        : { date, status: { text: locale === "en" ? `${pluralize(days, "day")} left` : copy("{n} days left", { n: days }), emphasis: "muted" } };
+        ? { date, status: { text: locale === "en" ? `Hết hạn ${describeDaysUntil(days)}` : days === 0 ? copy("Expires today") : copy("Expires in {n} days", { n: days }), emphasis: "warning", icon: TriangleAlert } }
+        : { date, status: { text: locale === "en" ? `Còn ${pluralizeVi(days, "day")}` : copy("{n} days left", { n: days }), emphasis: "muted" } };
 }
 
 /**
@@ -68,7 +68,7 @@ function describeValidity(clearance: MedicalClearance | null, state: ClearanceSt
  * once it lapses within the warning window, or why no date applies (none on file, expired, revoked).
  */
 export function ClearanceValidity({
-    locale = "en",
+    locale = "vi",
     clearance,
     state,
     now,

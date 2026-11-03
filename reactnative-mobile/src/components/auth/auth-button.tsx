@@ -6,6 +6,7 @@ import {
 } from "react-native";
 
 import { radius, type, useThemePreference } from "@/theme";
+import { PressableScale } from "@/components/motion";
 
 type AuthButtonProps = {
   title: string;
@@ -29,7 +30,7 @@ export function AuthButton({
   const isSecondary = variant === "secondary";
 
   return (
-    <Pressable
+    <PressableScale
       testID={testID}
       accessibilityRole="button"
       accessibilityLabel={title}
@@ -67,7 +68,7 @@ export function AuthButton({
           {title}
         </Text>
       )}
-    </Pressable>
+    </PressableScale>
   );
 }
 

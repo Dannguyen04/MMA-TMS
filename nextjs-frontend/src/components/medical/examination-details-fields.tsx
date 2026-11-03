@@ -43,16 +43,16 @@ export function ExaminationTypeField({
 }) {
     return (
         <Field
-            label="Examination type"
+            label="Loại phiếu khám"
             htmlFor={form.control("type").id}
             error={form.error("type")}
             required
-            hint={value ? EXAMINATION_TYPE_HINTS[value] : "The type sets a starting list of assessments."}
+            hint={value ? EXAMINATION_TYPE_HINTS[value] : "Loại khám quyết định danh sách đánh giá ban đầu."}
             info={<TermHint term="baselineExam" />}
             className={className}
         >
             <Select {...form.control("type", { hint: true, required: true })} value={value} onChange={(event) => onChange(event.target.value as ExaminationType | "")} className="sm:max-w-sm">
-                <option value="">Choose a type…</option>
+                <option value="">Chọn loại…</option>
                 {EXAMINATION_TYPES.map((type) => (
                     <option key={type} value={type}>
                         {EXAMINATION_TYPE_LABELS[type]}
@@ -108,12 +108,12 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
     return (
         <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                {vitalInput("weightKg", "Weight", "kg", { step: "0.1", min: 35, max: 180 }, checks.weightKg)}
-                {vitalInput("restingHeartRate", "Resting heart rate", "bpm", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
-                {vitalInput("temperatureC", "Temperature", "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC, <TermHint term="bodyTemperature" />)}
+                {vitalInput("weightKg", "Cân nặng", "kg", { step: "0.1", min: 35, max: 180 }, checks.weightKg)}
+                {vitalInput("restingHeartRate", "Mạch nghỉ", "bpm", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
+                {vitalInput("temperatureC", "Nhiệt độ", "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC, <TermHint term="bodyTemperature" />)}
                 <fieldset className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-2">
                     <legend className="mb-1.5 text-sm font-medium text-fg">
-                        Blood pressure (mmHg)
+                        Huyết áp (mmHg)
                         {required && (
                             <span className="ml-0.5 text-danger-fg" aria-hidden>
                                 *
@@ -124,7 +124,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                         <BpInput
                             id={id("bloodPressureSystolic")}
                             name="bloodPressureSystolic"
-                            label="Systolic"
+                            label="Tâm thu"
                             info={<TermHint term="systolicPressure" />}
                             value={value.bloodPressureSystolic}
                             required={required}
@@ -135,7 +135,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                         <BpInput
                             id={id("bloodPressureDiastolic")}
                             name="bloodPressureDiastolic"
-                            label="Diastolic"
+                            label="Tâm trương"
                             info={<TermHint term="diastolicPressure" />}
                             value={value.bloodPressureDiastolic}
                             required={required}
@@ -146,26 +146,26 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                     </div>
                     <RangeHint id={bpRangeId} check={checks.bloodPressure} />
                 </fieldset>
-                {vitalInput("spo2Pct", "SpO₂", "%", { min: 70, max: 100 }, checks.spo2Pct, <TermHint term="spo2" />)}
-                <Field label="Hydration" htmlFor={id("hydration")} error={error("hydration")} required={required} info={<TermHint term="hydration" />}>
+                {vitalInput("spo2Pct", "SpO2", "%", { min: 70, max: 100 }, checks.spo2Pct, <TermHint term="spo2" />)}
+                <Field label="Mức nước" htmlFor={id("hydration")} error={error("hydration")} required={required} info={<TermHint term="hydration" />}>
                     <Select
                         {...form.control("hydration", { required })}
                         value={value.hydration}
                         onChange={(event) => set("hydration", event.target.value)}
                         aria-describedby={error("hydration") ? `${id("hydration")}-error` : checks.hydration ? `${id("hydration")}-range` : undefined}
                     >
-                        <option value="">Choose…</option>
-                        <option value="good">Good</option>
-                        <option value="fair">Fair</option>
-                        <option value="poor">Poor</option>
+                        <option value="">Chọn…</option>
+                        <option value="good">Tốt</option>
+                        <option value="fair">Trung bình</option>
+                        <option value="poor">Kém</option>
                     </Select>
                     {!error("hydration") && <RangeHint id={`${id("hydration")}-range`} check={checks.hydration} />}
                 </Field>
             </div>
             <p aria-live="polite" className={cn("text-[13px]", outOfRange > 0 ? "font-medium text-warning-fg" : "text-fg-subtle")}>
                 {outOfRange > 0
-                    ? `${outOfRange} ${outOfRange === 1 ? "reading is" : "readings are"} outside the athlete reference range — consider rechecking.`
-                    : "All entered readings are within reference ranges."}
+                    ? `${outOfRange} chỉ số nằm ngoài ngưỡng tham chiếu vận động viên — nên đo lại.`
+                    : "Mọi chỉ số đã nhập đều trong ngưỡng tham chiếu."}
             </p>
         </>
     );
@@ -178,7 +178,7 @@ function RangeHint({ id, check }: { id: string; check: VitalCheck }) {
         <p id={id} className={cn("flex items-start gap-1 text-[13px]", normal ? "text-fg-subtle" : "font-medium text-warning-fg")}>
             {normal ? <CircleCheck aria-hidden className="mt-0.5 size-3.5 shrink-0 text-success-fg" /> : <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />}
             <span>
-                <span className="sr-only">{normal ? "Within range: " : "Check: "}</span>
+                <span className="sr-only">{normal ? "Trong ngưỡng:" : "Cần kiểm tra:"}</span>
                 {check.text}
             </span>
         </p>
@@ -327,22 +327,22 @@ export function AssessmentsField({
     const unmarked = unmarkedAreas(rows.rows).length;
     const markNormal = () => {
         const filled = rows.markUnmarkedNormal();
-        if (filled.length > 0) setNote(`Marked Normal: ${filled.join(", ")}. Change any that weren't.`);
+        if (filled.length > 0) setNote(`Đã đánh dấu Bình thường: ${filled.join(", ")}. Hãy sửa mục nào không đúng.`);
     };
     return (
         <>
             <input type="hidden" name="assessments" value={JSON.stringify(rows.rows.map(({ area, result, note }) => ({ area, result, note })))} />
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[13px] text-fg-muted">{type ? `Starting list for ${EXAMINATION_TYPE_LABELS[type].toLowerCase()}.` : "Choose an examination type to load a starting list."}</p>
+                <p className="text-[13px] text-fg-muted">{type ? `Danh sách ban đầu cho ${EXAMINATION_TYPE_LABELS[type].toLowerCase()}.` : "Chọn loại phiếu khám để tải danh sách ban đầu."}</p>
                 {type && rows.edited && (
                     <Button variant="ghost" size="sm" onClick={() => rows.reset(type)}>
                         <ListRestart aria-hidden />
-                        Reset to {EXAMINATION_TYPE_LABELS[type].toLowerCase()} list
+                        Đặt lại theo {EXAMINATION_TYPE_LABELS[type].toLowerCase()} list
                     </Button>
                 )}
             </div>
             <QuickFill
-                label={`Mark the ${unmarked === 1 ? "unmarked area" : `${unmarked} unmarked areas`} Normal`}
+                label={`Đánh dấu ${unmarked === 1 ? "vùng chưa ghi" : `${unmarked} vùng chưa ghi`} là Bình thường`}
                 icon={CheckCheck}
                 available={unmarked > 0}
                 note={note}
@@ -357,9 +357,9 @@ export function AssessmentsField({
                         index={index}
                         idPrefix={`${idPrefix}-${row.key}`}
                         errors={{
-                            area: form.error(`assessments.${index}.area`) ?? (checkMissing && !row.area.trim() ? "Name the area assessed, or remove the row." : undefined),
-                            result: form.error(`assessments.${index}.result`) ?? (checkMissing && !row.result ? "Choose a result." : undefined),
-                            note: form.error(`assessments.${index}.note`) ?? (checkMissing && row.result === "abnormal" && !row.note.trim() ? "Describe the abnormal finding." : undefined),
+                            area: form.error(`assessments.${index}.area`) ?? (checkMissing && !row.area.trim() ? "Ghi tên vùng được đánh giá, hoặc xóa dòng." : undefined),
+                            result: form.error(`assessments.${index}.result`) ?? (checkMissing && !row.result ? "Chọn kết quả." : undefined),
+                            note: form.error(`assessments.${index}.note`) ?? (checkMissing && row.result === "abnormal" && !row.note.trim() ? "Mô tả dấu hiệu bất thường." : undefined),
                         }}
                         onChange={(patch) => rows.update(index, patch)}
                         onRemove={() => rows.remove(row.key)}
@@ -368,7 +368,7 @@ export function AssessmentsField({
             </ol>
             <Button variant="secondary" size="sm" className="self-start" onClick={rows.add}>
                 <Plus aria-hidden />
-                Add assessment
+                Thêm đánh giá
             </Button>
         </>
     );
@@ -389,20 +389,20 @@ function AssessmentRowEditor({
     onChange: (patch: Partial<AssessmentRow>) => void;
     onRemove: () => void;
 }) {
-    const name = row.area.trim() || `assessment ${index + 1}`;
+    const name = row.area.trim() || `đánh giá ${index + 1}`;
     const noteRequired = row.result === "abnormal";
     return (
         <li className={cn("rounded-lg border bg-surface-muted/50 p-3", errors.area || errors.result || errors.note ? "border-danger-border" : "border-border")}>
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
                 <div className="flex min-w-0 flex-col gap-1">
                     <label htmlFor={`${idPrefix}-area`} className="sr-only">
-                        Area assessed, row {index + 1}
+                        Vùng được đánh giá, dòng {index + 1}
                     </label>
                     <Input
                         id={`${idPrefix}-area`}
                         value={row.area}
                         onChange={(event) => onChange({ area: event.target.value })}
-                        placeholder="Area assessed, e.g. Hawkins–Kennedy"
+                        placeholder="Vùng đánh giá, VD Hawkins–Kennedy"
                         aria-invalid={errors.area ? true : undefined}
                         aria-describedby={errors.area ? `${idPrefix}-area-error` : undefined}
                         className="font-medium"
@@ -416,7 +416,7 @@ function AssessmentRowEditor({
                 <div className="col-span-2 flex min-w-0 flex-col gap-1 lg:col-span-1 lg:col-start-2 lg:row-start-1">
                     <div
                         role="radiogroup"
-                        aria-label={`Result for ${name}`}
+                        aria-label={`Kết quả cho ${name}`}
                         aria-invalid={errors.result ? true : undefined}
                         aria-describedby={errors.result ? `${idPrefix}-result-error` : undefined}
                         className={cn("grid grid-cols-3 rounded-lg border bg-surface p-0.5 lg:inline-flex", errors.result ? "border-danger-solid" : "border-border")}
@@ -449,14 +449,14 @@ function AssessmentRowEditor({
                 </div>
                 <div className="col-span-2 flex min-w-0 flex-col gap-1 lg:col-span-3">
                     <label htmlFor={`${idPrefix}-note`} className="sr-only">
-                        Findings for {name}
-                        {noteRequired ? " (required for abnormal results)" : " (optional)"}
+                        Kết quả cho {name}
+                        {noteRequired ? "(bắt buộc khi bất thường)" : "(không bắt buộc)"}
                     </label>
                     <Input
                         id={`${idPrefix}-note`}
                         value={row.note}
                         onChange={(event) => onChange({ note: event.target.value })}
-                        placeholder={noteRequired ? "Describe the abnormal finding (required)" : "Findings (optional)"}
+                        placeholder={noteRequired ? "Mô tả dấu hiệu bất thường (bắt buộc)" : "Kết quả (không bắt buộc)"}
                         aria-invalid={errors.note ? true : undefined}
                         aria-describedby={errors.note ? `${idPrefix}-note-error` : undefined}
                     />
@@ -466,7 +466,7 @@ function AssessmentRowEditor({
                         </p>
                     )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Remove ${name}`} className="col-start-2 row-start-1 lg:col-start-3">
+                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Xóa ${name}`} className="col-start-2 row-start-1 lg:col-start-3">
                     <X />
                 </Button>
             </div>
@@ -482,7 +482,7 @@ const FOLLOW_UP_PICKS = [7, 14, 28];
 export function FollowUpField({ form, examDay, value, onChange, hint }: { form: FormControls; examDay: string; value: string; onChange: (value: string) => void; hint: string }) {
     const control = form.control("followUpDate", { hint: true });
     return (
-        <Field label="Follow-up examination" htmlFor={control.id} error={form.error("followUpDate")} optional hint={hint} info={<TermHint term="followUpDate" />}>
+        <Field label="Khám theo dõi" htmlFor={control.id} error={form.error("followUpDate")} optional hint={hint} info={<TermHint term="followUpDate" />}>
             <div className="flex flex-wrap items-center gap-2">
                 <div className="w-44">
                     <Input {...control} type="date" value={value} min={examDay ? addDaysToKey(examDay, 1) : undefined} onChange={(event) => onChange(event.target.value)} />
@@ -490,12 +490,12 @@ export function FollowUpField({ form, examDay, value, onChange, hint }: { form: 
                 {examDay &&
                     FOLLOW_UP_PICKS.map((days) => (
                         <Button key={days} variant="ghost" size="sm" onClick={() => onChange(addDaysToKey(examDay, days))}>
-                            In {days === 7 ? "1 week" : `${days / 7} weeks`}
+                            Sau {days === 7 ? "1 tuần" : `${days / 7} tuần`}
                         </Button>
                     ))}
                 {value && (
                     <Button variant="ghost" size="sm" onClick={() => onChange("")}>
-                        Clear
+                        Xóa
                     </Button>
                 )}
             </div>

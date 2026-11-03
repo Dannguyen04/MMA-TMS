@@ -1,14 +1,14 @@
-import { Text } from "react-native";
+import { Stack, useLocalSearchParams } from "expo-router";
 
-import { media } from "@/i18n/media";
-import { CoachScaffold } from "@/screens/coach/coach-ui";
-import { useThemePreference } from "@/theme";
+import { EvidenceRoute } from "@/screens/media/evidence/evidence-route";
 
+/** `/video-analysis/review?id=<videoId>` — video, khung xương, duyệt bằng chứng. */
 export default function CoachVideoReviewRoute() {
-  const { colors } = useThemePreference();
+  const params = useLocalSearchParams<{ id?: string; jobId?: string }>();
   return (
-    <CoachScaffold title="Duyệt bằng chứng" inStack>
-      <Text style={{ color: colors.ink }}>{media.reviewOwner}</Text>
-    </CoachScaffold>
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <EvidenceRoute role="coach" params={params} listHref="/video-analysis" canRequestAnalysis />
+    </>
   );
 }

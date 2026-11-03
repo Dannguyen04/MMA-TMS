@@ -8,7 +8,7 @@ import { ScoreInfo } from "@/components/performance/score-info";
 import { TeamHighlights, type TeamMember } from "@/components/performance/team-highlights";
 import { TeamPerformanceTable, type TeamTableRow } from "@/components/performance/team-performance-table";
 import { TeamVolumeCard } from "@/components/performance/team-volume-card";
-import { PERFORMANCE_TRENDS, TREND_META, TREND_ORDER } from "@/components/performance/trend-badge";
+import { PERFORMANCE_TRENDS, TREND_ORDER, trendLabel } from "@/components/performance/trend-badge";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { FilterBar } from "@/components/ui/filter-bar";
@@ -18,6 +18,7 @@ import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
 import { formatDate, formatNumber } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { matchesSearch, paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listFighters } from "@/lib/services/people";
@@ -25,7 +26,10 @@ import { getPerformanceHistory, getPerformanceSummary, getTeamPerformance, getWe
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { average, param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Team performance" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.performance.team.title") };
+}
 
 const CHART_WEEKS = 12;
 const PAGE_SIZE = 10;
@@ -34,11 +38,12 @@ type SortKey = (typeof SORT_KEYS)[number];
 
 export default async function CoachPerformancePage({ searchParams }: PageProps<"/coach/performance">) {
     const user = await requireRole("coach");
+    const { t, locale } = await getTranslator();
     if (!platformFeatureAvailable("performance")) {
         return (
             <>
-                <PageHeader title="Team performance" />
-                <FeatureUnavailable service="training" title="Performance scores aren't available yet" />
+                <PageHeader title={t("screens.performance.team.title")} />
+                <FeatureUnavailable service="training" title={t("screens.performance.unavailable")} description={t("screens.performance.unavailableDesc")} />
             </>
         );
     }
@@ -65,12 +70,12 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
     if (teamRows.length === 0) {
         return (
             <>
-                <PageHeader title="Team performance" description="Technique scores, trends and training volume across your roster." />
+                <PageHeader title={t("screens.performance.team.title")} description={t("screens.performance.team.desc")} />
                 <EmptyState
                     icon={<ChartLine />}
-                    title="No performance data for your roster yet"
-                    description="Scores appear once your fighters' training videos are analysed and sessions are rated."
-                    action={<ButtonLink href={routes.coach.uploadVideo}>Upload a training video</ButtonLink>}
+                    title={t("screens.performance.team.emptyTitle")}
+                    description={t("screens.performance.team.emptyDesc")}
+                    action={<ButtonLink href={routes.coach.uploadVideo}>{t("screens.performance.uploadVideo")}</ButtonLink>}
                 />
             </>
         );
@@ -123,18 +128,19 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
     return (
         <>
             <PageHeader
-                title="Team performance"
-                description="Technique scores, trends and training volume across your roster."
+                title={t("screens.performance.team.title")}
+                description={t("screens.performance.team.desc")}
                 meta={
                     <>
                         {lastWeek && (
                             <span className="text-sm text-fg-muted">
-                                Week of <time dateTime={lastWeek.weekStart}>{formatDate(lastWeek.weekStart)}</time>
-                                <span className="text-fg-subtle"> · latest complete week</span>
+                                {t("screens.performance.weekOfPrefix")}
+                                <time dateTime={lastWeek.weekStart}>{formatDate(lastWeek.weekStart, locale)}</time>
+                                <span className="text-fg-subtle">{t("screens.performance.latestCompleteSuffix")}</span>
                             </span>
                         )}
                         <span className="flex items-center gap-1">
-                            <AIGeneratedBadge size="sm" label="AI-assisted scores" />
+                            <AIGeneratedBadge size="sm" label={t("screens.performance.aiScores")} />
                             <ScoreInfo />
                         </span>
                     </>
@@ -144,7 +150,7 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
             <div className="flex flex-col gap-6">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     <StatCard
-                        label="Team average score"
+                        label={t("screens.performance.team.avgScore")}
                         value={formatNumber(average(rows.map((row) => row.overall)), 1)}
                         unit="/ 100"
                         icon={<Gauge aria-hidden />}
@@ -152,46 +158,58 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
                             compared.length > 0
                                 ? changeDelta(average(compared.map((row) => row.overallDelta)), {
                                       decimals: 1,
-                                      label: "vs 4-wk avg",
+                                      label: t("screens.performance.compare.4wk"),
                                       neutralWithin: SCORE_NOISE_POINTS,
                                   })
                                 : undefined
                         }
+                        locale={locale}
                     />
                     <StatCard
-                        label={TREND_META.improving.label}
+                        label={trendLabel("improving", locale)}
                         value={formatNumber(improving)}
-                        unit={`of ${formatNumber(compared.length)}`}
+                        unit={t("screens.performance.ofN", { n: formatNumber(compared.length) })}
                         icon={<TrendingUp aria-hidden />}
-                        hint={`${compared.length - improving - declining} steady · ${declining} declining`}
+                        hint={t("screens.performance.team.steadyDeclining", { steady: compared.length - improving - declining, declining })}
+                        locale={locale}
                     />
                     <StatCard
-                        label="Training minutes"
+                        label={t("screens.performance.trainingMinutes")}
                         value={formatNumber(lastWeek?.trainingMinutes ?? 0)}
                         unit="min"
                         icon={<Clock aria-hidden />}
-                        delta={minutesChange === null ? undefined : { ...changeDelta(minutesChange, { suffix: "%", label: "vs week before" }), sentiment: "neutral" }}
+                        delta={
+                            minutesChange === null
+                                ? undefined
+                                : { ...changeDelta(minutesChange, { suffix: "%", label: t("screens.performance.compare.weekBefore") }), sentiment: "neutral" }
+                        }
+                        locale={locale}
                     />
                     <StatCard
-                        label="Sessions completed"
+                        label={t("screens.performance.team.sessionsCompleted")}
                         value={formatNumber(lastWeek?.sessionsCompleted ?? 0)}
                         icon={<CalendarCheck2 aria-hidden />}
-                        hint={lastWeek && lastWeek.avgRpe > 0 ? `Average RPE ${formatNumber(lastWeek.avgRpe, 1)} · ${lastWeek.fighters} fighters` : undefined}
+                        hint={
+                            lastWeek && lastWeek.avgRpe > 0
+                                ? t("screens.performance.team.rpeHint", { rpe: formatNumber(lastWeek.avgRpe, 1), n: lastWeek.fighters })
+                                : undefined
+                        }
+                        locale={locale}
                     />
                 </div>
 
-                <TeamHighlights members={members} />
+                <TeamHighlights members={members} locale={locale} />
 
                 <section aria-labelledby="roster-heading" className="flex flex-col gap-4">
                     <FilterBar
                         filters={[
-                            { type: "search", name: "q", label: "Search fighters", placeholder: "Search fighters" },
+                            { type: "search", name: "q", label: t("screens.performance.team.search"), placeholder: t("screens.performance.team.search") },
                             {
                                 type: "select",
                                 name: "trend",
-                                label: "Trend",
-                                allLabel: "All trends",
-                                options: PERFORMANCE_TRENDS.map((trend) => ({ value: trend, label: TREND_META[trend].label })),
+                                label: t("screens.performance.trend"),
+                                allLabel: t("screens.performance.team.allTrends"),
+                                options: PERFORMANCE_TRENDS.map((trend) => ({ value: trend, label: trendLabel(trend, locale) })),
                             },
                         ]}
                     />
@@ -200,11 +218,11 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
                             as="h2"
                             className="border-b border-border"
                             icon={<Users aria-hidden />}
-                            title={<span id="roster-heading">Roster</span>}
+                            title={<span id="roster-heading">{t("screens.performance.team.roster")}</span>}
                             description={
                                 lastWeek
-                                    ? `Scores and volume for the week of ${weekLabel(lastWeek.weekStart)} · change vs 4-week average`
-                                    : "Latest complete week"
+                                    ? t("screens.performance.team.rosterDesc", { week: weekLabel(lastWeek.weekStart, locale) })
+                                    : t("screens.performance.latestCompleteWeek")
                             }
                         />
                         {page.total === 0 ? (
@@ -212,17 +230,17 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
                                 compact
                                 className="py-12"
                                 icon={<SearchX />}
-                                title="No fighters match these filters"
-                                description="Try a different name or trend."
+                                title={t("screens.performance.team.noMatch")}
+                                description={t("screens.performance.team.noMatchDesc")}
                                 action={
                                     <ButtonLink href={pathname} variant="secondary" size="sm">
-                                        Clear filters
+                                        {t("screens.performance.clearFilters")}
                                     </ButtonLink>
                                 }
                             />
                         ) : (
                             <>
-                                <TeamPerformanceTable rows={page.items} pathname={pathname} searchParams={params} sort={sort} direction={direction} />
+                                <TeamPerformanceTable rows={page.items} pathname={pathname} searchParams={params} sort={sort} direction={direction} locale={locale} />
                                 <Pagination
                                     page={page.page}
                                     pageCount={page.pageCount}
@@ -230,7 +248,8 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
                                     pageSize={page.pageSize}
                                     pathname={pathname}
                                     searchParams={params}
-                                    itemLabel="fighters"
+                                    itemLabel={t("screens.performance.team.itemLabel")}
+                                    locale={locale}
                                 />
                             </>
                         )}
@@ -238,7 +257,7 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
                 </section>
 
                 {volumeFighters.length > 0 && completeWeeks.length > 0 && (
-                    <TeamVolumeCard fighters={volumeFighters} weekStarts={completeWeeks.map((week) => week.weekStart)} />
+                    <TeamVolumeCard fighters={volumeFighters} weekStarts={completeWeeks.map((week) => week.weekStart)} locale={locale} />
                 )}
             </div>
         </>

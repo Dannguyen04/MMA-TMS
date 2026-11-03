@@ -6,6 +6,8 @@ import { ProgressBar } from "@/components/ui/progress";
 import { goalProgressPct } from "@/lib/domain/rules";
 import type { Goal } from "@/lib/domain/types";
 import { daysBetween, formatDate, pluralize } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { formatMeasure } from "./domain-format";
 import { GoalStatusBadge } from "./status-badges";
@@ -20,18 +22,27 @@ export interface GoalCardProps {
     /** Trend visual, e.g. a Sparkline of `goal.history`. */
     children?: ReactNode;
     headingLevel?: 2 | 3;
+    /** The viewer's language; English when omitted. */
+    locale?: Locale;
     className?: string;
 }
 
 /** Goal progress: baseline → current → target, progress to target, status and due date. */
-export function GoalCard({ goal, now, href, children, headingLevel = 3, className }: GoalCardProps) {
+export function GoalCard({ goal, now, href, children, headingLevel = 3, locale, className }: GoalCardProps) {
+    const t = locale ? createTranslator(locale) : null;
     const Heading = headingLevel === 2 ? "h2" : "h3";
     const progress = goalProgressPct(goal);
     const reached = goal.lowerIsBetter ? goal.current <= goal.target : goal.current >= goal.target;
     const remaining = Math.abs(goal.target - goal.current);
     // Differences between percentages are percentage points, so "9 pts" rather than a confusing "9%".
     const remainingMeasure = goal.unit === "%" ? `${formatMeasure(remaining, "")} pts` : formatMeasure(remaining, goal.unit);
-    const remainingText = reached ? "Target reached" : `${remainingMeasure} ${goal.lowerIsBetter ? "lower" : "more"} needed`;
+    const remainingText = t
+        ? reached
+            ? t("screens.shared.goal.reached")
+            : t(goal.lowerIsBetter ? "screens.shared.goal.lowerNeeded" : "screens.shared.goal.moreNeeded", { measure: remainingMeasure })
+        : reached
+          ? "Target reached"
+          : `${remainingMeasure} ${goal.lowerIsBetter ? "lower" : "more"} needed`;
     const daysLeft = daysBetween(now, goal.dueDate);
     const isOpen = goal.status === "on_track" || goal.status === "at_risk";
 
@@ -56,36 +67,42 @@ export function GoalCard({ goal, now, href, children, headingLevel = 3, classNam
                     </Heading>
                     <p className="mt-0.5 text-[13px] text-fg-muted">
                         {goal.metricLabel}
-                        {goal.lowerIsBetter && <span className="text-fg-subtle"> · lower is better</span>}
+                        {goal.lowerIsBetter && <span className="text-fg-subtle"> · {t ? t("screens.shared.goal.lowerIsBetter") : "lower is better"}</span>}
                     </p>
                 </div>
-                <GoalStatusBadge status={goal.status} size="sm" className="shrink-0" />
+                <GoalStatusBadge status={goal.status} size="sm" locale={locale} className="shrink-0" />
             </div>
 
             <div className="grid grid-cols-[1fr_auto_1fr_auto_1fr] items-end gap-x-2 rounded-lg bg-surface-muted px-3 py-2.5 text-center">
-                <GoalValue label="Baseline" value={formatMeasure(goal.baseline, goal.unit)} />
+                <GoalValue label={t ? t("screens.shared.goal.baseline") : "Baseline"} value={formatMeasure(goal.baseline, goal.unit)} />
                 <ArrowRight aria-hidden className="mb-1 size-3.5 text-fg-subtle" />
-                <GoalValue label="Current" value={formatMeasure(goal.current, goal.unit)} emphasis />
+                <GoalValue label={t ? t("screens.shared.goal.current") : "Current"} value={formatMeasure(goal.current, goal.unit)} emphasis />
                 <ArrowRight aria-hidden className="mb-1 size-3.5 text-fg-subtle" />
-                <GoalValue label="Target" value={formatMeasure(goal.target, goal.unit)} />
+                <GoalValue label={t ? t("screens.shared.goal.target") : "Target"} value={formatMeasure(goal.target, goal.unit)} />
             </div>
 
-            <ProgressBar value={progress} label={`Progress to target for ${goal.title}`} valueText={`${progress}% · ${remainingText}`} size="sm" />
+            <ProgressBar value={progress} label={t ? t("screens.shared.goal.progressLabel", { title: goal.title }) : `Progress to target for ${goal.title}`} valueText={`${progress}% · ${remainingText}`} size="sm" />
 
             {children && <div>{children}</div>}
 
             <div className="mt-auto flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3 text-[13px]">
                 <p className="flex items-center gap-1.5 text-fg-muted">
                     <CalendarClock aria-hidden className="size-3.5 text-fg-subtle" />
-                    Due <time dateTime={goal.dueDate}>{formatDate(goal.dueDate)}</time>
+                    {t ? t("screens.shared.goal.due") : "Due"} <time dateTime={goal.dueDate}>{formatDate(goal.dueDate, locale)}</time>
                     {isOpen && (
                         <span className={cn("font-medium", daysLeft < 0 ? "text-warning-fg" : "text-fg")}>
                             {" · "}
-                            {daysLeft < 0
-                                ? `overdue by ${pluralize(-daysLeft, "day")}`
-                                : daysLeft === 0
-                                  ? "due today"
-                                  : `${pluralize(daysLeft, "day")} left`}
+                            {t
+                                ? daysLeft < 0
+                                    ? plural(t, "screens.shared.goal.overdue", -daysLeft)
+                                    : daysLeft === 0
+                                      ? t("screens.shared.goal.dueToday")
+                                      : plural(t, "screens.shared.goal.daysLeft", daysLeft)
+                                : daysLeft < 0
+                                  ? `overdue by ${pluralize(-daysLeft, "day")}`
+                                  : daysLeft === 0
+                                    ? "due today"
+                                    : `${pluralize(daysLeft, "day")} left`}
                         </span>
                     )}
                 </p>

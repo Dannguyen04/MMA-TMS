@@ -1,4 +1,4 @@
-import { DoctorMeScreen } from "@/screens/doctor/me-screen";
+import { DoctorMeScreen } from "@/screens/doctor/redesign/doctor-me-screen";
 
 export default function DoctorMeRoute() {
   return <DoctorMeScreen />;

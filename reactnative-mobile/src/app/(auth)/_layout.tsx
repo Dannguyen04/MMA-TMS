@@ -7,18 +7,19 @@ import { Animated, Platform, StatusBar as RNStatusBar, StyleSheet, useWindowDime
 import { useReducedMotion } from "react-native-reanimated";
 
 import { AuthVisionScene } from "@/components/auth/auth-vision-scene";
-import { authDark, authCanvasSize, isVisionAuthLeaf, visionAuthCanvas } from "@/components/auth/auth-vision-tokens";
+import { authCanvasSize, isVisionAuthLeaf, useAuthColors, visionAuthCanvas } from "@/components/auth/auth-vision-tokens";
 import { AuthSessionGate } from "@/session/role-gate";
 import { chromeLightIcons, motion, useThemePreference } from "@/theme";
 
 export default function AuthLayout() {
   const { colors, resolvedScheme } = useThemePreference();
+  const auth = useAuthColors();
   const reducedMotion = useReducedMotion();
   const segments = useSegments();
   const leaf = segments[segments.length - 1];
   const vision = isVisionAuthLeaf(leaf);
-  const barStyle = vision || resolvedScheme === "dark" ? "light" : "dark";
-  const stageColor = visionAuthCanvas(leaf, colors.bg);
+  const barStyle = (vision ? auth.dark : resolvedScheme === "dark") ? "light" : "dark";
+  const stageColor = vision ? visionAuthCanvas(leaf, colors.bg, auth.dark ? "dark" : "light") : colors.bg;
   const navigation = useNavigation();
   const savedBg = useRef(colors.bg);
   const chromeToken = useRef(0);
@@ -45,17 +46,17 @@ export default function AuthLayout() {
     };
     if (vision) {
       parent?.setOptions({
-        contentStyle: { backgroundColor: authDark.canvas },
-        statusBarStyle: "light",
-        statusBarBackgroundColor: authDark.canvas,
-        navigationBarColor: authDark.canvas,
+        contentStyle: { backgroundColor: auth.canvas },
+        statusBarStyle: auth.dark ? "light" : "dark",
+        statusBarBackgroundColor: auth.canvas,
+        navigationBarColor: auth.canvas,
       });
-      StatusBar.setStyle("light", true);
-      void SystemUI.setBackgroundColorAsync(authDark.canvas);
+      StatusBar.setStyle(auth.dark ? "light" : "dark", true);
+      void SystemUI.setBackgroundColorAsync(auth.canvas);
       if (Platform.OS === "android") {
-        RNStatusBar.setBarStyle("light-content", true);
-        RNStatusBar.setBackgroundColor(authDark.canvas, false);
-        NavigationBar.setStyle("dark");
+        RNStatusBar.setBarStyle(auth.dark ? "light-content" : "dark-content", true);
+        RNStatusBar.setBackgroundColor(auth.canvas, false);
+        NavigationBar.setStyle(auth.dark ? "dark" : "light");
       }
     } else {
       restoreSavedChrome();
@@ -66,7 +67,7 @@ export default function AuthLayout() {
         restoreSavedChrome();
       });
     };
-  }, [colors.bg, navigation, vision]);
+  }, [auth.canvas, auth.dark, colors.bg, navigation, vision]);
 
   const window = useWindowDimensions();
   const fullHeight = useRef(window.height);
@@ -130,13 +131,11 @@ const styles = StyleSheet.create({
     flex: 1,
     width: "100%",
     alignItems: "center",
-    backgroundColor: authDark.canvas,
   },
   column: {
     flexGrow: 1,
     maxWidth: "100%",
     overflow: "hidden",
     position: "relative",
-    backgroundColor: authDark.canvas,
   },
 });

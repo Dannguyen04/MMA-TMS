@@ -43,6 +43,7 @@ export const SESSION_STATUS_TONE: Record<SessionStatus, VisualTone> = {
   SKIPPED: "neutral",
   CANCELLED: "neutral",
   ABANDONED: "danger",
+  PENDING: "neutral",
 };
 
 export const PLAN_STATUS_TONE: Record<TrainingPlanStatus, VisualTone> = {

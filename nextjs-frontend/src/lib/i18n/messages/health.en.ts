@@ -113,6 +113,7 @@ export const enHealth = {
     "eligibilityReason.CLEARANCE_REQUIRED": "Clearance required",
     "eligibilityReason.CLEARANCE_EXPIRED": "Clearance expired",
     "eligibilityReason.SESSION_TYPE_RESTRICTED": "Session type restricted",
+    "eligibilityReason.OTHER_MEDICAL_REASON": "Other medical reason",
 
     "eligibilityReasonDesc.EXAMINATION_REQUIRED": "Every fighter needs a baseline examination by their sports doctor, with a SCAT6, before training.",
     "eligibilityReasonDesc.REVIEW_REQUEST_PENDING": "A medical review has been requested. Training waits until a sports doctor records an examination.",
@@ -120,6 +121,7 @@ export const enHealth = {
     "eligibilityReasonDesc.CLEARANCE_REQUIRED": "There is no valid Medical Clearance on file. A sports doctor needs to issue one.",
     "eligibilityReasonDesc.CLEARANCE_EXPIRED": "The Medical Clearance has expired. A sports doctor needs to renew it.",
     "eligibilityReasonDesc.SESSION_TYPE_RESTRICTED": "This type of session isn't allowed under the current medical restrictions.",
+    "eligibilityReasonDesc.OTHER_MEDICAL_REASON": "The medical service gave another reason that this app can't show yet. Ask the sports doctor before training.",
 
     /* ─── Vitals assessment ─── */
     "vitalReference.weight_within_limit": "Within the {limit} kg class limit",
@@ -330,8 +332,6 @@ export const enHealth = {
     /* ─── Care Team Card ─── */
     "careTeam.noDoctor": "No sports doctor yet. The academy assigns one for your baseline exam, and they show up here and on your Today page.",
     "careTeam.noCoach": "No coach yet. The academy assigns your coach, and you get a notification when they do.",
-    "eligibilityReason.OTHER_MEDICAL_REASON": "Other medical reason",
-    "eligibilityReasonDesc.OTHER_MEDICAL_REASON": "Check the doctor’s guidance before starting a session.",
     "careTeam.title": "Your care team",
     "careTeam.sportsMedicine": "Sports medicine",
     "careTeam.coaching": "Coaching",
@@ -344,9 +344,9 @@ export const enHealth = {
     "examSummary.historyLink": "History",
     "examSummary.recommendationsHeading": "What your doctor recommends",
     "examSummary.emptyCompactTitle": "No medical checks yet",
-    "examSummary.emptyCompactDesc": "Your sports doctor starts with a baseline physical.",
+    "examSummary.emptyCompactDesc": "Your sports doctor starts with a baseline exam.",
     "examSummary.emptyFullTitle": "No examinations yet",
-    "examSummary.emptyFullDesc": "Your sports doctor starts with a baseline physical and records every check-up here.",
+    "examSummary.emptyFullDesc": "Your sports doctor starts with a baseline exam and records every check-up here.",
 
     /* ─── Clearance Board (Coach) ─── */
     "clearanceBoard.srApplies": "What applies:",
@@ -379,7 +379,7 @@ export const enHealth = {
     "fighterHealth.tabHistory": "History",
 
     "fighterHealth.noClearanceOnFile": "No Medical Clearance on file yet",
-    "fighterHealth.noClearanceDesc": "Your sports doctor issues it after your baseline physical. Once it's in place, this card shows what training you're cleared for and any restrictions.",
+    "fighterHealth.noClearanceDesc": "Your sports doctor issues it after your baseline exam. Once it's in place, this card shows what training you're cleared for and any restrictions.",
     "fighterHealth.nextFollowUp": "Next follow-up",
     "fighterHealth.followUpDetail": " · {relative} · after your {exam}",
     "fighterHealth.noFollowUpBooked": "No follow-up booked — your doctor arranges your next check.",
@@ -409,7 +409,7 @@ export const enHealth = {
     "fighterHistory.title": "Medical history",
     "fighterHistory.desc": "Examinations, injuries, treatments and clearance decisions recorded by your sports doctor.",
     "fighterHistory.timelineTitle": "Timeline",
-    "fighterHistory.timelineEmpty": "Nothing recorded yet. Your first entry will be your baseline physical.",
+    "fighterHistory.timelineEmpty": "Nothing recorded yet. Your first entry will be your baseline exam.",
     "fighterHistory.examinationsTitle": "Examinations",
     "fighterHistory.noExaminationsTitle": "No examinations yet",
     "fighterHistory.noExaminationsDesc": "Your sports doctor records each check-up here.",
@@ -433,11 +433,11 @@ export const enHealth = {
     "fighterHistory.resolved": "resolved",
     "fighterHistory.expected": "expected {when}",
     "fighterHistory.toBeAssessed": "To be assessed",
-    "fighterHistory.eventCount": "{count} events",
+    "fighterHistory.eventCount": "{n} events",
     "fighterHistory.eventCount.one": "1 event",
-    "fighterHistory.examCount": "{count} examinations",
+    "fighterHistory.examCount": "{n} examinations",
     "fighterHistory.examCount.one": "1 examination",
-    "fighterHistory.injuryCount": "{count} injuries",
+    "fighterHistory.injuryCount": "{n} injuries",
     "fighterHistory.injuryCount.one": "1 injury",
 
     /* ─── Fighter Injury Details Page ─── */
@@ -461,7 +461,7 @@ export const enHealth = {
     "fighterInjury.checkInsDesc": "How you've reported feeling at each check-in",
     "fighterInjury.trendChartsHint": "Trend charts appear after your second check-in.",
     "fighterInjury.treatments": "Treatments",
-    "fighterInjury.treatmentCount": "{count} treatments",
+    "fighterInjury.treatmentCount": "{n} treatments",
     "fighterInjury.treatmentCount.one": "1 treatment",
     "fighterInjury.noTreatmentsTitle": "No treatments recorded",
     "fighterInjury.noTreatmentsDesc": "Your doctor adds treatments here as your care progresses.",

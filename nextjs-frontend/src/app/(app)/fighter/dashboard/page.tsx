@@ -22,11 +22,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { NOT_RECORDED } from "@/components/domain/domain-format";
 import { reviewCounts } from "@/lib/domain/ai-review";
-import { journeyOwnerLabel, journeyStep, type FighterJourney as Journey, type JourneyCode, type JourneyStep, type JourneyStepId } from "@/lib/domain/journey";
+import { journeyOwnerLabel, journeyStep, localizeJourney, type FighterJourney as Journey, type JourneyCode, type JourneyStep, type JourneyStepId } from "@/lib/domain/journey";
 import { savedWeightMessage } from "@/lib/domain/nutrition";
-import { WEIGHT_CLASS_LABELS, WEIGHT_CLASS_LIMIT_KG } from "@/lib/domain/labels";
+import { WEIGHT_CLASS_LIMIT_KG, weightClassLabel } from "@/lib/domain/labels";
 import type { ClearanceState } from "@/lib/domain/rules";
 import { planAdherence } from "@/lib/domain/training-plan";
 import type { AIAnalysis, MedicalClearance, TrainingPlan, TrainingSession, UpcomingBout } from "@/lib/domain/types";
@@ -76,7 +75,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     // separate service: when it doesn't answer, the day's training still shows and the journey marks that step unknown.
     const plansRead = listPlans({ fighterIds: ids });
     const videosRead = nullIfServiceFails(listVideoLibrary({ fighterIds: ids }));
-    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journey, feedback, goals, coaches, doctors, camp] = await Promise.all([
+    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journeyRead, feedback, goals, coaches, doctors, camp] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
@@ -95,6 +94,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         getCurrentBout(fighter.id).then(async (current) => ({ bout: current, track: current ? await getWeightTrack(current.id) : null })),
     ]);
     if (!health) notFound();
+    const journey = localizeJourney(journeyRead, t);
     const savedWeight = savedWeightMessage(param(query.saved), param(query.status), t);
 
     const videos = videoItems ?? [];
@@ -132,7 +132,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
     const weightClass = bout?.weightClass ?? fighter.weightClass;
     const weight = fighter.weightKg === null ? null : weightCheck(fighter.weightKg, weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
-    const weightLimit = `${WEIGHT_CLASS_LABELS[weightClass]} ${formatNumber(WEIGHT_CLASS_LIMIT_KG[weightClass], 1)} kg`;
+    const weightLimit = `${weightClassLabel(weightClass, locale)} ${formatNumber(WEIGHT_CLASS_LIMIT_KG[weightClass], 1)} kg`;
 
     const goalsAvailable = platformFeatureAvailable("goals");
     const openGoals = goals.filter((goal) => goal.status === "on_track" || goal.status === "at_risk");
@@ -180,7 +180,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     locale={locale}
                 />
 
-                {!journey.complete && !journeyInHero && <FighterJourney journey={journey} variant="compact" />}
+                {!journey.complete && !journeyInHero && <FighterJourney journey={journey} variant="compact" locale={locale} />}
 
                 <ReadinessStrip label={t("fighterToday.readiness")}>
                     <ReadinessCell
@@ -207,7 +207,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                             weight ? (
                                 <ReadinessNumber value={formatNumber(weight.currentKg, 1)} unit="kg" />
                             ) : (
-                                <span className="text-sm font-medium text-fg-muted">{NOT_RECORDED}</span>
+                                <span className="text-sm font-medium text-fg-muted">{t("training.table.notRecorded")}</span>
                             )
                         }
                         hint={weight ? `${weightGapText(weight, t)} · ${weightLimit}` : t("weightGap.limit", { limit: weightLimit })}
@@ -345,7 +345,7 @@ function nextUpFor({ journey, session, videos, now, coachName, restricted, docto
             kind: "blocked",
             title: titleKey ? t(titleKey) : blocker.detail,
             body: t(BLOCKER_BODY[blocker.code] ?? "fighterToday.blocker.unexplained"),
-            owner: blocker.person ?? journeyOwnerLabel(blocker.owner, "fighter"),
+            owner: blocker.person ?? journeyOwnerLabel(blocker.owner, "fighter", t),
             attention: blocker.attention,
             healthHref: routes.fighter.health,
         };

@@ -3,7 +3,9 @@ import { ChartFigure } from "@/components/charts/chart-figure";
 import { CHART_SERIES } from "@/components/charts/colors";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import type { PerformanceMetric } from "@/lib/domain/types";
-import { formatNumber, pluralize } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural } from "@/lib/i18n/translate";
 import { sum } from "@/lib/utils";
 import { weekLabel } from "./performance-format";
 
@@ -19,35 +21,40 @@ export interface TeamVolumeCardProps {
     fighters: TeamVolumeFighter[];
     /** Complete week starts to show, oldest first. */
     weekStarts: string[];
+    locale: Locale;
 }
 
 /** Team training minutes per week as single-hue totals; each fighter's minutes show in the tooltip and the data table. */
-export function TeamVolumeCard({ fighters, weekStarts }: TeamVolumeCardProps) {
-    const labels = weekStarts.map(weekLabel);
+export function TeamVolumeCard({ fighters, weekStarts, locale }: TeamVolumeCardProps) {
+    const t = createTranslator(locale);
+    const labels = weekStarts.map((weekStart) => weekLabel(weekStart, locale));
     const minutes = fighters.map((fighter) =>
         weekStarts.map((weekStart) => fighter.history.find((week) => week.weekStart === weekStart)?.trainingMinutes ?? 0),
     );
     const totals = weekStarts.map((_, index) => sum(minutes.map((values) => values[index])));
     const busiest = totals.length > 0 ? Math.max(...totals) : 0;
-    const summary = `${formatNumber(sum(totals) / Math.max(1, totals.length))} min a week on average · busiest week ${formatNumber(busiest)} min`;
+    const summary = t("screens.performance.volume.summary", { avg: formatNumber(sum(totals) / Math.max(1, totals.length)), max: formatNumber(busiest) });
 
     return (
         <Card className="min-w-0">
-            <CardHeader title="Weekly training volume (min)" description={`Team training minutes · ${pluralize(weekStarts.length, "complete week")}`} />
+            <CardHeader
+                title={t("screens.performance.volume.title")}
+                description={t("screens.performance.volume.desc", { weeks: plural(t, "screens.performance.completeWeeks", weekStarts.length) })}
+            />
             <CardContent>
                 <ChartFigure
                     title={summary}
-                    description="Each week's tooltip and the data table split the total by fighter."
-                    tableCaption="Training minutes per fighter per week"
+                    description={t("screens.performance.volume.figureDesc")}
+                    tableCaption={t("screens.performance.volume.caption")}
                     table={{
-                        columns: ["Week", ...fighters.map((fighter) => fighter.name), "Total"],
+                        columns: [t("screens.performance.week"), ...fighters.map((fighter) => fighter.name), t("screens.performance.total")],
                         rows: weekStarts.map((_, index) => [labels[index], ...minutes.map((values) => values[index]), totals[index]]),
                     }}
                 >
                     <BarChart
-                        ariaLabel={`Team training minutes per week. ${summary}.`}
+                        ariaLabel={t("screens.performance.volume.aria", { summary })}
                         labels={labels}
-                        series={[{ id: "total", label: "Team minutes", color: CHART_SERIES[0], values: totals }]}
+                        series={[{ id: "total", label: t("screens.performance.volume.series"), color: CHART_SERIES[0], values: totals }]}
                         details={fighters.map((fighter, index) => ({ id: fighter.id, label: fighter.name, values: minutes[index] }))}
                         valueSuffix=" min"
                         height={280}

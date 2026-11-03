@@ -2,6 +2,8 @@ import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface StatDelta {
@@ -25,6 +27,8 @@ export interface StatCardProps {
     /** Optional visual under the value, e.g. a sparkline or meter. */
     children?: ReactNode;
     className?: string;
+    /** Language of the hidden sentiment words ("(better)"); English when omitted. */
+    locale?: Locale;
 }
 
 const SENTIMENT_CLASS: Record<StatDelta["sentiment"], string> = {
@@ -34,15 +38,16 @@ const SENTIMENT_CLASS: Record<StatDelta["sentiment"], string> = {
 };
 
 /** Colour carries the sentiment visually, so screen readers get it in words. A neutral movement adds nothing. */
-function sentimentText({ sentiment, direction }: StatDelta): string {
-    if (sentiment === "good") return "(better)";
-    if (sentiment === "bad") return "(worse)";
-    return direction === "flat" ? "(no change)" : "";
+function sentimentText({ sentiment, direction }: StatDelta, locale: Locale): string {
+    const t = createTranslator(locale);
+    if (sentiment === "good") return t("screens.performance.stat.better");
+    if (sentiment === "bad") return t("screens.performance.stat.worse");
+    return direction === "flat" ? t("screens.performance.stat.noChange") : "";
 }
 
-export function StatCard({ label, value, unit, icon, delta, hint, href, children, className }: StatCardProps) {
+export function StatCard({ label, value, unit, icon, delta, hint, href, children, className, locale = "en" }: StatCardProps) {
     const DeltaIcon = delta?.direction === "up" ? ArrowUpRight : delta?.direction === "down" ? ArrowDownRight : Minus;
-    const deltaSentiment = delta ? sentimentText(delta) : "";
+    const deltaSentiment = delta ? sentimentText(delta, locale) : "";
 
     const body = (
         <>

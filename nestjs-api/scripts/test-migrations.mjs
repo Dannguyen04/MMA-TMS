@@ -899,9 +899,81 @@ try {
       rejects(db, `SET ROLE ${role}; SELECT * FROM public.bout_rounds;`, /permission denied/);
       assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.bout_rounds', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
     }
+
+    rejects(db, readFileSync(join(api,'migrations',target),'utf8'), /027 already applied/);
+  });
+  check('030 applies directly after 027: old-row default, object constraint, upsert preservation and preflight', () => {
+    const db = 'mma_013';
+    const target = '030_between_round_plan.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    const bout = '00000000-0000-4000-8000-0000000024e2';
+    const user = '00000000-0000-4000-8000-0000000024b2';
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version IN (28,29,30);'), '0');
+    migration(db, target);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 30;'), '1');
+    assert.equal(psql(db, 'SELECT next_round_plan::text FROM public.bout_rounds;'), '{}');
+    rejects(db, "UPDATE public.bout_rounds SET next_round_plan = '[]'::jsonb;", /ck_bout_rounds_next_round_plan/);
+    rejects(db, 'UPDATE public.bout_rounds SET next_round_plan = NULL;', /not-null constraint/);
+    psql(db, `UPDATE public.bout_rounds SET next_round_plan = '{"focusTacticIds":["t1"]}'::jsonb;`);
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id, note) VALUES ('${bout}', 1, '${user}', 'edited') ON CONFLICT (bout_id,round_no) DO UPDATE SET note=EXCLUDED.note;`);
+    assert.equal(psql(db, "SELECT next_round_plan->'focusTacticIds'->>0 FROM public.bout_rounds;"), 't1');
+    psql(db, `INSERT INTO public.bout_rounds(bout_id, round_no, recorded_by_id) VALUES ('${bout}', 2, '${user}');`);
+    assert.equal(psql(db, 'SELECT next_round_plan::text FROM public.bout_rounds WHERE round_no = 2;'), '{}');
+    rejects(db, sql, /030 already applied/);
+    psql(db, 'DELETE FROM mma_private.migration_history WHERE version = 30;');
+    rejects(db, sql, /030 column collision/);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 30;'), '0');
+    rejects('mma_024_no_023', sql, /030 requires migration 027/);
     psql(db, `DELETE FROM public.bouts WHERE id = '${bout}';`);
     assert.equal(psql(db, 'SELECT count(*) FROM public.bout_rounds;'), '0');
-    rejects(db, readFileSync(join(api,'migrations',target),'utf8'), /027 already applied/);
+  });
+  check('031 requires both 027 and 030; applies after 030 with CHECKs, audit, cascade and RLS', () => {
+    const db = 'mma_013';
+    const target = '031_bout_ai_suggestions.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    // The 030 preflight test above deliberately removed its ledger entry.
+    rejects(db, sql, /031 requires migrations 027 and 030/);
+    assert.equal(psql(db, "SELECT to_regclass('public.bout_ai_suggestions') IS NULL;"), 't');
+    psql(db, `INSERT INTO mma_private.migration_history(version,name) VALUES (30,'030_between_round_plan.sql'); DELETE FROM mma_private.migration_history WHERE version=27;`);
+    rejects(db, sql, /031 requires migrations 027 and 030/);
+    psql(db, `INSERT INTO mma_private.migration_history(version,name) VALUES (27,'027_opponent_analysis_and_rounds.sql');`);
+    migration(db, target);
+    const bout = '00000000-0000-4000-8000-0000000031e1';
+    const user = '00000000-0000-4000-8000-0000000024b2';
+    psql(db, `INSERT INTO public.bouts SELECT (jsonb_populate_record(NULL::public.bouts, to_jsonb(b) || jsonb_build_object('id','${bout}'))).* FROM public.bouts b WHERE id='00000000-0000-4000-8000-0000000024e7';`);
+    const insert = (kind = 'PRE_BOUT_TACTICS', round = 'NULL', status = 'OK', error = 'NULL', output = "'{}'") =>
+      `INSERT INTO public.bout_ai_suggestions(bout_id,kind,round_no,status,error_code,model,input_hash,output,requested_by_id) VALUES ('${bout}','${kind}',${round},'${status}',${error},'test-model','hash',${output},'${user}');`;
+    rejects(db, insert('BETWEEN_ROUNDS'), /ck_bout_ai_round/);
+    rejects(db, insert('PRE_BOUT_TACTICS', '1'), /ck_bout_ai_round/);
+    rejects(db, insert('VIDEO_OBSERVATIONS', '1'), /ck_bout_ai_round/);
+    rejects(db, insert('BETWEEN_ROUNDS', '13'), /round_no_check/);
+    rejects(db, insert('BETWEEN_ROUNDS', '0'), /round_no_check/);
+    rejects(db, insert('PRE_BOUT_TACTICS', 'NULL', 'FAILED'), /ck_bout_ai_error/);
+    rejects(db, insert('UNKNOWN'), /kind_check/);
+    rejects(db, insert('PRE_BOUT_TACTICS', 'NULL', 'OTHER'), /status_check/);
+    for (const output of ["'[]'", "'null'", "'1'"])
+      rejects(db, insert('PRE_BOUT_TACTICS', 'NULL', 'OK', 'NULL', output), /ck_bout_ai_output/);
+    psql(db, insert());
+    psql(db, insert('BETWEEN_ROUNDS', '2', 'FAILED', "'TIMEOUT'"));
+    psql(db, insert('VIDEO_OBSERVATIONS'));
+    assert.equal(psql(db, `SELECT count(*) FROM public.bout_ai_suggestions WHERE output='{}' AND accepted_item_ids='{}' AND decision IS NULL AND decided_at IS NULL;`), '3');
+    rejects(db, `UPDATE public.bout_ai_suggestions SET decision='OTHER';`, /decision_check/);
+    psql(db, `UPDATE public.bout_ai_suggestions SET decision='REJECTED', decided_at=now() WHERE kind='PRE_BOUT_TACTICS';`);
+    assert.equal(psql(db, `SELECT count(*) FROM public.audit_logs WHERE resource_type='bout_ai_suggestions' AND action IN ('INSERT','UPDATE');`), '4');
+    assert.equal(psql(db, "SELECT relrowsecurity FROM pg_class WHERE oid='public.bout_ai_suggestions'::regclass;"), 't');
+    assert.equal(psql(db, "SELECT count(*) FROM pg_indexes WHERE tablename='bout_ai_suggestions' AND indexdef LIKE '%(bout_id, kind, created_at DESC)%';"), '1');
+    for (const role of ['anon', 'authenticated']) {
+      rejects(db, `SET ROLE ${role}; SELECT * FROM public.bout_ai_suggestions;`, /permission denied/);
+      rejects(db, `SET ROLE ${role}; ${insert()}`, /permission denied/);
+      assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.bout_ai_suggestions', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
+    }
+    rejects(db, sql, /031 already applied/);
+    psql(db, 'DELETE FROM mma_private.migration_history WHERE version=31;');
+    rejects(db, sql, /031 table collision/);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version=31;'), '0');
+    psql(db, `INSERT INTO mma_private.migration_history(version,name) VALUES (31,'031_bout_ai_suggestions.sql'); DELETE FROM public.bouts WHERE id='${bout}';`);
+    assert.equal(psql(db, 'SELECT count(*) FROM public.bout_ai_suggestions;'), '0');
+    assert.equal(psql(db, "SELECT count(*) FROM public.audit_logs WHERE resource_type='bout_ai_suggestions' AND action='DELETE';"), '3');
   });
   check('025 applies on ledger 24: enum, table, constraints, permissions, notifications, triggers and RLS', () => {
     const db = 'mma_013';
@@ -986,6 +1058,156 @@ try {
     psql('mma_013', 'DELETE FROM mma_private.migration_history WHERE version = 27;');
     rejects('mma_013', target, /027 .*collision/);
     assert.equal(psql('mma_013', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 27;'), '0');
+  });
+  check('032 applies on ledger 24 without 025-031, adds PENDING to session_status, and rejects re-application or missing 024', () => {
+    const db = 'mma_032_on_024';
+    prepare(db);
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 24;
+    }))
+      migration(db, name);
+    const target = '032_session_status_pending.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version BETWEEN 25 AND 31;'),
+      '0',
+    );
+    migration(db, target);
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 32 AND name = \'032_session_status_pending.sql\';'),
+      '1',
+    );
+    assert.equal(
+      psql(
+        db,
+        `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'session_status';`,
+      ),
+      'SCHEDULED,IN_PROGRESS,COMPLETED,SKIPPED,CANCELLED,ABANDONED,PENDING',
+    );
+    rejects(db, sql, /032 already applied/);
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 32;'),
+      '1',
+    );
+    rejects('mma_024_no_023', sql, /032 requires migration 024/);
+    assert.equal(
+      psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 32;'),
+      '0',
+    );
+  });
+  check('N1: 026 applies on ledger 24 without 025-032; rejects re-application, missing 024, collisions, and enforces fighter_id consistency', () => {
+    const db = 'mma_026_on_024';
+    prepare(db);
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 24;
+    }))
+      migration(db, name);
+    const target = '026_bout_nutrition.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version BETWEEN 25 AND 32;'),
+      '0',
+    );
+    migration(db, target);
+    assert.equal(
+      psql(db, "SELECT count(*) FROM mma_private.migration_history WHERE version = 26 AND name = '026_bout_nutrition.sql';"),
+      '1',
+    );
+    assert.equal(
+      psql(db, `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'nutrition_adherence';`),
+      'ON_PLAN,SLIGHTLY_OFF,WAY_OFF',
+    );
+    assert.equal(
+      psql(
+        db,
+        `SELECT string_agg(rp.role::text, ',' ORDER BY rp.role::text) FROM public.permissions p JOIN public.role_permissions rp ON rp.permission_id = p.id WHERE p.code = 'bout:nutrition_checkin';`,
+      ),
+      'ADMIN,COACH,FIGHTER',
+    );
+    rejects(db, sql, /026 already applied/);
+    assert.equal(
+      psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 26;'),
+      '1',
+    );
+    rejects('mma_024_no_023', sql, /026 requires migration 024/);
+    assert.equal(
+      psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 26;'),
+      '0',
+    );
+    const bout = '00000000-0000-4000-8000-0000000026e1';
+    const fighter = '00000000-0000-4000-8000-0000000026c1';
+    const otherFighter = '00000000-0000-4000-8000-0000000026c2';
+    const user = '00000000-0000-4000-8000-0000000026b2';
+    psql(
+      db,
+      `INSERT INTO auth.users(id) VALUES
+        ('00000000-0000-4000-8000-0000000026a1'), ('00000000-0000-4000-8000-0000000026a2'), ('00000000-0000-4000-8000-0000000026a3');
+       INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+        ('00000000-0000-4000-8000-0000000026b1', '00000000-0000-4000-8000-0000000026a1', 'f1-026@example.invalid', 'FIGHTER'),
+        ('${user}', '00000000-0000-4000-8000-0000000026a2', 'c-026@example.invalid', 'COACH'),
+        ('00000000-0000-4000-8000-0000000026b3', '00000000-0000-4000-8000-0000000026a3', 'f2-026@example.invalid', 'FIGHTER');
+       INSERT INTO public.fighters(id, user_id, first_name, last_name, date_of_birth, weight_class) VALUES
+        ('${fighter}', '00000000-0000-4000-8000-0000000026b1', 'Test', 'One', '2000-01-01', 'LIGHTWEIGHT'),
+        ('${otherFighter}', '00000000-0000-4000-8000-0000000026b3', 'Test', 'Two', '2000-01-01', 'LIGHTWEIGHT');
+       INSERT INTO public.coaches(id, user_id, first_name, last_name)
+        VALUES ('00000000-0000-4000-8000-0000000026c3', '${user}', 'Test', 'Coach');
+       INSERT INTO public.bouts(id, fighter_id, coach_id, ruleset_id, event_name, weight_class_code, weight_limit_kg, acute_loss_limit_pct, requirements_due_days, weigh_in_at, bout_at, status, created_by_id)
+        SELECT '${bout}', '${fighter}', '00000000-0000-4000-8000-0000000026c3', r.id, 'Test Cup', '60', 60, 8, 7, '2026-11-10 01:00:00+00', '2026-11-11 03:00:00+00', 'CAMP', '${user}'
+        FROM public.competition_rulesets r WHERE r.name = 'Tự nhập';`,
+    );
+    psql(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, note, recorded_by_id)
+       VALUES ('${bout}', '${fighter}', '2026-10-15', 'ON_PLAN', 'Day 1 note', '${user}');`,
+    );
+    psql(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, note, recorded_by_id)
+       VALUES ('${bout}', '${fighter}', '2026-10-15', 'SLIGHTLY_OFF', 'Updated note', '${user}')
+       ON CONFLICT (bout_id, academy_date) DO UPDATE SET
+         adherence = EXCLUDED.adherence,
+         note = EXCLUDED.note,
+         recorded_by_id = EXCLUDED.recorded_by_id,
+         updated_at = now();`,
+    );
+    assert.equal(
+      psql(db, `SELECT count(*) FROM public.bout_nutrition_checkins WHERE bout_id = '${bout}' AND academy_date = '2026-10-15';`),
+      '1',
+    );
+    assert.equal(
+      psql(db, `SELECT adherence || ':' || note FROM public.bout_nutrition_checkins WHERE bout_id = '${bout}' AND academy_date = '2026-10-15';`),
+      'SLIGHTLY_OFF:Updated note',
+    );
+    rejects(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, recorded_by_id)
+       VALUES ('${bout}', '${otherFighter}', '2026-10-16', 'ON_PLAN', '${user}');`,
+      /fighter_id must match bouts.fighter_id/,
+    );
+    const longNote = 'a'.repeat(201);
+    rejects(
+      db,
+      `INSERT INTO public.bout_nutrition_checkins (bout_id, fighter_id, academy_date, adherence, note, recorded_by_id)
+       VALUES ('${bout}', '${fighter}', '2026-10-16', 'ON_PLAN', '${longNote}', '${user}');`,
+      /ck_bout_nutrition_checkins_note|check constraint/,
+    );
+    assert.equal(psql(db, `SELECT relrowsecurity FROM pg_class WHERE oid = 'public.bout_nutrition_checkins'::regclass;`), 't');
+    for (const role of ['anon', 'authenticated']) {
+      rejects(db, `SET ROLE ${role}; SELECT * FROM public.bout_nutrition_checkins;`, /permission denied/);
+      assert.equal(psql(db, `SELECT has_table_privilege('${role}', 'public.bout_nutrition_checkins', 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER');`), 'f');
+      assert.equal(psql(db, `SELECT has_function_privilege('${role}', 'mma_private.check_bout_nutrition_fighter()', 'EXECUTE');`), 'f');
+    }
+    const dbFnCollision = 'mma_026_fn_collision';
+    prepare(dbFnCollision);
+    for (const name of migrationNames.filter((name) => {
+      const version = Number(name.slice(0, 3));
+      return version >= 3 && version <= 24;
+    }))
+      migration(dbFnCollision, name);
+    psql(dbFnCollision, 'CREATE FUNCTION mma_private.check_bout_nutrition_fighter() RETURNS trigger LANGUAGE plpgsql AS $fn$ BEGIN RETURN NEW; END $fn$;');
+    rejects(dbFnCollision, sql, /026 type, column or table collision/);
   });
   if (process.argv.includes('--export-catalog')) {
     mkdirSync(resolve(api, '../tmp'), { recursive: true });

@@ -99,7 +99,7 @@ const TORSO =
 const OUTLINE_WIDTH = 3;
 
 /** Front-view body figure with numbered markers per highlighted region and a text legend. */
-export function BodyMap({ highlights, size = "md", showLegend = true, className, locale = "en" }: BodyMapProps) {
+export function BodyMap({ highlights, size = "md", showLegend = true, className, locale = "vi" }: BodyMapProps) {
     const t = createTranslator(locale);
     const markers = placeMarkers(highlights);
     const hasPosterior = highlights.some((h) => HOTSPOTS[h.region].posterior);

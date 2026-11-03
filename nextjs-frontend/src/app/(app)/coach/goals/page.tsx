@@ -12,10 +12,11 @@ import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { GOAL_STATUS_LABELS, TECHNIQUE_LABELS, TECHNIQUES } from "@/lib/domain/labels";
+import { techniqueLabel, TECHNIQUES } from "@/lib/domain/labels";
 import { goalProgressPct } from "@/lib/domain/rules";
 import type { Goal, GoalStatus } from "@/lib/domain/types";
 import { daysBetween, formatNumber } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { hrefWith, paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listGoals } from "@/lib/services/goals";
@@ -23,7 +24,10 @@ import { listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Goals" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.performance.goals") };
+}
 
 const GOAL_STATUSES: GoalStatus[] = ["at_risk", "on_track", "achieved", "missed"];
 const SORT_KEYS = ["fighter", "goal", "progress", "status", "due"] as const;
@@ -38,11 +42,12 @@ function isOpen(goal: Goal): boolean {
 
 export default async function CoachGoalsPage({ searchParams }: PageProps<"/coach/goals">) {
     const user = await requireRole("coach");
+    const { t, locale } = await getTranslator();
     if (!platformFeatureAvailable("goals")) {
         return (
             <>
-                <PageHeader title="Goals" />
-                <FeatureUnavailable service="training" title="Goals aren't available yet" />
+                <PageHeader title={t("screens.performance.goals")} />
+                <FeatureUnavailable service="training" title={t("screens.performance.goalsUnavailable")} description={t("screens.performance.unavailableDesc")} />
             </>
         );
     }
@@ -91,49 +96,75 @@ export default async function CoachGoalsPage({ searchParams }: PageProps<"/coach
     return (
         <>
             <PageHeader
-                title="Goals"
-                description="Measurable targets across your roster. Log progress as you measure it — fighters see every check-in."
+                title={t("screens.performance.goals")}
+                description={t("screens.performance.coachGoals.desc")}
                 actions={goals.length > 0 && <NewGoalButton now={now} fighters={fighterOptions} />}
             />
 
             {goals.length === 0 ? (
                 <EmptyState
                     icon={<Target />}
-                    title="No goals across your roster yet"
-                    description="Turn a focus area from Team performance into a target with a due date. Fighters are notified and follow progress on their Goals page."
+                    title={t("screens.performance.coachGoals.emptyTitle")}
+                    description={t("screens.performance.coachGoals.emptyDesc")}
                     action={<NewGoalButton now={now} fighters={fighterOptions} />}
                 />
             ) : (
                 <div className="flex flex-col gap-6">
                     <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
-                        <StatCard label="In progress" value={formatNumber(open.length)} icon={<Target aria-hidden />} hint="On track or at risk" />
                         <StatCard
-                            label="At risk"
+                            label={t("screens.performance.coachGoals.inProgress")}
+                            value={formatNumber(open.length)}
+                            icon={<Target aria-hidden />}
+                            hint={t("screens.performance.coachGoals.inProgressHint")}
+                            locale={locale}
+                        />
+                        <StatCard
+                            label={t("screens.performance.goalStatus.at_risk")}
                             value={formatNumber(atRisk)}
                             icon={<TriangleAlert aria-hidden />}
                             href={hrefWith(pathname, {}, { status: "at_risk" })}
-                            hint={atRisk > 0 ? "Projected to miss the target" : "Nothing projected to miss"}
+                            hint={atRisk > 0 ? t("screens.performance.coachGoals.atRiskHint") : t("screens.performance.coachGoals.atRiskNone")}
+                            locale={locale}
                         />
-                        <StatCard label={`Due in ${DUE_SOON_DAYS} days`} value={formatNumber(dueSoon)} icon={<CalendarClock aria-hidden />} hint="Goals still in progress" />
-                        <StatCard label="Achieved" value={formatNumber(achieved)} icon={<Trophy aria-hidden />} href={hrefWith(pathname, {}, { status: "achieved" })} hint="Target reached" />
+                        <StatCard
+                            label={t("screens.performance.coachGoals.dueIn", { n: DUE_SOON_DAYS })}
+                            value={formatNumber(dueSoon)}
+                            icon={<CalendarClock aria-hidden />}
+                            hint={t("screens.performance.coachGoals.dueInHint")}
+                            locale={locale}
+                        />
+                        <StatCard
+                            label={t("screens.performance.goalStatus.achieved")}
+                            value={formatNumber(achieved)}
+                            icon={<Trophy aria-hidden />}
+                            href={hrefWith(pathname, {}, { status: "achieved" })}
+                            hint={t("screens.performance.goalGroups.achievedDesc")}
+                            locale={locale}
+                        />
                     </div>
 
                     <FilterBar
                         filters={[
-                            { type: "select", name: "fighter", label: "Fighter", allLabel: "All fighters", options: fighterOptions.map((f) => ({ value: f.id, label: f.name })) },
+                            {
+                                type: "select",
+                                name: "fighter",
+                                label: t("screens.performance.fighter"),
+                                allLabel: t("screens.performance.coachGoals.allFighters"),
+                                options: fighterOptions.map((f) => ({ value: f.id, label: f.name })),
+                            },
                             {
                                 type: "select",
                                 name: "status",
-                                label: "Status",
-                                allLabel: "All statuses",
-                                options: GOAL_STATUSES.map((status) => ({ value: status, label: GOAL_STATUS_LABELS[status] })),
+                                label: t("screens.performance.status"),
+                                allLabel: t("screens.performance.coachGoals.allStatuses"),
+                                options: GOAL_STATUSES.map((status) => ({ value: status, label: t(`screens.performance.goalStatus.${status}`) })),
                             },
                             {
                                 type: "select",
                                 name: "technique",
-                                label: "Technique",
-                                allLabel: "All techniques",
-                                options: TECHNIQUES.map((technique) => ({ value: technique, label: TECHNIQUE_LABELS[technique] })),
+                                label: t("screens.performance.technique"),
+                                allLabel: t("screens.performance.coachGoals.allTechniques"),
+                                options: TECHNIQUES.map((technique) => ({ value: technique, label: techniqueLabel(t, technique) })),
                             },
                         ]}
                     />
@@ -144,18 +175,36 @@ export default async function CoachGoalsPage({ searchParams }: PageProps<"/coach
                                 compact
                                 className="py-12"
                                 icon={<SearchX />}
-                                title="No goals match these filters"
-                                description="Try another fighter, status or technique."
+                                title={t("screens.performance.coachGoals.noMatch")}
+                                description={t("screens.performance.coachGoals.noMatchDesc")}
                                 action={
                                     <ButtonLink href={pathname} variant="secondary" size="sm">
-                                        Clear filters
+                                        {t("screens.performance.clearFilters")}
                                     </ButtonLink>
                                 }
                             />
                         ) : (
                             <>
-                                <GoalsTable goals={page.items} fighters={fightersById} now={now} pathname={pathname} searchParams={params} sort={sort} direction={direction} />
-                                <Pagination page={page.page} pageCount={page.pageCount} total={page.total} pageSize={page.pageSize} pathname={pathname} searchParams={params} itemLabel="goals" />
+                                <GoalsTable
+                                    goals={page.items}
+                                    fighters={fightersById}
+                                    now={now}
+                                    pathname={pathname}
+                                    searchParams={params}
+                                    sort={sort}
+                                    direction={direction}
+                                    locale={locale}
+                                />
+                                <Pagination
+                                    page={page.page}
+                                    pageCount={page.pageCount}
+                                    total={page.total}
+                                    pageSize={page.pageSize}
+                                    pathname={pathname}
+                                    searchParams={params}
+                                    itemLabel={t("screens.performance.coachGoals.itemLabel")}
+                                    locale={locale}
+                                />
                             </>
                         )}
                     </Card>

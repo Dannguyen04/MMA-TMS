@@ -38,38 +38,38 @@ export type Scat6List = (typeof SCAT6_LISTS)[number];
 
 const pastDateTime = (label: string) =>
     z
-        .string({ error: `Enter ${label}.` })
-        .datetime({ error: `Enter ${label}.` })
-        .refine((value) => new Date(value).getTime() <= Date.now(), `${label.charAt(0).toUpperCase()}${label.slice(1)} can't be in the future.`);
+        .string({ error: `Hãy nhập ${label}.` })
+        .datetime({ error: `Hãy nhập ${label}.` })
+        .refine((value) => new Date(value).getTime() <= Date.now(), `${label.charAt(0).toUpperCase()}${label.slice(1)} không thể ở tương lai.`);
 
 const items = (length: number) => z.array(z.boolean()).length(length);
 
 const wholeNumber = (label: string, min: number, max: number) =>
     z
-        .number({ error: `Enter ${label}.` })
-        .int(`Enter ${label} as a whole number.`)
-        .min(min, `${label.charAt(0).toUpperCase()}${label.slice(1)} must be between ${min} and ${max}.`)
-        .max(max, `${label.charAt(0).toUpperCase()}${label.slice(1)} must be between ${min} and ${max}.`);
+        .number({ error: `Hãy nhập ${label}.` })
+        .int(`Hãy nhập ${label} dạng số nguyên.`)
+        .min(min, `${label.charAt(0).toUpperCase()}${label.slice(1)} phải từ ${min} đến ${max}.`)
+        .max(max, `${label.charAt(0).toUpperCase()}${label.slice(1)} phải từ ${min} đến ${max}.`);
 
 const seconds = (label: string) =>
     z
-        .number({ error: `Enter ${label} in seconds.` })
+        .number({ error: `Hãy nhập ${label} theo giây.` })
         .finite()
-        .positive(`Enter ${label} in seconds.`)
-        .max(3_600, `${label.charAt(0).toUpperCase()}${label.slice(1)} can't be more than an hour.`);
+        .positive(`Hãy nhập ${label} theo giây.`)
+        .max(3_600, `${label.charAt(0).toUpperCase()}${label.slice(1)} không thể quá một giờ.`);
 
 const text = (label: string, max: number) =>
     z
-        .string({ error: `Enter ${label}.` })
+        .string({ error: `Hãy nhập ${label}.` })
         .trim()
-        .min(1, `Enter ${label}.`)
-        .max(max, `Keep ${label} under ${max.toLocaleString("en")} characters.`);
+        .min(1, `Hãy nhập ${label}.`)
+        .max(max, `${label} tối đa ${max.toLocaleString("vi")} ký tự.`);
 
 const optionalText = (label: string, max: number) => text(label, max).nullable();
 
 const list = z.enum(SCAT6_LISTS, { error: "Choose the list you used." });
 
-const notPerformed = z.strictObject({ performed: z.literal(false), reason: text("why it wasn't performed", 1_000) });
+const notPerformed = z.strictObject({ performed: z.literal(false), reason: text("lý do không thực hiện", 1_000) });
 
 /** A section performed with its answers, or explicitly not performed with the reason. Nothing is assumed 0 or normal. */
 function section<Shape extends z.ZodRawShape>(shape: Shape) {
@@ -83,13 +83,13 @@ const immediateAssessmentSchema = section({
     glasgowComaScale: z
         .array(
             z.strictObject({
-                assessedAt: pastDateTime("when the GCS was assessed"),
-                eye: wholeNumber("the eye response", 1, 4),
-                verbal: wholeNumber("the verbal response", 1, 5),
-                motor: wholeNumber("the motor response", 1, 6),
+                assessedAt: pastDateTime("thời điểm đánh giá GCS"),
+                eye: wholeNumber("đáp ứng mắt", 1, 4),
+                verbal: wholeNumber("đáp ứng lời nói", 1, 5),
+                motor: wholeNumber("đáp ứng vận động", 1, 6),
             }),
         )
-        .min(1, "Record at least one GCS assessment.")
+        .min(1, "Hãy ghi ít nhất một lần đánh giá GCS.")
         .max(SCAT6.GCS_MAX_ASSESSMENTS),
     cervicalSpine: z
         .strictObject({
@@ -100,7 +100,7 @@ const immediateAssessmentSchema = section({
             limbStrengthAndSensationNormal: z.boolean(),
         })
         .refine((data) => (data.neckPainAtRest || data.tendernessToPalpation) === (data.fullActiveRangeOfMotion === null), {
-            error: "Answer the range-of-motion question only when there is no neck pain and no tenderness.",
+            error: "Chỉ trả lời câu biên độ vận động khi không đau cổ và không đau khi ấn.",
             path: ["fullActiveRangeOfMotion"],
         }),
     coordinationOcularMotor: z
@@ -108,21 +108,21 @@ const immediateAssessmentSchema = section({
             fingerToNoseNormal: z.boolean(),
             ocularMotorWithoutDoubleVision: z.boolean(),
             extraocularMovementsNormal: z.boolean(),
-            extraocularDescription: optionalText("the description", 1_000),
+            extraocularDescription: optionalText("mô tả", 1_000),
         })
         .refine((data) => data.extraocularMovementsNormal || data.extraocularDescription !== null, {
-            error: "Describe the abnormal extraocular movements.",
+            error: "Hãy mô tả vận động nhãn cầu bất thường.",
             path: ["extraocularDescription"],
         }),
     maddocks: items(SCAT6.MADDOCKS_QUESTIONS),
 });
 
 const symptomsSchema = section({
-    ratings: z.array(wholeNumber("every symptom rating", 0, SCAT6.SYMPTOM_MAX_RATING)).length(SCAT6.SYMPTOMS),
+    ratings: z.array(wholeNumber("mọi điểm triệu chứng", 0, SCAT6.SYMPTOM_MAX_RATING)).length(SCAT6.SYMPTOMS),
     worseWithPhysicalActivity: z.boolean(),
     worseWithMentalActivity: z.boolean(),
-    percentOfNormal: wholeNumber("the percent of normal", 0, 100),
-    notNormalReason: optionalText("the reason", 1_000),
+    percentOfNormal: wholeNumber("phần trăm so với bình thường", 0, 100),
+    notNormalReason: optionalText("lý do", 1_000),
 });
 
 const orientationSchema = section({ answers: items(SCAT6.ORIENTATION_QUESTIONS) });
@@ -130,64 +130,64 @@ const orientationSchema = section({ answers: items(SCAT6.ORIENTATION_QUESTIONS) 
 const immediateMemorySchema = section({
     wordList: list,
     trials: z.array(items(SCAT6.WORDS_PER_LIST)).length(SCAT6.MEMORY_TRIALS),
-    lastTrialCompletedAt: pastDateTime("when the last trial ended"),
+    lastTrialCompletedAt: pastDateTime("thời điểm kết thúc lượt cuối"),
 });
 
 const digitsBackwardSchema = section({
     digitList: list,
     strings: z
         .array(z.strictObject({ trial1Correct: z.boolean(), trial2Correct: z.boolean().nullable() }))
-        .min(1, "Record at least the first string length.")
+        .min(1, "Hãy ghi ít nhất độ dài dãy đầu tiên.")
         .max(SCAT6.DIGIT_STRING_LENGTHS)
         .superRefine((strings, ctx) => {
             strings.forEach((entry, index) => {
                 if (entry.trial1Correct !== (entry.trial2Correct === null)) {
-                    ctx.addIssue({ code: "custom", path: [index, "trial2Correct"], message: "Record trial 2 exactly when trial 1 is incorrect." });
+                    ctx.addIssue({ code: "custom", path: [index, "trial2Correct"], message: "Chỉ ghi lượt 2 khi lượt 1 sai." });
                 }
                 if (!entry.trial1Correct && entry.trial2Correct === false && index !== strings.length - 1) {
-                    ctx.addIssue({ code: "custom", path: [index + 1], message: "The test ends after both trials of a length are incorrect." });
+                    ctx.addIssue({ code: "custom", path: [index + 1], message: "Bài kiểm tra dừng khi cả hai lượt của một độ dài đều sai." });
                 }
             });
             const last = strings.at(-1);
             const stopped = last !== undefined && !last.trial1Correct && last.trial2Correct === false;
             if (!stopped && strings.length !== SCAT6.DIGIT_STRING_LENGTHS) {
-                ctx.addIssue({ code: "custom", path: [], message: "Give every string length until the test ends." });
+                ctx.addIssue({ code: "custom", path: [], message: "Hãy ghi mọi độ dài dãy cho đến khi dừng." });
             }
         }),
 });
 
 const monthsReverseSchema = section({
     correctResponses: items(SCAT6.MONTHS),
-    timeSeconds: seconds("the time"),
-    errors: wholeNumber("the errors", 0, SCAT6.MONTHS),
+    timeSeconds: seconds("thời gian"),
+    errors: wholeNumber("số lỗi", 0, SCAT6.MONTHS),
 });
 
 const stanceSchema = z.discriminatedUnion("unableToHoldFiveSeconds", [
     z.strictObject({ unableToHoldFiveSeconds: z.literal(true) }),
-    z.strictObject({ unableToHoldFiveSeconds: z.literal(false), errors: wholeNumber("the errors", 0, SCAT6.MBESS_MAX_ERRORS) }),
+    z.strictObject({ unableToHoldFiveSeconds: z.literal(false), errors: wholeNumber("số lỗi", 0, SCAT6.MBESS_MAX_ERRORS) }),
 ]);
 
 const stancesSchema = z.strictObject({ doubleLeg: stanceSchema, singleLeg: stanceSchema, tandem: stanceSchema });
 
 const mbessSchema = section({
     footTested: z.enum(["LEFT", "RIGHT"], { error: "Choose the foot tested." }),
-    testingSurface: text("the testing surface", 200),
-    footwear: text("the footwear", 200),
+    testingSurface: text("bề mặt kiểm tra", 200),
+    footwear: text("giày dép", 200),
     firm: stancesSchema,
     foam: z.discriminatedUnion("performed", [z.strictObject({ performed: z.literal(false) }), z.strictObject({ performed: z.literal(true), stances: stancesSchema })]),
 });
 
 const gaitTrialSchema = z.discriminatedUnion("completed", [
-    z.strictObject({ completed: z.literal(true), timeSeconds: seconds("the time") }),
+    z.strictObject({ completed: z.literal(true), timeSeconds: seconds("thời gian") }),
     z.strictObject({ completed: z.literal(false) }),
 ]);
 
 const tandemGaitSchema = section({ trials: z.array(gaitTrialSchema).length(SCAT6.GAIT_TRIALS) });
 
-const subtractionErrors = wholeNumber("the errors", 0, 100);
+const subtractionErrors = wholeNumber("số lỗi", 0, 100);
 
 const dualTaskTrialSchema = z.discriminatedUnion("completed", [
-    z.strictObject({ completed: z.literal(true), correctResponses: items(SCAT6.DUAL_TASK_TRIAL_RESPONSES), errors: subtractionErrors, timeSeconds: seconds("the time") }),
+    z.strictObject({ completed: z.literal(true), correctResponses: items(SCAT6.DUAL_TASK_TRIAL_RESPONSES), errors: subtractionErrors, timeSeconds: seconds("thời gian") }),
     z.strictObject({ completed: z.literal(false), correctResponses: items(SCAT6.DUAL_TASK_TRIAL_RESPONSES).nullable() }),
 ]);
 
@@ -195,42 +195,42 @@ const dualTaskSequenceSchema = z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("PRINTED"), trials: z.array(dualTaskTrialSchema).length(SCAT6.GAIT_TRIALS) }),
     z.strictObject({
         kind: z.literal("ALTERNATE"),
-        startingInteger: wholeNumber("the starting number", 1, 1_000),
-        responses: z.array(wholeNumber("every response", -1_000, 1_000)).max(SCAT6.DUAL_TASK_ALTERNATE_MAX_RESPONSES, "Record at most 30 responses."),
+        startingInteger: wholeNumber("số bắt đầu", 1, 1_000),
+        responses: z.array(wholeNumber("mọi câu trả lời", -1_000, 1_000)).max(SCAT6.DUAL_TASK_ALTERNATE_MAX_RESPONSES, "Ghi tối đa 30 câu trả lời."),
         trial: z.discriminatedUnion("completed", [
-            z.strictObject({ completed: z.literal(true), errors: subtractionErrors, timeSeconds: seconds("the time") }),
+            z.strictObject({ completed: z.literal(true), errors: subtractionErrors, timeSeconds: seconds("thời gian") }),
             z.strictObject({ completed: z.literal(false) }),
         ]),
     }),
 ]);
 
 const dualTaskGaitSchema = section({
-    subtractionStep: wholeNumber("the subtraction step", 1, 20),
-    practice: z.strictObject({ correctResponses: items(SCAT6.DUAL_TASK_PRACTICE_RESPONSES), errors: subtractionErrors, timeSeconds: seconds("the time").nullable() }),
+    subtractionStep: wholeNumber("bước trừ", 1, 20),
+    practice: z.strictObject({ correctResponses: items(SCAT6.DUAL_TASK_PRACTICE_RESPONSES), errors: subtractionErrors, timeSeconds: seconds("thời gian").nullable() }),
     sequence: dualTaskSequenceSchema,
 });
 
-const delayedRecallSchema = section({ startedAt: pastDateTime("when delayed recall started"), words: items(SCAT6.WORDS_PER_LIST) });
+const delayedRecallSchema = section({ startedAt: pastDateTime("thời điểm bắt đầu nhớ lại có trì hoãn"), words: items(SCAT6.WORDS_PER_LIST) });
 
 const administeredSchema = z
     .strictObject({
         status: z.literal("ADMINISTERED"),
         formVersion: z.literal(SCAT6.FORM_VERSION),
-        administeredAt: pastDateTime("when the SCAT6 was administered"),
-        examinerAttestation: z.literal(true, { error: "Confirm you administered or supervised the SCAT6." }),
+        administeredAt: pastDateTime("thời điểm thực hiện SCAT6"),
+        examinerAttestation: z.literal(true, { error: "Hãy xác nhận bạn đã thực hiện hoặc giám sát SCAT6." }),
         athlete: z.strictObject({
             dominantHand: z.enum(["LEFT", "RIGHT", "AMBIDEXTROUS"], { error: "Choose the dominant hand." }),
-            sportTeamSchool: optionalText("the sport, team or school", 200),
-            currentSchoolYear: optionalText("the school year", 50),
-            yearsOfEducation: wholeNumber("the years of education", 0, 40).nullable(),
-            firstLanguage: optionalText("the first language", 100),
-            preferredLanguage: optionalText("the preferred language", 100),
+            sportTeamSchool: optionalText("môn thể thao, đội hoặc trường", 200),
+            currentSchoolYear: optionalText("năm học", 50),
+            yearsOfEducation: wholeNumber("số năm đi học", 0, 40).nullable(),
+            firstLanguage: optionalText("ngôn ngữ mẹ đẻ", 100),
+            preferredLanguage: optionalText("ngôn ngữ ưu tiên", 100),
         }),
         concussionHistory: z.strictObject({
-            priorDiagnosedConcussions: wholeNumber("the number of earlier concussions", 0, 100),
-            mostRecentConcussion: optionalText("the most recent concussion", 200),
-            primarySymptoms: optionalText("the primary symptoms", 1_000),
-            mostRecentRecoveryDays: wholeNumber("the recovery days", 0, 3_650).nullable(),
+            priorDiagnosedConcussions: wholeNumber("số lần chấn động não trước đây", 0, 100),
+            mostRecentConcussion: optionalText("lần chấn động não gần nhất", 200),
+            primarySymptoms: optionalText("triệu chứng chính", 1_000),
+            mostRecentRecoveryDays: wholeNumber("số ngày hồi phục", 0, 3_650).nullable(),
         }),
         immediateAssessment: immediateAssessmentSchema,
         background: z.strictObject({
@@ -239,8 +239,8 @@ const administeredSchema = z
             learningDisabilityOrDyslexia: z.boolean(),
             adhd: z.boolean(),
             depressionAnxietyOrOtherPsychological: z.boolean(),
-            notes: optionalText("the notes", 2_000),
-            currentMedications: optionalText("the current medications", 2_000),
+            notes: optionalText("ghi chú", 2_000),
+            currentMedications: optionalText("thuốc đang dùng", 2_000),
         }),
         symptoms: symptomsSchema,
         orientation: orientationSchema,
@@ -250,23 +250,23 @@ const administeredSchema = z
         mbess: mbessSchema,
         tandemGait: tandemGaitSchema,
         dualTaskGait: dualTaskGaitSchema,
-        gaitIncompleteReason: optionalText("why a gait trial wasn't completed", 1_000),
+        gaitIncompleteReason: optionalText("lý do lượt đi chưa hoàn thành", 1_000),
         delayedRecall: delayedRecallSchema,
         differentFromUsualSelf: z.enum(["YES", "NO", "NOT_APPLICABLE"], { error: "Answer whether the athlete is different from their usual self." }),
         concussionDiagnosed: z.enum(["YES", "NO", "DEFERRED"]).nullable(),
-        clinicalNotes: optionalText("the clinical notes", 4_000),
+        clinicalNotes: optionalText("ghi chú lâm sàng", 4_000),
     })
     .superRefine((data, ctx) => {
         if (data.monthsReverse.performed && data.monthsReverse.errors === 0 && data.monthsReverse.correctResponses.includes(false)) {
-            ctx.addIssue({ code: "custom", path: ["monthsReverse", "errors"], message: "Count a month not marked correct as an error." });
+            ctx.addIssue({ code: "custom", path: ["monthsReverse", "errors"], message: "Tính tháng không được đánh dấu đúng là một lỗi." });
         }
         const tandemCompleted = data.tandemGait.performed && data.tandemGait.trials.every((trial) => trial.completed);
         if (data.dualTaskGait.performed && !tandemCompleted) {
-            ctx.addIssue({ code: "custom", path: ["dualTaskGait"], message: "Complete all 3 timed tandem gait trials before the dual task." });
+            ctx.addIssue({ code: "custom", path: ["dualTaskGait"], message: "Hãy hoàn thành cả 3 lượt đi nối gót tính giờ trước bài nhiệm vụ kép." });
         }
         const dual = data.dualTaskGait.performed ? data.dualTaskGait : undefined;
         if (dual?.sequence.kind === "PRINTED" && dual.subtractionStep !== SCAT6.DUAL_TASK_STEP) {
-            ctx.addIssue({ code: "custom", path: ["dualTaskGait", "sequence"], message: "The printed sequences count down by 7. Record another step on the alternate row." });
+            ctx.addIssue({ code: "custom", path: ["dualTaskGait", "sequence"], message: "Dãy in sẵn đếm lùi 7. Ghi bước khác ở dòng thay thế." });
         }
         const gaitTrials = [
             ...(data.tandemGait.performed ? data.tandemGait.trials : []),
@@ -277,18 +277,18 @@ const administeredSchema = z
             ctx.addIssue({
                 code: "custom",
                 path: ["gaitIncompleteReason"],
-                message: anyIncomplete ? "Explain why a gait trial wasn't completed." : "Leave this empty: every gait trial was completed.",
+                message: anyIncomplete ? "Hãy giải thích lý do lượt đi chưa hoàn thành." : "Để trống: mọi lượt đi đã hoàn thành.",
             });
         }
         if (data.delayedRecall.performed) {
             if (!data.immediateMemory.performed) {
-                ctx.addIssue({ code: "custom", path: ["delayedRecall"], message: "Delayed recall uses the Immediate Memory word list, so Immediate Memory must be performed." });
+                ctx.addIssue({ code: "custom", path: ["delayedRecall"], message: "Nhớ lại có trì hoãn dùng danh sách từ của Trí nhớ tức thời, nên phải thực hiện Trí nhớ tức thời." });
             } else if (new Date(data.delayedRecall.startedAt).getTime() - new Date(data.immediateMemory.lastTrialCompletedAt).getTime() < SCAT6.DELAYED_RECALL_MIN_DELAY_MS) {
-                ctx.addIssue({ code: "custom", path: ["delayedRecall", "startedAt"], message: "Start delayed recall at least 5 minutes after the last Immediate Memory trial." });
+                ctx.addIssue({ code: "custom", path: ["delayedRecall", "startedAt"], message: "Bắt đầu nhớ lại có trì hoãn ít nhất 5 phút sau lượt Trí nhớ tức thời cuối." });
             }
         }
         if (data.immediateMemory.performed && new Date(data.immediateMemory.lastTrialCompletedAt).getTime() < new Date(data.administeredAt).getTime()) {
-            ctx.addIssue({ code: "custom", path: ["immediateMemory", "lastTrialCompletedAt"], message: "The last trial can't end before the SCAT6 started." });
+            ctx.addIssue({ code: "custom", path: ["immediateMemory", "lastTrialCompletedAt"], message: "Lượt cuối không thể kết thúc trước khi bắt đầu SCAT6." });
         }
     });
 
@@ -296,10 +296,10 @@ const administeredSchema = z
 const notAdministeredSchema = z.strictObject({
     status: z.literal("NOT_ADMINISTERED"),
     formVersion: z.literal(SCAT6.FORM_VERSION),
-    reason: text("why the SCAT6 wasn't administered", 2_000),
+    reason: text("lý do không thực hiện SCAT6", 2_000),
 });
 
-export const scat6InputSchema = z.discriminatedUnion("status", [administeredSchema, notAdministeredSchema], { error: "Record the SCAT6, or why it wasn't administered." });
+export const scat6InputSchema = z.discriminatedUnion("status", [administeredSchema, notAdministeredSchema], { error: "Hãy ghi SCAT6, hoặc lý do không thực hiện." });
 
 export type Scat6Input = z.infer<typeof scat6InputSchema>;
 export type AdministeredScat6 = z.infer<typeof administeredSchema>;
@@ -342,17 +342,17 @@ export type Scat6Record = z.infer<typeof scat6RecordSchema>;
 
 /** Scores worth reading at a glance, with the form's maximum where it has one. */
 export const SCAT6_SCORE_ROWS: { key: Exclude<keyof Scat6Scores, "complete" | "glasgowComaScale" | "immediateMemoryTrials">; label: string; max: number | null; unit?: "s" }[] = [
-    { key: "symptomCount", label: "Symptoms", max: SCAT6.SYMPTOMS },
-    { key: "symptomSeverity", label: "Symptom severity", max: SCAT6.SYMPTOMS * SCAT6.SYMPTOM_MAX_RATING },
-    { key: "orientation", label: "Orientation", max: SCAT6.ORIENTATION_QUESTIONS },
-    { key: "immediateMemory", label: "Immediate memory", max: SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS },
-    { key: "concentration", label: "Concentration", max: SCAT6.DIGIT_STRING_LENGTHS + 1 },
-    { key: "delayedRecall", label: "Delayed recall", max: SCAT6.WORDS_PER_LIST },
-    { key: "cognitiveTotal", label: "Cognitive total", max: SCAT6.ORIENTATION_QUESTIONS + SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS + SCAT6.DIGIT_STRING_LENGTHS + 1 + SCAT6.WORDS_PER_LIST },
+    { key: "symptomCount", label: "Triệu chứng", max: SCAT6.SYMPTOMS },
+    { key: "symptomSeverity", label: "Mức độ triệu chứng", max: SCAT6.SYMPTOMS * SCAT6.SYMPTOM_MAX_RATING },
+    { key: "orientation", label: "Định hướng", max: SCAT6.ORIENTATION_QUESTIONS },
+    { key: "immediateMemory", label: "Trí nhớ tức thời", max: SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS },
+    { key: "concentration", label: "Tập trung", max: SCAT6.DIGIT_STRING_LENGTHS + 1 },
+    { key: "delayedRecall", label: "Nhớ lại có trì hoãn", max: SCAT6.WORDS_PER_LIST },
+    { key: "cognitiveTotal", label: "Tổng điểm nhận thức", max: SCAT6.ORIENTATION_QUESTIONS + SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS + SCAT6.DIGIT_STRING_LENGTHS + 1 + SCAT6.WORDS_PER_LIST },
     { key: "maddocks", label: "Maddocks", max: SCAT6.MADDOCKS_QUESTIONS },
-    { key: "mbessFirmTotal", label: "mBESS errors, firm", max: SCAT6.MBESS_MAX_ERRORS * 3 },
-    { key: "mbessFoamTotal", label: "mBESS errors, foam", max: SCAT6.MBESS_MAX_ERRORS * 3 },
-    { key: "tandemGaitFastestSeconds", label: "Tandem gait, fastest", max: null, unit: "s" },
-    { key: "tandemGaitAverageSeconds", label: "Tandem gait, average", max: null, unit: "s" },
-    { key: "dualTaskGaitFastestSeconds", label: "Dual-task gait, fastest", max: null, unit: "s" },
+    { key: "mbessFirmTotal", label: "Lỗi mBESS, nền cứng", max: SCAT6.MBESS_MAX_ERRORS * 3 },
+    { key: "mbessFoamTotal", label: "Lỗi mBESS, đệm xốp", max: SCAT6.MBESS_MAX_ERRORS * 3 },
+    { key: "tandemGaitFastestSeconds", label: "Đi nối gót, nhanh nhất", max: null, unit: "s" },
+    { key: "tandemGaitAverageSeconds", label: "Đi nối gót, trung bình", max: null, unit: "s" },
+    { key: "dualTaskGaitFastestSeconds", label: "Đi nhiệm vụ kép, nhanh nhất", max: null, unit: "s" },
 ];

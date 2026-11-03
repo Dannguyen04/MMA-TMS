@@ -63,11 +63,13 @@ import type {
     Role,
     SessionStatus,
     UserStatus,
+    SuspensionStatus,
     VideoStatus,
 } from "@/lib/domain/types";
 import type { BoutPhase, RequirementState } from "@/lib/domain/bout";
-import type { SuspensionState } from "@/lib/domain/suspension-rules";
+import type { SuspensionState } from "@/lib/domain/bout-suspension-rules";
 import type { WeightStatus } from "@/lib/domain/weight-chart";
+import { daysBetweenDates } from "@/lib/domain/suspension-rules";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import { formatConfidence } from "@/lib/format";
@@ -84,6 +86,7 @@ export interface StatusMeta {
     icon: LucideIcon;
     /** Solid emphasis for states that block activity. */
     solid?: boolean;
+    variant?: "soft" | "solid" | "outline";
 }
 
 export type BadgeSize = "sm" | "md";
@@ -102,7 +105,7 @@ export function StatusBadge({
     className?: string;
 }) {
     return (
-        <Badge tone={meta.tone} variant={variant ?? (meta.solid ? "solid" : "soft")} icon={meta.icon} size={size} className={className}>
+        <Badge tone={meta.tone} variant={variant ?? meta.variant ?? (meta.solid ? "solid" : "soft")} icon={meta.icon} size={size} className={className}>
             {meta.label}
         </Badge>
     );
@@ -127,10 +130,10 @@ export function HealthStatusBadge({ status, size, className, locale }: { status:
 
 export const CLEARANCE_STATE_META: Record<ClearanceState, StatusMeta> = {
     full: { label: CLEARANCE_LEVEL_LABELS.full, tone: "success", icon: ShieldCheck },
-    restricted: { label: "Restricted", tone: "warning", icon: ShieldAlert },
+    restricted: { label: "Có hạn chế", tone: "warning", icon: ShieldAlert },
     not_cleared: { label: CLEARANCE_LEVEL_LABELS.not_cleared, tone: "danger", icon: ShieldX, solid: true },
-    expired: { label: "Expired", tone: "danger", icon: ShieldX },
-    none: { label: "No clearance", tone: "neutral", icon: ShieldQuestion },
+    expired: { label: "Hết hạn", tone: "danger", icon: ShieldX },
+    none: { label: "Chưa có giấy phép", tone: "neutral", icon: ShieldQuestion },
 };
 
 export function ClearanceBadge({ state, size, className, locale }: { state: ClearanceState; size?: BadgeSize; className?: string; locale?: Locale }) {
@@ -192,13 +195,13 @@ export function AIJobStatusBadge({ status, size, className }: { status: AIJobSta
 export function LowConfidenceBadge({ size, className }: { size?: BadgeSize; className?: string }) {
     return (
         <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-            Low confidence
+            Độ tin cậy thấp
         </Badge>
     );
 }
 
 /** Marks content produced by AI so it is never mistaken for a human judgement. */
-export function AIGeneratedBadge({ size, className, locale, label = createTranslator(locale ?? "en")("aiGenerated") }: { size?: BadgeSize; className?: string; locale?: Locale; label?: string }) {
+export function AIGeneratedBadge({ size, className, locale, label = createTranslator(locale ?? "vi")("aiGenerated") }: { size?: BadgeSize; className?: string; locale?: Locale; label?: string }) {
     return (
         <Badge tone="ai" icon={Sparkles} size={size} className={className}>
             {label}
@@ -214,43 +217,47 @@ export function ReviewStateBadge({
     confidence,
     size,
     className,
+    locale = "vi",
 }: {
     review: AIFeedback | null;
     confidence: number | null;
     size?: BadgeSize;
     className?: string;
+    /** The viewer's language; Vietnamese when omitted. */
+    locale?: Locale;
 }) {
+    const t = locale ? createTranslator(locale) : null;
     if (review?.decision === "confirmed") {
         return (
-            <Badge tone="success" icon={UserCheck} size={size} className={className} title={`Confirmed by ${review.reviewerName}`}>
-                Human verified
+            <Badge tone="success" icon={UserCheck} size={size} className={className} title={t ? t("screens.shared.review.confirmedBy", { name: review.reviewerName }) : `Confirmed by ${review.reviewerName}`}>
+                {t ? t("screens.shared.review.humanVerified") : "Human verified"}
             </Badge>
         );
     }
     if (review?.decision === "corrected") {
         return (
-            <Badge tone="info" icon={PenLine} size={size} className={className} title={`Corrected by ${review.reviewerName}`}>
-                Human corrected
+            <Badge tone="info" icon={PenLine} size={size} className={className} title={t ? t("screens.shared.review.correctedBy", { name: review.reviewerName }) : `Corrected by ${review.reviewerName}`}>
+                {t ? t("screens.shared.review.humanCorrected") : "Human corrected"}
             </Badge>
         );
     }
     if (review?.decision === "rejected") {
         return (
-            <Badge tone="neutral" icon={UserX} size={size} className={className} title={`Rejected by ${review.reviewerName}`}>
-                Rejected by reviewer
+            <Badge tone="neutral" icon={UserX} size={size} className={className} title={t ? t("screens.shared.review.rejectedBy", { name: review.reviewerName }) : `Rejected by ${review.reviewerName}`}>
+                {t ? t("screens.shared.review.rejected") : "Rejected by reviewer"}
             </Badge>
         );
     }
     if (confidenceBand(confidence) === "low") {
         return (
             <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-                Needs review
+                {t ? t("screens.shared.review.needsReview") : "Needs review"}
             </Badge>
         );
     }
     return (
         <Badge tone="ai" icon={Bot} size={size} className={className}>
-            Unreviewed
+            {t ? t("screens.shared.review.unreviewed") : "Unreviewed"}
         </Badge>
     );
 }
@@ -267,14 +274,20 @@ export function AlertStatusBadge({ status, size, className }: { status: AlertSta
 }
 
 /** Confidence as text + band, e.g. "87% · High". */
-export function ConfidenceBadge({ confidence, size, className }: { confidence: number | null; size?: BadgeSize; className?: string }) {
+export function ConfidenceBadge({ confidence, size, className, locale = "vi" }: { confidence: number | null; size?: BadgeSize; className?: string; locale?: Locale }) {
     const band = confidenceBand(confidence);
     const tone: Tone = band === "high" ? "neutral" : band === "medium" ? "neutral" : "warning";
     return (
         <Badge tone={tone} variant="outline" size={size} className={className} icon={band === "low" ? TriangleAlert : undefined}>
-            {formatConfidence(confidence)} confidence
+            {locale ? confidenceText(confidence, locale) : `${formatConfidence(confidence)} confidence`}
         </Badge>
     );
+}
+
+/** "87% confidence" in the viewer's language; "Unavailable" when there is no score. */
+export function confidenceText(confidence: number | null, locale: Locale = "en"): string {
+    const t = createTranslator(locale);
+    return t("screens.shared.confidence", { pct: confidence === null ? t("screens.shared.confidenceUnavailable") : formatConfidence(confidence) });
 }
 
 /* ─── Training ────────────────────────────────────────────────────────────── */
@@ -284,12 +297,26 @@ export const SESSION_STATUS_META: Record<SessionStatus, StatusMeta> = {
     in_progress: { label: SESSION_STATUS_LABELS.in_progress, tone: "primary", icon: Activity },
     completed: { label: SESSION_STATUS_LABELS.completed, tone: "success", icon: CalendarCheck2 },
     missed: { label: SESSION_STATUS_LABELS.missed, tone: "warning", icon: CalendarX2 },
+    pending: { label: SESSION_STATUS_LABELS.pending, tone: "warning", icon: Clock, variant: "outline" },
     cancelled: { label: SESSION_STATUS_LABELS.cancelled, tone: "neutral", icon: CircleX },
 };
 
-export function SessionStatusBadge({ status, size, className, locale }: { status: SessionStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+export function SessionStatusBadge({
+    status,
+    size,
+    variant,
+    className,
+    locale,
+}: {
+    status: SessionStatus;
+    size?: BadgeSize;
+    variant?: "soft" | "solid" | "outline";
+    className?: string;
+    locale?: Locale;
+}) {
     const meta = SESSION_STATUS_META[status];
-    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`sessionStatus.${status}`) } : meta} size={size} className={className} />;
+    const label = locale ? createTranslator(locale)(`sessionStatus.${status}`) : meta.label;
+    return <StatusBadge meta={{ ...meta, label }} variant={variant ?? meta.variant} size={size} className={className} />;
 }
 
 export const PLAN_STATUS_META: Record<PlanStatus, StatusMeta> = {
@@ -311,8 +338,9 @@ export const GOAL_STATUS_META: Record<GoalStatus, StatusMeta> = {
     missed: { label: GOAL_STATUS_LABELS.missed, tone: "neutral", icon: Flag },
 };
 
-export function GoalStatusBadge({ status, size, className }: { status: GoalStatus; size?: BadgeSize; className?: string }) {
-    return <StatusBadge meta={GOAL_STATUS_META[status]} size={size} className={className} />;
+export function GoalStatusBadge({ status, size, className, locale }: { status: GoalStatus; size?: BadgeSize; className?: string; locale?: Locale }) {
+    const meta = GOAL_STATUS_META[status];
+    return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`screens.performance.goalStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
 /* ─── Injuries ────────────────────────────────────────────────────────────── */
@@ -406,6 +434,9 @@ export function WeightStatusBadge({ status, size, className, locale }: { status:
     return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutLabel.weightStatus.${status}`) } : meta} size={size} className={className} />;
 }
 
+/** The readiness board's name for the same badge (T-030 B); the statuses are the same five. */
+export const WeightWarningBadge = WeightStatusBadge;
+
 export const BOUT_PHASE_META: Record<BoutPhase, StatusMeta> = {
     SCHEDULED: { label: BOUT_PHASE_LABELS.SCHEDULED, tone: "neutral", icon: CalendarClock },
     CAMP: { label: BOUT_PHASE_LABELS.CAMP, tone: "info", icon: Activity },
@@ -459,4 +490,81 @@ export const SUSPENSION_STATE_META: Record<SuspensionState, StatusMeta> = {
 export function SuspensionStateBadge({ state, size, className, locale }: { state: SuspensionState; size?: BadgeSize; className?: string; locale?: Locale }) {
     const meta = SUSPENSION_STATE_META[state];
     return <StatusBadge meta={locale ? { ...meta, label: createTranslator(locale)(`boutLabel.suspensionState.${state}`) } : meta} size={size} className={className} />;
+}
+
+
+/* ─── Suspensions ─────────────────────────────────────────────────────────── */
+
+export type SuspensionBadgeStatus = SuspensionStatus | "GRADED_RETURN";
+
+export const SUSPENSION_STATUS_META: Record<SuspensionBadgeStatus, StatusMeta> = {
+    ACTIVE: { label: "Đang đình chỉ", tone: "danger", icon: Ban, solid: true },
+    AWAITING_CLEARANCE: { label: "Chờ xác nhận", tone: "warning", icon: Clock },
+    GRADED_RETURN: { label: "Tập lại", tone: "info", icon: TrendingUp },
+    ENDED: { label: "Đã hết", tone: "success", icon: CircleCheck },
+    UPCOMING: { label: "Sắp hiệu lực", tone: "neutral", icon: CalendarClock },
+};
+
+export function suspensionStatusBadgeLabel(
+    status: SuspensionBadgeStatus,
+    options?: {
+        ceiling?: number;
+        startsOn?: string;
+        endsOn?: string;
+        today?: string;
+        locale?: Locale;
+    },
+): string {
+    const locale = options?.locale ?? "vi";
+    const t = createTranslator(locale);
+
+    if (status === "GRADED_RETURN") {
+        if (options?.ceiling != null && options.ceiling >= 1 && options.ceiling <= 5) {
+            return t("suspension.status.GRADED_RETURN_TIER", { tier: options.ceiling });
+        }
+        return t("suspension.status.GRADED_RETURN");
+    }
+
+    if (status === "ACTIVE" && options?.startsOn && options?.endsOn && options?.today) {
+        const total = Math.max(1, daysBetweenDates(options.startsOn, options.endsOn) + 1);
+        const elapsed = Math.max(1, Math.min(total, daysBetweenDates(options.startsOn, options.today) + 1));
+        return t("suspension.status.ACTIVE_WITH_DAY", { elapsed, total });
+    }
+
+    return t(`suspension.status.${status}`);
+}
+
+export interface SuspensionStatusBadgeProps {
+    status: SuspensionBadgeStatus;
+    ceiling?: number;
+    startsOn?: string;
+    endsOn?: string;
+    today?: string;
+    size?: BadgeSize;
+    variant?: "soft" | "solid" | "outline";
+    className?: string;
+    locale?: Locale;
+}
+
+export function SuspensionStatusBadge({
+    status,
+    ceiling,
+    startsOn,
+    endsOn,
+    today,
+    size,
+    variant,
+    className,
+    locale,
+}: SuspensionStatusBadgeProps) {
+    const meta = SUSPENSION_STATUS_META[status];
+    const label = suspensionStatusBadgeLabel(status, { ceiling, startsOn, endsOn, today, locale });
+    return (
+        <StatusBadge
+            meta={{ ...meta, label }}
+            size={size}
+            variant={variant}
+            className={className}
+        />
+    );
 }

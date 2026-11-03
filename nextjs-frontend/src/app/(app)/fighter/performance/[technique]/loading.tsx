@@ -1,5 +1,7 @@
 import { DetailSkeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function TechniqueDetailLoading() {
-    return <DetailSkeleton label="Loading technique detail" />;
+export default async function TechniqueDetailLoading() {
+    const { t } = await getTranslator();
+    return <DetailSkeleton label={t("screens.performance.loading.technique")} />;
 }

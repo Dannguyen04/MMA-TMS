@@ -17,7 +17,8 @@ export interface Relief {
 
 const RESOLUTION = 256;
 
-export function createRelief(image: CanvasImageSource & { width: number; height: number }): Relief {
+/** `flipY`: the image is already flipped for WebGL upload (an ImageBitmap decoded with `imageOrientation: "flipY"`). */
+export function createRelief(image: CanvasImageSource & { width: number; height: number }, { flipY = false } = {}): Relief {
     const width = RESOLUTION;
     const height = Math.round((RESOLUTION * image.height) / image.width);
     const canvas = document.createElement("canvas");
@@ -25,6 +26,7 @@ export function createRelief(image: CanvasImageSource & { width: number; height:
     canvas.height = height;
     const context = canvas.getContext("2d", { willReadFrequently: true });
     if (!context) throw new Error("2D canvas is unavailable.");
+    if (flipY) context.setTransform(1, 0, 0, -1, 0, height);
     context.drawImage(image, 0, 0, width, height);
     const pixels = context.getImageData(0, 0, width, height).data;
 

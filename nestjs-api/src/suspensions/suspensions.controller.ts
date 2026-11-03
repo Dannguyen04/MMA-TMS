@@ -39,6 +39,7 @@ import {
 import {
   ClearSuspensionDto,
   CreateSuspensionDto,
+  CreateSuspensionResponseDto,
   ListSuspensionsQueryDto,
   SuspensionIdParamsDto,
   SuspensionListResponseDto,
@@ -94,7 +95,7 @@ export class SuspensionsController {
   @ApiSuccessEnvelope({
     status: HttpStatus.CREATED,
     message: SUSPENSION_RESPONSE_MESSAGES.CREATE,
-    model: SuspensionResponseDto,
+    model: CreateSuspensionResponseDto,
   })
   @ApiValidationErrorEnvelope()
   @ApiUnauthorizedEnvelope()
@@ -115,10 +116,10 @@ export class SuspensionsController {
   @HttpCode(HttpStatus.OK)
   @RequirePermissions({ allOf: [SUSPENSION_PERMISSIONS.CLEAR] })
   @ApiOperation({
-    summary: 'Clear or end a suspension early',
+    summary: 'Clear a suspension awaiting clearance',
     description:
       'Marks a suspension cleared with a required `clearanceNote` without modifying `endsOn`. ' +
-      'Allowed at any time before or after `endsOn` as long as `clearedAt IS NULL`. ' +
+      'Allowed only while the suspension is `AWAITING_CLEARANCE` on the academy date of the call (from `endsOn + 1`). ' +
       'Restricted to assigned COACH or DOCTOR.',
   })
   @ResponseMessage(SUSPENSION_RESPONSE_MESSAGES.CLEAR)
@@ -136,6 +137,7 @@ export class SuspensionsController {
   @ApiConflictEnvelope(
     'SUSPENSION_ALREADY_CLEARED',
     'The suspension has already been cleared',
+    'SUSPENSION_ALREADY_CLEARED, or SUSPENSION_NOT_AWAITING_CLEARANCE (details: { status }) when the suspension is not awaiting clearance today',
   )
   async clearSuspension(
     @CurrentUser() actor: AuthenticatedUser | undefined,
