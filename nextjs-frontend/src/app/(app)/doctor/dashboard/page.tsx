@@ -22,22 +22,26 @@ const ICON = { review: MessageSquareText, expiry: ShieldAlert, followup: Clock }
 
 function Tag({ r, i, lane }: { r: BoardRow; i: number; lane: number }) {
     const reasons = reasonsText(r.training);
+    const isCompact = r.tag === "green" && reasons.length === 0 && r.items.length === 0 && r.summary.activeInjuries.length === 0;
+    const meta = fmeta(r.fighter);
+    const gates = (r.training || r.competition) && (
+        <span className="td-gates">
+            <Gate label="Tập luyện" e={r.training} />
+            <Gate label="Thi đấu" e={r.competition} />
+        </span>
+    );
     return (
-        <li className="td-tag" data-tag={r.tag} style={{ ["--i" as string]: i, ["--lane" as string]: lane }}>
+        <li className="td-tag" data-tag={r.tag} data-compact={isCompact ? "true" : undefined} style={{ ["--i" as string]: i, ["--lane" as string]: lane }}>
             <Link href={routes.doctor.fighter(r.fighter.id)}>
                 <span className="td-field">
-                    <span className="yt-hole" aria-hidden />
                     <span>
                         <strong>{r.fighter.name}</strong>
-                        <small>{fmeta(r.fighter)}</small>
+                        <small title={meta}>{meta}</small>
                     </span>
+                    {isCompact && gates}
+                    <ArrowRight className="td-arrow" aria-hidden />
                 </span>
-                {(r.training || r.competition) && (
-                    <span className="td-gates">
-                        <Gate label="Tập luyện" e={r.training} />
-                        <Gate label="Thi đấu" e={r.competition} />
-                    </span>
-                )}
+                {!isCompact && gates}
                 {reasons.length > 0 && <span className="td-why">{reasons.join(" · ")}</span>}
                 {r.items.length > 0 && (
                     <ul className="td-items">
@@ -58,9 +62,6 @@ function Tag({ r, i, lane }: { r: BoardRow; i: number; lane: number }) {
                         {injuryName(j)} · {injuryPlace(j)}
                     </span>
                 ))}
-                <span className="td-open">
-                    Mở hồ sơ <ArrowRight aria-hidden />
-                </span>
             </Link>
         </li>
     );
@@ -127,11 +128,31 @@ export default async function DoctorDashboardPage() {
                 <div className="td-urgent" data-shot="urgent">
                     <Siren aria-hidden />
                     <p>
-                        <b>{blocked.length} võ sĩ bị chặn tập</b> và <b>{reviewCount} yêu cầu xem xét</b> đang chờ. Xử lý thẻ đỏ trước buổi tập.
+                        {blocked.length > 0 && reviewCount > 0 && (
+                            <>
+                                <b>{blocked.length} võ sĩ bị chặn tập</b> và <b>{reviewCount} yêu cầu xem xét</b> đang chờ. Xử lý thẻ đỏ trước buổi tập.
+                            </>
+                        )}
+                        {blocked.length > 0 && reviewCount === 0 && (
+                            <>
+                                <b>{blocked.length} võ sĩ bị chặn tập</b>. Xử lý thẻ đỏ trước buổi tập.
+                            </>
+                        )}
+                        {blocked.length === 0 && reviewCount > 0 && (
+                            <>
+                                <b>{reviewCount} yêu cầu xem xét</b> đang chờ.
+                            </>
+                        )}
                     </p>
-                    <Link href={routes.doctor.reviewRequests}>
-                        Mở yêu cầu <ArrowRight aria-hidden />
-                    </Link>
+                    {reviewCount > 0 ? (
+                        <Link href={routes.doctor.reviewRequests}>
+                            Mở yêu cầu <ArrowRight aria-hidden />
+                        </Link>
+                    ) : (
+                        <Link href="#ln-red">
+                            Xem thẻ đỏ <ArrowRight aria-hidden />
+                        </Link>
+                    )}
                 </div>
             )}
             {rows.length === 0 ? (
@@ -177,20 +198,24 @@ export default async function DoctorDashboardPage() {
                 >
                     <ol className="td-week">
                         {days.map((d) => (
-                            <li key={d.d} className="td-day" data-today={d.d === 0}>
+                            <li key={d.d} className="td-day" data-today={d.d === 0} data-empty={d.ev.length === 0 ? "true" : undefined}>
                                 <header>
                                     <span>{d.d === 0 ? "Hôm nay" : wd.format(d.date)}</span>
                                     <b>{dd.format(d.date)}</b>
                                 </header>
+                                {d.d === 0 && d.ev.length === 0 && <span className="td-day-empty">Không có lịch</span>}
                                 {d.ev.map((e, i) => (
-                                    <span key={i} className="td-ev" data-k={e.k}>
+                                    <span key={i} className="td-ev" data-k={e.k} title={`${e.who} · ${e.text}`}>
                                         <b>{e.who}</b>
-                                        {e.text}
+                                        <span className="td-ev-text">{e.text}</span>
                                     </span>
                                 ))}
                             </li>
                         ))}
                     </ol>
+                    {days.every((d) => d.ev.length === 0) && (
+                        <p className="td-week-empty">Không có lịch trong 7 ngày tới</p>
+                    )}
                     <p className="td-weeklegend">
                         <span style={{ ["--k" as string]: "var(--blue)" }}>
                             <i />
