@@ -104,7 +104,7 @@ export default async function DoctorHistoryPage({ searchParams }: PageProps<"/do
                                                 )}
                                             </td>
                                             <td className="yt-hide-sm" style={{ width: "22%" }}>
-                                                <Link className="yt-rowlink" href={routes.doctor.fighter(e.fighterId)}>
+                                                <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>
                                                     {nameOf.get(e.fighterId) ?? "Võ sĩ"}
                                                 </Link>
                                             </td>

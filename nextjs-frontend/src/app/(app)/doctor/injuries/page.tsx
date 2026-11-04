@@ -59,7 +59,7 @@ export default async function DoctorInjuriesPage({ searchParams }: PageProps<"/d
                                     <small>Xảy ra {fmtDate(i.occurredAt)}</small>
                                 </td>
                                 <td>
-                                    <Link href={routes.doctor.fighter(i.fighterId)}>{nameOf.get(i.fighterId) ?? "Võ sĩ"}</Link>
+                                    <Link className="yt-sublink" href={routes.doctor.fighter(i.fighterId)}>{nameOf.get(i.fighterId) ?? "Võ sĩ"}</Link>
                                 </td>
                                 <td>{injuryPlace(i)}</td>
                                 <td className="yt-hide-sm">

@@ -102,7 +102,7 @@ export default async function DoctorExaminationsPage({ searchParams }: PageProps
                                             </Link>
                                         </td>
                                         <td>
-                                            <Link href={routes.doctor.fighter(e.fighterId)}>{nameOf.get(e.fighterId) ?? "Võ sĩ"}</Link>
+                                            <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>{nameOf.get(e.fighterId) ?? "Võ sĩ"}</Link>
                                         </td>
                                         <td>{e.type ? examKind(e) : "Không có chi tiết"}</td>
                                         {hasScopes && <td className="yt-hide-sm">{e.scope ? SCOPE[e.scope] : "—"}</td>}

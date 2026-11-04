@@ -304,13 +304,18 @@
 .yt-table th { text-align: left; font-size: 12.5px; font-weight: 600; color: var(--mute); padding: 0 12px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .yt-table td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .yt-table tr:last-child td { border-bottom: 0; }
-.yt-table tbody tr { transition: background-color .15s; animation: yt-fade .4s ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
+.yt-table tbody tr { position: relative; cursor: pointer; transition: background-color .15s; animation: yt-fade .4s ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
 .yt-table tbody tr:hover { background: var(--s2); }
+.yt-table tbody tr:has(a.yt-rowlink:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
 @keyframes yt-fade { from { opacity: 0; } }
 .yt-table td b { font-weight: 650; }
 .yt-table td small { display: block; font-size: 12.5px; color: var(--mute); }
 .yt-table a.yt-rowlink { font-weight: 650; }
-.yt-table a.yt-rowlink:hover { text-decoration: underline; text-underline-offset: 3px; }
+.yt-table a.yt-rowlink:focus-visible { outline: none; }
+.yt-table a.yt-rowlink::after { content: ""; position: absolute; inset: 0; }
+.yt-table tbody tr:hover a.yt-rowlink { text-decoration: underline; text-underline-offset: 3px; }
+.yt-table .yt-sublink, .yt-table .yt-btn, .yt-table button { position: relative; z-index: 1; }
+.yt-table a.yt-sublink:hover { text-decoration: underline; text-underline-offset: 3px; }
 .yt-tablewrap { overflow-x: auto; margin: 0 -22px; padding: 0 22px; }
 .ro-name { display: flex; align-items: center; gap: 12px; }
 .ro-name .yt-hole { width: 12px; height: 12px; box-shadow: 0 0 0 4px var(--t); background: var(--s); }
