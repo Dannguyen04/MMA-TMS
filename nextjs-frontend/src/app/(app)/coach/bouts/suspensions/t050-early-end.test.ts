@@ -410,8 +410,10 @@ describe("T-050 Phần B: Ca kiểm thử W1-W9", () => {
         // Có link ghi phiếu khám
         expect(html).toContain("Ghi phiếu khám");
         expect(html).toContain("/doctor/examinations/new");
-        // Nút gửi có thuộc tính disabled
-        expect(html).toMatch(/<button[^>]*disabled[^>]*>[^<]*Xác nhận kết thúc[^<]*<\/button>/);
+        // Theo T-053: không render nút submit, chỉ có nút Đóng và không có ô ghi chú
+        expect(html).not.toContain('type="submit"');
+        expect(html).toContain("Đóng");
+        expect(html).not.toContain("early-end-note-textarea");
     });
 
     // ─── W4 ─────────────────────────────────────────────────────────────────
@@ -641,21 +643,35 @@ describe("T-050 Phần B: Ca kiểm thử W1-W9", () => {
             "suspensions.earlyEndDialog.organizerDesc",
             "suspensions.earlyEndDialog.medicalTitle",
             "suspensions.earlyEndDialog.medicalDesc",
+            "suspensions.earlyEndDialog.sectionSuspension",
+            "suspensions.earlyEndDialog.reasonLabel",
+            "suspensions.earlyEndDialog.periodLabel",
+            "suspensions.earlyEndDialog.sourceLabel",
+            "suspensions.earlyEndDialog.sourceClub",
+            "suspensions.earlyEndDialog.sourceOrganizer",
+            "suspensions.earlyEndDialog.originalReference",
+            "suspensions.earlyEndDialog.cutDays",
+            "suspensions.earlyEndDialog.lastDay",
+            "suspensions.earlyEndDialog.sectionBasis",
             "suspensions.earlyEndDialog.liftReferenceLabel",
             "suspensions.earlyEndDialog.liftReferencePlaceholder",
+            "suspensions.earlyEndDialog.liftReferenceHint",
             "suspensions.earlyEndDialog.examLabel",
-            "suspensions.earlyEndDialog.examHint",
             "suspensions.earlyEndDialog.examRequired",
-            "suspensions.earlyEndDialog.examSelectPlaceholder",
-            "suspensions.earlyEndDialog.examOption",
+            "suspensions.earlyEndDialog.outcomeFit",
+            "suspensions.earlyEndDialog.outcomeFitWithRestrictions",
+            "suspensions.earlyEndDialog.validUntil",
             "suspensions.earlyEndDialog.noExamTitle",
             "suspensions.earlyEndDialog.noExamDesc",
             "suspensions.earlyEndDialog.createExamLink",
+            "suspensions.earlyEndDialog.sectionConsequence",
+            "suspensions.earlyEndDialog.afterEndDesc",
             "suspensions.earlyEndDialog.noteLabel",
             "suspensions.earlyEndDialog.notePlaceholder",
             "suspensions.earlyEndDialog.charCount",
             "suspensions.earlyEndDialog.confirm",
             "suspensions.earlyEndDialog.cancel",
+            "suspensions.earlyEndDialog.close",
         ];
 
         for (const key of newKeys) {

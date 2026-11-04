@@ -221,6 +221,23 @@ export function filterEarlyEndExaminations<
     });
 }
 
+/**
+ * Computes early end preview: days cut and graded return roadmap.
+ * daysCut = max(0, daysBetweenDates(today, endsOn));
+ * gradedReturn = { ceiling: 3, fullReturnOn: addDaysToDate(today, 2) }
+ */
+export function earlyEndPreview(
+    suspension: { endsOn: string },
+    today: string,
+): { daysCut: number; gradedReturn: GradedReturn } {
+    const daysCut = Math.max(0, daysBetweenDates(today, suspension.endsOn));
+    const gradedReturn: GradedReturn = {
+        ceiling: 3,
+        fullReturnOn: addDaysToDate(today, 2),
+    };
+    return { daysCut, gradedReturn };
+}
+
 export type RequiresClearanceResolution =
     | { ok: true; requiresClearance: boolean }
     | {
