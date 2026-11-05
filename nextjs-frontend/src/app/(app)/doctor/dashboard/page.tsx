@@ -1,4 +1,4 @@
-import { ArrowRight, ClipboardPlus, Clock, MessageSquareText, ShieldAlert, ShieldCheck, Siren } from "lucide-react";
+import { ArrowRight, Ban, ClipboardPlus, Clock, MessageSquareText, ShieldAlert, ShieldCheck, Siren } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -18,7 +18,7 @@ const LANES: { key: Triage; title: string; sub: string; empty: string }[] = [
     { key: "amber", title: "Vàng · Theo dõi", sub: "Tập được, có hạn chế hoặc việc mở", empty: "Không có võ sĩ cần theo dõi." },
     { key: "green", title: "Xanh · Thông", sub: "Đủ điều kiện, không việc mở", empty: "Chưa có võ sĩ nào thông hoàn toàn. Khi một võ sĩ đủ điều kiện và không còn việc mở, thẻ sẽ chuyển sang đây." },
 ];
-const ICON = { review: MessageSquareText, expiry: ShieldAlert, followup: Clock } as const;
+const ICON = { review: MessageSquareText, expiry: ShieldAlert, followup: Clock, suspension: Ban } as const;
 
 function Tag({ r, i, lane }: { r: BoardRow; i: number; lane: number }) {
     const reasons = reasonsText(r.training);
@@ -86,7 +86,21 @@ export default async function DoctorDashboardPage() {
         const d = dayDiff(iso, now);
         if (d >= 0 && d < 7) days[d]!.ev.push({ k, who: nameOf.get(fighterId) ?? "", text });
     };
-    for (const r of rows) for (const x of r.items) if (x.kind !== "review") put(x.date, x.kind, r.fighter.id, x.kind === "expiry" ? "Giấy phép hết hạn" : "Tái khám");
+    for (const r of rows) {
+        for (const x of r.items) {
+            if (x.kind !== "review") {
+                const label =
+                    x.kind === "expiry"
+                        ? "Giấy phép hết hạn"
+                        : x.kind === "followup"
+                          ? "Tái khám"
+                          : x.graded
+                            ? "Hết lộ trình tập lại"
+                            : "Hết đình chỉ";
+                put(x.date, x.kind, r.fighter.id, label);
+            }
+        }
+    }
     for (const p of plans) {
         for (const m of p.milestones ?? []) if (!m.isCompleted) put(m.targetDate, "milestone", p.fighterId, m.title);
         for (const ph of p.phases) if (ph.status !== "completed") put(ph.endDate, "milestone", p.fighterId, ph.name);
@@ -228,6 +242,10 @@ export default async function DoctorDashboardPage() {
                         <span style={{ ["--k" as string]: "var(--grn)" }}>
                             <i />
                             Mốc phục hồi
+                        </span>
+                        <span style={{ ["--k" as string]: "var(--red)" }}>
+                            <i />
+                            Hết đình chỉ
                         </span>
                     </p>
                 </Panel>
