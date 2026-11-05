@@ -1,15 +1,21 @@
 import { DEFAULT_MANUAL_BLOCKED_SESSION_TYPES } from "@/lib/domain/intensity-tiers";
 import type { Suspension } from "@/lib/domain/types";
 import { addDaysToDate } from "@/lib/domain/suspension-rules";
-import { MOCK_ANCHOR_MS, TODAY_KEY } from "@/lib/mocks/time";
+import { MOCK_ANCHOR_MS, pastToday, TODAY_KEY } from "@/lib/mocks/time";
 
 /**
- * Builds the demo seed suspensions covering all 5 required business cases (B2-7):
+ * Builds the demo seed suspensions covering all required business cases (T-056):
  * 1. Đang đình chỉ KO: Marcus Hale (`f-marcus-hale`)
  * 2. Chờ xác nhận: Diego Alvarez (`f-diego-alvarez`)
  * 3. Đang tập lại bậc 3 hôm nay: Linh Phạm (`f-linh-pham`)
  * 4. Nghỉ bắt buộc có buổi chờ xếp lại: Tariq Haddad (`f-tariq-haddad`)
  * 5. Sẵn sàng: Emma Lindqvist (`f-emma-lindqvist`, không có đình chỉ)
+ * 6. S6: Đình chỉ y tế cấp CLB có phiếu khám hợp lệ (bắt đầu hôm nay): Hoàng Long (`f-hoang-long`)
+ * 7. S7: Đình chỉ y tế do BTC ban hành (bắt đầu hôm nay): Bảo Nguyễn (`f-bao-nguyen`)
+ * 8. S8: Đình chỉ y tế cấp CLB chờ khám lại (bắt đầu hôm nay): Sofia Kowalski (`f-sofia-kowalski`)
+ * 9. H1: Lịch sử kết thúc sớm có căn cứ: Marcus Hale (`f-marcus-hale`)
+ * 10. H2: Lịch sử HLV xác nhận không có giấy y tế: Tariq Haddad (`f-tariq-haddad`)
+ * 11. H3: Lịch sử đình chỉ DQ tự hết hạn: Tariq Haddad (`f-tariq-haddad`)
  */
 export function buildMockSuspensions(): Suspension[] {
     const today = TODAY_KEY;
@@ -129,5 +135,168 @@ export function buildMockSuspensions(): Suspension[] {
             earlyEndExaminationId: null,
             liftReference: null,
         },
+        // 6. S6: Đình chỉ y tế cấp CLB có phiếu khám hợp lệ (Hoàng Long)
+        {
+            id: "susp-medical-club-exam",
+            fighterId: "f-hoang-long",
+            boutId: null,
+            reason: "MEDICAL",
+            startsOn: addDaysToDate(today, 0),
+            endsOn: addDaysToDate(today, 13),
+            lossOfConsciousness: null,
+            suggestedDays: 14,
+            overrideReason: null,
+            blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+            maxAllowedTier: 1,
+            requiresClearance: false,
+            clearedAt: null,
+            clearedById: null,
+            clearanceNote: null,
+            createdById: "u-rafael-costa",
+            createdAt: pastToday(7, 0),
+            updatedAt: pastToday(7, 0),
+            status: "ACTIVE",
+            gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
+        },
+        // 7. S7: Đình chỉ y tế do ban tổ chức ban hành (Bảo Nguyễn)
+        {
+            id: "susp-medical-organizer",
+            fighterId: "f-bao-nguyen",
+            boutId: null,
+            reason: "MEDICAL",
+            startsOn: addDaysToDate(today, 0),
+            endsOn: addDaysToDate(today, 30),
+            lossOfConsciousness: null,
+            suggestedDays: 31,
+            overrideReason: null,
+            blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+            maxAllowedTier: 1,
+            requiresClearance: false,
+            clearedAt: null,
+            clearedById: null,
+            clearanceNote: null,
+            createdById: "u-rafael-costa",
+            createdAt: pastToday(7, 0),
+            updatedAt: pastToday(7, 0),
+            status: "ACTIVE",
+            gradedReturn: null,
+            issuedBy: "ORGANIZER",
+            issuerReference: "QĐ 12/BTC – Giải MMA mở rộng TP.HCM",
+            earlyEndExaminationId: null,
+            liftReference: null,
+        },
+        // 8. S8: Đình chỉ y tế cấp CLB chờ khám lại (Sofia Kowalski)
+        {
+            id: "susp-medical-club-pending",
+            fighterId: "f-sofia-kowalski",
+            boutId: null,
+            reason: "MEDICAL",
+            startsOn: addDaysToDate(today, 0),
+            endsOn: addDaysToDate(today, 14),
+            lossOfConsciousness: null,
+            suggestedDays: 15,
+            overrideReason: null,
+            blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+            maxAllowedTier: 1,
+            requiresClearance: false,
+            clearedAt: null,
+            clearedById: null,
+            clearanceNote: null,
+            createdById: "u-rafael-costa",
+            createdAt: pastToday(7, 0),
+            updatedAt: pastToday(7, 0),
+            status: "ACTIVE",
+            gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
+        },
+        // 9. H1: Lịch sử kết thúc sớm có căn cứ (Marcus Hale)
+        {
+            id: "susp-history-early-end",
+            fighterId: "f-marcus-hale",
+            boutId: null,
+            reason: "MEDICAL",
+            startsOn: addDaysToDate(today, -120),
+            endsOn: addDaysToDate(today, -95),
+            lossOfConsciousness: null,
+            suggestedDays: 26,
+            overrideReason: null,
+            blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+            maxAllowedTier: 1,
+            requiresClearance: false,
+            clearedAt: `${addDaysToDate(today, -110)}T10:00:00.000Z`,
+            clearedById: "u-thu-le",
+            clearanceNote: "Bác sĩ Thu Lê kiểm tra sau sốt siêu vi, võ sĩ hết sốt và thể trạng ổn định, cho phép kết thúc sớm đình chỉ và tập nhẹ tăng dần cường độ.",
+            createdById: "u-rafael-costa",
+            createdAt: `${addDaysToDate(today, -120)}T08:00:00.000Z`,
+            updatedAt: `${addDaysToDate(today, -110)}T10:00:00.000Z`,
+            status: "ENDED",
+            gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: "ex-marcus-early-end-111d",
+            liftReference: null,
+        },
+        // 10. H2: Lịch sử HLV xác nhận không có giấy y tế (Tariq Haddad)
+        {
+            id: "susp-history-no-medical",
+            fighterId: "f-tariq-haddad",
+            boutId: null,
+            reason: "TKO",
+            startsOn: addDaysToDate(today, -200),
+            endsOn: addDaysToDate(today, -171),
+            lossOfConsciousness: "NONE",
+            suggestedDays: 30,
+            overrideReason: null,
+            blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+            maxAllowedTier: 1,
+            requiresClearance: true,
+            clearedAt: `${addDaysToDate(today, -169)}T09:00:00.000Z`,
+            clearedById: "u-rafael-costa",
+            clearanceNote: "HLV xác nhận, không có xác nhận y tế",
+            createdById: "u-rafael-costa",
+            createdAt: `${addDaysToDate(today, -200)}T08:00:00.000Z`,
+            updatedAt: `${addDaysToDate(today, -169)}T09:00:00.000Z`,
+            status: "ENDED",
+            gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
+        },
+        // 11. H3: Lịch sử đình chỉ DQ tự hết hạn (Tariq Haddad)
+        {
+            id: "susp-history-dq",
+            fighterId: "f-tariq-haddad",
+            boutId: null,
+            reason: "DQ",
+            startsOn: addDaysToDate(today, -90),
+            endsOn: addDaysToDate(today, -84),
+            lossOfConsciousness: null,
+            suggestedDays: 7,
+            overrideReason: null,
+            blockedSessionTypes: [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES],
+            maxAllowedTier: 1,
+            requiresClearance: false,
+            clearedAt: null,
+            clearedById: null,
+            clearanceNote: null,
+            createdById: "u-rafael-costa",
+            createdAt: `${addDaysToDate(today, -90)}T08:00:00.000Z`,
+            updatedAt: `${addDaysToDate(today, -90)}T08:00:00.000Z`,
+            status: "ENDED",
+            gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+            earlyEndExaminationId: null,
+            liftReference: null,
+        },
     ];
 }
+

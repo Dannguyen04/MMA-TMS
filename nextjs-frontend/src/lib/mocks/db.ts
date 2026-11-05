@@ -37,13 +37,14 @@ import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
 import { mockApplicants, mockApplications } from "./admissions";
 import { mockAbnormalMovementAlerts, mockAIAnalyses, mockAIJobs, mockAIModels, mockVideos } from "./ai";
 import { mockRulesets, mockBouts, mockBoutMeasurements, type MockWeightMeasurement } from "./bouts";
-import { applySuspensionSideEffects } from "@/lib/domain/suspension-rules";
+import { applySuspensionSideEffects, isSessionBlockedBySuspension } from "@/lib/domain/suspension-rules";
 import { buildMockSuspensions } from "./suspensions";
 import {
     mockInjuries,
     mockMedicalClearances,
     mockMedicalExaminations,
     mockMedicalRecords,
+    mockMedicalReviewRequests,
     mockRecoveryPlans,
     mockTreatments,
 } from "./medical";
@@ -51,6 +52,8 @@ import { mockCoaches, mockDoctors, mockFighters, mockUsers } from "./people";
 import { mockPerformanceMetrics } from "./performance";
 import { mockAuditLogs, mockBroadcasts, mockNotifications } from "./platform";
 import { mockRoleDefinitions, mockSystemSettings } from "./roles";
+import { dayKey } from "@/lib/format";
+import { TODAY_KEY } from "./time";
 import { mockCoachFeedback, mockExercises, mockGoals, mockTrainingPlans, mockTrainingSessions } from "./training";
 
 /**
@@ -108,7 +111,10 @@ export function seedData(): MockDatabase {
         settings: mockSystemSettings,
         exercises: mockExercises,
         trainingPlans: mockTrainingPlans.map((p) => ({ ...p })),
-        trainingSessions: mockTrainingSessions.map((s) => ({ ...s })),
+        trainingSessions: mockTrainingSessions.map((s) => ({
+            ...s,
+            exercises: s.exercises.map((e) => ({ ...e })),
+        })),
         planExercises: [],
         coachFeedback: mockCoachFeedback,
         goals: mockGoals,
@@ -124,7 +130,7 @@ export function seedData(): MockDatabase {
         treatments: mockTreatments,
         recoveryPlans: mockRecoveryPlans,
         medicalClearances: mockMedicalClearances,
-        medicalReviewRequests: [],
+        medicalReviewRequests: mockMedicalReviewRequests.map((r) => ({ ...r })),
         notifications: mockNotifications,
         broadcasts: mockBroadcasts,
         auditLogs: mockAuditLogs,
@@ -135,6 +141,26 @@ export function seedData(): MockDatabase {
         boutMeasurements: mockBoutMeasurements,
         suspensions: buildMockSuspensions(),
     };
+
+    // Sessions today for fighters under active suspension cannot be completed or missed:
+    // the clock may have passed their authored time earlier today, but the suspension blocks them.
+    // Reset them to scheduled so applySuspensionSideEffects can properly transition them (e.g. to pending).
+    for (const susp of seed.suspensions) {
+        if (susp.clearedAt) continue;
+        if (susp.startsOn > TODAY_KEY || susp.endsOn < TODAY_KEY) continue;
+        for (const session of seed.trainingSessions) {
+            if (session.fighterId !== susp.fighterId) continue;
+            if (dayKey(session.scheduledAt) !== TODAY_KEY) continue;
+            if (!isSessionBlockedBySuspension(session, susp)) continue;
+            if (session.status === "completed" || session.status === "missed") {
+                session.status = "scheduled";
+                session.result = null;
+                session.notes = null;
+                session.exercises = session.exercises.map((e) => ({ ...e, completed: false }));
+            }
+        }
+    }
+
     for (const susp of seed.suspensions) {
         applySuspensionSideEffects(
             susp,

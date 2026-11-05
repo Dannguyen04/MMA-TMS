@@ -116,12 +116,12 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
     });
 
     // ─── B4-1 ──────────────────────────────────────────────────────────────────
-    it("B4-1: Rafael thấy đúng các đình chỉ của võ sĩ trong roster (Diego, Marcus, Tariq, Linh); số trên nút lọc: Tất cả = 4, Đang đình chỉ = 2, Chờ xác nhận = 1, Đang tập lại = 1, Đã hết = 0 (tập lại không tính vào đã hết); mô tả trang in số có thể dùng được ('2 đang hiệu lực', không in chuỗi ICU thô)", async () => {
+    it("B4-1: Rafael thấy đúng các đình chỉ của võ sĩ trong roster (Diego, Marcus, Tariq, Linh, Hoàng Long, Bảo, Sofia); số trên nút lọc: Tất cả = 10, Đang đình chỉ = 5, Chờ xác nhận = 1, Đang tập lại = 1, Đã hết = 3 (tập lại không tính vào đã hết); mô tả trang in số có thể dùng được ('5 đang hiệu lực', không in chuỗi ICU thô)", async () => {
         currentUser = mockRafaelCoach;
 
         // 1. Kiểm tra danh sách theo phân quyền HLV Rafael Costa
         const coachSuspensions = await listSuspensions({}, mockRafaelCoach);
-        expect(coachSuspensions).toHaveLength(4);
+        expect(coachSuspensions).toHaveLength(10);
         const fighterIds = coachSuspensions.map((s) => s.fighterId);
         expect(fighterIds).toContain("f-diego-alvarez");
         expect(fighterIds).toContain("f-marcus-hale");
@@ -133,26 +133,26 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
         const allPage = await CoachSuspensionsPage(makeProps());
         const allHtml = renderToStaticMarkup(allPage);
 
-        // Hiển thị đầy đủ 4 võ sĩ
+        // Hiển thị đầy đủ võ sĩ trong roster của Rafael có đình chỉ
         expect(allHtml).toContain("Diego Alvarez");
         expect(allHtml).toContain("Marcus Hale");
         expect(allHtml).toContain("Tariq Haddad");
         expect(allHtml).toContain("Linh Phạm");
         expect(allHtml).not.toContain("Lucas Ferreira");
 
-        // Số đếm trên nút lọc: Tất cả (4), Đang đình chỉ (2), Chờ xác nhận (1), Đang tập lại (1), Đã hết (0)
+        // Số đếm trên nút lọc: Tất cả (10), Đang đình chỉ (5), Chờ xác nhận (1), Đang tập lại (1), Đã hết (3)
         expect(allHtml).toContain("Tất cả");
-        expect(allHtml).toContain(">4</span>");
+        expect(allHtml).toContain(">10</span>");
         expect(allHtml).toContain("Đang đình chỉ");
-        expect(allHtml).toContain(">2</span>");
+        expect(allHtml).toContain(">5</span>");
         expect(allHtml).toContain("Chờ xác nhận");
         expect(allHtml).toContain(">1</span>");
         expect(allHtml).toContain("Đang tập lại");
         expect(allHtml).toContain("Đã hết");
-        expect(allHtml).toContain(">0</span>");
+        expect(allHtml).toContain(">3</span>");
 
-        // Mô tả trang in số dùng được ("2 đang hiệu lực", không in chuỗi ICU thô "{n, plural")
-        expect(allHtml).toContain("2 đang hiệu lực");
+        // Mô tả trang in số dùng được ("5 đang hiệu lực", không in chuỗi ICU thô "{n, plural")
+        expect(allHtml).toContain("5 đang hiệu lực");
         expect(allHtml).not.toContain("{n, plural");
         expect(allHtml).not.toContain("other {#");
     });
@@ -437,8 +437,11 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
 
     // ─── B4-7 ──────────────────────────────────────────────────────────────────
     it("B4-7: Empty state: khi lọc không có kết quả hoặc roster không có đình chỉ, hiển thị đúng hướng dẫn cách dùng (có nhắc tới KO trận và sparring/chấn thương), kèm nút tạo đình chỉ", async () => {
-        currentUser = mockRafaelCoach;
-        const page = await CoachSuspensionsPage(makeProps({ status: "ENDED" }));
+        currentUser = {
+            ...mockRafaelCoach,
+            assignmentScope: { fighterIds: ["f-emma-lindqvist"] },
+        };
+        const page = await CoachSuspensionsPage(makeProps());
         const html = renderToStaticMarkup(page);
 
         expect(html).toContain(tVi("suspensions.emptyTitle"));

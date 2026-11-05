@@ -17,6 +17,7 @@ import type {
     Treatment,
     Vitals,
 } from "@/lib/domain/types";
+import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
 import { formatDate } from "@/lib/format";
 import { clamp, round } from "@/lib/utils";
 import { BAO_BASELINE_EXAM_DATE, mockFighters, type SeedFighter } from "./people";
@@ -485,6 +486,23 @@ export const mockMedicalExaminations: MedicalExamination[] = [
 
     /* Marcus Hale — right 5th metacarpal fracture */
     baselineExam("f-marcus-hale", 255),
+    {
+        ...exam({
+            fighterId: "f-marcus-hale",
+            dayOffset: 111,
+            type: "return_to_play",
+            label: "early-end",
+            doctorId: THU_LE,
+            outcome: "fit_with_restrictions",
+            assessments: [
+                { area: "Thể trạng chung", result: "normal", note: "Hết sốt 4 ngày, thể lực hồi phục tốt, không còn mệt mỏi hay đau đầu." },
+                { area: "Xét nghiệm máu", result: "normal", note: "Công thức máu và men gan trong giới hạn bình thường." },
+            ],
+            summary: "Đánh giá lại sau đợt sốt siêu vi cấp tính. Đã hết triệu chứng, thể trạng ổn định.",
+            recommendations: "Cho phép kết thúc sớm đình chỉ, trở lại tập luyện với cường độ tăng dần.",
+        }),
+        scope: "TRAINING",
+    },
     routineExam("f-marcus-hale", 198),
     routineExam("f-marcus-hale", 141),
     routineExam("f-marcus-hale", 84, { summary: RENEWAL_SUMMARY, recommendations: RENEWAL_RECOMMENDATIONS }),
@@ -549,6 +567,26 @@ export const mockMedicalExaminations: MedicalExamination[] = [
     routineExam("f-hoang-long", 204),
     routineExam("f-hoang-long", 142, { summary: RENEWAL_SUMMARY, recommendations: RENEWAL_RECOMMENDATIONS }),
     routineExam("f-hoang-long", 80),
+    {
+        ...exam({
+            fighterId: "f-hoang-long",
+            dayOffset: 0,
+            hour: 8,
+            minute: 0,
+            type: "return_to_play",
+            label: "early-end",
+            doctorId: THU_LE,
+            outcome: "fit",
+            assessments: [
+                { area: "Khám cơ xương khớp", result: "normal", note: "Lưng dưới hết co cứng, biên độ cúi duỗi bình thường, không đau." },
+                { area: "Khám thần kinh", result: "normal", note: "Phản xạ và cảm giác chi dưới bình thường." },
+            ],
+            summary: "Khám lại trong thời gian đình chỉ y tế. Lưng dưới hồi phục tốt, không còn triệu chứng, đủ điều kiện tập luyện trở lại.",
+            recommendations: "Đủ điều kiện kết thúc sớm đình chỉ và tập luyện theo giáo án.",
+        }),
+        scope: "TRAINING",
+        validUntil: endOfDay(30),
+    },
     routineExam("f-hoang-long", 12, {
         followUpInDays: 2,
         vitals: { hydration: "fair", restingHeartRate: 61 },
@@ -2488,4 +2526,20 @@ export const mockMedicalRecords: MedicalRecord[] = [
         ],
         updatedAt: daysAgo(12, 10, 0),
     }),
+];
+
+/* ─── Medical Review Requests (T-056) ─────────────────────────────────────── */
+
+export const mockMedicalReviewRequests: MedicalReviewRequest[] = [
+    {
+        id: "rev-sofia-suspension",
+        fighterId: "f-sofia-kowalski",
+        requestedById: "u-rafael-costa",
+        requesterRole: "COACH",
+        reason: "Đau vai trái sau buổi grappling, cần khám và đánh giá chức năng trước khi cho tập lại.",
+        status: "OPEN",
+        requestedAt: clampPastToday(daysAgo(0, 8, 30)),
+        resolvedByExaminationId: null,
+        resolvedAt: null,
+    },
 ];

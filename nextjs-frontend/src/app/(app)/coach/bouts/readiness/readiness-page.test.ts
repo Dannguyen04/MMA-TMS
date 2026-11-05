@@ -200,7 +200,7 @@ describe("T-030 Phần B6: Màn /coach/bouts/readiness", () => {
         currentUser = mockRafaelCoach;
         const readinessRows = await getReadiness({}, mockRafaelCoach);
         const totalFighters = readinessRows.length;
-        expect(totalFighters).toBe(8);
+        expect(totalFighters).toBe(11);
 
         const page = await CoachReadinessPage(makeProps());
         const html = renderToStaticMarkup(page);
@@ -217,11 +217,11 @@ describe("T-030 Phần B6: Màn /coach/bouts/readiness", () => {
         expect(notReadyColumn).toContain("Marcus Hale");
         expect(notReadyColumn).toContain("Diego Alvarez");
 
-        // Tổng số đếm 3 cột = 8 (1 ready + 1 graded + 6 not ready)
+        // Tổng số đếm 3 cột = 11 (1 ready + 1 graded + 9 not ready)
         // Tìm các thẻ đếm số của từng cột
         expect(html).toMatch(/data-count="ready"[^>]*>1</);
         expect(html).toMatch(/data-count="graded-return"[^>]*>1</);
-        expect(html).toMatch(/data-count="not-ready"[^>]*>6</);
+        expect(html).toMatch(/data-count="not-ready"[^>]*>9</);
     });
 
     // ─── B6-7 ──────────────────────────────────────────────────────────────────
@@ -269,13 +269,13 @@ describe("T-030 Phần B6: Màn /coach/bouts/readiness", () => {
     });
 
     // ─── B6-9 ──────────────────────────────────────────────────────────────────
-    it("B6-9: locale vi, HTML trang có 'Cường độ tối đa:' trên từng thẻ (số lần xuất hiện = số thẻ = 8); thẻ của Tariq Haddad (đình chỉ nghỉ bắt buộc, maxAllowedTier 1) chứa nhãn của intensityTier.1.label; thẻ của Linh Phạm (tập lại theo bậc, ceiling 3) chứa nhãn intensityTier.3.label; thẻ của Emma Lindqvist (sẵn sàng) chứa nhãn intensityTier.5.label. Lấy nhãn bằng translator vi, không gõ cứng chuỗi.", async () => {
+    it("B6-9: locale vi, HTML trang có 'Cường độ tối đa:' trên từng thẻ (số lần xuất hiện = số thẻ = 11); thẻ của Tariq Haddad (đình chỉ nghỉ bắt buộc, maxAllowedTier 1) chứa nhãn của intensityTier.1.label; thẻ của Linh Phạm (tập lại theo bậc, ceiling 3) chứa nhãn intensityTier.3.label; thẻ của Emma Lindqvist (sẵn sàng) chứa nhãn intensityTier.5.label. Lấy nhãn bằng translator vi, không gõ cứng chuỗi.", async () => {
         const page = await CoachReadinessPage(makeProps());
         const html = renderToStaticMarkup(page);
 
-        // Số lần xuất hiện = số thẻ = 8
+        // Số lần xuất hiện = số thẻ = 11
         const occurrences = (html.match(/Cường độ tối đa:/g) || []).length;
-        expect(occurrences).toBe(8);
+        expect(occurrences).toBe(11);
 
 
 
