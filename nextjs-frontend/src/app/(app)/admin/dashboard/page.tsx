@@ -2,7 +2,7 @@ import { Activity, BellOff, BrainCircuit, CircleAlert, CircleX, Clock, Hourglass
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { ADMIN_QUEUE_META, ADMIN_QUEUES, buildAdminAttention, type AdminQueue } from "@/components/admin/admin-attention";
+import { ADMIN_QUEUES, adminQueueMeta, buildAdminAttention, type AdminQueue } from "@/components/admin/admin-attention";
 import { ROLE_ORDER } from "@/components/admin/admin-format";
 import { ModelStatusBadge } from "@/components/admin/admin-badges";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
@@ -12,7 +12,7 @@ import { ChartFigure } from "@/components/charts/chart-figure";
 import { seriesColor } from "@/components/charts/colors";
 import { HorizontalBars } from "@/components/charts/horizontal-bars";
 import { CardLink } from "@/components/dashboard/card-link";
-import { greetingTitle } from "@/components/dashboard/dashboard-utils";
+import { firstName, greetingKey } from "@/components/dashboard/dashboard-utils";
 import { QueueCard } from "@/components/dashboard/queue-card";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { Callout } from "@/components/training/callout";
@@ -22,9 +22,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { AI_MODEL_TASK_LABELS, PIPELINE_STAGE_LABELS, ROLE_LABELS } from "@/lib/domain/labels";
 import type { AIModelTask } from "@/lib/domain/types";
-import { formatDateTime, formatNumber, formatPercent, formatRelative, formatShortDate, formatWeekdayDate, pluralize } from "@/lib/format";
+import { formatDateTime, formatNumber, formatPercent, formatRelative, formatShortDate, formatWeekdayDate } from "@/lib/format";
+import type { Translator } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getAdminOverview, getSettings } from "@/lib/services/admin";
@@ -53,6 +56,7 @@ const TASKS = Object.keys(AI_MODEL_TASK_LABELS) as AIModelTask[];
  * it. Platform health follows below: the signals that need an administrator, then the AI pipeline and activity.
  */
 export default async function AdminDashboardPage({ searchParams }: PageProps<"/admin/dashboard">) {
+    const { t } = await getTranslator();
     const admin = await requireRole("admin");
     const query = await searchParams;
     const nowDate = new Date();
@@ -73,9 +77,9 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
         listAuditLogs({ resourceType: "auth", status: "failure", from: dayAgo }),
     ]);
     const [stats, jobs] = pipeline ?? [null, []];
-    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
+    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? t("adminBody.fallback.coach");
 
-    const attention = buildAdminAttention({ applications, careTeamGaps, coachName, now });
+    const attention = buildAdminAttention({ applications, careTeamGaps, coachName, now, t });
     const queue = parseEnum(param(query.queue), ADMIN_QUEUES);
 
     const processing = jobs.filter(({ job }) => job.status === "processing").sort((a, b) => (a.job.startedAt ?? "").localeCompare(b.job.startedAt ?? ""));
@@ -97,106 +101,105 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
         signals.push({
             id: "pipeline-unavailable",
             icon: CircleX,
-            title: "The AI analysis service isn't answering",
-            description: "Job figures, the queue and recent failures can't be shown until it's back.",
+            title: t("adminBody.today.serviceDown"),
+            description: t("adminBody.today.serviceDownText"),
             href: routes.admin.aiJobs,
-            actionLabel: "AI jobs",
+            actionLabel: t("nav.AI jobs"),
         });
     }
     if (failed > 0) {
         signals.push({
             id: "failed-jobs",
             icon: CircleX,
-            title: `${pluralize(failed, "AI job")} failed in the last 24 hours`,
-            description: "Check the error codes — some need a retry, others a new upload.",
+            title: t("adminBody.today.failedJobs", { n: failed }),
+            description: t("adminBody.today.failedJobsText"),
             href: hrefWith(routes.admin.aiJobs, {}, { status: "failed" }),
-            actionLabel: "Review",
+            actionLabel: t("adminBody.today.review"),
         });
     }
     if (stalled.length > 0) {
         signals.push({
             id: "stalled-jobs",
             icon: Hourglass,
-            title: `${pluralize(stalled.length, "job")} processing for over 30 minutes`,
-            description: jobControl ? "The worker may be stuck. Cancel and retry if progress doesn't move." : "The worker may be stuck. Check that it's running.",
+            title: plural(t, "adminBody.today.stalledTitle", stalled.length),
+            description: jobControl ? t("adminBody.today.stalledControl") : t("adminBody.today.stalledPlain"),
             href: stalled.length === 1 ? routes.admin.aiJob(stalled[0].job.id) : hrefWith(routes.admin.aiJobs, {}, { status: "processing" }),
-            actionLabel: "Inspect",
+            actionLabel: t("adminBody.today.inspect"),
         });
     }
     if (queued.length >= QUEUE_BACKLOG) {
         signals.push({
             id: "queue-backlog",
             icon: ListOrdered,
-            title: `${pluralize(queued.length, "job")} waiting in the queue`,
-            description: "Uploads will take longer than usual to analyse.",
+            title: plural(t, "adminBody.today.backlogTitle", queued.length),
+            description: t("adminBody.today.backlog"),
             href: hrefWith(routes.admin.aiJobs, {}, { status: "queued" }),
-            actionLabel: "View queue",
+            actionLabel: t("adminBody.today.viewQueue"),
         });
     }
     if (failedSignIns.length >= FAILED_SIGN_IN_ALERT) {
         signals.push({
             id: "failed-sign-ins",
             icon: KeyRound,
-            title: `${pluralize(failedSignIns.length, "failed sign-in attempt")} in the last 24 hours`,
-            description: "Look for repeated attempts on the same account.",
+            title: plural(t, "adminBody.today.signInsTitle", failedSignIns.length),
+            description: t("adminBody.today.signIns"),
             href: hrefWith(routes.admin.auditLogs, {}, { resource: "auth", status: "failure" }),
-            actionLabel: "Audit log",
+            actionLabel: t("adminBody.today.auditLog"),
         });
     }
     if (!settings.abnormalMovementAlertsEnabled) {
         signals.push({
             id: "alerts-off",
             icon: BellOff,
-            title: "AI movement observations are turned off",
-            description: "Doctors won't see new possible abnormal movement from analysed footage.",
+            title: t("adminBody.today.alertsOff"),
+            description: t("adminBody.today.alertsOffText"),
             href: routes.admin.settings,
-            actionLabel: "Settings",
+            actionLabel: t("nav.Settings"),
         });
     }
 
     return (
-        <>
+        <div className="workspace-editorial">
             <PageHeader
                 eyebrow={formatWeekdayDate(now)}
-                title={greetingTitle(now, admin)}
-                description={`${settings.organizationName} · ${attention.length === 0 ? "nothing is waiting on you" : `${pluralize(attention.length, "person", "people")} waiting on you`}`}
+                title={admin.name.trim() && admin.name.trim() !== admin.email ? t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(admin.name) }) : t(greetingKey(now))}
+                description={`${settings.organizationName} · ${attention.length === 0 ? t("screens.misc.adminPages.today.nothingWaiting") : t("screens.misc.adminPages.today.waiting", { n: attention.length })}`}
                 actions={
                     <ButtonLink href={routes.admin.newUser}>
                         <UserPlus aria-hidden />
-                        {invitations ? "Invite user" : "Add user"}
+                        {invitations ? t("screens.misc.adminPages.today.invite") : t("screens.misc.adminPages.today.addUser")}
                     </ButtonLink>
                 }
             />
 
             <div className="flex flex-col gap-6">
                 {careTeamGaps === null && (
-                    <Callout tone="warning" icon={CircleAlert} title="Care teams couldn't be checked">
-                        The fighter or medical service didn&apos;t answer, so fighters still waiting for a coach or a sports doctor aren&apos;t listed.
-                        Reload the page to try again.
+                    <Callout tone="warning" icon={CircleAlert} title={t("screens.misc.adminPages.today.careTeams")}>
+                        {t("screens.misc.adminPages.today.careTeamsBody")}
                     </Callout>
                 )}
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <QueueCard
-                        title="Waiting for you"
-                        filterLabel="Filter your queue"
+                        title={t("adminBody.today.waitingTitle")}
+                        filterLabel={t("adminBody.today.filterQueue")}
                         items={attention}
                         queues={ADMIN_QUEUES}
-                        meta={ADMIN_QUEUE_META}
+                        meta={adminQueueMeta(t)}
                         active={queue}
                         hrefFor={(next: AdminQueue | null) => hrefWith(routes.admin.dashboard, query, { queue: next })}
                         emptyAll={{
-                            title: "Nothing needs you right now",
-                            description: "Every applicant has an assessing coach or a decision, and every fighter has a coach and a sports doctor.",
+                            title: t("adminBody.today.nothingTitle"),
+                            description: t("adminBody.today.nothingText"),
                         }}
                         className="lg:col-span-2"
                     />
 
                     <Card className="min-w-0">
-                        <CardHeader title="Users by role" description={`${pluralize(totalUsers, "account")} of every status`} icon={<Users />} />
+                        <CardHeader title={t("adminBody.today.usersByRole")} description={t("adminBody.today.accountsOfStatus", { n: totalUsers })} icon={<Users />} />
                         <CardContent>
                             <HorizontalBars
-                                ariaLabel="Accounts per role"
+                                ariaLabel={t("adminBody.today.accountsAria")}
                                 items={ROLE_ORDER.map((role) => ({ label: ROLE_LABELS[role], value: overview.usersByRole[role] }))}
                             />
                         </CardContent>
@@ -204,26 +207,26 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                             <span className="text-fg-muted">
                                 {invitations
                                     ? overview.invitedUsers > 0
-                                        ? `${pluralize(overview.invitedUsers, "invitation")} pending`
-                                        : "No pending invitations"
-                                    : `${overview.suspendedUsers} suspended`}
+                                        ? plural(t, "adminBody.today.invitesPending", overview.invitedUsers)
+                                        : t("adminBody.today.noInvites")
+                                    : t("adminBody.today.suspended", { n: overview.suspendedUsers })}
                             </span>
                             <Link href={routes.admin.users} className="font-medium text-primary-soft-fg hover:underline">
-                                Manage users
+                                {t("adminBody.users.colUser")}
                             </Link>
                         </CardFooter>
                     </Card>
                 </div>
 
-                <SystemStatus items={signals} checkedLabel={`Checked ${formatDateTime(now)}`} />
+                <SystemStatus items={signals} checkedLabel={formatDateTime(now)} t={t} />
 
                 {!stats ? (
                     <Card>
-                        <CardHeader title="AI pipeline health" icon={<Activity />} action={<CardLink href={routes.admin.aiJobs}>All jobs</CardLink>} />
+                        <CardHeader title={t("adminBody.today.pipeline")} icon={<Activity />} action={<CardLink href={routes.admin.aiJobs}>{t("adminBody.today.allJobs")}</CardLink>} />
                         <CardContent>
                             <FeatureUnavailable
-                                title="AI pipeline figures can't be loaded right now"
-                                description="The analysis service didn't answer. Your queue and the accounts above are up to date."
+                                title={t("adminBody.today.pipelineDown")}
+                                description={t("adminBody.today.pipelineDownText")}
                                 compact
                             />
                         </CardContent>
@@ -232,26 +235,26 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                     <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                         <Card className="min-w-0 lg:col-span-2">
                             <CardHeader
-                                title="AI pipeline health"
-                                description="Jobs finished per day over the last 14 days"
+                                title={t("adminBody.today.pipeline")}
+                                description={t("adminBody.today.pipelineDesc")}
                                 icon={<Activity />}
-                                action={<CardLink href={routes.admin.aiJobs}>All jobs</CardLink>}
+                                action={<CardLink href={routes.admin.aiJobs}>{t("adminBody.today.allJobs")}</CardLink>}
                             />
                             <CardContent className="flex flex-col gap-5">
                                 <ChartFigure
-                                    title="Daily throughput"
-                                    description="Completed and failed jobs, stacked"
+                                    title={t("adminBody.today.throughput")}
+                                    description={t("adminBody.today.throughputDesc")}
                                     table={{
-                                        columns: ["Day", "Completed", "Failed"],
+                                        columns: [t("adminBody.today.day"), t("adminBody.today.completed"), t("adminBody.today.failed")],
                                         rows: stats.dailyThroughput.map((day) => [formatShortDate(`${day.date}T12:00:00+07:00`), day.completed, day.failed]),
                                     }}
                                 >
                                     <BarChart
-                                        ariaLabel="AI jobs completed and failed per day over the last 14 days"
+                                        ariaLabel={t("adminBody.today.throughputAria")}
                                         labels={stats.dailyThroughput.map((day) => formatShortDate(`${day.date}T12:00:00+07:00`))}
                                         series={[
-                                            { id: "completed", label: "Completed", color: seriesColor(3), values: stats.dailyThroughput.map((day) => day.completed) },
-                                            { id: "failed", label: "Failed", color: seriesColor(8), values: stats.dailyThroughput.map((day) => day.failed) },
+                                            { id: "completed", label: t("adminBody.today.completed"), color: seriesColor(3), values: stats.dailyThroughput.map((day) => day.completed) },
+                                            { id: "failed", label: t("adminBody.today.failed"), color: seriesColor(8), values: stats.dailyThroughput.map((day) => day.failed) },
                                         ]}
                                         stacked
                                         height={250}
@@ -259,21 +262,21 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                                     />
                                 </ChartFigure>
                                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                    <MetricTile label="Failure rate · 7 d" value={formatPercent(stats.failureRate7d, 1)} hint="of finished jobs" />
+                                    <MetricTile label={t("adminBody.today.failureRate")} value={formatPercent(stats.failureRate7d, 1)} hint={t("adminBody.today.ofFinished")} />
                                     <MetricTile
-                                        label="Low confidence · 7 d"
+                                        label={t("adminBody.today.lowConfidence")}
                                         value={stats.lowConfidenceRate7d === null ? "—" : formatPercent(stats.lowConfidenceRate7d, 1)}
-                                        hint={stats.lowConfidenceRate7d === null ? "jobs report no confidence" : `below ${formatPercent(settings.aiLowConfidenceThreshold * 100)} review line`}
+                                        hint={stats.lowConfidenceRate7d === null ? t("adminBody.today.nothingWaiting") : formatPercent(settings.aiLowConfidenceThreshold * 100)}
                                     />
-                                    <MetricTile label="Processing now" value={formatNumber(processing.length)} hint={stalled.length > 0 ? `${stalled.length} over 30 min` : "workers busy"} />
-                                    <MetricTile label="Queued" value={formatNumber(queued.length)} hint={queued.length > 0 ? `oldest ${formatRelative(queued[0].job.queuedAt, now)}` : "nothing waiting"} />
+                                    <MetricTile label={t("adminBody.today.processingNow")} value={formatNumber(processing.length)} hint={stalled.length > 0 ? t("adminBody.today.over30", { n: stalled.length }) : t("adminBody.today.workersBusy")} />
+                                    <MetricTile label={t("adminBody.today.queued")} value={formatNumber(queued.length)} hint={queued.length > 0 ? t("adminBody.today.oldest", { when: formatRelative(queued[0].job.queuedAt, now, t.locale === "en" ? "en" : "vi") }) : t("adminBody.today.nothingWaiting")} />
                                 </div>
                             </CardContent>
                         </Card>
 
                         <div className="flex min-w-0 flex-col gap-6">
-                            <JobQueueCard processing={processing} queued={queued} now={now} />
-                            <FailuresCard failures={recentFailures} now={now} canRetry={jobControl} />
+                            <JobQueueCard processing={processing} queued={queued} now={now} t={t} />
+                            <FailuresCard failures={recentFailures} now={now} canRetry={jobControl} t={t} />
                         </div>
                     </div>
                 )}
@@ -283,14 +286,14 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                         {showActivity && (
                             <Card className={showModels ? "min-w-0 overflow-hidden lg:col-span-2" : "min-w-0 overflow-hidden lg:col-span-3"}>
                                 <CardHeader
-                                    title="Recent activity"
-                                    description="Latest entries in the audit log"
+                                    title={t("adminBody.today.activity")}
+                                    description={t("adminBody.today.activityDesc")}
                                     icon={<ScrollText />}
-                                    action={<CardLink href={routes.admin.auditLogs}>Audit logs</CardLink>}
+                                    action={<CardLink href={routes.admin.auditLogs}>{t("adminBody.audit.caption")}</CardLink>}
                                 />
                                 {overview.recentAudit.length === 0 ? (
                                     <CardContent>
-                                        <EmptyState compact title="No activity yet" description="Sign-ins, changes and pipeline events will appear here." />
+                                        <EmptyState compact title={t("adminBody.today.noActivity")} description={t("adminBody.today.noActivityText")} />
                                     </CardContent>
                                 ) : (
                                     <AuditActivityList entries={overview.recentAudit} now={now} className="border-t border-border" />
@@ -301,10 +304,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                         {showModels && (
                             <Card className={showActivity ? "min-w-0 overflow-hidden" : "min-w-0 overflow-hidden lg:col-span-3"}>
                                 <CardHeader
-                                    title="Model status"
-                                    description="Active model per task"
+                                    title={t("adminBody.today.modelStatus")}
+                                    description={t("adminBody.today.modelStatusDesc")}
                                     icon={<BrainCircuit />}
-                                    action={<CardLink href={routes.admin.aiModels}>Models</CardLink>}
+                                    action={<CardLink href={routes.admin.aiModels}>{t("adminBody.today.models")}</CardLink>}
                                 />
                                 <ul className="divide-y divide-border border-t border-border">
                                     {TASKS.map((task) => {
@@ -322,16 +325,16 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                                                     </div>
                                                 ) : (
                                                     <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-                                                        <p className="text-sm text-danger-fg">No active model</p>
+                                                        <p className="text-sm text-danger-fg">{t("adminBody.today.noActiveModel")}</p>
                                                         <Link href={routes.admin.aiModels} className="text-[13px] font-medium text-primary-soft-fg hover:underline">
-                                                            Promote one
+                                                            {t("adminBody.today.promote")}
                                                         </Link>
                                                     </div>
                                                 )}
                                                 {staging.map((model) => (
                                                     <div key={model.id} className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
                                                         <Link href={routes.admin.aiModel(model.id)} className="min-w-0 truncate text-[13px] text-fg-muted hover:text-fg hover:underline">
-                                                            Candidate <span className="font-mono">{model.version}</span>
+                                                            {t("adminBody.today.candidate")} <span className="font-mono">{model.version}</span>
                                                         </Link>
                                                         <ModelStatusBadge status="staging" size="sm" />
                                                     </div>
@@ -345,7 +348,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 }
 
@@ -354,18 +357,19 @@ function jobSubject({ video, fighter, job }: AIJobListItem): string {
 }
 
 /** The AI analysis queue right now: running jobs with their progress, then the waiting ones in order. */
-function JobQueueCard({ processing, queued, now }: { processing: AIJobListItem[]; queued: AIJobListItem[]; now: string }) {
+function JobQueueCard({ processing, queued, now, t }: { processing: AIJobListItem[]; queued: AIJobListItem[]; now: string; t: Translator }) {
     const empty = processing.length === 0 && queued.length === 0;
+    const locale = t.locale === "en" ? "en" : "vi";
     return (
         <Card className="overflow-hidden">
             <CardHeader
-                title="Analysis queue"
-                description={empty ? "Nothing in flight" : `${processing.length} processing · ${queued.length} queued`}
+                title={t("adminBody.today.queue")}
+                description={empty ? t("adminBody.today.nothingInFlight") : t("adminBody.today.inFlight", { processing: processing.length, queued: queued.length })}
                 icon={<ListOrdered />}
             />
             {empty ? (
                 <CardContent>
-                    <EmptyState compact icon={<Clock />} title="Queue is empty" description="New uploads start processing within seconds." />
+                    <EmptyState compact icon={<Clock />} title={t("adminBody.today.queueEmpty")} description={t("adminBody.today.queueEmptyText")} />
                 </CardContent>
             ) : (
                 <ul className="divide-y divide-border border-t border-border">
@@ -375,13 +379,13 @@ function JobQueueCard({ processing, queued, now }: { processing: AIJobListItem[]
                                 <Link href={routes.admin.aiJob(item.job.id)} className="min-w-0 truncate text-sm font-medium text-fg hover:underline">
                                     {jobSubject(item)}
                                 </Link>
-                                {item.job.startedAt && <span className="shrink-0 text-xs text-fg-subtle">started {formatRelative(item.job.startedAt, now)}</span>}
+                                {item.job.startedAt && <span className="shrink-0 text-xs text-fg-subtle">{t("adminBody.today.started", { when: formatRelative(item.job.startedAt, now, locale) })}</span>}
                             </div>
                             <ProgressBar
                                 className="mt-2"
                                 size="sm"
                                 tone="primary"
-                                label={`${item.job.id} progress`}
+                                label={t("adminBody.today.progress", { id: item.job.id })}
                                 showLabel={false}
                                 hideValue
                                 value={item.job.progressPct}
@@ -395,14 +399,14 @@ function JobQueueCard({ processing, queued, now }: { processing: AIJobListItem[]
                     {queued.map((item, index) => (
                         <li key={item.job.id} className="flex items-center gap-3 px-5 py-3">
                             <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-semibold text-fg-muted tabular-nums">
-                                <span className="sr-only">Queue position </span>
+                                <span className="sr-only">{t("adminBody.today.queuePosition")} </span>
                                 {index + 1}
                             </span>
                             <div className="min-w-0 flex-1">
                                 <Link href={routes.admin.aiJob(item.job.id)} className="block truncate text-sm font-medium text-fg hover:underline">
                                     {jobSubject(item)}
                                 </Link>
-                                <p className="text-xs text-fg-muted">Queued {formatRelative(item.job.queuedAt, now)}</p>
+                                <p className="text-xs text-fg-muted">{t("adminBody.today.queuedWhen", { when: formatRelative(item.job.queuedAt, now, locale) })}</p>
                             </div>
                         </li>
                     ))}
@@ -413,19 +417,20 @@ function JobQueueCard({ processing, queued, now }: { processing: AIJobListItem[]
 }
 
 /** `canRetry` when failed jobs can be queued again; otherwise only a new upload fixes them. */
-function FailuresCard({ failures, now, canRetry }: { failures: AIJobListItem[]; now: string; canRetry: boolean }) {
-    const remedy = canRetry ? "a retry or a new upload" : "a new upload";
+function FailuresCard({ failures, now, canRetry, t }: { failures: AIJobListItem[]; now: string; canRetry: boolean; t: Translator }) {
+    const locale = t.locale === "en" ? "en" : "vi";
+    const remedy = canRetry ? t("adminBody.today.remedyRetry") : t("adminBody.today.remedyUpload");
     return (
         <Card className="overflow-hidden">
             <CardHeader
-                title="Recent failures"
-                description={failures.length === 0 ? "No unresolved failures" : `Need ${remedy}`}
+                title={t("adminBody.today.failures")}
+                description={failures.length === 0 ? t("adminBody.today.noFailures") : t("adminBody.today.needRemedy", { remedy })}
                 icon={<CircleX />}
-                action={failures.length > 0 ? <CardLink href={hrefWith(routes.admin.aiJobs, {}, { status: "failed" })}>All failed</CardLink> : undefined}
+                action={failures.length > 0 ? <CardLink href={hrefWith(routes.admin.aiJobs, {}, { status: "failed" })}>{t("adminBody.today.allFailed")}</CardLink> : undefined}
             />
             {failures.length === 0 ? (
                 <CardContent>
-                    <EmptyState compact title="No unresolved failures" description={`Failed jobs that still need ${remedy} appear here with their error code.`} />
+                    <EmptyState compact title={t("adminBody.today.noFailures")} description={t("adminBody.today.failuresEmpty", { remedy })} />
                 </CardContent>
             ) : (
                 <ul className="divide-y divide-border border-t border-border">
@@ -435,14 +440,14 @@ function FailuresCard({ failures, now, canRetry }: { failures: AIJobListItem[]; 
                                 <p className="truncate text-sm font-medium text-fg">{item.video?.title ?? item.job.videoId}</p>
                                 <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-fg-muted">
                                     <code className="rounded bg-danger-soft px-1 font-mono text-[11px] text-danger-fg ring-1 ring-danger-border ring-inset">
-                                        {item.job.errorCode ?? "UNKNOWN"}
+                                        {item.job.errorCode ?? t("adminBody.today.unknownCode")}
                                     </code>
                                     <span className="font-mono">{item.job.id}</span>
-                                    {item.job.finishedAt && <span>{formatRelative(item.job.finishedAt, now)}</span>}
+                                    {item.job.finishedAt && <span>{formatRelative(item.job.finishedAt, now, locale)}</span>}
                                 </p>
                             </div>
                             <ButtonLink href={routes.admin.aiJob(item.job.id)} variant="secondary" size="sm">
-                                {canRetry ? "Retry" : "Inspect"}
+                                {canRetry ? t("adminBody.today.retry") : t("adminBody.today.inspect")}
                                 <span className="sr-only"> {item.job.id}</span>
                             </ButtonLink>
                         </li>

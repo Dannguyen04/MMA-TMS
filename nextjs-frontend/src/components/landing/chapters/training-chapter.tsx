@@ -23,15 +23,15 @@ export async function TrainingChapter() {
                             <CalendarDays aria-hidden className="size-3.5 text-landing-cyan" />
                             {t("landing.training.sessionTime")}
                         </p>
-                        <p className="mt-3 text-lg font-semibold text-white">{t("landing.training.sessionTitle")}</p>
+                        <p className="mt-3 text-lg font-semibold text-nav-fg-active">{t("landing.training.sessionTitle")}</p>
                         <dl className="mt-3 grid grid-cols-2 gap-3 text-[13px]">
                             <div>
                                 <dt className="text-nav-fg">{t("landing.training.targetRpe")}</dt>
-                                <dd className="font-mono text-white">7 / 10</dd>
+                                <dd className="font-mono text-nav-fg-active">7 / 10</dd>
                             </div>
                             <div>
                                 <dt className="text-nav-fg">{t("landing.training.rounds")}</dt>
-                                <dd className="font-mono text-white">6 × 3 min</dd>
+                                <dd className="font-mono text-nav-fg-active">6 × 3 min</dd>
                             </div>
                         </dl>
                         <p className="mt-4 flex items-center gap-2 rounded-lg bg-landing-success/10 px-3 py-2 text-[13px] text-landing-success">
@@ -50,18 +50,18 @@ export async function TrainingChapter() {
                                     <p className="font-mono text-[11px] tracking-[0.18em] text-nav-fg uppercase">
                                         {t("landing.training.phaseHeading", { index: String(index + 1), weeks: t(phase.weeksKey) })}
                                     </p>
-                                    <p className="mt-6 text-3xl font-semibold tracking-tight text-white">{t(phase.phaseKey)}</p>
+                                    <p className="mt-6 text-3xl font-semibold tracking-tight text-nav-fg-active">{t(phase.phaseKey)}</p>
                                     <p className="mt-2 text-[14px] leading-6 text-nav-fg">{t(phase.textKey)}</p>
                                     <div className="mt-6">
                                         <p className="flex justify-between text-[11px] text-nav-fg">
                                             <span>{t("landing.training.load")}</span>
                                             <span className="font-mono">{Math.round(phase.load * 100)}%</span>
                                         </p>
-                                        <div className="mt-1.5 h-1 rounded-full bg-white/10">
+                                        <div className="mt-1.5 h-1 rounded-full bg-nav-fg-active/10">
                                             <div className="h-full rounded-full bg-gradient-to-r from-brand-blue to-landing-cyan" style={{ width: `${phase.load * 100}%` }} />
                                         </div>
                                     </div>
-                                    <span aria-hidden className="pointer-events-none absolute -top-4 -right-2 font-mono text-[7rem] leading-none font-bold text-white/[0.04]">
+                                    <span aria-hidden className="pointer-events-none absolute -top-4 -right-2 font-mono text-[7rem] leading-none font-bold text-nav-fg-active/4">
                                         {index + 1}
                                     </span>
                                 </Panel>

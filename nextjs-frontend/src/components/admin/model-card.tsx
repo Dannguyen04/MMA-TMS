@@ -3,20 +3,22 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import type { AIModel } from "@/lib/domain/types";
 import { formatConfidence, formatDate, formatNumber, formatPercent } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { f1Score, formatRatio } from "./admin-format";
 import { ModelStatusBadge } from "./admin-badges";
 
 /** Registry card for one model version: status, evaluation metrics, human agreement and thresholds. */
-export function ModelCard({ model }: { model: AIModel }) {
+export async function ModelCard({ model }: { model: AIModel }) {
+    const { t } = await getTranslator();
     const metrics = [
-        { label: "Precision", value: formatRatio(model.precision) },
-        { label: "Recall", value: formatRatio(model.recall) },
-        { label: "F1", value: formatRatio(f1Score(model.precision, model.recall)) },
-        { label: "Human agreement", value: formatPercent(model.humanAgreementPct, 1) },
-        { label: "Reviews", value: formatNumber(model.reviewsCount) },
-        { label: "Latency", value: `${model.avgLatencyMs} ms` },
+        { label: t("adminBody.models.precision"), value: formatRatio(model.precision) },
+        { label: t("adminBody.models.recall"), value: formatRatio(model.recall) },
+        { label: t("adminBody.models.f1Short"), value: formatRatio(f1Score(model.precision, model.recall)) },
+        { label: t("adminBody.models.agreement"), value: formatPercent(model.humanAgreementPct, 1) },
+        { label: t("adminBody.models.reviews"), value: formatNumber(model.reviewsCount) },
+        { label: t("adminBody.models.latencyCard"), value: `${model.avgLatencyMs} ms` },
     ];
 
     return (
@@ -34,7 +36,7 @@ export function ModelCard({ model }: { model: AIModel }) {
                         </Link>
                     </h3>
                     <p className="mt-0.5 truncate text-xs text-fg-subtle">
-                        {model.framework} · deployed {formatDate(model.deployedAt)}
+                        {model.framework} · {t("adminBody.models.deployedShort", { when: formatDate(model.deployedAt) })}
                     </p>
                 </div>
                 <ModelStatusBadge status={model.status} size="sm" className="shrink-0" />
@@ -49,8 +51,7 @@ export function ModelCard({ model }: { model: AIModel }) {
                 ))}
             </dl>
             <p className="px-5 py-3 text-xs text-fg-muted">
-                Discard below <span className="font-medium text-fg">{formatConfidence(model.confidenceThreshold)}</span> · Needs review below{" "}
-                <span className="font-medium text-fg">{formatConfidence(model.lowConfidenceThreshold)}</span>
+                {t("adminBody.models.discardLine", { low: formatConfidence(model.confidenceThreshold), review: formatConfidence(model.lowConfidenceThreshold) })}
             </p>
         </Card>
     );

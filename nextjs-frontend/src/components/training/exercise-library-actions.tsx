@@ -3,6 +3,7 @@
 import { CircleAlert, CircleCheck, LibraryBig, Plus } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup } from "@/components/ui/choice-group";
@@ -14,13 +15,14 @@ import type { ActionState } from "@/lib/actions/state";
 import { createLibraryExercise, importStarterLibrary, type StarterImportResult } from "@/lib/actions/training";
 import { EXERCISE_CATEGORY_LABELS } from "@/lib/domain/labels";
 import { EXERCISE_CATEGORY_FOR, SERVICE_EXERCISE_CATEGORIES, type ServiceExerciseCategory } from "@/lib/domain/training-contract";
-import { pluralize } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
 import { Callout } from "./callout";
 
 const CATEGORY_OPTIONS = SERVICE_EXERCISE_CATEGORIES.map((value) => ({ value, label: EXERCISE_CATEGORY_LABELS[EXERCISE_CATEGORY_FOR[value]] }));
 
 /** "Add exercise": one exercise for the global library, in the training service's fields. */
 export function AddExerciseButton() {
+    const t = useT();
     const [open, setOpen] = useState(false);
     const [category, setCategory] = useState<ServiceExerciseCategory | "">("");
     const toast = useToast();
@@ -34,27 +36,27 @@ export function AddExerciseButton() {
                 }}
             >
                 <Plus aria-hidden />
-                Add exercise
+                {t("adminForms.addExercise")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
-                title="Add an exercise"
-                description="Coaches can add it to their plans straight away."
+                title={t("adminForms.addExerciseTitle")}
+                description={t("adminForms.addExerciseDesc")}
                 action={(previous: ActionState, fd: FormData) => createLibraryExercise(previous, fd)}
-                submitLabel="Add exercise"
-                pendingLabel="Adding…"
-                onSuccess={(state) => toast({ title: state.message ?? "Exercise added." })}
+                submitLabel={t("adminForms.addExercise")}
+                pendingLabel={t("adminForms.adding")}
+                onSuccess={(state) => toast({ title: state.message ?? t("adminForms.exerciseAdded") })}
             >
                 {(form) => (
                     <>
-                        <Field label="Name" htmlFor={form.control("name").id} required error={form.error("name")}>
-                            <Input {...form.control("name", { required: true })} maxLength={120} placeholder="e.g. Jab–cross–hook pad drill" />
+                        <Field label={t("adminForms.exerciseName")} htmlFor={form.control("name").id} required error={form.error("name")}>
+                            <Input {...form.control("name", { required: true })} maxLength={120} placeholder={t("adminForms.exercisePh")} />
                         </Field>
                         <ChoiceGroup
                             id={form.control("category").id}
                             name="category"
-                            legend="Category"
+                            legend={t("adminForms.category")}
                             required
                             variant="compact"
                             columns={2}
@@ -63,19 +65,19 @@ export function AddExerciseButton() {
                             onChange={setCategory}
                             error={form.error("category")}
                         />
-                        <Field label="Description" htmlFor={form.control("description").id} optional error={form.error("description")}>
+                        <Field label={t("adminForms.description")} htmlFor={form.control("description").id} optional error={form.error("description")}>
                             <Textarea {...form.control("description")} rows={3} maxLength={1000} />
                         </Field>
                         <Field
-                            label="Muscle groups"
+                            label={t("adminForms.muscles")}
                             htmlFor={form.control("targetMuscleGroups").id}
                             optional
-                            hint="Separate with commas, e.g. shoulders, core."
+                            hint={t("adminForms.musclesHint")}
                             error={form.error("targetMuscleGroups")}
                         >
                             <Input {...form.control("targetMuscleGroups", { hint: true })} maxLength={300} />
                         </Field>
-                        <Field label="Video link" htmlFor={form.control("videoUrl").id} optional hint="A demonstration coaches can open." error={form.error("videoUrl")}>
+                        <Field label={t("adminForms.videoLink")} htmlFor={form.control("videoUrl").id} optional hint={t("adminForms.videoHint")} error={form.error("videoUrl")}>
                             <Input {...form.control("videoUrl", { hint: true })} type="url" inputMode="url" placeholder="https://" maxLength={1000} />
                         </Field>
                     </>
@@ -97,12 +99,13 @@ export interface StarterLibraryImportProps {
  * in their exercises. Shows what was created, skipped and refused.
  */
 export function StarterLibraryImport({ missing, total }: StarterLibraryImportProps) {
+    const t = useT();
     const toast = useToast();
     const [result, setResult] = useState<{ message: string; data: StarterImportResult } | null>(null);
     const run = useConfirmAction(() => importStarterLibrary(), {
         onSuccess: (state) => {
-            if (state.data) setResult({ message: state.message ?? "Import finished.", data: state.data });
-            toast({ title: state.message ?? "Import finished.", tone: state.data && state.data.failed.length > 0 ? "warning" : "success" });
+            if (state.data) setResult({ message: state.message ?? t("adminForms.importDone"), data: state.data });
+            toast({ title: state.message ?? t("adminForms.importDone"), tone: state.data && state.data.failed.length > 0 ? "warning" : "success" });
         },
     });
 
@@ -115,26 +118,24 @@ export function StarterLibraryImport({ missing, total }: StarterLibraryImportPro
                     <Callout
                         tone="info"
                         icon={LibraryBig}
-                        title="Import the starter library"
+                        title={t("adminForms.importTitle")}
                         action={
                             <Button variant="secondary" size="sm" onClick={() => run.request(undefined)}>
-                                Import {pluralize(missing.length, "exercise")}
+                                {plural(t, "adminForms.importN", missing.length)}
                             </Button>
                         }
                     >
-                        {missing.length === total
-                            ? `The plan templates use ${pluralize(total, "exercise")} the library doesn't have yet.`
-                            : `${missing.length} of the ${total} exercises the plan templates use aren't in the library yet.`}{" "}
-                        Import them so templates fill in their exercises for coaches.
+                        {missing.length === total ? t("adminForms.importAll", { n: total }) : t("adminForms.importSome", { missing: missing.length, total })}{" "}
+                        {t("adminForms.importTail")}
                     </Callout>
                 )
             )}
             <ConfirmDialog
                 {...run.dialogProps}
                 tone="primary"
-                title={`Import ${pluralize(missing.length, "exercise")}?`}
-                description="Each one is added to the global library, where every coach can use it. Exercises already in the library, matched by name, are skipped."
-                confirmLabel="Import"
+                title={plural(t, "adminForms.importAsk", missing.length)}
+                description={t("adminForms.importDesc")}
+                confirmLabel={t("adminForms.import")}
             >
                 <ul className="mt-3 max-h-48 list-disc overflow-y-auto pl-5 text-[13px] text-fg-muted">
                     {missing.map((name) => (
@@ -147,11 +148,12 @@ export function StarterLibraryImport({ missing, total }: StarterLibraryImportPro
 }
 
 function ImportResult({ message, data }: { message: string; data: StarterImportResult }) {
+    const t = useT();
     const failed = data.failed.length > 0;
     return (
         <Callout tone={failed ? "warning" : "success"} icon={failed ? CircleAlert : CircleCheck} title={message} role="status">
             <p>
-                {pluralize(data.created.length, "exercise")} created · {data.skipped.length} already in the library · {data.failed.length} failed
+                {t("adminForms.importSummary", { created: data.created.length, skipped: data.skipped.length, failed: data.failed.length })}
             </p>
             {failed && (
                 <ul className="mt-2 flex flex-col gap-1">
@@ -164,7 +166,7 @@ function ImportResult({ message, data }: { message: string; data: StarterImportR
             )}
             {data.created.length > 0 && (
                 <details className="mt-2">
-                    <summary className="cursor-pointer text-fg">Show what was created</summary>
+                    <summary className="cursor-pointer text-fg">{t("adminForms.showCreated")}</summary>
                     <p className="mt-1">{data.created.join(", ")}</p>
                 </details>
             )}

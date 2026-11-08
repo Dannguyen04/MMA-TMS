@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 
 import type { Application, ApplicationStatus } from "@/lib/domain/admissions";
+import { createTranslator } from "@/lib/i18n/translate";
 import type { CareTeamGap } from "@/lib/services/care-team-gaps";
 import { buildAdminAttention, careTeamNextStep, type AdminAttentionInput } from "./admin-attention";
+
+const t = createTranslator("en");
 
 const NOW = "2026-10-11T10:00:00.000Z";
 
@@ -44,6 +47,7 @@ const input = (overrides: Partial<AdminAttentionInput> = {}): AdminAttentionInpu
     careTeamGaps: [],
     coachName: () => "Rafael Costa",
     now: NOW,
+    t,
     ...overrides,
 });
 
@@ -103,9 +107,9 @@ describe("buildAdminAttention", () => {
 
 describe("careTeamNextStep", () => {
     it("names what is missing, and nothing once the team is complete", () => {
-        expect(careTeamNextStep(["coach", "doctor"])?.title).toBe("Next: assign a coach and a sports doctor");
-        expect(careTeamNextStep(["doctor"])).toEqual({ title: "Next: assign a sports doctor", action: "Assign sports doctor" });
-        expect(careTeamNextStep(["coach"])?.action).toBe("Assign coach");
-        expect(careTeamNextStep([])).toBeNull();
+        expect(careTeamNextStep(["coach", "doctor"], t)?.title).toBe("Next: assign a coach and a sports doctor");
+        expect(careTeamNextStep(["doctor"], t)).toEqual({ title: "Next: assign a sports doctor", action: "Assign sports doctor" });
+        expect(careTeamNextStep(["coach"], t)?.action).toBe("Assign coach");
+        expect(careTeamNextStep([], t)).toBeNull();
     });
 });

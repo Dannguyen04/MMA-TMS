@@ -10,8 +10,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatCard } from "@/components/ui/stat-card";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import type { NotificationBroadcast, Role } from "@/lib/domain/types";
-import { APP_TIMEZONE, dayKey, formatNumber, formatRelative, formatTime, pluralize } from "@/lib/format";
+import { APP_TIMEZONE, dayKey, formatNumber, formatRelative, formatTime } from "@/lib/format";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { listBroadcasts, listUsers } from "@/lib/services/admin";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { sum } from "@/lib/utils";
@@ -21,12 +23,13 @@ export const metadata: Metadata = { title: "Broadcasts" };
 const DAY_MS = 86_400_000;
 
 export default async function AdminNotificationsPage() {
+    const { t } = await getTranslator();
     await requireRole("admin");
     if (!platformFeatureAvailable("broadcasts")) {
         return (
             <>
-                <PageHeader title="Broadcasts" />
-                <FeatureUnavailable service="notification" title="Broadcasts aren't available yet" />
+                <PageHeader title={t("screens.misc.adminPages.broadcasts.title")} />
+                <FeatureUnavailable service="notification" title={t("adminBody.broadcast.unavailable")} />
             </>
         );
     }
@@ -51,8 +54,8 @@ export default async function AdminNotificationsPage() {
     return (
         <>
             <PageHeader
-                title="Broadcasts"
-                description="Announcements sent to every account in chosen roles — schedule changes, gym news and platform updates."
+                title={t("screens.misc.adminPages.broadcasts.title")}
+                description={t("adminBody.broadcast.description")}
                 actions={
                     <BroadcastComposer
                         activeCounts={activeCounts}
@@ -64,48 +67,51 @@ export default async function AdminNotificationsPage() {
             />
 
             <div className="flex flex-col gap-6">
-                <section aria-label="Broadcast summary" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <section aria-label={t("adminBody.broadcast.summary")} className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <StatCard
-                        label="Scheduled"
+                        label={t("adminBody.broadcast.scheduled")}
                         value={formatNumber(scheduled.length)}
                         icon={<CalendarClock aria-hidden />}
-                        hint={scheduled[0]?.scheduledFor ? `Next sends ${formatRelative(scheduled[0].scheduledFor, now)}` : "Nothing queued to send"}
+                        hint={scheduled[0]?.scheduledFor ? t("adminBody.broadcast.next", { when: formatRelative(scheduled[0].scheduledFor, now, t.locale === "en" ? "en" : "vi") }) : t("adminBody.broadcast.nothingQueued")}
                     />
-                    <StatCard label="Drafts" value={formatNumber(drafts.length)} icon={<FilePen aria-hidden />} hint={drafts.length > 0 ? "Not visible to anyone yet" : "No drafts"} />
+                    <StatCard label={t("adminBody.broadcast.drafts")} value={formatNumber(drafts.length)} icon={<FilePen aria-hidden />} hint={drafts.length > 0 ? t("adminBody.broadcast.notVisible") : t("adminBody.broadcast.noDraftsHint")} />
                     <StatCard
-                        label="Sent · last 30 days"
+                        label={t("adminBody.broadcast.sentWindow")}
                         value={formatNumber(sentLast30.length)}
                         icon={<Send aria-hidden />}
-                        hint={`${pluralize(sum(sentLast30.map((b) => b.recipientCount)), "delivery", "deliveries")} in total`}
+                        hint={plural(t, "adminBody.broadcast.deliveries", sum(sentLast30.map((b) => b.recipientCount)))}
                     />
                 </section>
 
                 <BroadcastSection
-                    title="Scheduled"
-                    description="Sends automatically at the listed time"
+                    title={t("adminBody.broadcast.scheduled")}
+                    description={t("adminBody.broadcast.scheduledDesc")}
                     icon={<CalendarClock />}
                     broadcasts={scheduled}
-                    empty="Nothing is scheduled. Choose “Schedule for later” when creating a broadcast."
+                    empty={t("adminBody.broadcast.scheduledEmpty")}
                     now={now}
                     creatorNames={creatorNames}
+                    t={t}
                 />
                 <BroadcastSection
-                    title="Drafts"
-                    description="Saved but not sent"
+                    title={t("adminBody.broadcast.drafts")}
+                    description={t("adminBody.broadcast.draftsDesc")}
                     icon={<FilePen />}
                     broadcasts={drafts}
-                    empty="No drafts right now."
+                    empty={t("adminBody.broadcast.draftsEmpty")}
                     now={now}
                     creatorNames={creatorNames}
+                    t={t}
                 />
                 <BroadcastSection
-                    title="Sent"
-                    description="Delivered broadcasts, newest first"
+                    title={t("adminBody.broadcast.sent")}
+                    description={t("adminBody.broadcast.sentDesc")}
                     icon={<Send />}
                     broadcasts={sent}
-                    empty="No broadcasts have been sent yet."
+                    empty={t("adminBody.broadcast.sentEmpty")}
                     now={now}
                     creatorNames={creatorNames}
+                    t={t}
                 />
             </div>
         </>
@@ -120,6 +126,7 @@ function BroadcastSection({
     empty,
     now,
     creatorNames,
+    t,
 }: {
     title: string;
     description: string;
@@ -128,17 +135,18 @@ function BroadcastSection({
     empty: string;
     now: string;
     creatorNames: Record<string, string>;
+    t: Translator;
 }) {
     return (
         <Card className="overflow-hidden">
             <CardHeader title={`${title} · ${broadcasts.length}`} description={description} icon={icon} />
             {broadcasts.length === 0 ? (
                 <CardContent>
-                    <EmptyState compact title={`No ${title.toLowerCase()} broadcasts`} description={empty} />
+                    <EmptyState compact title={t("adminBody.broadcast.sectionEmpty", { title: title.toLocaleLowerCase() })} description={empty} />
                 </CardContent>
             ) : (
                 <div className="border-t border-border">
-                    <BroadcastTable broadcasts={broadcasts} caption={`${title} broadcasts`} now={now} creatorNames={creatorNames} />
+                    <BroadcastTable broadcasts={broadcasts} caption={title} now={now} creatorNames={creatorNames} />
                 </div>
             )}
         </Card>

@@ -50,8 +50,8 @@ export function CornerTimelineReplay() {
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border px-5 py-4">
                 <div className="flex items-center gap-4">
                     <div className="flex -space-x-2" aria-hidden>
-                        <span className="flex size-10 items-center justify-center rounded-full bg-corner-blue font-display text-lg font-extrabold text-white ring-2 ring-surface">K</span>
-                        <span className="flex size-10 items-center justify-center rounded-full bg-corner-red font-display text-lg font-extrabold text-white ring-2 ring-surface">B</span>
+                        <span className="flex size-10 items-center justify-center rounded-full bg-corner-blue font-display text-lg font-extrabold text-primary-fg ring-2 ring-surface">K</span>
+                        <span className="flex size-10 items-center justify-center rounded-full bg-corner-red font-display text-lg font-extrabold text-primary-fg ring-2 ring-surface">B</span>
                     </div>
                     <div>
                         <p className="font-display text-[22px] leading-6 font-extrabold text-fg italic">
@@ -221,10 +221,10 @@ export function CornerTimelineReplay() {
                     <div aria-hidden className="pointer-events-none absolute inset-0" style={{ gridColumn: "2 / -1", gridRow: "1 / -1" }}>
                         <div
                             ref={playhead}
-                            className={cn("absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full bg-corner-red transition-opacity", step === 0 ? "opacity-0" : "opacity-100")}
+                            className={cn("absolute inset-y-0 w-0.5 -translate-x-1/2 rounded-full bg-primary transition-opacity", step === 0 ? "opacity-0" : "opacity-100")}
                             style={{ left: "0%" }}
                         >
-                            <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full bg-corner-red" />
+                            <span className="absolute -top-1 left-1/2 size-2.5 -translate-x-1/2 rounded-full bg-primary" />
                         </div>
                     </div>
                 </div>

@@ -51,7 +51,7 @@ const HEIGHT_CLASSES: Record<"sm" | "md" | "lg", Record<SessionIntensityTier, st
 };
 
 const SEGMENT_CLASSES: Record<LadderSegmentStatus, string> = {
-    allowed: "bg-success-solid text-white border-success-solid",
+    allowed: "bg-success-solid text-primary-fg border-success-solid",
     blocked: "ladder-pattern-blocked text-neutral-fg border-neutral-border",
     blocked_ceiling: "ladder-pattern-ceiling text-info-fg border-info-border",
 };

@@ -2,7 +2,7 @@
 
 MMA fighter training, AI-assisted video analysis, performance and sports-medicine platform
 (_Hệ thống Quản lý Huấn luyện và Theo dõi Sức khỏe Võ sĩ_). Next.js 16 App Router, React 19,
-TypeScript (strict), Tailwind CSS v4. UI copy is English.
+TypeScript (strict), Tailwind CSS v4. User-facing copy defaults to Vietnamese (`DEFAULT_LOCALE`); English stays in the same dictionaries.
 
 ## Stack decisions
 
@@ -90,7 +90,13 @@ export default async function Page({ searchParams }: PageProps<"/coach/fighters"
 - **"Fight Night" identity.** A cool light theme is the default (`--bg #EEF1F5`, navy ink `--fg #0E1A2B`, primary blue
   `#1846C4`); dark mode is the navy "Arena night" (`#0D1626`). Brand accents are tokens too:
   - `corner-red` is a brand accent only: the active tab underline, the active nav slash and `CornerTag`. Never use it
-    for a status; danger has its own tone.
+    for a status; danger has its own tone. One domain exception: the bout replay marks the fighter's corner with
+    `corner-blue` and the opponent's corner with `corner-red` (initials in circles). That is the red/blue corner of
+    the fight, not a status and not a nav slash. `CornerTag` stays the slanted broadcast label. Playheads and
+    "today" markers use `primary`.
+  - `--brand-red` is a separate landing mark, not `corner-red` and not a status. It colours only the public landing
+    enter control (`.landing-primary-action`), the hero full-stop, and the scroll-progress hairline. Do not reuse it
+    inside the app shell.
   - `corner-blue` equals `primary`.
   - `belt-gold` is for `BeltProgress`; text on it is ink (`warning-solid-fg`).
   - `rail-*` colour the light sidebar.
@@ -127,12 +133,15 @@ export default async function Page({ searchParams }: PageProps<"/coach/fighters"
 - **Navigation hubs.** The sidebar lists each role's hubs, not every page (`components/layout/navigation.ts`):
   - Fighter: Today · Training · Film · Progress · Health.
   - Coach: Today · Roster · Training · Film room · Clearance.
-  - Doctor: Triage · Patients · Clinical · Observations.
+  - Doctor does not use this list. `components/doctor/shell.tsx` is the earlier grouped rail: Hằng ngày (Hôm nay, Võ sĩ,
+    Yêu cầu xem xét, Quan sát AI) and Hồ sơ y tế (Phiếu khám, Chấn thương, Kế hoạch phục hồi, Giấy phép, Lịch sử y tế,
+    Bệnh án when records are available). It collapses to icons below 1200px and becomes a drawer on a phone. There are
+    no doctor hubs and no bottom tab bar. Account, theme, the notification bell and sign-out stay in that rail's footer.
   - Admin: Today · People · Admissions · Training · AI platform · System.
 
   A hub's sub-pages are tabs (`tabs` on the nav item, rendered by `HubTabs`; `hubForPath` and `hubTabsFor` decide the
-  active hub and tab). Add a page to an existing hub's tabs before adding a sidebar item. Account links live in the
-  avatar menu and the notification bell, not the sidebar.
+  active hub and tab). Add a page to an existing hub's tabs before adding a sidebar item. For fighter, coach and admin,
+  account links live in the avatar menu and the notification bell, not the sidebar.
 - **Today pages answer one question.** No KPI rows on role Today pages; figures live in their hub.
   - Fighter Today: what do I do now (fight hero, readiness, this week).
   - Coach Today: a corner queue and today's schedule.
@@ -180,7 +189,7 @@ Reach for these before building anything new. Primitives in `components/ui` have
 | Need | Use |
 | --- | --- |
 | Buttons and button-styled links | `Button` (`loading` keeps it focusable and blocks clicks), `ButtonLink`, `SubmitButton` (`ui/button.tsx`, `ui/submit-button.tsx`) |
-| Form fields | `Field` + `Input` / `Select` / `Textarea` / `Checkbox`, `FormMessage` (`ui/form.tsx`) |
+| Form fields | `Field` + `Input` / `Select` / `Textarea` / `Checkbox`, `FormMessage` (`ui/form.tsx`). `Select` keeps a native `<select>` and paints the approved chamfered frame from `public/ui/select/` (`select-frame.css`); do not use `mask-border`. Đồng đội kéo code rồi, trong `nextjs-frontend`, chạy `pnpm install` theo `pnpm-lock.yaml`, sau đó `pnpm dev`. SVG nằm trong git (`public/ui/select/`, kể cả file chưa commit trên máy làm việc); không cài asset, không sinh SVG, không thêm thư viện. |
 | Radio cards and choice lists | `ChoiceGroup` (`ui/choice-group.tsx`; `variant="card"` or `"compact"`, native radios in a fieldset) |
 | On/off setting | `Switch` / `SwitchInput` (`ui/switch.tsx`) |
 | Numeric scale (RPE, pain) | `ScaleSlider` (`ui/scale-slider.tsx`; anchors, hint, warning, error) |
@@ -429,3 +438,12 @@ events from an already-mapped time with `shiftPastToday(iso, minutes)`, so nothi
 restart the dev server to reset. `MOCK_LATENCY_MS` (default 180) simulates network latency.
 
 Demo is the default outside production until the backend exposes every endpoint the UI calls; set `APP_DATA_MODE=api` to use the NestJS API. Production never runs demo. API mode must not import, seed, or fall back to this state.
+
+`pnpm typecheck` (`next typegen && tsc --noEmit`) and `pnpm build` load `next.config.ts` as production. If the shell already inherited `APP_DATA_MODE=demo` or `NEXT_PUBLIC_VIDEO_PIPELINE=mock`, that process throws before compile. PowerShell, only for that process, from `nextjs-frontend`:
+
+```powershell
+$env:APP_DATA_MODE='api'; $env:NEXT_PUBLIC_VIDEO_PIPELINE='api'; pnpm typecheck
+$env:APP_DATA_MODE='api'; $env:NEXT_PUBLIC_VIDEO_PIPELINE='api'; pnpm build
+```
+
+`pnpm exec tsc --noEmit` does not load `next.config.ts`, so it does not need those two variables. Do not write them into `.env`.

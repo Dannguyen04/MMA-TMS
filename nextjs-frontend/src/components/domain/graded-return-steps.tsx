@@ -43,9 +43,9 @@ export function GradedReturnSteps({
                                     aria-current={step.status === "current" ? "step" : undefined}
                                     className={cn(
                                         "flex size-7 items-center justify-center rounded-full text-xs font-semibold",
-                                        step.status === "passed" && "bg-success-solid text-white",
+                                        step.status === "passed" && "bg-success-solid text-primary-fg",
                                         step.status === "current" &&
-                                            "bg-info-solid text-white ring-2 ring-info-solid ring-offset-2 ring-offset-surface",
+                                            "bg-info-solid text-primary-fg ring-2 ring-info-solid ring-offset-2 ring-offset-surface",
                                         step.status === "upcoming" &&
                                             "bg-surface-muted text-neutral-fg border border-border-strong",
                                     )}

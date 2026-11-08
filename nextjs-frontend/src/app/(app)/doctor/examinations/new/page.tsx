@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { ExamClearanceSteps } from "@/components/medical/exam-clearance-steps";
 import { ExaminationDecisionForm } from "@/components/medical/examination-decision-form";
 import { ExaminationForm, type ExamFighterOption } from "@/components/medical/examination-form";
@@ -24,8 +25,17 @@ export const metadata: Metadata = { title: "Phiếu khám mới" };
 
 const TYPES = Object.keys(EXAMINATION_TYPE_LABELS) as ExaminationType[];
 
-export default async function NewExaminationPage(props: PageProps<"/doctor/examinations/new">) {
-    if (usesMedicalServiceForms()) return <NewExaminationDecisionPage {...props} />;
+export default function NewExaminationPage(props: PageProps<"/doctor/examinations/new">) {
+    return (
+        <LocaleProvider locale="vi">
+            <div lang="vi">
+                {usesMedicalServiceForms() ? <NewExaminationDecisionPage {...props} /> : <NewExaminationDemoPage {...props} />}
+            </div>
+        </LocaleProvider>
+    );
+}
+
+async function NewExaminationDemoPage(props: PageProps<"/doctor/examinations/new">) {
     const { searchParams } = props;
     const user = await requireRole("doctor");
     const params = await searchParams;
@@ -63,8 +73,7 @@ export default async function NewExaminationPage(props: PageProps<"/doctor/exami
         .sort((a, b) => a.name.localeCompare(b.name));
 
     const requestedFighter = param(params.fighter);
-    const defaultFighterId = requestedFighter && canAccessFighter(user, requestedFighter) ? requestedFighter : "";
-    const preselected = fighters.find((fighter) => fighter.id === defaultFighterId);
+    const preselected = requestedFighter && canAccessFighter(user, requestedFighter) ? fighters.find((fighter) => fighter.id === requestedFighter) : undefined;
 
     return (
         <>
@@ -79,8 +88,9 @@ export default async function NewExaminationPage(props: PageProps<"/doctor/exami
                 description="Ghi chỉ số sinh tồn, đánh giá và kết luận. Giấy phép được cập nhật riêng — hệ thống sẽ nhắc nếu cần."
             />
             <ExaminationForm
+                key={preselected?.id}
                 fighters={fighters}
-                defaultFighterId={defaultFighterId}
+                defaultFighterId={preselected?.id ?? ""}
                 defaultType={parseEnum(param(params.type), TYPES) ?? ""}
                 defaultDateTime={toDateTimeInputValue(now)}
             />

@@ -293,7 +293,7 @@ export default async function ExaminationDetailPage({ params, searchParams }: Pa
                             </CardContent>
                         </Card>
 
-                        <Panel title="Bản đồ cơ thể" aside={fighterInjuries.length === 0 ? "Chưa ghi chấn thương" : `${fighterInjuries.length} chấn thương`} tone="plate" id="ban-do-co-the">
+                        <Panel title="Bản đồ cơ thể" aside={fighterInjuries.length === 0 ? "Chưa ghi chấn thương" : `${fighterInjuries.length} chấn thương`} id="ban-do-co-the">
                             <BodyPanel injuries={fighterInjuries} excluded={[]} height={340} />
                         </Panel>
 

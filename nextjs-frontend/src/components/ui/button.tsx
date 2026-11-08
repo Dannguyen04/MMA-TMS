@@ -19,7 +19,7 @@ const VARIANTS: Record<ButtonVariant, string> = {
     primary: "bg-primary text-primary-fg shadow-card hover:bg-primary-hover",
     secondary: "border border-border bg-surface text-fg shadow-card hover:bg-surface-hover",
     ghost: "text-fg-muted hover:bg-surface-hover hover:text-fg",
-    danger: "bg-danger-solid text-white shadow-card hover:brightness-110",
+    danger: "bg-danger-solid text-white shadow-card hover:brightness-110 dark:hover:bg-danger-solid/85 dark:hover:brightness-100",
     "danger-soft": "bg-danger-soft text-danger-fg ring-1 ring-inset ring-danger-border hover:brightness-95 dark:hover:brightness-125",
 };
 

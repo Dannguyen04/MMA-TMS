@@ -1,17 +1,17 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { LogoMark, Logo } from "@/components/brand/logo";
+import { LogoMark } from "@/components/brand/logo";
 import type { ThemePreference } from "@/lib/auth/constants";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 import type { User } from "@/lib/domain/types";
 import { dashboardPath } from "@/lib/routes";
 import type { NotificationBellData } from "@/lib/services/notifications";
-import { MobileBottomBar, MobileNavDrawer } from "./mobile-nav";
+import { MobileBottomBar } from "./mobile-nav";
 import { HubTabs } from "./hub-tabs";
 import { NotificationBell } from "./notification-bell";
-import { SidebarNav, type NavCounts } from "./sidebar-nav";
+import { WorkspaceSidebar, type NavCounts } from "./sidebar-nav";
 import { UserMenu } from "./user-menu";
 
 export interface AppShellProps {
@@ -30,7 +30,7 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
     const shellUser = { name: user.name, email: user.email, title: user.title, role: user.role };
 
     return (
-        <div className="min-h-dvh">
+        <div className="workspace-frame">
             <a
                 href="#main"
                 className="fixed top-2 left-2 z-[70] -translate-y-20 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg focus:translate-y-0"
@@ -38,20 +38,10 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
                 {t("shell.skipToContent")}
             </a>
 
-            {/* Desktop sidebar */}
-            <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-rail-border bg-rail-bg px-3 py-4 lg:flex">
-                <Link href={dashboardPath(user.role)} className="mb-2 rounded-lg px-2 py-1">
-                    <Logo ground="rail" />
-                </Link>
-                <p className="mb-5 px-2 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{t("shell.workspace", { role: t(`role.${user.role}`) })}</p>
-                <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto py-1 pr-1 pl-3">
-                    <SidebarNav role={user.role} counts={counts} />
-                </div>
-            </aside>
+            <WorkspaceSidebar role={user.role} counts={counts} />
 
-            <div className="lg:pl-64">
-                <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-surface/90 px-3 backdrop-blur sm:px-5">
-                    <MobileNavDrawer role={user.role} counts={counts} />
+            <div className="min-w-0">
+                <header className="workspace-topbar sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-surface pr-3 sm:pr-5 lg:px-8">
                     <Link href={dashboardPath(user.role)} className="flex items-center gap-2 lg:hidden" aria-label={t("shell.home")}>
                         <LogoMark className="size-7" />
                         <span className="font-display text-[17px] font-extrabold tracking-[0.01em] italic max-sm:hidden">MMA-TMS</span>
@@ -67,7 +57,7 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
                     </div>
                 </header>
 
-                <main id="main" tabIndex={-1} className="mx-auto w-full max-w-[1440px] px-4 pt-6 pb-24 focus:outline-none sm:px-6 md:pb-12 lg:px-8 lg:pt-8">
+                <main id="main" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-[1440px] px-4 pt-6 pb-24 focus:outline-none sm:px-6 md:pb-12 lg:px-8 lg:pt-8">
                     <HubTabs role={user.role} />
                     {children}
                 </main>

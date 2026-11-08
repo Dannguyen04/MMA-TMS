@@ -20,11 +20,13 @@ import { DescriptionList, type DescriptionItem } from "@/components/ui/descripti
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { NOT_RECORDED, labelOf } from "@/components/domain/domain-format";
 import { CARE_ROLES } from "@/lib/domain/care-team";
 import { ROLE_LABELS, STANCE_LABELS, TRAINING_LEVEL_LABELS, WEIGHT_CLASS_LABELS } from "@/lib/domain/labels";
 import type { Coach, Doctor, Fighter, User } from "@/lib/domain/types";
-import { dayKey, formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { dayKey, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getUserDetail, listPermissionCatalog } from "@/lib/services/admin";
@@ -37,13 +39,15 @@ import { param } from "@/lib/utils";
 const loadUserDetail = cache((userId: string) => getUserDetail(userId));
 
 export async function generateMetadata({ params }: PageProps<"/admin/users/[userId]">): Promise<Metadata> {
+    const { t } = await getTranslator();
     await requireRole("admin");
     const { userId } = await params;
     const detail = await loadUserDetail(userId);
-    return { title: detail ? `${detail.user.name} — User` : "User not found" };
+    return { title: detail ? `${detail.user.name} — ${t("adminBody.users.colUser")}` : t("adminBody.users.notFound") };
 }
 
 export default async function AdminUserDetailPage({ params, searchParams }: PageProps<"/admin/users/[userId]">) {
+    const { t } = await getTranslator();
     const admin = await requireRole("admin");
     const { userId } = await params;
     const query = await searchParams;
@@ -61,44 +65,45 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
         : [null, null, null];
 
     const isSelf = user.id === admin.id;
+    const locale = t.locale === "en" ? "en" : "vi";
     const roleLockReason = isSelf
-        ? "You can't change your own role. Ask another administrator."
+        ? t("adminBody.users.selfRole")
         : user.profileId !== null
-          ? `${user.name} has a linked ${ROLE_LABELS[user.role].toLowerCase()} profile, so the role can't change. Invite a new account instead.`
+          ? t("adminBody.users.linkedRole", { name: user.name, role: ROLE_LABELS[user.role] })
           : null;
 
     // Fields the user service doesn't keep are left out rather than shown as empty.
     const accountItems: (DescriptionItem | false)[] = [
-        { label: "Email", value: user.email },
-        adminFeatureAvailable("accountPhone") && { label: "Phone", value: user.phone ?? <span className="font-normal text-fg-subtle">Not provided</span> },
-        { label: "Job title", value: user.title || <span className="font-normal text-fg-subtle">Not set</span> },
-        { label: "Role", value: ROLE_LABELS[user.role] },
-        { label: "Created", value: formatDate(user.createdAt) },
+        { label: t("adminBody.users.email"), value: user.email },
+        adminFeatureAvailable("accountPhone") && { label: t("adminBody.users.phone"), value: user.phone ?? <span className="font-normal text-fg-subtle">{t("adminBody.users.notProvided")}</span> },
+        { label: t("adminBody.users.jobTitle"), value: user.title || <span className="font-normal text-fg-subtle">{t("adminBody.users.notSet")}</span> },
+        { label: t("adminBody.users.colRole"), value: ROLE_LABELS[user.role] },
+        { label: t("adminBody.users.colCreated"), value: formatDate(user.createdAt) },
         adminFeatureAvailable("lastActive") && {
-            label: "Last active",
+            label: t("adminBody.users.colLast"),
             value: user.lastActiveAt ? (
                 <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt)}>
-                    {formatRelative(user.lastActiveAt, now)}
+                    {formatRelative(user.lastActiveAt, now, locale)}
                 </time>
             ) : (
-                <span className="font-normal text-fg-subtle">{user.status === "invited" ? "Hasn't signed in yet" : "Never"}</span>
+                <span className="font-normal text-fg-subtle">{user.status === "invited" ? t("adminBody.users.notSignedIn") : t("adminBody.users.never")}</span>
             ),
         },
-        { label: "Account ID", value: <code className="font-mono text-[13px]">{user.id}</code>, wide: true },
+        { label: t("adminBody.users.accountId"), value: <code className="font-mono text-[13px]">{user.id}</code>, wide: true },
     ];
 
     // A new fighter can't train yet: the notice names the next step instead of ending at "can sign in".
     const missing = careTeam ? CARE_ROLES.filter((role) => careTeam[role]?.length === 0) : [];
     const nextStep = missing.includes("doctor")
         ? missing.includes("coach")
-            ? " Next, assign a coach and a sports doctor below."
-            : " Next, assign a sports doctor below for the baseline examination."
+            ? t("adminBody.users.nextBoth")
+            : t("adminBody.users.nextDoctor")
         : missing.includes("coach")
-          ? " Next, assign a coach below."
+          ? t("adminBody.users.nextCoach")
           : "";
     const notices = {
-        invited: { title: "Invitation sent", description: `${user.email} will receive a link to set a password.${nextStep}` },
-        created: { title: "Account created", description: `${user.name} can sign in now with the password you set.${nextStep}` },
+        invited: { title: t("adminBody.users.invitedTitle"), description: t("adminBody.users.invitedText", { email: user.email, next: nextStep }) },
+        created: { title: t("adminBody.users.createdTitle"), description: t("adminBody.users.createdText", { name: user.name, next: nextStep }) },
     };
     const notice = param(query.notice);
 
@@ -125,8 +130,8 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
         <>
             <FlashToast notice={notice === "invited" || notice === "created" ? notices[notice] : null} cleanHref={routes.admin.user(user.id)} />
             <PageHeader
-                back={{ href: routes.admin.users, label: "Users" }}
-                eyebrow="User account"
+                back={{ href: routes.admin.users, label: t("adminBody.users.back") }}
+                eyebrow={t("adminBody.users.eyebrow")}
                 title={
                     <span className="flex items-center gap-4">
                         <Avatar name={user.name} size="lg" shape={user.role === "fighter" ? "octagon" : "circle"} />
@@ -138,14 +143,14 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                     <>
                         <RoleBadge role={user.role} />
                         <UserStatusBadge status={user.status} />
-                        {isSelf && <Badge tone="primary">Your account</Badge>}
+                        {isSelf && <Badge tone="primary">{t("adminBody.users.yours")}</Badge>}
                     </>
                 }
                 actions={headerActions}
             />
 
             <div className="flex flex-col gap-6">
-                <StatusCallout user={user} now={now} />
+                <StatusCallout user={user} now={now} t={t} />
 
                 {/* Where the fighter is on the way to training; the care team card below holds the assign actions. */}
                 {journey && !journey.complete && <FighterJourney journey={journey} variant="compact" />}
@@ -158,7 +163,7 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                         <Card>
-                            <CardHeader title="Account" icon={<IdCard />} />
+                            <CardHeader title={t("adminBody.users.account")} icon={<IdCard />} />
                             <CardContent>
                                 <DescriptionList items={accountItems.filter((item) => item !== false)} />
                             </CardContent>
@@ -166,36 +171,36 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
 
                         <Card>
                             <CardHeader
-                                title="Linked profile"
-                                description={profile ? `${ROLE_LABELS[user.role]} profile used across the platform` : undefined}
+                                title={t("adminBody.users.linked")}
+                                description={profile ? t("adminBody.users.linkedDesc", { role: ROLE_LABELS[user.role] }) : undefined}
                                 icon={<UserRound />}
                             />
                             <CardContent>
-                                <LinkedProfile user={user} profile={profile} showCredentials={adminFeatureAvailable("coachCredentials")} />
+                                <LinkedProfile user={user} profile={profile} showCredentials={adminFeatureAvailable("coachCredentials")} t={t} />
                             </CardContent>
                         </Card>
 
                         <Card className="overflow-hidden">
                             <CardHeader
-                                title="Recent activity"
-                                description={showActivity ? (recentAudit.length === 0 ? "Nothing recorded yet" : `Latest ${pluralize(recentAudit.length, "action")} by ${user.name}`) : undefined}
+                                title={t("adminBody.today.activity")}
+                                description={showActivity ? (recentAudit.length === 0 ? t("adminBody.users.nothingRecorded") : plural(t, "adminBody.users.latestBy", recentAudit.length, { name: user.name })) : undefined}
                                 icon={<ScrollText />}
                             />
                             {!showActivity ? (
                                 <CardContent>
-                                    <FeatureUnavailable compact title="Activity isn't available yet" description="The user service doesn't share an account's activity yet. It will appear here once it does." />
+                                    <FeatureUnavailable compact title={t("adminBody.users.activityLater")} description={t("adminBody.users.activityLaterText")} />
                                 </CardContent>
                             ) : recentAudit.length === 0 ? (
                                 <CardContent>
-                                    <EmptyState compact title="No activity recorded" description="Sign-ins and changes this person makes will appear here." />
+                                    <EmptyState compact title={t("adminBody.users.noActivity")} description={t("adminBody.users.noActivityText")} />
                                 </CardContent>
                             ) : (
                                 <>
                                     <AuditActivityList entries={recentAudit} now={now} showActor={false} className="border-t border-border" />
                                     <CardFooter>
-                                        <span className="text-fg-muted">Showing the latest entries</span>
+                                        <span className="text-fg-muted">{t("adminBody.users.showingLatest")}</span>
                                         <Link href={hrefWith(routes.admin.auditLogs, {}, { q: user.name })} className="font-medium text-primary-soft-fg hover:underline">
-                                            View in audit logs
+                                            {t("adminBody.users.viewAudit")}
                                         </Link>
                                     </CardFooter>
                                 </>
@@ -205,22 +210,22 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
 
                     <Card className="min-w-0">
                         <CardHeader
-                            title="Effective permissions"
-                            description={showPermissions ? `${pluralize(permissions.length, "permission")} from the ${ROLE_LABELS[user.role]} role` : undefined}
+                            title={t("adminBody.users.permissions")}
+                            description={showPermissions ? plural(t, "adminBody.users.permCount", permissions.length, { role: ROLE_LABELS[user.role] }) : undefined}
                             icon={<KeyRound />}
                         />
                         <CardContent>
                             {showPermissions ? (
                                 <PermissionList catalog={catalog} granted={permissions} />
                             ) : (
-                                <FeatureUnavailable compact title="Role permissions aren't available yet" description="The user service doesn't share what each role grants yet. It will appear here once it does." />
+                                <FeatureUnavailable compact title={t("adminBody.users.permLater")} description={t("adminBody.users.permLaterText")} />
                             )}
                         </CardContent>
                         {showPermissions && (
                             <CardFooter>
-                                <span className="text-fg-muted">Permissions are set per role</span>
+                                <span className="text-fg-muted">{t("adminBody.users.permPerRole")}</span>
                                 <Link href={routes.admin.roles} className="font-medium text-primary-soft-fg hover:underline">
-                                    Edit role
+                                    {t("adminBody.users.editRole")}
                                 </Link>
                             </CardFooter>
                         )}
@@ -231,16 +236,16 @@ export default async function AdminUserDetailPage({ params, searchParams }: Page
     );
 }
 
-function StatusCallout({ user, now }: { user: User; now: string }) {
+function StatusCallout({ user, now, t }: { user: User; now: string; t: Translator }) {
+    const locale = t.locale === "en" ? "en" : "vi";
     if (user.status === "active") return null;
     return user.status === "invited" ? (
-        <Callout tone="info" icon={Clock} title="Invitation pending" role="status">
-            Invited {formatRelative(user.createdAt, now)}. {user.name} can&apos;t sign in until they accept — resend the invitation if they
-            can&apos;t find the email.
+        <Callout tone="info" icon={Clock} title={t("adminBody.users.invitePendingTitle")} role="status">
+            {t("adminBody.users.invitePendingText", { when: formatRelative(user.createdAt, now, locale), name: user.name })}
         </Callout>
     ) : (
-        <Callout tone="danger" icon={Ban} title="Account suspended" role="status">
-            {user.name} can&apos;t sign in or receive notifications. Reactivate the account to restore their previous access.
+        <Callout tone="danger" icon={Ban} title={t("adminBody.users.suspendedTitle")} role="status">
+            {t("adminBody.users.suspendedText", { name: user.name })}
         </Callout>
     );
 }
@@ -249,20 +254,22 @@ function LinkedProfile({
     user,
     profile,
     showCredentials,
+    t,
 }: {
     user: User;
     profile: Fighter | Coach | Doctor | null;
     /** False where the service keeps no certifications or experience: those rows are left out rather than shown as empty. */
     showCredentials: boolean;
+    t: Translator;
 }) {
     if (!profile) {
         return user.role === "admin" ? (
-            <EmptyState compact title="No profile needed" description="Administrator accounts operate the platform and have no athlete or staff profile." />
+            <EmptyState compact title={t("adminBody.users.noProfile")} description={t("adminBody.users.noProfileText")} />
         ) : (
             <EmptyState
                 compact
-                title={`No ${ROLE_LABELS[user.role].toLowerCase()} profile linked yet`}
-                description={`The profile is connected when ${user.name} completes onboarding.`}
+                title={t("adminBody.users.noLinked", { role: ROLE_LABELS[user.role] })}
+                description={t("adminBody.users.noLinkedText", { name: user.name })}
             />
         );
     }
@@ -272,12 +279,12 @@ function LinkedProfile({
             <DescriptionList
                 columns={3}
                 items={[
-                    { label: "Weight class", value: WEIGHT_CLASS_LABELS[profile.weightClass] },
-                    { label: "Primary discipline", value: profile.primaryDiscipline ?? NOT_RECORDED },
-                    { label: "Level", value: labelOf(TRAINING_LEVEL_LABELS, profile.level) ?? NOT_RECORDED },
-                    { label: "Stance", value: labelOf(STANCE_LABELS, profile.stance) ?? NOT_RECORDED },
-                    { label: "Record (W–L–D)", value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : NOT_RECORDED },
-                    { label: "Joined", value: formatDate(profile.joinedAt) },
+                    { label: t("adminBody.users.weight"), value: WEIGHT_CLASS_LABELS[profile.weightClass] },
+                    { label: t("adminBody.users.discipline"), value: profile.primaryDiscipline ?? NOT_RECORDED },
+                    { label: t("adminBody.users.level"), value: labelOf(TRAINING_LEVEL_LABELS, profile.level) ?? NOT_RECORDED },
+                    { label: t("adminBody.users.stance"), value: labelOf(STANCE_LABELS, profile.stance) ?? NOT_RECORDED },
+                    { label: t("adminBody.users.record"), value: profile.record ? `${profile.record.wins}–${profile.record.losses}–${profile.record.draws}` : NOT_RECORDED },
+                    { label: t("adminBody.users.joined"), value: formatDate(profile.joinedAt) },
                 ]}
             />
         );
@@ -288,15 +295,15 @@ function LinkedProfile({
             <DescriptionList
                 columns={3}
                 items={[
-                    { label: "Specialty", value: profile.specialty || <span className="font-normal text-fg-subtle">{NOT_RECORDED}</span> },
-                    ...(showCredentials ? [{ label: "Experience", value: profile.yearsExperience === null ? NOT_RECORDED : pluralize(profile.yearsExperience, "year") }] : []),
-                    { label: "Roster", value: pluralize(profile.fighterIds.length, "fighter") },
+                    { label: t("adminBody.users.specialty"), value: profile.specialty || <span className="font-normal text-fg-subtle">{NOT_RECORDED}</span> },
+                    ...(showCredentials ? [{ label: t("adminBody.users.experience"), value: profile.yearsExperience === null ? NOT_RECORDED : plural(t, "adminBody.users.years", profile.yearsExperience) }] : []),
+                    { label: t("adminBody.users.roster"), value: plural(t, "adminBody.users.fighters", profile.fighterIds.length) },
                     ...(showCredentials
                         ? [
                               {
-                                  label: "Certifications",
+                                  label: t("adminBody.users.certs"),
                                   wide: true,
-                                  value: profile.certifications.length > 0 ? profile.certifications.join(" · ") : <span className="font-normal text-fg-subtle">None recorded</span>,
+                                  value: profile.certifications.length > 0 ? profile.certifications.join(" · ") : <span className="font-normal text-fg-subtle">{t("adminBody.users.noneRecorded")}</span>,
                               },
                           ]
                         : []),
@@ -310,16 +317,16 @@ function LinkedProfile({
             <DescriptionList
                 columns={3}
                 items={[
-                    { label: "Specialty", value: profile.specialty },
+                    { label: t("adminBody.users.specialty"), value: profile.specialty },
                     {
-                        label: "License number",
+                        label: t("adminBody.users.license"),
                         value: profile.licenseNumber ? <code className="font-mono text-[13px]">{profile.licenseNumber}</code> : <span className="font-normal text-fg-subtle">{NOT_RECORDED}</span>,
                     },
-                    { label: "Patients", value: pluralize(profile.fighterIds.length, "fighter") },
+                    { label: t("adminBody.users.patients"), value: plural(t, "adminBody.users.fighters", profile.fighterIds.length) },
                 ]}
             />
         );
     }
 
-    return <EmptyState compact title="Profile unavailable" description="The linked profile doesn't match this account's role." />;
+    return <EmptyState compact title={t("adminBody.users.profileUnavailable")} description={t("adminBody.users.profileUnavailableText")} />;
 }

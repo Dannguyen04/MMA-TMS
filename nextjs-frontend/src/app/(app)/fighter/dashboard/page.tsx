@@ -140,10 +140,10 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     const onTrack = openGoals.length - atRisk;
 
     return (
-        <>
+        <div className="workspace-editorial">
             <PageHeader
-                eyebrow={formatWeekdayDate(now, locale)}
                 title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(fighter.name) })}
+                description={formatWeekdayDate(now, locale)}
                 actions={
                     next.kind !== "analyse" && (
                         <ButtonLink href={routes.fighter.uploadVideo} variant="secondary">
@@ -290,7 +290,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     locale={locale}
                 />
             </div>
-        </>
+        </div>
     );
 }
 

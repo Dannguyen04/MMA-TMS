@@ -30,7 +30,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
                 </div>
                 <div className="relative mt-auto max-w-md">
                     <p className="text-xs font-semibold tracking-[0.12em] text-nav-accent uppercase">Lotus Combat Academy</p>
-                    <p className="mt-3 text-[34px] leading-tight font-semibold tracking-tight text-balance text-white">
+                    <p className="mt-3 text-[34px] leading-tight font-semibold tracking-tight text-balance text-nav-fg-active">
                         {t("auth.slogan")}
                     </p>
                     <p className="mt-3 text-[15px] text-nav-fg">Hệ thống Quản lý Huấn luyện và Theo dõi Sức khỏe Võ sĩ</p>
@@ -41,7 +41,7 @@ export default async function AuthLayout({ children }: { children: React.ReactNo
                                     <Icon aria-hidden className="size-[18px]" />
                                 </span>
                                 <span>
-                                    <span className="block text-sm font-semibold text-white">{t(`auth.highlight.${key}.title`)}</span>
+                                    <span className="block text-sm font-semibold text-nav-fg-active">{t(`auth.highlight.${key}.title`)}</span>
                                     <span className="mt-0.5 block text-sm text-nav-fg">{t(`auth.highlight.${key}.text`)}</span>
                                 </span>
                             </li>

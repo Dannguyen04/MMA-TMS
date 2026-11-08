@@ -3,6 +3,7 @@
 import { Megaphone, Users } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
@@ -14,7 +15,8 @@ import { createBroadcastAction, type BroadcastData } from "@/lib/actions/admin";
 import type { ActionState } from "@/lib/actions/state";
 import { BROADCAST_CHANNEL_LABELS } from "@/lib/domain/labels";
 import type { BroadcastChannel, Role } from "@/lib/domain/types";
-import { pluralize } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { CHANNEL_ICONS } from "./admin-badges";
 import { ROLE_ORDER } from "./admin-format";
@@ -29,32 +31,35 @@ export interface BroadcastComposerProps {
     timezone: string;
 }
 
-const CHANNEL_DESCRIPTIONS: Record<BroadcastChannel, string> = {
-    in_app: "Appears in the notification bell.",
-    email: "Sent to their email address only.",
-    in_app_email: "Both — for important announcements.",
+const CHANNEL_KEYS: Record<BroadcastChannel, MessageKey> = {
+    in_app: "adminForms.channel.in_app",
+    email: "adminForms.channel.email",
+    in_app_email: "adminForms.channel.both",
 };
 
-const CHANNEL_OPTIONS: ChoiceOption<BroadcastChannel>[] = (["in_app", "email", "in_app_email"] as const).map((value) => ({
-    value,
-    label: BROADCAST_CHANNEL_LABELS[value],
-    icon: CHANNEL_ICONS[value],
-    description: CHANNEL_DESCRIPTIONS[value],
-}));
+function channelOptions(t: Translator): ChoiceOption<BroadcastChannel>[] {
+    return (["in_app", "email", "in_app_email"] as const).map((value) => ({
+        value,
+        label: BROADCAST_CHANNEL_LABELS[value],
+        icon: CHANNEL_ICONS[value],
+        description: t(CHANNEL_KEYS[value]),
+    }));
+}
 
 const BODY_MAX = 1000;
 
-const ROLE_PLURALS: Record<Role, string> = {
-    fighter: "Fighters",
-    coach: "Coaches",
-    doctor: "Sports doctors",
-    admin: "Administrators",
+const ROLE_KEYS: Record<Role, MessageKey> = {
+    fighter: "adminForms.role.fighter",
+    coach: "adminForms.role.coach",
+    doctor: "adminForms.role.doctor",
+    admin: "adminForms.role.admin",
 };
 
 type Delivery = "now" | "schedule";
 
 /** "New broadcast" button with a dialog to compose, target and send or schedule a broadcast. */
 export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, timezone }: BroadcastComposerProps) {
+    const t = useT();
     const toast = useToast();
     const [open, setOpen] = useState(false);
     const [audience, setAudience] = useState<Role[]>([]);
@@ -63,7 +68,7 @@ export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, 
     const [confirming, setConfirming] = useState(false);
 
     const recipients = audience.reduce((total, role) => total + activeCounts[role], 0);
-    const submitLabel = delivery === "schedule" ? "Schedule broadcast" : recipients > 0 ? `Send now to ${pluralize(recipients, "person", "people")}` : "Send now";
+    const submitLabel = delivery === "schedule" ? t("adminForms.schedule") : recipients > 0 ? plural(t, "adminForms.sendNowTo", recipients) : t("adminForms.sendNow");
 
     const openComposer = () => {
         setAudience([]);
@@ -88,19 +93,19 @@ export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, 
         <>
             <Button onClick={openComposer}>
                 <Megaphone aria-hidden />
-                New broadcast
+                {t("adminForms.newBroadcast")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
                 size="lg"
-                title="New broadcast"
-                description="Announce something to everyone in one or more roles."
+                title={t("adminForms.newBroadcast")}
+                description={t("adminForms.broadcastDesc")}
                 action={createBroadcastAction}
                 prepare={prepare}
                 submitLabel={submitLabel}
-                pendingLabel={delivery === "schedule" ? "Scheduling…" : "Sending…"}
-                onSuccess={(state) => toast({ title: state.data?.status === "scheduled" ? "Broadcast scheduled" : "Broadcast sent", description: state.message })}
+                pendingLabel={delivery === "schedule" ? t("adminForms.scheduling") : t("adminForms.sending")}
+                onSuccess={(state) => toast({ title: state.data?.status === "scheduled" ? t("adminForms.broadcastScheduled") : t("adminForms.broadcastSent"), description: state.message })}
             >
                 {(form) => (
                     <>
@@ -126,9 +131,12 @@ export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, 
                                 form.submit({ confirmSend: "yes" });
                             }}
                             tone="primary"
-                            title={`Send to ${pluralize(recipients, "person", "people")} now?`}
-                            confirmLabel="Send broadcast"
-                            description={`${audience.map((role) => ROLE_PLURALS[role]).join(", ")} get it ${channel === "in_app" ? "in the app" : channel === "email" ? "by email" : "in the app and by email"} straight away. Sending can't be undone.`}
+                            title={plural(t, "adminForms.sendConfirm", recipients)}
+                            confirmLabel={t("adminForms.sendBroadcast")}
+                            description={t("adminForms.sendHow", {
+                                roles: audience.map((role) => t(ROLE_KEYS[role])).join(", "),
+                                how: channel === "in_app" ? t("adminForms.howApp") : channel === "email" ? t("adminForms.howEmail") : t("adminForms.howBoth"),
+                            })}
                         />
                     </>
                 )}
@@ -162,10 +170,11 @@ function ComposerFields({
     onDeliveryChange,
     recipients,
 }: ComposerFieldsProps) {
+    const t = useT();
     const [bodyLength, setBodyLength] = useState(0);
     const { control, error } = form;
-    const bodyHint = `${bodyLength} / ${BODY_MAX} characters`;
-    const scheduleHint = `Time in ${timezone}.`;
+    const bodyHint = t("adminForms.chars", { n: bodyLength, max: BODY_MAX });
+    const scheduleHint = t("adminForms.timeIn", { zone: timezone });
     // Once a role is ticked the audience error is resolved, so the live estimate takes its place again.
     const audienceError = audience.length === 0 ? error("audience") : undefined;
     const audienceId = control("audience").id;
@@ -175,27 +184,27 @@ function ComposerFields({
 
     return (
         <>
-            <Field label="Title" htmlFor={control("title").id} required error={error("title")}>
-                <Input {...control("title", { required: true })} maxLength={120} placeholder="e.g. Gym closed on Sunday for mat replacement" />
+            <Field label={t("adminForms.broadcastTitle")} htmlFor={control("title").id} required error={error("title")}>
+                <Input {...control("title", { required: true })} maxLength={120} placeholder={t("adminForms.broadcastTitlePh")} />
             </Field>
 
-            <Field label="Message" htmlFor={control("body").id} required hint={bodyHint} error={error("body")}>
+            <Field label={t("adminForms.message")} htmlFor={control("body").id} required hint={bodyHint} error={error("body")}>
                 <Textarea
                     {...control("body", { hint: bodyHint, required: true })}
                     rows={4}
                     maxLength={BODY_MAX}
                     onChange={(event) => setBodyLength(event.target.value.length)}
-                    placeholder="What people need to know and what, if anything, they should do."
+                    placeholder={t("adminForms.messagePh")}
                 />
             </Field>
 
             <fieldset data-invalid={audienceError ? "true" : undefined} className="flex flex-col gap-2" aria-describedby={audienceError ? `${audienceId}-error` : `${audienceId}-estimate`}>
                 <legend className="mb-1 text-sm font-medium text-fg">
-                    Audience
+                    {t("adminForms.audience")}
                     <span className="ml-0.5 text-danger-fg" aria-hidden>
                         *
                     </span>
-                    <span className="sr-only"> (required)</span>
+                    <span className="sr-only"> {t("adminForms.required")}</span>
                 </legend>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {ROLE_ORDER.map((role) => (
@@ -217,8 +226,8 @@ function ComposerFields({
                                 aria-invalid={audienceError ? true : undefined}
                                 className="size-4 shrink-0 accent-[var(--primary)]"
                             />
-                            <span className="flex-1 text-sm font-medium text-fg">{ROLE_PLURALS[role]}</span>
-                            <span className="text-xs text-fg-subtle">{activeCounts[role]} active</span>
+                            <span className="flex-1 text-sm font-medium text-fg">{t(ROLE_KEYS[role])}</span>
+                            <span className="text-xs text-fg-subtle">{t("adminForms.activeCount", { n: activeCounts[role] })}</span>
                         </label>
                     ))}
                 </div>
@@ -230,8 +239,8 @@ function ComposerFields({
                     <p id={`${audienceId}-estimate`} aria-live="polite" className="flex items-center gap-1.5 text-[13px] text-fg-muted">
                         <Users aria-hidden className="size-3.5" />
                         {audience.length === 0
-                            ? "Choose at least one role."
-                            : `Reaches about ${pluralize(recipients, "active account")}. Suspended and invited accounts are skipped.`}
+                            ? t("adminForms.pickRole")
+                            : plural(t, "adminForms.reaches", recipients)}
                     </p>
                 )}
             </fieldset>
@@ -239,17 +248,17 @@ function ComposerFields({
             <ChoiceGroup
                 id={control("channel").id}
                 name="channel"
-                legend="Channel"
+                legend={t("adminForms.channel")}
                 variant="compact"
                 columns={3}
-                options={CHANNEL_OPTIONS}
+                options={channelOptions(t)}
                 value={channel}
                 onChange={onChannelChange}
                 error={error("channel")}
             />
 
             <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-sm font-medium text-fg">Delivery</legend>
+                <legend className="mb-1 text-sm font-medium text-fg">{t("adminForms.delivery")}</legend>
                 <div className="flex flex-wrap gap-x-6 gap-y-2">
                     {(["now", "schedule"] as const).map((value) => (
                         <label key={value} className="flex cursor-pointer items-center gap-2 text-sm text-fg">
@@ -261,12 +270,12 @@ function ComposerFields({
                                 onChange={() => onDeliveryChange(value)}
                                 className="size-4 accent-[var(--primary)]"
                             />
-                            {value === "now" ? "Send now" : "Schedule for later"}
+                            {value === "now" ? t("adminForms.sendNow") : t("adminForms.scheduleLater")}
                         </label>
                     ))}
                 </div>
                 <div className={cn(delivery !== "schedule" && "hidden")}>
-                    <Field label="Send at" htmlFor={control("scheduledFor").id} required hint={scheduleHint} error={error("scheduledFor")} className="sm:max-w-xs">
+                    <Field label={t("adminForms.sendAt")} htmlFor={control("scheduledFor").id} required hint={scheduleHint} error={error("scheduledFor")} className="sm:max-w-xs">
                         <Input
                             {...control("scheduledFor", { hint: scheduleHint, required: true })}
                             type="datetime-local"
@@ -276,7 +285,7 @@ function ComposerFields({
                         />
                     </Field>
                 </div>
-                {delivery === "now" && <p className="text-[13px] text-fg-subtle">Sending can&apos;t be undone. In-app notifications arrive immediately.</p>}
+                {delivery === "now" && <p className="text-[13px] text-fg-subtle">{t("adminForms.sendImmediate")}</p>}
             </fieldset>
         </>
     );

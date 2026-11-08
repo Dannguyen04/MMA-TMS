@@ -24,8 +24,10 @@ import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/states";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { AI_MODEL_TASK_LABELS, CAMERA_ANGLE_LABELS, PIPELINE_STAGE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
-import { formatClock, formatConfidence, formatDateTime, formatFileSize, formatPercent, formatRelative, pluralize } from "@/lib/format";
+import { formatClock, formatConfidence, formatDateTime, formatFileSize, formatPercent, formatRelative } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -53,6 +55,7 @@ export async function generateMetadata({ params }: PageProps<"/admin/ai-jobs/[jo
 }
 
 export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin/ai-jobs/[jobId]">) {
+    const { t } = await getTranslator();
     await requireRole("admin");
     const { jobId } = await params;
     const now = new Date().toISOString();
@@ -66,14 +69,15 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
     const supersededBy = job.status === "failed" && video && video.jobId !== null && video.jobId !== job.id ? video.jobId : null;
     const insights = platformFeatureAvailable("aiJobInsights");
     const canAct = platformFeatureAvailable("aiJobControl") && !(job.status === "failed" && (supersededBy !== null || video === null));
-    const guidance = jobGuidance(job.errorCode);
-    const videoTitle = video?.title ?? "Video removed";
+    const guidance = jobGuidance(job.errorCode, t);
+    const locale = t.locale === "en" ? "en" : "vi";
+    const videoTitle = video?.title ?? t("adminBody.jobs.removed");
 
     return (
         <>
             <PageHeader
-                back={{ href: routes.admin.aiJobs, label: "AI jobs" }}
-                eyebrow="AI processing job"
+                back={{ href: routes.admin.aiJobs, label: t("nav.AI jobs") }}
+                eyebrow={t("adminBody.jobs.eyebrow")}
                 title={videoTitle}
                 description={
                     <>
@@ -106,9 +110,9 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                             <CardHeader
                                 title={guidance.title}
                                 description={[
-                                    "Failed",
-                                    job.finishedAt ? formatRelative(job.finishedAt, now) : null,
-                                    `at ${PIPELINE_STAGE_LABELS[job.stage].toLowerCase()}`,
+                                    t("adminBody.today.failed"),
+                                    job.finishedAt ? formatRelative(job.finishedAt, now, locale) : null,
+                                    t("adminBody.jobs.atStage", { stage: PIPELINE_STAGE_LABELS[job.stage] }),
                                 ]
                                     .filter(Boolean)
                                     .join(" ")}
@@ -116,38 +120,38 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                             />
                             <CardContent className="flex flex-col gap-4">
                                 <div className="rounded-lg bg-danger-soft/60 px-4 py-3 ring-1 ring-danger-border ring-inset">
-                                    <p className="font-mono text-xs font-semibold text-danger-fg">{job.errorCode ?? "UNKNOWN_ERROR"}</p>
-                                    <p className="mt-1 font-mono text-[13px] break-words text-fg">{job.errorMessage ?? "The worker didn't report an error message."}</p>
+                                    <p className="font-mono text-xs font-semibold text-danger-fg">{job.errorCode ?? t("adminBody.today.unknownCode")}</p>
+                                    <p className="mt-1 font-mono text-[13px] break-words text-fg">{job.errorMessage ?? t("adminBody.jobs.noMessage")}</p>
                                 </div>
                                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                     <div className="flex gap-3">
                                         <Lightbulb aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
                                         <div className="min-w-0">
-                                            <h3 className="text-sm font-medium text-fg">What happened</h3>
+                                            <h3 className="text-sm font-medium text-fg">{t("adminBody.jobs.what")}</h3>
                                             <p className="mt-0.5 text-[13px] text-fg-muted">{guidance.explanation}</p>
                                         </div>
                                     </div>
                                     <div className="flex gap-3">
                                         <Wrench aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
                                         <div className="min-w-0">
-                                            <h3 className="text-sm font-medium text-fg">Suggested fix</h3>
+                                            <h3 className="text-sm font-medium text-fg">{t("adminBody.jobs.fix")}</h3>
                                             <p className="mt-0.5 text-[13px] text-fg-muted">{guidance.suggestedFix}</p>
                                         </div>
                                     </div>
                                 </div>
                                 {supersededBy ? (
                                     <InlineNote icon={CircleCheck} tone="success">
-                                        Resolved by a later run —{" "}
+                                        {t("adminBody.jobs.superseded")}{" "}
                                         <Link href={routes.admin.aiJob(supersededBy)} className="font-mono font-medium underline-offset-2 hover:underline">
                                             {supersededBy}
                                         </Link>{" "}
                                         processed this footage, so this attempt doesn&apos;t need a retry.
                                     </InlineNote>
                                 ) : video === null ? (
-                                    <p className="text-[13px] text-fg-subtle">The footage was deleted, so this job can&apos;t be retried.</p>
+                                        <p className="text-[13px] text-fg-subtle">{t("adminBody.jobs.deleted")}</p>
                                 ) : (
                                     <p className="text-[13px] text-fg-subtle">
-                                        {guidance.retryHelps ? "A retry is likely to succeed." : "A retry on the same file is unlikely to succeed."}
+                                        {guidance.retryHelps ? t("adminBody.jobs.retryLikely") : t("adminBody.jobs.retryUnlikely")}
                                     </p>
                                 )}
                             </CardContent>
@@ -164,28 +168,28 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                                     valueText={`${job.progressPct}% complete`}
                                 />
                                 <p className="mt-2 text-[13px] text-fg-muted">
-                                    {job.startedAt ? `Started ${formatRelative(job.startedAt, now)}` : "Starting"}
-                                    {job.workerId && <> on <code className="font-mono">{job.workerId}</code></>}
+                                    {job.startedAt ? t("adminBody.today.started", { when: formatRelative(job.startedAt, now, locale) }) : t("adminBody.jobs.starting")}
+                                    {job.workerId && <> {t("adminBody.jobs.onWorker", { id: job.workerId })}</>}
                                 </p>
                             </CardContent>
                         </Card>
                     )}
 
                     <Card>
-                        <CardHeader title="Pipeline" description="Stages run in order for every analysis" icon={<ListChecks />} />
+                        <CardHeader title={t("adminBody.jobs.pipeline")} description={t("adminBody.jobs.pipelineDesc")} icon={<ListChecks />} />
                         <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_15rem]">
                             <PipelineTimeline job={job} />
                             <div className="min-w-0 border-t border-border pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
-                                <h3 className="mb-3 text-xs font-semibold tracking-wide text-fg-subtle uppercase">Timings</h3>
+                                <h3 className="mb-3 text-xs font-semibold tracking-wide text-fg-subtle uppercase">{t("adminBody.jobs.timings")}</h3>
                                 <DescriptionList
                                     columns={1}
                                     items={[
-                                        { label: "Queued", value: <TimeValue iso={job.queuedAt} now={now} /> },
-                                        { label: "Started", value: job.startedAt ? <TimeValue iso={job.startedAt} now={now} /> : "Not started" },
-                                        { label: "Finished", value: job.finishedAt ? <TimeValue iso={job.finishedAt} now={now} /> : "—" },
-                                        { label: "Processing time", value: job.durationSec !== null ? formatDurationSec(job.durationSec) : "—" },
-                                        { label: "Worker", value: job.workerId ? <code className="font-mono text-[13px]">{job.workerId}</code> : "Not assigned" },
-                                        { label: "Attempts", value: job.attempts },
+                                        { label: t("adminBody.jobs.queued"), value: <TimeValue iso={job.queuedAt} now={now} /> },
+                                        { label: t("adminBody.jobs.startedLabel"), value: job.startedAt ? <TimeValue iso={job.startedAt} now={now} /> : t("adminBody.jobs.notStarted") },
+                                        { label: t("adminBody.jobs.finished"), value: job.finishedAt ? <TimeValue iso={job.finishedAt} now={now} /> : "—" },
+                                        { label: t("adminBody.jobs.processingTime"), value: job.durationSec !== null ? formatDurationSec(job.durationSec) : "—" },
+                                        { label: t("adminBody.jobs.worker"), value: job.workerId ? <code className="font-mono text-[13px]">{job.workerId}</code> : t("adminBody.jobs.notAssignedWorker") },
+                                        { label: t("adminBody.jobs.attempts"), value: job.attempts },
                                     ]}
                                 />
                             </div>
@@ -195,8 +199,8 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                     {insights && job.status === "completed" && (
                         <Card>
                             <CardHeader
-                                title="Analysis summary"
-                                description="Operational figures only — findings are reviewed by coaches"
+                                title={t("adminBody.jobs.summary")}
+                                description={t("adminBody.jobs.summaryDesc")}
                                 icon={<ChartNoAxesColumn />}
                                 action={<AIGeneratedBadge size="sm" />}
                             />
@@ -204,35 +208,35 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                                 {analysis ? (
                                     <>
                                         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                            <MetricTile label="Detections" value={analysis.detectionCount} />
+                                            <MetricTile label={t("adminBody.jobs.detections")} value={analysis.detectionCount} />
                                             <MetricTile
-                                                label="Low-confidence"
+                                                label={t("adminBody.jobs.lowCount")}
                                                 value={analysis.lowConfidenceDetectionCount}
                                                 hint={`below ${formatPercent(settings.aiLowConfidenceThreshold * 100)}`}
                                             />
-                                            <MetricTile label="Combinations" value={analysis.combinationCount} />
-                                            <MetricTile label="Findings" value={analysis.findingCount} hint="for coach review" />
+                                            <MetricTile label={t("adminBody.jobs.combinations")} value={analysis.combinationCount} />
+                                            <MetricTile label={t("adminBody.jobs.findings")} value={analysis.findingCount} hint={t("adminBody.jobs.forCoach")} />
                                         </div>
                                         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
                                             <div>
-                                                <p className="mb-2 text-sm font-medium text-fg">Overall confidence</p>
-                                                <ConfidenceMeter confidence={analysis.overallConfidence} label="Overall analysis confidence" lowThreshold={settings.aiLowConfidenceThreshold} />
+                                                <p className="mb-2 text-sm font-medium text-fg">{t("adminBody.jobs.overall")}</p>
+                                                <ConfidenceMeter confidence={analysis.overallConfidence} label={t("adminBody.jobs.overallAria")} lowThreshold={settings.aiLowConfidenceThreshold} />
                                             </div>
                                             <ProgressBar
                                                 value={Math.round(analysis.trackingQuality * 100)}
-                                                label="Tracking quality"
+                                                label={t("adminBody.jobs.tracking")}
                                                 showLabel
                                                 tone={analysis.trackingQuality < 0.8 ? "warning" : "success"}
-                                                valueText={`${formatConfidence(analysis.trackingQuality)} of frames tracked`}
+                                                valueText={t("adminBody.jobs.tracked", { value: formatConfidence(analysis.trackingQuality) })}
                                             />
                                         </div>
                                         <p className="text-[13px] text-fg-muted">
-                                            {formatClock(analysis.durationMs / 1000)} of footage at {Math.round(analysis.fps)} fps · processed {formatDateTime(analysis.processedAt)}
+                                            {t("adminBody.jobs.footageLine", { clock: formatClock(analysis.durationMs / 1000), fps: Math.round(analysis.fps), when: formatDateTime(analysis.processedAt) })}
                                         </p>
                                         <AINotice audience="admin" compact />
                                     </>
                                 ) : (
-                                    <EmptyState compact title="Analysis not available" description="The analysis for this job was removed with its video." />
+                                    <EmptyState compact title={t("adminBody.jobs.analysisGone")} description={t("adminBody.jobs.analysisGoneText")} />
                                 )}
                             </CardContent>
                         </Card>
@@ -241,25 +245,25 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                     {insights && (
                         <Card className="overflow-hidden">
                             <CardHeader
-                                title="Other runs of this video"
-                                description={otherRuns.length === 0 ? "This is the only run" : `${pluralize(otherRuns.length, "other run")}, newest first`}
+                                title={t("adminBody.jobs.otherRuns")}
+                                description={otherRuns.length === 0 ? t("adminBody.jobs.onlyRun") : plural(t, "adminBody.jobs.otherCount", otherRuns.length)}
                                 icon={<History />}
                             />
                             {otherRuns.length === 0 ? (
                                 <CardContent>
-                                    <p className="text-sm text-fg-muted">No other jobs were created for this footage.</p>
+                                    <p className="text-sm text-fg-muted">{t("adminBody.jobs.noOther")}</p>
                                 </CardContent>
                             ) : (
                                 <div className="border-t border-border">
-                                    <Table caption="Other jobs for the same video">
+                                    <Table caption={t("adminBody.jobs.otherCaption")}>
                                         <THead>
                                             <tr>
-                                                <TH>Job</TH>
-                                                <TH>Status</TH>
-                                                <TH className="text-right">Attempts</TH>
-                                                <TH>Queued</TH>
-                                                <TH>Duration</TH>
-                                                <TH>Error</TH>
+                                                <TH>{t("adminBody.jobs.job")}</TH>
+                                                <TH>{t("adminBody.jobs.status")}</TH>
+                                                <TH className="text-right">{t("adminBody.jobs.attempts")}</TH>
+                                                <TH>{t("adminBody.jobs.queued")}</TH>
+                                                <TH>{t("adminBody.jobs.duration")}</TH>
+                                                <TH>{t("adminBody.jobs.error")}</TH>
                                             </tr>
                                         </THead>
                                         <TBody>
@@ -291,27 +295,27 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
 
                 <div className="flex min-w-0 flex-col gap-6">
                     <Card>
-                        <CardHeader title="Video" icon={<Film />} action={video ? <VideoStatusBadge status={video.status} size="sm" /> : undefined} />
+                        <CardHeader title={t("adminBody.jobs.video")} icon={<Film />} action={video ? <VideoStatusBadge status={video.status} size="sm" /> : undefined} />
                         <CardContent>
                             {video ? (
                                 <DescriptionList
                                     columns={1}
                                     items={[
-                                        { label: "Fighter", value: fighter?.name ?? "Unknown fighter" },
-                                        { label: "Training type", value: `${TRAINING_TYPE_LABELS[video.trainingType]} · ${CAMERA_ANGLE_LABELS[video.cameraAngle]} camera` },
-                                        { label: "File", value: <code className="font-mono text-[13px] break-all">{video.fileName}</code> },
-                                        { label: "Size & length", value: `${formatFileSize(video.fileSizeMb)} · ${formatClock(video.durationSec)}` },
-                                        { label: "Resolution", value: formatVideoResolution(video) },
-                                        { label: "Uploaded", value: `${formatDateTime(video.uploadedAt)}${uploader ? ` by ${uploader.name}` : ""}` },
+                                        { label: t("adminBody.jobs.fighter"), value: fighter?.name ?? t("adminBody.videos.unknownFighter") },
+                                        { label: t("adminBody.jobs.trainingType"), value: t("adminBody.jobs.camera", { type: TRAINING_TYPE_LABELS[video.trainingType], angle: CAMERA_ANGLE_LABELS[video.cameraAngle] }) },
+                                        { label: t("adminBody.jobs.file"), value: <code className="font-mono text-[13px] break-all">{video.fileName}</code> },
+                                        { label: t("adminBody.jobs.sizeLength"), value: `${formatFileSize(video.fileSizeMb)} · ${formatClock(video.durationSec)}` },
+                                        { label: t("adminBody.jobs.resolution"), value: formatVideoResolution(video) },
+                                        { label: t("adminBody.jobs.uploaded"), value: uploader ? t("adminBody.jobs.uploadedBy", { when: formatDateTime(video.uploadedAt), name: uploader.name }) : formatDateTime(video.uploadedAt) },
                                     ]}
                                 />
                             ) : (
-                                <EmptyState compact title="Video removed" description="The footage for this job has been deleted." />
+                                <EmptyState compact title={t("adminBody.jobs.removed")} description={t("adminBody.jobs.videoRemovedText")} />
                             )}
                         </CardContent>
                         {video && (
                             <CardFooter>
-                                <span className="text-fg-muted">Storage and deletion</span>
+                                <span className="text-fg-muted">{t("adminBody.jobs.storage")}</span>
                                 <Link href={hrefWith(routes.admin.videos, {}, { q: video.fileName })} className="font-medium text-primary-soft-fg hover:underline">
                                     Manage video
                                 </Link>
@@ -321,10 +325,10 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
 
                     {insights && (
                         <Card className="overflow-hidden">
-                            <CardHeader title="Models used" description={pluralize(models.length, "model")} icon={<BrainCircuit />} />
+                            <CardHeader title={t("adminBody.jobs.modelsUsed")} description={plural(t, "adminBody.jobs.modelCount", models.length)} icon={<BrainCircuit />} />
                             {models.length === 0 ? (
                                 <CardContent>
-                                    <p className="text-sm text-fg-muted">Models are assigned when the job starts.</p>
+                                    <p className="text-sm text-fg-muted">{t("adminBody.jobs.modelsLater")}</p>
                                 </CardContent>
                             ) : (
                                 <ul className="divide-y divide-border border-t border-border">
@@ -338,7 +342,7 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                                                 <ModelStatusBadge status={model.status} size="sm" />
                                             </div>
                                             <p className="mt-0.5 text-xs text-fg-muted">
-                                                {model.avgLatencyMs} ms avg latency · review below {formatConfidence(model.lowConfidenceThreshold)}
+                                                {t("adminBody.jobs.latencyLine", { ms: model.avgLatencyMs, confidence: formatConfidence(model.lowConfidenceThreshold) })}
                                             </p>
                                         </li>
                                     ))}

@@ -8,6 +8,7 @@ import { Callout } from "@/components/training/callout";
 import { Card } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import type { Role } from "@/lib/domain/types";
 import { pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
@@ -15,7 +16,10 @@ import { routes } from "@/lib/routes";
 import { listPermissionCatalog, listRoleDefinitions, listUsers } from "@/lib/services/admin";
 import { adminFeatureAvailable } from "@/lib/services/admin-features";
 
-export const metadata: Metadata = { title: "Roles & permissions" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.misc.adminPages.roles.title") };
+}
 
 const ROLE_ICONS: Record<Role, LucideIcon> = {
     fighter: UserRound,
@@ -25,6 +29,7 @@ const ROLE_ICONS: Record<Role, LucideIcon> = {
 };
 
 export default async function AdminRolesPage() {
+    const { t } = await getTranslator();
     await requireRole("admin");
     const [definitions, catalog, users] = await Promise.all([listRoleDefinitions(), listPermissionCatalog(), listUsers()]);
     const editable = adminFeatureAvailable("rolePermissions");
@@ -39,21 +44,17 @@ export default async function AdminRolesPage() {
     return (
         <>
             <PageHeader
-                title="Roles & permissions"
-                description={
-                    editable
-                        ? "Decide what each role can see and do. Saving a role applies the change to every account with that role straight away."
-                        : "What each role can see and do."
-                }
+                title={t("screens.misc.adminPages.roles.title")}
+                description={editable ? t("screens.misc.adminPages.roles.editable") : t("screens.misc.adminPages.roles.readonly")}
             />
 
             <div className="flex flex-col gap-6">
                 {!editable && (
-                    <Callout tone="info" icon={Clock3} title="Role permissions can't be changed here yet">
-                        The user service manages permissions itself and doesn&apos;t list them, so this page shows each role&apos;s defaults.
+                    <Callout tone="info" icon={Clock3} title={t("screens.misc.adminPages.roles.lockedTitle")}>
+                        {t("screens.misc.adminPages.roles.lockedBody")}
                     </Callout>
                 )}
-                <section aria-label="Roles" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <section aria-label={t("screens.misc.adminPages.roles.section")} className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                     {ROLE_ORDER.map((role) => {
                         const definition = definitions.find((d) => d.role === role);
                         const matrixRole = roles.find((r) => r.role === role);
@@ -80,13 +81,13 @@ export default async function AdminRolesPage() {
                                 {clinical && (
                                     <p className="mt-auto inline-flex items-center gap-1.5 text-xs font-medium text-warning-fg">
                                         <ShieldAlert aria-hidden className="size-3.5" />
-                                        Has clinical access
+                                        {t("screens.misc.adminPages.roles.clinical")}
                                     </p>
                                 )}
                                 {role === "admin" && (
                                     <p className="mt-auto inline-flex items-start gap-1.5 text-xs text-fg-subtle">
                                         <Lock aria-hidden className="mt-px size-3.5 shrink-0" />
-                                        Always keeps user and role management, so access can be restored.
+                                        {t("screens.misc.adminPages.roles.adminLock")}
                                     </p>
                                 )}
                             </Card>

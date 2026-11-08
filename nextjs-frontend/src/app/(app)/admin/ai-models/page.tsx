@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { AI_MODEL_TASK_LABELS } from "@/lib/domain/labels";
 import type { AIModelStatus, AIModelTask } from "@/lib/domain/types";
-import { pluralize } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
 import { listAIModels } from "@/lib/services/ai";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 
@@ -18,20 +19,21 @@ export const metadata: Metadata = { title: "AI models" };
 const TASKS = Object.keys(AI_MODEL_TASK_LABELS) as AIModelTask[];
 const STATUSES: AIModelStatus[] = ["active", "staging", "deprecated"];
 
-const TASK_DESCRIPTIONS: Record<AIModelTask, string> = {
-    fighter_detection: "Finds the fighter in each frame and keeps a steady track on them.",
-    pose_estimation: "Estimates 17 body keypoints per frame for movement metrics.",
-    action_recognition: "Classifies strikes and combinations from pose sequences.",
-    anomaly_detection: "Surfaces possible abnormal movement for doctor review — supporting information only.",
+const TASK_KEYS: Record<AIModelTask, "adminBody.models.detect" | "adminBody.models.pose" | "adminBody.models.action" | "adminBody.models.anomaly"> = {
+    fighter_detection: "adminBody.models.detect",
+    pose_estimation: "adminBody.models.pose",
+    action_recognition: "adminBody.models.action",
+    anomaly_detection: "adminBody.models.anomaly",
 };
 
 export default async function AdminAIModelsPage() {
+    const { t } = await getTranslator();
     await requireRole("admin");
     if (!platformFeatureAvailable("aiModels")) {
         return (
             <>
-                <PageHeader title="AI models" />
-                <FeatureUnavailable service="video analysis" title="The model registry isn't available yet" />
+                <PageHeader title={t("screens.misc.adminPages.models.title")} />
+                <FeatureUnavailable service="video analysis" title={t("adminBody.models.unavailable")} />
             </>
         );
     }
@@ -40,8 +42,8 @@ export default async function AdminAIModelsPage() {
     return (
         <>
             <PageHeader
-                title="AI models"
-                description="Versions running in the video analysis pipeline, with evaluation metrics, human agreement and confidence thresholds."
+                title={t("screens.misc.adminPages.models.title")}
+                description={t("adminBody.models.description")}
                 meta={STATUSES.map((status) => {
                     const count = models.filter((m) => m.status === status).length;
                     return count > 0 ? (
@@ -57,7 +59,7 @@ export default async function AdminAIModelsPage() {
                 <AINotice audience="admin" />
 
                 {models.length === 0 ? (
-                    <EmptyState title="No models registered" description="Models appear here once the pipeline registers them." />
+                    <EmptyState title={t("screens.misc.adminPages.models.empty")} description={t("screens.misc.adminPages.models.emptyDescription")} />
                 ) : (
                     TASKS.map((task) => {
                         const taskModels = models.filter((m) => m.task === task);
@@ -70,10 +72,10 @@ export default async function AdminAIModelsPage() {
                                         <h2 id={headingId} className="text-lg font-semibold text-fg">
                                             {AI_MODEL_TASK_LABELS[task]}
                                         </h2>
-                                        <p className="text-sm text-fg-muted">{TASK_DESCRIPTIONS[task]}</p>
+                                        <p className="text-sm text-fg-muted">{t(TASK_KEYS[task])}</p>
                                     </div>
                                     <Badge tone="neutral" variant="outline" size="sm">
-                                        {pluralize(taskModels.length, "version")}
+                                        {plural(t, "adminBody.models.version", taskModels.length)}
                                     </Badge>
                                 </div>
                                 <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-2">

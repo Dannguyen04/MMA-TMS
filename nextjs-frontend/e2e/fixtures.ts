@@ -222,9 +222,9 @@ export async function expectPageReady(page: Page, h1: string | RegExp) {
 export async function expectNotFound(page: Page) {
     await expect(
         page
-            .getByText("We couldn't find that")
-            .or(page.getByText("Fighter not found"))
-            .or(page.getByRole("heading", { name: "This page isn't in the octagon" })),
+            .getByText("Không tìm thấy trang này")
+            .or(page.getByText("Không tìm thấy võ sĩ"))
+            .or(page.getByRole("heading", { name: "Trang này không có trong sàn đấu" })),
     ).toBeVisible();
 }
 

@@ -12,9 +12,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TBody, TD, THead, TR } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { ROLE_LABELS, USER_STATUS_LABELS } from "@/lib/domain/labels";
 import type { User, UserStatus } from "@/lib/domain/types";
-import { formatDate, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { formatDate, formatDateTime, formatRelative } from "@/lib/format";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listUsers } from "@/lib/services/admin";
@@ -38,6 +40,7 @@ const SORT_ACCESSORS: Record<SortKey, (user: User) => string | number | null> = 
 };
 
 export default async function AdminUsersPage({ searchParams }: PageProps<"/admin/users">) {
+    const { t } = await getTranslator();
     const admin = await requireRole("admin");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -69,11 +72,11 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
         <div className="flex flex-wrap gap-2">
             <ButtonLink href={routes.admin.newUser} variant="secondary">
                 <UserPlus aria-hidden />
-                {canInvite ? "Invite user" : "Add user"}
+                {canInvite ? t("adminBody.users.invite") : t("adminBody.users.add")}
             </ButtonLink>
             <ButtonLink href={routes.admin.newUserAs("fighter")}>
                 <UserPlus aria-hidden />
-                {canInvite ? "Invite fighter" : "Add fighter"}
+                {canInvite ? t("adminBody.users.inviteFighter") : t("adminBody.users.addFighter")}
             </ButtonLink>
         </div>
     );
@@ -81,32 +84,26 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
 
     return (
         <>
-            <FlashToast notice={param(params.notice) === "account-deleted" ? { title: "Account deleted", description: "It can no longer sign in." } : null} cleanHref={pathname} />
+            <FlashToast notice={param(params.notice) === "account-deleted" ? { title: t("adminBody.users.deleted"), description: t("adminBody.users.deletedText") } : null} cleanHref={pathname} />
             <PageHeader
-                title="Users"
-                description={
-                    canInvite
-                        ? "Every account on the platform — invite staff and fighters, change roles and control who can sign in."
-                        : canAdd
-                          ? "Every staff and fighter account on the platform — add accounts, edit profiles and remove access."
-                          : "Every staff and fighter account on the platform."
-                }
+                title={t("screens.misc.adminPages.users.title")}
+                description={canInvite ? t("adminBody.users.descInvite") : canAdd ? t("adminBody.users.descAdd") : t("adminBody.users.descRead")}
                 actions={inviteButton}
             />
 
             <div className="flex flex-col gap-4">
                 <FilterBar
                     filters={[
-                        { type: "search", name: "q", label: "Search users", placeholder: "Search name, email or title" },
-                        { type: "select", name: "role", label: "Roles", options: ROLE_ORDER.map((value) => ({ value, label: ROLE_LABELS[value] })) },
-                        { type: "select", name: "status", label: "Statuses", options: statuses.map((value) => ({ value, label: USER_STATUS_LABELS[value] })) },
+                        { type: "search", name: "q", label: t("adminBody.users.search"), placeholder: t("adminBody.users.searchPlaceholder") },
+                        { type: "select", name: "role", label: t("adminBody.users.roles"), options: ROLE_ORDER.map((value) => ({ value, label: ROLE_LABELS[value] })) },
+                        { type: "select", name: "status", label: t("adminBody.users.statuses"), options: statuses.map((value) => ({ value, label: USER_STATUS_LABELS[value] })) },
                     ]}
                 />
 
                 <Card className="overflow-hidden">
                     <CardHeader
-                        title={hasFilters ? `${pluralize(users.length, "matching account")}` : `${pluralize(everyone.length, "account")}`}
-                        description={opensInactive || countBy("suspended") === 0 ? counts : `${counts}. Suspended accounts can't be opened yet.`}
+                        title={hasFilters ? plural(t, "adminBody.users.matching", users.length) : plural(t, "adminBody.users.count", everyone.length)}
+                        description={opensInactive || countBy("suspended") === 0 ? counts : t("adminBody.users.suspendedHidden", { counts })}
                         icon={<Users />}
                     />
                     {page.total === 0 ? (
@@ -114,19 +111,19 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                             {hasFilters ? (
                                 <EmptyState
                                     compact
-                                    title="No accounts match these filters"
-                                    description="Try a different name, role or status."
+                                    title={t("adminBody.users.noneMatch")}
+                                    description={t("adminBody.users.noneMatchText")}
                                     action={
                                         <ButtonLink href={pathname} variant="secondary" size="sm">
-                                            Clear filters
+                                            {t("adminBody.users.clear")}
                                         </ButtonLink>
                                     }
                                 />
                             ) : (
                                 <EmptyState
                                     compact
-                                    title="No accounts yet"
-                                    description={canAdd ? `${canInvite ? "Invite" : "Add"} the first coach, doctor or fighter to get started.` : "Accounts created in the user service appear here."}
+                                    title={t("adminBody.users.empty")}
+                                    description={canAdd ? (canInvite ? t("adminBody.users.emptyInvite") : t("adminBody.users.emptyAdd")) : t("adminBody.users.emptyService")}
                                     action={inviteButton}
                                 />
                             )}
@@ -134,15 +131,15 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                     ) : (
                         <div className="border-t border-border">
                             <div className="hidden md:block">
-                                <Table caption="User accounts">
+                                <Table caption={t("adminBody.users.caption")}>
                                     <THead>
                                         <tr>
-                                            <SortableTH label="User" sortKey="name" {...sortProps} />
-                                            <SortableTH label="Role" sortKey="role" {...sortProps} />
-                                            <SortableTH label="Title" sortKey="title" {...sortProps} />
-                                            <SortableTH label="Status" sortKey="status" {...sortProps} />
-                                            {showLastActive && <SortableTH label="Last active" sortKey="lastActive" {...sortProps} />}
-                                            <SortableTH label="Created" sortKey="created" {...sortProps} />
+                                            <SortableTH label={t("adminBody.users.colUser")} sortKey="name" {...sortProps} />
+                                            <SortableTH label={t("adminBody.users.colRole")} sortKey="role" {...sortProps} />
+                                            <SortableTH label={t("adminBody.users.colTitle")} sortKey="title" {...sortProps} />
+                                            <SortableTH label={t("adminBody.users.colStatus")} sortKey="status" {...sortProps} />
+                                            {showLastActive && <SortableTH label={t("adminBody.users.colLast")} sortKey="lastActive" {...sortProps} />}
+                                            <SortableTH label={t("adminBody.users.colCreated")} sortKey="created" {...sortProps} />
                                         </tr>
                                     </THead>
                                     <TBody>
@@ -162,7 +159,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                                 </TD>
                                                 {showLastActive && (
                                                     <TD className="whitespace-nowrap text-fg-muted">
-                                                        <LastActive user={user} now={now} />
+                                                        <LastActive user={user} now={now} t={t} />
                                                     </TD>
                                                 )}
                                                 <TD className="whitespace-nowrap text-fg-muted">{formatDate(user.createdAt)}</TD>
@@ -172,7 +169,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                 </Table>
                             </div>
 
-                            <ul className="divide-y divide-border md:hidden" aria-label="User accounts">
+                            <ul className="divide-y divide-border md:hidden" aria-label={t("adminBody.users.caption")}>
                                 {page.items.map((user) => (
                                     <li key={user.id} className="flex flex-col gap-2.5 px-4 py-3.5">
                                         <UserIdentity user={user} href={userHref(user)} isSelf={user.id === admin.id} size="md" />
@@ -184,7 +181,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                             <span className="min-w-0 truncate">{user.title}</span>
                                             {showLastActive && (
                                                 <span className="shrink-0">
-                                                    <LastActive user={user} now={now} />
+                                                    <LastActive user={user} now={now} t={t} />
                                                 </span>
                                             )}
                                         </p>
@@ -199,7 +196,7 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
                                 pageSize={page.pageSize}
                                 pathname={pathname}
                                 searchParams={params}
-                                itemLabel="accounts"
+                                itemLabel={t("adminBody.users.item")}
                             />
                         </div>
                     )}
@@ -209,12 +206,13 @@ export default async function AdminUsersPage({ searchParams }: PageProps<"/admin
     );
 }
 
-function LastActive({ user, now }: { user: User; now: string }) {
-    if (user.status === "invited") return <span className="text-fg-subtle">Invitation pending</span>;
-    if (!user.lastActiveAt) return <span className="text-fg-subtle">Never</span>;
+function LastActive({ user, now, t }: { user: User; now: string; t: Translator }) {
+    const locale = t.locale === "en" ? "en" : "vi";
+    if (user.status === "invited") return <span className="text-fg-subtle">{t("adminBody.users.pending")}</span>;
+    if (!user.lastActiveAt) return <span className="text-fg-subtle">{t("adminBody.users.never")}</span>;
     return (
         <time dateTime={user.lastActiveAt} title={formatDateTime(user.lastActiveAt)}>
-            {formatRelative(user.lastActiveAt, now)}
+            {formatRelative(user.lastActiveAt, now, locale)}
         </time>
     );
 }

@@ -1,19 +1,25 @@
 import { Search } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SegmentMotion } from "@/components/ui/segment-motion";
 
 import { HEALTH_STATUS, JOINT, fmeta, fmtDate, injuryName, injuryPlace } from "@/components/doctor/labels";
 import { Empty, Gate, PageHead, Panel, Pill, reasonsText } from "@/components/doctor/ui";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { TRIAGE_ORDER, loadDoctorBoard, type Triage } from "@/lib/services/doctor-board";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Võ sĩ" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctor.fighters.title") };
+}
 const TAG_WORD: Record<Triage, string> = { red: "Chặn", amber: "Theo dõi", green: "Thông" };
 const LOC: Record<string, Triage | null> = { all: null, blocked: "red", watch: "amber", ok: "green" };
 
 export default async function DoctorFightersPage({ searchParams }: PageProps<"/doctor/fighters">) {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const query = await searchParams;
     const q = param(query.q) ?? "";
@@ -34,7 +40,7 @@ export default async function DoctorFightersPage({ searchParams }: PageProps<"/d
 
     return (
         <div className="yt-page">
-            <PageHead title="Võ sĩ" sub={`${rows.length} võ sĩ được giao · sắp theo màu thẻ, đỏ trước`} />
+            <PageHead title={t("doctor.fighters.title")} sub={`${rows.length} võ sĩ được giao · sắp theo màu thẻ, đỏ trước`} />
             <form className="yt-filters" role="search" data-shot="filters">
                 <label className="yt-search">
                     <Search aria-hidden />
@@ -42,12 +48,12 @@ export default async function DoctorFightersPage({ searchParams }: PageProps<"/d
                     <input name="q" defaultValue={q} placeholder="Tìm theo tên võ sĩ" />
                 </label>
                 <input type="hidden" name="loc" value={loc} />
-                <nav className="yt-segs" aria-label="Lọc theo thẻ">
+                <SegmentMotion className="yt-segs" aria-label="Lọc theo thẻ">
                     {seg("all", "Tất cả")}
                     {seg("blocked", "Đỏ · Chặn")}
                     {seg("watch", "Vàng · Theo dõi")}
                     {seg("ok", "Xanh · Thông")}
-                </nav>
+                </SegmentMotion>
             </form>
             <Panel id="roster">
                 {list.length === 0 ? (

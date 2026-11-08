@@ -1,12 +1,13 @@
-import { ShieldCheck } from "lucide-react";
+import { Archive, Clock, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_STATE, CLEARANCE_TYPE, dayDiff, fmtDate } from "@/components/doctor/labels";
+import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_STATE, CLEARANCE_TYPE, clearanceCardTone, dayDiff, fmtDate } from "@/components/doctor/labels";
 import { Empty, FighterFilter, PageHead, Panel, Pill, Restrictions } from "@/components/doctor/ui";
 import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-button";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import type { MedicalClearance } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -14,7 +15,10 @@ import { getClearanceOverview, listClearances } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Giấy phép" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctor.clearance.title") };
+}
 
 const isLive = (c: MedicalClearance) => c.status === "active" && c.isCurrentlyValid !== false;
 
@@ -23,6 +27,7 @@ const isLive = (c: MedicalClearance) => c.status === "active" && c.isCurrentlyVa
  * MEDICAL_CLEARANCE. Ngưỡng cảnh báo lấy từ cài đặt (API: mặc định 14 ngày vì chưa có `/settings`).
  */
 export default async function DoctorClearancePage({ searchParams }: PageProps<"/doctor/medical-clearance">) {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const query = await searchParams;
     const requested = param(query.fighter);
@@ -38,54 +43,58 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
     const missing = overview.filter((r) => r.state === "none" || r.state === "expired" || r.state === "not_cleared");
     const issueHref = `${routes.doctor.grantClearance}${fighterId ? `?fighter=${fighterId}` : ""}`;
 
-    const col = (title: string, tag: string, rows: MedicalClearance[], note: string) => (
+    const col = (title: string, tag: "green" | "amber" | "red", rows: MedicalClearance[], note: string, Icon: typeof ShieldCheck) => (
         <section className="gp-col" data-tag={tag} data-shot={`col-${tag}`}>
             <h2>
-                {title}{" "}
-                <small>
-                    {rows.length} · {note}
-                </small>
+                <Icon aria-hidden />
+                <span>{title}<small>{note}</small></span>
+                <span className="gp-count">{rows.length}</span>
             </h2>
             {rows.length ? (
                 <ol>
-                    {rows.map((c, i) => {
+                    {rows.map((c) => {
                         const live = isLive(c);
                         const total = c.validUntil ? Date.parse(c.validUntil) - Date.parse(c.issuedAt) : 0;
-                        const p = total ? Math.min(1, Math.max(0, (Date.parse(now) - Date.parse(c.issuedAt)) / total)) : 0.15;
+                        const p = total > 0 ? Math.min(1, Math.max(0, (Date.parse(now) - Date.parse(c.issuedAt)) / total)) : 0;
                         const regions = c.restrictions.flatMap((r) => r.blockedRegions);
+                        const tone = live ? clearanceCardTone(c.level) : "neutral";
                         return (
-                            <li key={c.id} className="gp-card" data-tag={live ? tag : "none"} style={{ ["--i" as string]: i }}>
+                            <li key={c.id} className="gp-card" data-tone={tone}>
                                 <header>
-                                    <b>{c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]}</b>
-                                    <small>
-                                        {c.status === "revoked" ? "Đã thu hồi" : c.status === "superseded" ? "Đã thay thế" : !live ? "Hết hạn" : c.validUntil ? `Còn ${dayDiff(c.validUntil, now)} ngày` : "Không thời hạn"}
-                                    </small>
-                                </header>
-                                <div className="gp-body">
                                     <Link href={routes.doctor.fighter(c.fighterId)} className="yt-rowlink">
                                         <b>{nameOf.get(c.fighterId) ?? "Võ sĩ"}</b>
                                     </Link>
-                                    <div className="gp-dates">
-                                        <span>
-                                            <small>Từ</small>
-                                            {fmtDate(c.issuedAt)}
-                                        </span>
-                                        <span style={{ textAlign: "right" }}>
-                                            <small>Đến</small>
-                                            {c.validUntil ? fmtDate(c.validUntil) : "Không giới hạn"}
-                                        </span>
+                                    <Pill tone={tone}>{CLEARANCE_LEVEL[c.level]}</Pill>
+                                </header>
+                                <div className="gp-body">
+                                    <div className="gp-meta">
+                                        <p className="gp-status">
+                                            {c.status === "revoked" ? "Đã thu hồi" : c.status === "superseded" ? "Đã thay thế" : !live ? "Hết hạn" : c.validUntil ? `Còn ${dayDiff(c.validUntil, now)} ngày` : "Không thời hạn"}
+                                        </p>
+                                        {c.clearanceType && <p>{CLEARANCE_TYPE[c.clearanceType]}</p>}
                                     </div>
-                                    {live && (
+                                    <dl className="gp-dates">
+                                        <div>
+                                            <dt>Từ ngày</dt>
+                                            <dd>{fmtDate(c.issuedAt)}</dd>
+                                        </div>
+                                        <div>
+                                            <dt>Đến ngày</dt>
+                                            <dd>{c.validUntil ? fmtDate(c.validUntil) : "Không giới hạn"}</dd>
+                                        </div>
+                                    </dl>
+                                    {live && total > 0 && (
                                         <div className="gp-meter" style={{ ["--p" as string]: p }} aria-hidden>
                                             <i />
                                         </div>
                                     )}
                                     {c.revokedReason && (
                                         <p className="gp-revoked">
-                                            Thu hồi {fmtDate(c.revokedAt)}: {c.revokedReason}
+                                            <strong>Thu hồi {fmtDate(c.revokedAt)}</strong>
+                                            {c.revokedReason}
                                         </p>
                                     )}
-                                    {c.reason && <p className="yt-note">{c.reason}</p>}
+                                    {c.reason && <p className="gp-reason">{c.reason}</p>}
                                     <Restrictions r={c.allowLists ? { ...c.allowLists, notes: null } : null} />
                                     {!c.allowLists && regions.length > 0 && (
                                         <ul className="yt-chips">
@@ -98,7 +107,7 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                                     )}
                                     {live && c.level !== "not_cleared" && (
                                         <div>
-                                            <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? "võ sĩ"} />
+                                            <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? "võ sĩ"} emphasis="quiet" className="gp-revoke-action" />
                                         </div>
                                     )}
                                 </div>
@@ -113,9 +122,9 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
     );
 
     return (
-        <div className="yt-page">
+        <div className="yt-page gp-page">
             <PageHead
-                title="Giấy phép"
+                title={t("doctor.clearance.title")}
                 sub={`Cảnh báo khi còn ≤ ${warn} ngày theo cài đặt hệ thống`}
                 actions={
                     <Link href={issueHref} className="yt-btn" data-v="primary">
@@ -145,9 +154,9 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                 </Panel>
             )}
             <div className="gp-cols">
-                {col("Hiệu lực", "green", valid, "đang dùng")}
-                {col("Sắp hết hạn", "amber", soon, `≤ ${warn} ngày`)}
-                {col("Thu hồi / hết hạn", "red", off, "lưu trữ")}
+                {col("Hiệu lực", "green", valid, "Đang dùng", ShieldCheck)}
+                {col("Sắp hết hạn", "amber", soon, `Còn ≤ ${warn} ngày`, Clock)}
+                {col("Thu hồi / hết hạn", "red", off, "Lưu trữ", Archive)}
             </div>
         </div>
     );

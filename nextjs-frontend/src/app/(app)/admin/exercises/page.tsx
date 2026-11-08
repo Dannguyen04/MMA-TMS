@@ -10,10 +10,11 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination, Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { EXERCISE_CATEGORY_LABELS } from "@/lib/domain/labels";
 import { EXERCISE_CATEGORY_FOR, SERVICE_EXERCISE_CATEGORIES, type ServiceExerciseCategory } from "@/lib/domain/training-contract";
 import { missingStarterExercises, STARTER_EXERCISES } from "@/lib/domain/training-templates";
-import { pluralize } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
 import { paginate, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listExerciseCatalog } from "@/lib/services/training";
@@ -26,6 +27,7 @@ const PAGE_SIZE = 20;
 const categoryLabel = (category: ServiceExerciseCategory) => EXERCISE_CATEGORY_LABELS[EXERCISE_CATEGORY_FOR[category]];
 
 export default async function AdminExercisesPage({ searchParams }: PageProps<"/admin/exercises">) {
+    const { t } = await getTranslator();
     await requireRole("admin");
     const params = await searchParams;
     const pathname = routes.admin.exercises;
@@ -42,10 +44,12 @@ export default async function AdminExercisesPage({ searchParams }: PageProps<"/a
     return (
         <>
             <PageHeader
-                title="Exercise library"
+                title={t("screens.misc.adminPages.exercises.title")}
                 description={
                     <>
-                        The shared <Term term="exerciseLibrary">library</Term> coaches build training plans from. Coaches pick from it; only administrators add to it.
+                        {t("adminBody.exercises.leadBefore")}
+                        <Term term="exerciseLibrary">{t("adminBody.exercises.library")}</Term>
+                        {t("adminBody.exercises.leadAfter")}
                     </>
                 }
                 actions={<AddExerciseButton />}
@@ -55,16 +59,16 @@ export default async function AdminExercisesPage({ searchParams }: PageProps<"/a
 
                 <div className="flex flex-col gap-4">
                     <FilterBar
-                        label="Filter exercises"
+                        label={t("adminBody.exercises.filter")}
                         filters={[
-                            { type: "search", name: "q", label: "Search exercises", placeholder: "Search by name" },
-                            { type: "select", name: "category", label: "Categories", options: SERVICE_EXERCISE_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) })) },
+                            { type: "search", name: "q", label: t("adminBody.exercises.search"), placeholder: t("adminBody.exercises.placeholder") },
+                            { type: "select", name: "category", label: t("adminBody.exercises.categories"), options: SERVICE_EXERCISE_CATEGORIES.map((value) => ({ value, label: categoryLabel(value) })) },
                         ]}
                     />
                     <Card className="overflow-hidden">
                         <CardHeader
-                            title={filtered ? pluralize(exercises.length, "matching exercise") : pluralize(library.length, "exercise")}
-                            description={filtered ? `Out of ${pluralize(library.length, "exercise")} in the library.` : "Sorted by name."}
+                            title={filtered ? plural(t, "adminBody.exercises.matching", exercises.length) : plural(t, "adminBody.exercises.count", library.length)}
+                            description={filtered ? t("adminBody.exercises.outOf", { n: library.length }) : t("adminBody.exercises.sorted")}
                             icon={<Dumbbell />}
                         />
                         {page.total === 0 ? (
@@ -72,11 +76,11 @@ export default async function AdminExercisesPage({ searchParams }: PageProps<"/a
                                 {filtered ? (
                                     <EmptyState
                                         compact
-                                        title="No exercises match these filters"
-                                        description="Try another name or category."
+                                        title={t("screens.misc.adminPages.exercises.noneMatch")}
+                                        description={t("screens.misc.adminPages.exercises.tryAnother")}
                                         action={
                                             <ButtonLink href={pathname} variant="secondary" size="sm">
-                                                Clear filters
+                                                {t("adminBody.exercises.clear")}
                                             </ButtonLink>
                                         }
                                     />
@@ -84,21 +88,21 @@ export default async function AdminExercisesPage({ searchParams }: PageProps<"/a
                                     <EmptyState
                                         compact
                                         icon={<Dumbbell />}
-                                        title="The library is empty"
-                                        description="Import the starter library above for the exercises the plan templates use, or add your own."
+                                        title={t("screens.misc.adminPages.exercises.empty")}
+                                        description={t("adminBody.exercises.importHint")}
                                     />
                                 )}
                             </CardContent>
                         ) : (
                             <div className="border-t border-border">
-                                <Table caption="Exercises in the library">
+                                <Table caption={t("adminBody.exercises.caption")}>
                                     <THead>
                                         <tr>
-                                            <TH>Exercise</TH>
-                                            <TH>Category</TH>
-                                            <TH>Muscle groups</TH>
+                                            <TH>{t("adminBody.exercises.exercise")}</TH>
+                                            <TH>{t("adminBody.exercises.category")}</TH>
+                                            <TH>{t("adminBody.exercises.muscles")}</TH>
                                             <TH>
-                                                <span className="sr-only">Video</span>
+                                                <span className="sr-only">{t("adminBody.exercises.video")}</span>
                                             </TH>
                                         </tr>
                                     </THead>
@@ -111,7 +115,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps<"/a
                                                 </TD>
                                                 <TD className="whitespace-nowrap text-fg-muted">{categoryLabel(exercise.category)}</TD>
                                                 <TD className="min-w-40 text-[13px] text-fg-muted">
-                                                    {exercise.targetMuscleGroups.length > 0 ? exercise.targetMuscleGroups.join(", ") : <span className="text-fg-subtle">Not set</span>}
+                                                    {exercise.targetMuscleGroups.length > 0 ? exercise.targetMuscleGroups.join(", ") : <span className="text-fg-subtle">{t("adminBody.exercises.notSet")}</span>}
                                                 </TD>
                                                 <TD className="text-right whitespace-nowrap">
                                                     {exercise.videoUrl && (
@@ -121,9 +125,9 @@ export default async function AdminExercisesPage({ searchParams }: PageProps<"/a
                                                             rel="noreferrer noopener"
                                                             className="inline-flex items-center gap-1 text-[13px] font-medium text-primary-soft-fg hover:underline"
                                                         >
-                                                            Video
+                                                            {t("adminBody.exercises.video")}
                                                             <ExternalLink aria-hidden className="size-3.5" />
-                                                            <span className="sr-only">for {exercise.name} (opens in a new tab)</span>
+                                                            <span className="sr-only">{t("adminBody.exercises.opens", { name: exercise.name })}</span>
                                                         </a>
                                                     )}
                                                 </TD>
@@ -131,7 +135,7 @@ export default async function AdminExercisesPage({ searchParams }: PageProps<"/a
                                         ))}
                                     </TBody>
                                 </Table>
-                                <Pagination page={page.page} pageCount={page.pageCount} total={page.total} pageSize={PAGE_SIZE} pathname={pathname} searchParams={params} itemLabel="exercises" />
+                                <Pagination page={page.page} pageCount={page.pageCount} total={page.total} pageSize={PAGE_SIZE} pathname={pathname} searchParams={params} itemLabel={t("adminBody.exercises.item")} />
                             </div>
                         )}
                     </Card>

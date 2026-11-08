@@ -428,5 +428,17 @@ export const enDemoFlow = {
     "demoFlow.Uploading": "Uploading",
     "demoFlow.Queued": "Queued",
     "demoFlow.Processing": "Processing",
-    "demoFlow.Failed": "Failed"
+    "demoFlow.Failed": "Failed",
+    "demoFlow.Film": "Film",
+    "demoFlow.Your training footage and what the AI saw in it — strikes, guard, footwork — plus your coach's review.": "Your training footage and what the AI saw in it — strikes, guard, footwork — plus your coach's review.",
+    "demoFlow.Upload a video for AI analysis": "Upload a video for AI analysis",
+    "demoFlow.Live form check": "Live form check",
+    "demoFlow.Beta": "Beta",
+    "demoFlow.Throw roundhouse kicks in front of your camera and get instant feedback on knee chamber, extension and speed. It runs on this device: nothing is recorded or uploaded.": "Throw roundhouse kicks in front of your camera and get instant feedback on knee chamber, extension and speed. It runs on this device: nothing is recorded or uploaded.",
+    "demoFlow.Start a live check": "Start a live check",
+    "demoFlow.Upload training video": "Upload training video",
+    "demoFlow.The AI detects your strikes, guard drops and footwork. Your coach then reviews the findings with you.": "The AI detects your strikes, guard drops and footwork. Your coach then reviews the findings with you.",
+    "demoFlow.Practise your roundhouse kick in front of the camera and get instant feedback on knee chamber, extension and speed.": "Practise your roundhouse kick in front of the camera and get instant feedback on knee chamber, extension and speed.",
+    "demoFlow.Fighter videos": "Fighter videos",
+    "demoFlow.Add footage for a fighter on your roster. The AI analyses it and the findings land in your review queue.": "Add footage for a fighter on your roster. The AI analyses it and the findings land in your review queue."
 } as const;

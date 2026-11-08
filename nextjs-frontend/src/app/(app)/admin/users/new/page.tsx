@@ -9,6 +9,8 @@ import { Callout } from "@/components/training/callout";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import type { Role } from "@/lib/domain/types";
 import { dayKey } from "@/lib/format";
 import { parseEnum } from "@/lib/query";
@@ -23,52 +25,31 @@ async function presetRoleFrom(searchParams: PageProps<"/admin/users/new">["searc
 }
 
 export async function generateMetadata({ searchParams }: PageProps<"/admin/users/new">): Promise<Metadata> {
+    const { t } = await getTranslator();
     const fighter = (await presetRoleFrom(searchParams)) === "fighter";
-    return { title: usesUserServiceForms() ? (fighter ? "Add fighter" : "Add user") : "Invite user" };
+    return { title: usesUserServiceForms() ? (fighter ? t("adminBody.users.addFighter") : t("adminBody.users.add")) : t("adminBody.users.invite") };
 }
 
-const ACCESS_STEP = {
-    icon: KeyRound,
-    title: "Access follows the role",
-    body: "Permissions come from the role, so changing a role's permissions updates everyone who has it.",
-};
+function accountSteps(t: Translator) {
+    return [
+        { icon: LockKeyhole, title: t("adminBody.users.stepPassword"), body: t("adminBody.users.stepPasswordText") },
+        { icon: Stethoscope, title: t("adminBody.users.stepDoctor"), body: t("adminBody.users.stepDoctorText") },
+        { icon: UsersRound, title: t("adminBody.users.stepRoster"), body: t("adminBody.users.stepRosterText") },
+        { icon: KeyRound, title: t("adminBody.users.stepAccess"), body: t("adminBody.users.stepAccessText") },
+    ];
+}
 
-/** The user service creates accounts ready to sign in, with the profile filled in up front. */
-const ACCOUNT_STEPS = [
-    {
-        icon: LockKeyhole,
-        title: "They sign in with the password you set",
-        body: "Share it privately. They can choose their own at any time with “Forgot password” on the sign-in page.",
-    },
-    {
-        icon: Stethoscope,
-        title: "A new fighter needs a sports doctor",
-        body: "They can't train until a sports doctor records their baseline exam. Assign the doctor, and a coach, from the fighter's account page.",
-    },
-    {
-        icon: UsersRound,
-        title: "Rosters come next",
-        body: "Coaches and doctors see the fighters assigned to them.",
-    },
-    ACCESS_STEP,
-];
-
-const INVITATION_STEPS = [
-    {
-        icon: MailCheck,
-        title: "They receive an invitation email",
-        body: "The link lets them set a password. Until then the account shows as Invited and can't sign in.",
-    },
-    {
-        icon: UserRoundCheck,
-        title: "Their profile is linked on first sign-in",
-        body: "Fighter, coach and doctor profiles are connected during onboarding, then rosters can be assigned.",
-    },
-    ACCESS_STEP,
-];
+function invitationSteps(t: Translator) {
+    return [
+        { icon: MailCheck, title: t("adminBody.users.stepMail"), body: t("adminBody.users.stepMailText") },
+        { icon: UserRoundCheck, title: t("adminBody.users.stepLink"), body: t("adminBody.users.stepLinkText") },
+        { icon: KeyRound, title: t("adminBody.users.stepAccess"), body: t("adminBody.users.stepAccessText") },
+    ];
+}
 
 /** API mode creates the account outright; the demo invites the person to set their own password. */
 export default async function NewUserPage({ searchParams }: PageProps<"/admin/users/new">) {
+    const { t } = await getTranslator();
     await requireRole("admin");
     const serviceForms = usesUserServiceForms();
     const [definitions, presetRole] = await Promise.all([listRoleDefinitions(), presetRoleFrom(searchParams)]);
@@ -91,20 +72,14 @@ export default async function NewUserPage({ searchParams }: PageProps<"/admin/us
     return (
         <>
             <PageHeader
-                back={{ href: routes.admin.users, label: "Users" }}
-                title={serviceForms ? (addingFighter ? "Add fighter" : "Add user") : "Invite user"}
-                description={
-                    serviceForms
-                        ? addingFighter
-                            ? "Create the fighter's account with a first password and their profile."
-                            : "Create an account with a first password and the person's profile."
-                        : "Create an account and send the person an invitation to set their password."
-                }
+                back={{ href: routes.admin.users, label: t("adminBody.users.back") }}
+                title={serviceForms ? (addingFighter ? t("adminBody.users.addFighter") : t("adminBody.users.add")) : t("adminBody.users.invite")}
+                description={serviceForms ? (addingFighter ? t("adminBody.users.descFighter") : t("adminBody.users.descAccount")) : t("adminBody.users.descInviteForm")}
             />
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Card className="min-w-0 overflow-hidden lg:col-span-2">
-                    <CardHeader title="Account details" description="Fields marked * are required." />
+                    <CardHeader title={t("adminBody.users.accountDetails")} description={t("adminBody.users.required")} />
                     {serviceForms ? (
                         <CreateAccountForm roles={roles} defaultRole="fighter" presetRole={presetRole} today={dayKey(new Date())} />
                     ) : (
@@ -114,16 +89,16 @@ export default async function NewUserPage({ searchParams }: PageProps<"/admin/us
 
                 <div className="flex min-w-0 flex-col gap-6">
                     <Card>
-                        <CardHeader title="What happens next" />
+                        <CardHeader title={t("adminBody.users.next")} />
                         <CardContent>
                             <ol className="flex flex-col gap-4">
-                                {(serviceForms ? ACCOUNT_STEPS : INVITATION_STEPS).map((step, index) => {
+                                {(serviceForms ? accountSteps(t) : invitationSteps(t)).map((step, index) => {
                                     const Icon = step.icon;
                                     return (
                                         <li key={step.title} className="flex gap-3">
                                             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-fg-muted ring-1 ring-border ring-inset">
                                                 <Icon aria-hidden className="size-4" />
-                                                <span className="sr-only">Step {index + 1}</span>
+                                                <span className="sr-only">{t("adminBody.users.step", { n: index + 1 })}</span>
                                             </span>
                                             <div className="min-w-0">
                                                 <p className="text-sm font-medium text-fg">{step.title}</p>
@@ -135,8 +110,8 @@ export default async function NewUserPage({ searchParams }: PageProps<"/admin/us
                             </ol>
                         </CardContent>
                     </Card>
-                    <Callout tone="warning" icon={ShieldAlert} title="Clinical access">
-                        The sports doctor role opens medical records, injuries and Medical Clearance. Only give it to licensed sports medicine staff.
+                    <Callout tone="warning" icon={ShieldAlert} title={t("adminBody.users.clinical")}>
+                        {t("adminBody.users.clinicalText")}
                     </Callout>
                 </div>
             </div>

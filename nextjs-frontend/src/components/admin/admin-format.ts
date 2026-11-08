@@ -1,6 +1,7 @@
 import { ROLE_LABELS } from "@/lib/domain/labels";
 import type { AuditLog, AuditResourceType, Permission, Role } from "@/lib/domain/types";
 import { formatNumber } from "@/lib/format";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 
 /** Presentation helpers shared by the administrator screens. */
 
@@ -9,8 +10,41 @@ export const ROLE_ORDER: Role[] = ["fighter", "coach", "doctor", "admin"];
 export const ACTOR_ROLE_LABELS: Record<AuditLog["actorRole"], string> = { ...ROLE_LABELS, system: "System" };
 
 /** Secondary label under an audit actor — "System" entries are automated, so the role would only repeat the name. */
-export function actorCaption(actorRole: AuditLog["actorRole"]): string {
-    return actorRole === "system" ? "Automated process" : ACTOR_ROLE_LABELS[actorRole];
+export function actorCaption(actorRole: AuditLog["actorRole"], t?: Translator): string {
+    if (actorRole === "system") return t ? t("adminBody.audit.automated") : "Automated process";
+    return ACTOR_ROLE_LABELS[actorRole];
+}
+
+export function actorRoleLabel(t: Translator, role: AuditLog["actorRole"]): string {
+    return role === "system" ? t("adminBody.audit.system") : ROLE_LABELS[role];
+}
+
+const AUDIT_RESOURCE_KEYS: Record<AuditResourceType, MessageKey> = {
+    auth: "adminBody.audit.res.auth",
+    user: "adminBody.audit.res.user",
+    role: "adminBody.audit.res.role",
+    fighter: "adminBody.audit.res.fighter",
+    training_plan: "adminBody.audit.res.training_plan",
+    training_session: "adminBody.audit.res.training_session",
+    goal: "adminBody.audit.res.goal",
+    video: "adminBody.audit.res.video",
+    ai_job: "adminBody.audit.res.ai_job",
+    ai_model: "adminBody.audit.res.ai_model",
+    ai_finding: "adminBody.audit.res.ai_finding",
+    ai_alert: "adminBody.audit.res.ai_alert",
+    medical_record: "adminBody.audit.res.medical_record",
+    examination: "adminBody.audit.res.examination",
+    injury: "adminBody.audit.res.injury",
+    treatment: "adminBody.audit.res.treatment",
+    recovery_plan: "adminBody.audit.res.recovery_plan",
+    clearance: "adminBody.audit.res.clearance",
+    notification: "adminBody.audit.res.notification",
+    settings: "adminBody.audit.res.settings",
+};
+
+/** Localized display name for an audit resource type. The stored type code stays the identifier. */
+export function auditResourceLabel(t: Translator, type: AuditResourceType): string {
+    return t(AUDIT_RESOURCE_KEYS[type]);
 }
 
 export const AUDIT_RESOURCE_LABELS: Record<AuditResourceType, string> = {

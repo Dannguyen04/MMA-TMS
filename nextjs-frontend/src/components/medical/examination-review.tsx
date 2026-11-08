@@ -44,8 +44,9 @@ const SCAT6_STEP: Record<Scat6Step, string> = { history: "scat6-history", memory
 
 const notEntered = <span className="font-normal text-fg-subtle">Chưa nhập</span>;
 
-const when = (value: string) => (isDateTimeInputValue(value) ? formatDateTime(academyWallClockToIso(...(value.split("T") as [string, string]))) : null);
-const day = (value: string) => (isDateKey(value) ? formatDate(academyWallClockToIso(value, "12:00")) : null);
+const when = (value: string) => (isDateTimeInputValue(value) ? formatDateTime(academyWallClockToIso(...(value.split("T") as [string, string])), "vi") : null);
+const day = (value: string) => (isDateKey(value) ? formatDate(academyWallClockToIso(value, "12:00"), "vi") : null);
+const hydrationLabels: Readonly<Record<string, string>> = { good: "Tốt", fair: "Trung bình", poor: "Kém" };
 
 /**
  * The last step: what will be sent, as entered, with a way back to each step. The SCAT6 shows raw answers only; the
@@ -69,11 +70,11 @@ export function ExaminationReview(props: ExaminationReviewProps) {
                             vitalsEntered
                                 ? [
                                       vitals.weightKg && `${vitals.weightKg} kg`,
-                                      vitals.restingHeartRate && `HR ${vitals.restingHeartRate} bpm`,
-                                      (vitals.bloodPressureSystolic || vitals.bloodPressureDiastolic) && `BP ${vitals.bloodPressureSystolic || "–"}/${vitals.bloodPressureDiastolic || "–"} mmHg`,
+                                      vitals.restingHeartRate && `Mạch nghỉ ${vitals.restingHeartRate} nhịp/phút`,
+                                      (vitals.bloodPressureSystolic || vitals.bloodPressureDiastolic) && `Huyết áp ${vitals.bloodPressureSystolic || "–"}/${vitals.bloodPressureDiastolic || "–"} mmHg`,
                                       vitals.temperatureC && `${vitals.temperatureC} °C`,
                                       vitals.spo2Pct && `SpO₂ ${vitals.spo2Pct}%`,
-                                      vitals.hydration && `hydration ${vitals.hydration}`,
+                                      hydrationLabels[vitals.hydration] && `Mức nước: ${hydrationLabels[vitals.hydration]}`,
                                   ]
                                       .filter(Boolean)
                                       .join(" · ")

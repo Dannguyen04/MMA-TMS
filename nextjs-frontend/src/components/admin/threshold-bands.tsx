@@ -1,3 +1,6 @@
+"use client";
+
+import { useT } from "@/components/i18n/locale-provider";
 import { clamp, cn } from "@/lib/utils";
 
 export interface ThresholdBandsProps {
@@ -13,12 +16,13 @@ export interface ThresholdBandsProps {
  * "Needs review", and kept. Every band is labelled in text, not only by colour.
  */
 export function ThresholdBands({ confidencePct, lowConfidencePct, className }: ThresholdBandsProps) {
+    const t = useT();
     const low = clamp(Math.min(confidencePct, lowConfidencePct), 0, 100);
     const high = clamp(Math.max(confidencePct, lowConfidencePct), 0, 100);
     const bands = [
-        { key: "discarded", label: "Discarded", range: `0–${low}%`, width: low, fill: "bg-neutral-solid/40", text: "text-neutral-fg" },
-        { key: "review", label: "Needs review", range: `${low}–${high}%`, width: high - low, fill: "bg-warning-solid", text: "text-warning-fg" },
-        { key: "kept", label: "Shown", range: `${high}–100%`, width: 100 - high, fill: "bg-success-solid", text: "text-success-fg" },
+        { key: "discarded", label: t("adminForms.bandDiscarded"), range: `0–${low}%`, width: low, fill: "bg-neutral-solid/40", text: "text-neutral-fg" },
+        { key: "review", label: t("adminForms.bandReview"), range: `${low}–${high}%`, width: high - low, fill: "bg-warning-solid", text: "text-warning-fg" },
+        { key: "kept", label: t("adminForms.bandShown"), range: `${high}–100%`, width: 100 - high, fill: "bg-success-solid", text: "text-success-fg" },
     ];
 
     return (

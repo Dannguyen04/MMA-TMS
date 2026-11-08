@@ -4,6 +4,7 @@ import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Checkbox, Field, Input, Select } from "@/components/ui/form";
 import type { ActionForm } from "@/components/ui/use-action-form";
@@ -26,12 +27,13 @@ type FormProp = { form: ActionForm<undefined> };
 
 /** A fighter's, coach's or doctor's profile fields, named `profile.<field>` as the account actions read them. */
 export function AccountProfileFields({ form, role, initial, today }: AccountProfileFieldsProps) {
+    const t = useT();
     const saved = initial?.role === role ? initial : null;
     return (
         <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <TextField form={form} name="firstName" label="First name" required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.firstName} />
-                <TextField form={form} name="lastName" label="Last name" required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.lastName} />
+                <TextField form={form} name="firstName" label={t("adminForms.firstName")} required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.firstName} />
+                <TextField form={form} name="lastName" label={t("adminForms.lastName")} required max={ACCOUNT_LIMITS.name} defaultValue={saved?.profile.lastName} />
             </div>
             {role === "fighter" && <FighterFields form={form} saved={saved?.role === "fighter" ? saved.profile : null} today={today} />}
             {role === "coach" && <CoachFields form={form} saved={saved?.role === "coach" ? saved.profile : null} />}
@@ -47,14 +49,15 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
     const optionalError = Boolean(form.error("profile.dominantStance") || form.error("profile.nationality"));
     const [showOptional, setShowOptional] = useState(Boolean(saved?.dominantStance || saved?.nationality));
     const optionalOpen = showOptional || optionalError;
+    const t = useT();
     const optionalId = `${stance.id}-optional`;
     return (
         <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                <Field label="Date of birth" htmlFor={dateOfBirth.id} required error={form.error("profile.dateOfBirth")}>
+                <Field label={t("adminForms.dob")} htmlFor={dateOfBirth.id} required error={form.error("profile.dateOfBirth")}>
                     <Input {...dateOfBirth} type="date" max={today} defaultValue={saved?.dateOfBirth ?? ""} />
                 </Field>
-                <Field label="Weight class" htmlFor={weightClass.id} required info={<TermHint term="weightClass" />} error={form.error("profile.weightClass")}>
+                <Field label={t("adminForms.weight")} htmlFor={weightClass.id} required info={<TermHint term="weightClass" />} error={form.error("profile.weightClass")}>
                     <Select {...weightClass} defaultValue={saved?.weightClass ?? ""}>
                         <option value="" disabled>
                             Choose a weight class
@@ -72,14 +75,14 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
                 <div>
                     <Button variant="ghost" size="sm" aria-expanded={optionalOpen} aria-controls={optionalId} onClick={() => setShowOptional((open) => !open)}>
                         <ChevronDown aria-hidden className={cn("transition-transform", optionalOpen && "rotate-180")} />
-                        Optional details
-                        <span className="font-normal text-fg-subtle">stance, nationality</span>
+                        {t("adminForms.optionalDetails")}
+                        <span className="font-normal text-fg-subtle">{t("adminForms.optionalHint")}</span>
                     </Button>
                 </div>
                 <div id={optionalId} hidden={!optionalOpen} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                    <Field label="Stance" htmlFor={stance.id} optional info={<TermHint term="stance" />} error={form.error("profile.dominantStance")}>
+                    <Field label={t("adminForms.stance")} htmlFor={stance.id} optional info={<TermHint term="stance" />} error={form.error("profile.dominantStance")}>
                         <Select {...stance} defaultValue={saved?.dominantStance ?? ""}>
-                            <option value="">Not recorded</option>
+                            <option value="">{t("adminForms.notRecorded")}</option>
                             {Object.entries(STANCE_LABELS).map(([value, label]) => (
                                 <option key={value} value={value}>
                                     {label}
@@ -87,7 +90,7 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
                             ))}
                         </Select>
                     </Field>
-                    <TextField form={form} name="nationality" label="Nationality" max={ACCOUNT_LIMITS.nationality} defaultValue={saved?.nationality} placeholder="e.g. Vietnamese" />
+                    <TextField form={form} name="nationality" label={t("adminForms.nationality")} max={ACCOUNT_LIMITS.nationality} defaultValue={saved?.nationality} placeholder={t("adminForms.nationalityPh")} />
                 </div>
             </div>
         </>
@@ -95,14 +98,15 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
 }
 
 function CoachFields({ form, saved }: FormProp & { saved: CoachProfileFields | null }) {
+    const t = useT();
     return (
         <>
-            <TextField form={form} name="specialization" label="Specialisation" max={ACCOUNT_LIMITS.specialization} defaultValue={saved?.specialization} placeholder="e.g. Striking" />
+            <TextField form={form} name="specialization" label={t("adminForms.specialisation")} max={ACCOUNT_LIMITS.specialization} defaultValue={saved?.specialization} placeholder={t("adminForms.strikingPh")} />
             <Checkbox
                 id={form.control("profile.isHeadCoach").id}
                 name="profile.isHeadCoach"
-                label="Head coach"
-                description="Leads the coaching staff."
+                label={t("adminForms.headCoach")}
+                description={t("adminForms.headCoachDesc")}
                 defaultChecked={saved?.isHeadCoach ?? false}
             />
         </>
@@ -110,16 +114,17 @@ function CoachFields({ form, saved }: FormProp & { saved: CoachProfileFields | n
 }
 
 function DoctorFields({ form, saved }: FormProp & { saved: DoctorProfileFields | null }) {
+    const t = useT();
     return (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-            <TextField form={form} name="licenseNumber" label="License number" required max={ACCOUNT_LIMITS.licenseNumber} defaultValue={saved?.licenseNumber} />
+            <TextField form={form} name="licenseNumber" label={t("adminForms.license")} required max={ACCOUNT_LIMITS.licenseNumber} defaultValue={saved?.licenseNumber} />
             <TextField
                 form={form}
                 name="specialization"
-                label="Specialisation"
+                label={t("adminForms.specialisation")}
                 max={ACCOUNT_LIMITS.specialization}
                 defaultValue={saved?.specialization}
-                placeholder="e.g. Sports medicine"
+                placeholder={t("adminForms.medicinePh")}
             />
         </div>
     );

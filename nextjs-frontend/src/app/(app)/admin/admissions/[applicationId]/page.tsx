@@ -13,7 +13,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
-import { ACTIVATION_STATUS_LABELS, DECISION_LABELS, applicantName, type Application } from "@/lib/domain/admissions";
+import { applicantName, type ActivationStatus, type AdmissionDecision, type Application } from "@/lib/domain/admissions";
+import { getTranslator } from "@/lib/i18n/server";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { CARE_ROLES, type CareRole, type CareTeamMember, type StaffOption } from "@/lib/domain/care-team";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { routes } from "@/lib/routes";
@@ -45,27 +47,39 @@ async function loadFighterCareTeam(userId: string): Promise<FighterCareTeam | nu
     return { members, missing: CARE_ROLES.filter((role) => members[role].length === 0) };
 }
 
+const DECISION_KEY: Record<AdmissionDecision, MessageKey> = {
+    approved: "adminBody.decisionLabel.approved",
+    rejected: "adminBody.decisionLabel.rejected",
+};
+const ACTIVATION_KEY: Record<ActivationStatus, MessageKey> = {
+    pending: "adminBody.activation.pending",
+    in_progress: "adminBody.activation.in_progress",
+    password_set: "adminBody.activation.password_set",
+    completed: "adminBody.activation.completed",
+};
+
 export default async function AdminAdmissionPage({ params }: PageProps<"/admin/admissions/[applicationId]">) {
+    const { t } = await getTranslator();
     await requireRole("admin");
     const [application, coaches] = await Promise.all([loadApplication((await params).applicationId), listStaffAccounts("coach")]);
     if (!application) notFound();
     const name = applicantName(application.applicant);
-    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? "Coach";
+    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? t("adminBody.fallback.coach");
     // Activation isn't the end of admission: the new fighter can't train until they have a sports doctor.
     const careTeam = application.status === "activated" ? await loadFighterCareTeam(application.applicantId) : null;
-    const nextStep = careTeam ? careTeamNextStep(careTeam.missing) : null;
+    const nextStep = careTeam ? careTeamNextStep(careTeam.missing, t) : null;
 
     return (
         <>
             <PageHeader
-                back={{ href: routes.admin.admissions, label: "Admissions" }}
-                eyebrow="Application"
+                back={{ href: routes.admin.admissions, label: t("adminBody.admissions.back") }}
+                eyebrow={t("adminBody.admissions.eyebrow")}
                 title={name}
                 description={application.applicant.email}
                 meta={
                     <>
                         <ApplicationStatusBadge status={application.status} />
-                        <span className="text-[13px] text-fg-muted">Applied {formatDate(application.submittedAt)}</span>
+                        <span className="text-[13px] text-fg-muted">{t("adminBody.admissions.applied", { when: formatDate(application.submittedAt) })}</span>
                     </>
                 }
             />
@@ -82,61 +96,61 @@ export default async function AdminAdmissionPage({ params }: PageProps<"/admin/a
                         </ButtonLink>
                     }
                 >
-                    {careTeam.missing.includes("doctor")
-                        ? `${name} activated their fighter account. They can't train until a sports doctor runs the baseline examination.`
-                        : `${name} activated their fighter account and has a sports doctor. Nobody plans their training until a coach is assigned.`}
+                    {careTeam.missing.includes("doctor") ? t("adminBody.admissions.needsDoctor", { name }) : t("adminBody.admissions.needsCoach", { name })}
                 </Callout>
             )}
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                     <Card>
-                        <CardHeader title="Applicant" icon={<UserRound />} />
+                        <CardHeader title={t("adminBody.admissions.applicant")} icon={<UserRound />} />
                         <CardContent>
                             <ApplicantDetailsList details={application.applicant} accountEmail={application.accountEmail} />
                         </CardContent>
                     </Card>
                     <Card>
-                        <CardHeader title="Entrance assessment" icon={<ClipboardCheck />} />
+                        <CardHeader title={t("adminBody.admissions.assessment")} icon={<ClipboardCheck />} />
                         <CardContent>
                             {application.assessment ? (
                                 <AssessmentView assessment={application.assessment} coachName={coachName(application.assessment.coachId)} />
                             ) : (
                                 <p className="text-sm text-fg-muted">
-                                    {application.evaluator ? `${coachName(application.evaluator.coachId)} hasn't recorded the assessment yet.` : "Assign a coach to assess the applicant."}
+                                    {application.evaluator
+                                        ? t("adminBody.admissions.notRecorded", { name: coachName(application.evaluator.coachId) })
+                                        : t("adminBody.admissions.assignCoach")}
                                 </p>
                             )}
                         </CardContent>
                     </Card>
-                    <DecisionCard application={application} />
+                    <DecisionCard application={application} t={t} />
                 </div>
                 <div className="flex min-w-0 flex-col gap-6">
-                    <EvaluatorCard application={application} coaches={coaches} coachName={coachName} />
-                    {application.activation && <ActivationCard application={application} activation={application.activation} careTeam={careTeam} />}
+                    <EvaluatorCard application={application} coaches={coaches} coachName={coachName} t={t} />
+                    {application.activation && <ActivationCard application={application} activation={application.activation} careTeam={careTeam} t={t} />}
                 </div>
             </div>
         </>
     );
 }
 
-function DecisionCard({ application }: { application: Application }) {
+function DecisionCard({ application, t }: { application: Application; t: Translator }) {
     const { decision } = application;
     return (
         <Card>
-            <CardHeader title="Decision" icon={<Gavel />} />
+            <CardHeader title={t("adminBody.admissions.decisionTitle")} icon={<Gavel />} />
             <CardContent>
                 {decision ? (
                     <DescriptionList
                         items={[
-                            { label: "Decision", value: DECISION_LABELS[decision.decision] },
-                            { label: "Decided", value: formatDateTime(decision.decidedAt) },
-                            { label: "Reason", value: <span className="font-normal whitespace-pre-line">{decision.reason}</span>, wide: true },
+                            { label: t("adminBody.admissions.decisionTitle"), value: t(DECISION_KEY[decision.decision]) },
+                            { label: t("adminBody.admissions.decided"), value: formatDateTime(decision.decidedAt) },
+                            { label: t("adminBody.admissions.reason"), value: <span className="font-normal whitespace-pre-line">{decision.reason}</span>, wide: true },
                         ]}
                     />
                 ) : application.status === "passed" ? (
                     <DecisionForm applicationId={application.id} />
                 ) : (
                     <p className="text-sm text-fg-muted">
-                        {application.status === "failed" ? "The applicant didn't pass the assessment, so there's nothing to decide." : "You can decide once the applicant passes the assessment."}
+                        {application.status === "failed" ? t("adminBody.admissions.failedNoDecision") : t("adminBody.admissions.waitPass")}
                     </p>
                 )}
             </CardContent>
@@ -144,20 +158,20 @@ function DecisionCard({ application }: { application: Application }) {
     );
 }
 
-function EvaluatorCard({ application, coaches, coachName }: { application: Application; coaches: StaffOption[]; coachName: (coachId: string) => string }) {
+function EvaluatorCard({ application, coaches, coachName, t }: { application: Application; coaches: StaffOption[]; coachName: (coachId: string) => string; t: Translator }) {
     const { evaluator } = application;
     const canAssign = application.status === "submitted" && !application.assessment;
     return (
         <Card>
-            <CardHeader title="Assessing coach" icon={<UserSearch />} />
+            <CardHeader title={t("adminBody.admissions.assessorTitle")} icon={<UserSearch />} />
             <CardContent className="flex flex-col gap-4">
                 {evaluator ? (
                     <p className="text-sm text-fg">
                         <span className="font-medium">{coachName(evaluator.coachId)}</span>
-                        <span className="text-fg-muted"> · since {formatDate(evaluator.since)}</span>
+                        <span className="text-fg-muted"> · {t("adminBody.admissions.since", { when: formatDate(evaluator.since) })}</span>
                     </p>
                 ) : (
-                    <p className="text-sm text-fg-muted">No coach assigned yet.</p>
+                    <p className="text-sm text-fg-muted">{t("adminBody.admissions.noCoach")}</p>
                 )}
                 {/* Keyed by the coach so the form starts empty again once one is assigned. */}
                 {canAssign && <EvaluatorForm key={evaluator?.coachId ?? "none"} applicationId={application.id} coaches={coaches} currentCoachId={evaluator?.coachId ?? null} />}
@@ -174,32 +188,34 @@ function ActivationCard({
     application,
     activation,
     careTeam,
+    t,
 }: {
     application: Application;
     activation: NonNullable<Application["activation"]>;
     /** The new fighter's care team; null before activation or when it couldn't be read. */
     careTeam: FighterCareTeam | null;
+    t: Translator;
 }) {
     const names = (role: CareRole) => careTeam?.members[role].map((member) => member.name).join(", ");
     return (
         <Card>
-            <CardHeader title="Activation" icon={<MailCheck />} />
+            <CardHeader title={t("adminBody.admissions.activationTitle")} icon={<MailCheck />} />
             <CardContent className="flex flex-col gap-4">
                 <DescriptionList
                     columns={1}
                     items={[
-                        { label: "Status", value: ACTIVATION_STATUS_LABELS[activation.status] },
-                        { label: "Activation email attempts", value: activation.emailAttempts },
-                        ...(activation.lastAttemptAt ? [{ label: "Last attempt", value: formatDateTime(activation.lastAttemptAt) }] : []),
+                        { label: t("adminBody.jobs.status"), value: t(ACTIVATION_KEY[activation.status]) },
+                        { label: t("adminBody.admissions.emailAttempts"), value: activation.emailAttempts },
+                        ...(activation.lastAttemptAt ? [{ label: t("adminBody.admissions.lastAttempt"), value: formatDateTime(activation.lastAttemptAt) }] : []),
                         {
-                            label: "Last taken by the email service",
-                            value: activation.lastAcceptedAt ? formatDateTime(activation.lastAcceptedAt) : <span className="font-normal text-fg-subtle">Not yet</span>,
+                            label: t("adminBody.admissions.lastTaken"),
+                            value: activation.lastAcceptedAt ? formatDateTime(activation.lastAcceptedAt) : <span className="font-normal text-fg-subtle">{t("adminBody.admissions.notYet")}</span>,
                         },
-                        ...(activation.completedAt ? [{ label: "Activated", value: formatDateTime(activation.completedAt) }] : []),
+                        ...(activation.completedAt ? [{ label: t("adminBody.admissions.activated"), value: formatDateTime(activation.completedAt) }] : []),
                         ...(careTeam
                             ? [
-                                  { label: "Coach", value: names("coach") || <span className="font-normal text-fg-subtle">Not assigned yet</span> },
-                                  { label: "Sports doctor", value: names("doctor") || <span className="font-normal text-fg-subtle">Not assigned yet</span> },
+                                  { label: t("adminBody.admissions.coach"), value: names("coach") || <span className="font-normal text-fg-subtle">{t("adminBody.admissions.notAssigned")}</span> },
+                                  { label: t("adminBody.admissions.doctor"), value: names("doctor") || <span className="font-normal text-fg-subtle">{t("adminBody.admissions.notAssigned")}</span> },
                               ]
                             : []),
                     ]}
@@ -208,7 +224,7 @@ function ActivationCard({
                 {application.status === "activated" && (careTeam === null || careTeam.missing.length === 0) && (
                     <ButtonLink href={routes.admin.userCareTeam(application.applicantId)} variant="secondary" size="sm" className="self-start">
                         <UsersRound aria-hidden />
-                        {careTeam ? "View care team" : "Check the care team"}
+                        {careTeam ? t("adminBody.admissions.viewCare") : t("adminBody.admissions.checkCare")}
                     </ButtonLink>
                 )}
             </CardContent>

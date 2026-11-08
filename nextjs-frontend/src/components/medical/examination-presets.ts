@@ -1,6 +1,6 @@
 import type { AssessmentResult, ExaminationType, Vitals } from "@/lib/domain/types";
 import { assessVital, vitalAssessmentMessage, type VitalAssessment, type VitalKey } from "@/lib/domain/vitals";
-import { createTranslator } from "@/lib/i18n/translate";
+import type { Translator } from "@/lib/i18n/translate";
 
 /**
  * Assessment areas pre-filled for each examination type, with no result: the doctor marks each one. Doctors can rename,
@@ -75,9 +75,6 @@ const parse = (value: string): number | null => {
     return Number.isNaN(number) ? null : number;
 };
 
-const toCheck = (assessment: VitalAssessment | null): VitalCheck =>
-    assessment && { status: assessment.status, text: vitalAssessmentMessage(createTranslator("en"), assessment) };
-
 const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
 
 /**
@@ -87,7 +84,10 @@ const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
 export function checkVitals(
     values: Record<keyof Omit<Vitals, "hydration">, string> & { hydration: string },
     weightLimitKg: number | null,
+    t: Translator,
 ): Record<VitalKey, VitalCheck> {
+    const toCheck = (assessment: VitalAssessment | null): VitalCheck =>
+        assessment && { status: assessment.status, text: vitalAssessmentMessage(t, assessment) };
     const weight = parse(values.weightKg);
     const heartRate = parse(values.restingHeartRate);
     const systolic = parse(values.bloodPressureSystolic);
@@ -97,7 +97,7 @@ export function checkVitals(
     const hydration = HYDRATION_LEVELS.find((level) => level === values.hydration);
 
     return {
-        weightKg: weight === null ? null : (toCheck(assessVital("weightKg", weight, { weightLimitKg })) ?? { status: "normal", text: "Không có tham chiếu hạng cân" }),
+        weightKg: weight === null ? null : (toCheck(assessVital("weightKg", weight, { weightLimitKg })) ?? { status: "normal", text: t("vitals.noWeightClassReference") }),
         restingHeartRate: heartRate === null ? null : toCheck(assessVital("restingHeartRate", heartRate)),
         bloodPressure: systolic === null || diastolic === null ? null : toCheck(assessVital("bloodPressure", { systolic, diastolic })),
         temperatureC: temperature === null ? null : toCheck(assessVital("temperatureC", temperature)),

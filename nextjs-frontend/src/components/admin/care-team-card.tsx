@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition, type ReactNode } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
-import { Term, TermHint } from "@/components/domain/term-hint";
+import { useT } from "@/components/i18n/locale-provider";
+import { TermHint } from "@/components/domain/term-hint";
 import { Callout } from "@/components/training/callout";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Avatar } from "@/components/ui/avatar";
@@ -16,7 +17,7 @@ import { Field, Select, Textarea } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { endAssignmentAction } from "@/lib/actions/admin";
 import { assignCareTeamMemberAction } from "@/lib/actions/care-team";
-import { CARE_ROLE_LABELS, CARE_ROLES, END_REASON_MAX, type CareRole, type CareTeam, type CareTeamMember, type StaffOption } from "@/lib/domain/care-team";
+import { CARE_ROLES, END_REASON_MAX, type CareRole, type CareTeam, type CareTeamMember, type StaffOption } from "@/lib/domain/care-team";
 import { careTeamChange } from "@/lib/domain/care-team-change";
 import { formatDate } from "@/lib/format";
 import { CARE_TEAM_ANCHOR, routes } from "@/lib/routes";
@@ -31,9 +32,9 @@ export interface CareTeamCardProps {
     className?: string;
 }
 
-const SECTION_TITLES: Record<CareRole, string> = { coach: "Coaches", doctor: "Sports doctors" };
-const FIELD_LABELS: Record<CareRole, string> = { coach: "Coach", doctor: "Sports doctor" };
-const ASSIGN_LABELS: Record<CareRole, string> = { coach: "Assign coach", doctor: "Assign sports doctor" };
+const SECTION_KEYS = { coach: "adminForms.coaches", doctor: "adminForms.doctors" } as const;
+const FIELD_KEYS = { coach: "adminForms.coach", doctor: "adminForms.doctor" } as const;
+const ASSIGN_KEYS = { coach: "adminForms.assignCoach", doctor: "adminForms.assignDoctor" } as const;
 
 /**
  * The fighter's current coaches and sports doctors, with assigning and ending an assignment. An empty role is the
@@ -44,6 +45,7 @@ const ASSIGN_LABELS: Record<CareRole, string> = { coach: "Assign coach", doctor:
  * refused if the team changed after the form opened (`assignCareTeamMemberAction`).
  */
 export function CareTeamCard({ fighterId, fighterName, team, staff, className }: CareTeamCardProps) {
+    const t = useT();
     const router = useRouter();
     const toast = useToast();
     const [refreshing, startRefresh] = useTransition();
@@ -61,7 +63,7 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
     const staffIds = (role: CareRole) => team[role]?.map((member) => member.staffId) ?? [];
     const unassigned = (role: CareRole) => staff[role].filter((option) => !team[role]?.some((member) => member.staffId === option.staffId));
     const accountOf = (role: CareRole, staffId: string) => staff[role].find((option) => option.staffId === staffId);
-    const notify = (state: { message?: string }) => toast({ title: state.message ?? "Care team updated." });
+    const notify = (state: { message?: string }) => toast({ title: state.message ?? t("adminForms.updated") });
 
     // Once the fresh read has landed, open the form only if nobody changed the role in the meantime.
     if (checking && !refreshing) {
@@ -92,7 +94,7 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             onClick={() => requestAssign(role)}
         >
             <UserPlus aria-hidden />
-            {ASSIGN_LABELS[role]}
+            {t(ASSIGN_KEYS[role])}
         </Button>
     );
 
@@ -101,20 +103,20 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             <CardHeader
                 title={
                     <span className="inline-flex items-center gap-1">
-                        Care team
+                        {t("adminForms.careTitle")}
                         <TermHint term="careTeam" />
                     </span>
                 }
-                description={`Who coaches ${fighterName} and looks after their health`}
+                description={t("adminForms.careDesc", { name: fighterName })}
                 icon={<UsersRound />}
             />
             <CardContent className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {CARE_ROLES.map((role) => {
                     const members = team[role];
                     return (
-                        <section key={role} aria-label={SECTION_TITLES[role]} className="min-w-0">
+                        <section key={role} aria-label={t(SECTION_KEYS[role])} className="min-w-0">
                             <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-                                <h3 className="text-sm font-semibold text-fg">{SECTION_TITLES[role]}</h3>
+                                <h3 className="text-sm font-semibold text-fg">{t(SECTION_KEYS[role])}</h3>
                                 {/* An empty role carries its button in the callout below. */}
                                 {members !== null && members.length > 0 && assignButton(role, "secondary")}
                             </div>
@@ -129,12 +131,11 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                             {members === null ? (
                                 <div className="mt-2 flex flex-wrap items-center gap-3">
                                     <p className="text-sm text-danger-fg">
-                                        The current {SECTION_TITLES[role].toLowerCase()} couldn&apos;t be loaded: the {role === "coach" ? "fighter" : "medical"} service
-                                        returned an error.
+                                        {t("adminForms.loadFailed", { who: t(SECTION_KEYS[role]), service: role === "coach" ? t("adminForms.serviceFighter") : t("adminForms.serviceMedical") })}
                                     </p>
                                     <Button size="sm" variant="secondary" loading={refreshing && checking === null} onClick={() => startRefresh(() => router.refresh())}>
                                         <RefreshCw aria-hidden />
-                                        Try again
+                                        {t("adminForms.tryAgain")}
                                     </Button>
                                 </div>
                             ) : members.length === 0 ? (
@@ -156,9 +157,9 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                                                         ) : (
                                                             name
                                                         )}
-                                                        {member.primary && <span className="ml-1.5 font-normal text-fg-subtle">(primary)</span>}
+                                                        {member.primary && <span className="ml-1.5 font-normal text-fg-subtle">{t("adminForms.primary")}</span>}
                                                     </p>
-                                                    {member.since && <p className="text-[13px] text-fg-muted">Since {formatDate(member.since)}</p>}
+                                                    {member.since && <p className="text-[13px] text-fg-muted">{t("adminForms.since", { when: formatDate(member.since) })}</p>}
                                                 </div>
                                                 <Button
                                                     size="sm"
@@ -169,8 +170,8 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                                                     }}
                                                 >
                                                     <UserMinus aria-hidden />
-                                                    End
-                                                    <span className="sr-only"> {name}&apos;s assignment</span>
+                                                    {t("adminForms.end")}
+                                                    <span className="sr-only"> {t("adminForms.endAssignmentSr", { name })}</span>
                                                 </Button>
                                             </li>
                                         );
@@ -185,11 +186,11 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             <ActionDialog
                 open={assigning}
                 onClose={() => setAssigning(false)}
-                title={`Assign a ${CARE_ROLE_LABELS[assignRole]}`}
-                description={`The assignment starts now. ${fighterName} appears on their roster straight away.`}
+                title={t("adminForms.assignTitle", { role: t(FIELD_KEYS[assignRole]) })}
+                description={t("adminForms.assignDesc", { name: fighterName })}
                 action={assignCareTeamMemberAction}
-                submitLabel="Assign"
-                pendingLabel="Assigning…"
+                submitLabel={t("adminForms.assign")}
+                pendingLabel={t("adminForms.assigning")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -202,10 +203,10 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                             {assignSeen.map((staffId) => (
                                 <input key={staffId} type="hidden" name="expected" value={staffId} />
                             ))}
-                            <Field label={FIELD_LABELS[assignRole]} htmlFor={control.id} required error={form.error("staffId")}>
+                            <Field label={t(FIELD_KEYS[assignRole])} htmlFor={control.id} required error={form.error("staffId")}>
                                 <Select {...control} defaultValue="">
                                     <option value="" disabled>
-                                        Choose a {CARE_ROLE_LABELS[assignRole]}
+                                        {t("adminForms.chooseRole", { role: t(FIELD_KEYS[assignRole]) })}
                                     </option>
                                     {unassigned(assignRole).map((option) => (
                                         <option key={option.staffId} value={option.staffId}>
@@ -222,12 +223,12 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             <ActionDialog
                 open={endOpen}
                 onClose={() => setEndOpen(false)}
-                title={ending ? `End ${ending.member.name}'s assignment?` : "End assignment?"}
-                description={`They stop seeing ${fighterName} on their roster. The assignment stays in the fighter's history with your reason.`}
+                title={ending ? t("adminForms.endTitle", { name: ending.member.name }) : t("adminForms.endFallback")}
+                description={t("adminForms.endDesc", { name: fighterName })}
                 action={endAssignmentAction}
-                submitLabel="End assignment"
+                submitLabel={t("adminForms.endSubmit")}
                 submitVariant="danger"
-                pendingLabel="Ending…"
+                pendingLabel={t("adminForms.ending")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -237,8 +238,8 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                             <input type="hidden" name="fighterId" value={fighterId} />
                             <input type="hidden" name="role" value={ending?.role ?? ""} />
                             <input type="hidden" name="assignmentId" value={ending?.member.assignmentId ?? ""} />
-                            <Field label="Reason" htmlFor={control.id} required error={form.error("reason")}>
-                                <Textarea {...control} rows={3} maxLength={END_REASON_MAX} placeholder="e.g. Moved to another camp" />
+                            <Field label={t("adminForms.reason")} htmlFor={control.id} required error={form.error("reason")}>
+                                <Textarea {...control} rows={3} maxLength={END_REASON_MAX} placeholder={t("adminForms.reasonPh")} />
                             </Field>
                         </>
                     );
@@ -253,12 +254,13 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
  * examination, so the fighter can't train; without a coach nobody plans their training.
  */
 function EmptyRole({ role, fighterName, canAssign, action }: { role: CareRole; fighterName: string; canAssign: boolean; action: ReactNode }) {
+    const t = useT();
     const doctor = role === "doctor";
     return (
         <Callout
             tone={doctor ? "warning" : "info"}
             icon={doctor ? Stethoscope : UsersRound}
-            title={doctor ? "Next: assign a sports doctor" : "Next: assign a coach"}
+            title={doctor ? t("adminForms.nextDoctor") : t("adminForms.nextCoach")}
             className="mt-2"
             action={
                 canAssign ? (
@@ -266,19 +268,19 @@ function EmptyRole({ role, fighterName, canAssign, action }: { role: CareRole; f
                 ) : (
                     <ButtonLink href={routes.admin.newUserAs(role)} size="sm" variant="secondary">
                         <UserPlus aria-hidden />
-                        Add a {CARE_ROLE_LABELS[role]} account
+                        {t("adminForms.addAccount", { role: t(FIELD_KEYS[role]) })}
                     </ButtonLink>
                 )
             }
         >
             {doctor ? (
                 <>
-                    {fighterName} can&apos;t train until a sports doctor runs the <Term term="baselineExam">baseline examination</Term>.
+                    {t("adminForms.cantTrain", { name: fighterName })}
                 </>
             ) : (
-                `Nobody plans ${fighterName}'s training until a coach is assigned.`
+                t("adminForms.noPlan", { name: fighterName })
             )}
-            {!canAssign && ` There's no active ${CARE_ROLE_LABELS[role]} account to choose from yet.`}
+            {!canAssign && t("adminForms.noStaff", { role: t(FIELD_KEYS[role]) })}
         </Callout>
     );
 }

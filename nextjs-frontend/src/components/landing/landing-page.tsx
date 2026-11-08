@@ -41,9 +41,9 @@ export async function LandingPage({ primaryHref, primaryLabel }: { primaryHref: 
                 <section id="hero" data-chapter="hero" aria-labelledby="landing-title" className="landing-chapter">
                     <div aria-hidden className="landing-hero-scrim pointer-events-none absolute inset-0" />
                     <div className="landing-chapter-inner max-lg:items-start">
-                        <div data-hero-copy className="landing-hero-copy relative z-10 max-w-[54rem] pt-2 pb-[44svh] lg:py-0">
+                        <div data-hero-copy className="landing-hero-copy relative z-10 max-w-[54rem] pt-2 pb-[44svh] lg:max-w-[min(34rem,46%)] lg:py-0">
                             <Kicker className="text-nav-accent">{t("landing.hero.kicker")}</Kicker>
-                            <h1 id="landing-title" data-hero-title className="mt-7 text-[clamp(2.6rem,7vw,6.3rem)] leading-[0.9] font-semibold tracking-[-0.06em] text-white">
+                            <h1 id="landing-title" data-hero-title className="mt-7 text-[clamp(2.6rem,7vw,6.3rem)] leading-[0.9] font-semibold tracking-[-0.06em] text-nav-fg-active">
                                 <span className="landing-line-mask">
                                     <span data-hero-line className="block">
                                         {t("landing.hero.line1")}
@@ -68,7 +68,7 @@ export async function LandingPage({ primaryHref, primaryLabel }: { primaryHref: 
                                     {primaryLabel}
                                     <ArrowRight aria-hidden />
                                 </ButtonLink>
-                                <Link href="#analysis" className={buttonClasses({ variant: "ghost", size: "lg", className: "text-nav-fg hover:bg-white/8 hover:text-white" })}>
+                                <Link href="#analysis" className={buttonClasses({ variant: "ghost", size: "lg", className: "text-nav-fg hover:bg-nav-fg-active/8 hover:text-nav-fg-active" })}>
                                     {t("landing.hero.tour")}
                                     <ArrowDown aria-hidden />
                                 </Link>
@@ -77,7 +77,7 @@ export async function LandingPage({ primaryHref, primaryLabel }: { primaryHref: 
                         <a
                             href="#analysis"
                             data-scroll-cue
-                            className="absolute bottom-8 left-[6.5rem] z-10 hidden items-center gap-3 font-mono text-[10px] tracking-[0.24em] text-nav-fg/70 uppercase hover:text-white lg:flex"
+                            className="absolute bottom-8 left-[6.5rem] z-10 hidden items-center gap-3 font-mono text-[10px] tracking-[0.24em] text-nav-fg/70 uppercase hover:text-nav-fg-active lg:flex"
                         >
                             {t("landing.hero.scrollCue")}
                             <span aria-hidden className="landing-scroll-cue" />
@@ -95,7 +95,7 @@ export async function LandingPage({ primaryHref, primaryLabel }: { primaryHref: 
                     <div className="landing-chapter-inner lg:justify-end">
                         <div className="w-full max-w-xl">
                             <Kicker index="06">{t("landing.cta.kicker")}</Kicker>
-                            <h2 id="cta-title" data-split className="mt-4 text-[clamp(2.6rem,6vw,5.4rem)] leading-[0.9] font-semibold tracking-[-0.055em] text-balance text-white">
+                            <h2 id="cta-title" data-split className="mt-4 text-[clamp(2.6rem,6vw,5.4rem)] leading-[0.9] font-semibold tracking-[-0.055em] text-balance text-nav-fg-active">
                                 {t("landing.cta.title")}
                             </h2>
                             <p data-reveal className="mt-6 max-w-md text-[15px] leading-7 text-nav-fg">

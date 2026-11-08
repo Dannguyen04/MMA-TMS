@@ -23,7 +23,7 @@ export async function AnalysisChapter() {
                     <div className="landing-stack mt-7">
                         <Panel data-analysis-pipeline className="p-5">
                             <div className="flex items-center justify-between">
-                                <p className="flex items-center gap-2 text-sm font-semibold text-white">
+                                <p className="flex items-center gap-2 text-sm font-semibold text-nav-fg-active">
                                     <ScanLine aria-hidden className="size-4 text-landing-cyan" />
                                     heavy-bag-round-3.mp4
                                 </p>
@@ -31,7 +31,7 @@ export async function AnalysisChapter() {
                                     <span data-analysis-percent>100</span>%
                                 </p>
                             </div>
-                            <div className="mt-3 h-1 overflow-hidden rounded-full bg-white/10">
+                            <div className="mt-3 h-1 overflow-hidden rounded-full bg-nav-fg-active/10">
                                 <div data-analysis-bar className="h-full origin-left rounded-full bg-gradient-to-r from-landing-cyan to-brand-blue" />
                             </div>
                             <ol className="mt-4 space-y-2">
@@ -46,14 +46,14 @@ export async function AnalysisChapter() {
 
                         <div data-analysis-results className="space-y-3">
                             <div className="flex items-center justify-between">
-                                <p className="text-sm font-semibold text-white">{t("landing.analysis.results")}</p>
+                                <p className="text-sm font-semibold text-nav-fg-active">{t("landing.analysis.results")}</p>
                                 <SampleTag>{t("landing.sampleTag.analysis")}</SampleTag>
                             </div>
                             <dl className="grid grid-cols-3 gap-2">
                                 {SAMPLE_METRICS.map((metric) => (
                                     <Panel key={metric.id} data-analysis-metric className="px-3 py-3">
                                         <dt className="text-[11px] leading-4 text-nav-fg">{t(metric.labelKey)}</dt>
-                                        <dd className="mt-1.5 font-mono text-xl font-semibold text-white">
+                                        <dd className="mt-1.5 font-mono text-xl font-semibold text-nav-fg-active">
                                             <span data-count-to={metric.value} data-decimals={metric.decimals}>
                                                 {metric.value.toFixed(metric.decimals)}
                                             </span>
@@ -69,18 +69,18 @@ export async function AnalysisChapter() {
                                             <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${TONE_BG[finding.tone]}`} />
                                             <div className="min-w-0 flex-1">
                                                 <p className={`text-[11px] font-semibold tracking-wide uppercase ${TONE_TEXT[finding.tone]}`}>{t(finding.kindKey)}</p>
-                                                <p className="mt-0.5 text-[13px] leading-5 text-white/90">{t(finding.textKey)}</p>
+                                                <p className="mt-0.5 text-[13px] leading-5 text-nav-fg-active/90">{t(finding.textKey)}</p>
                                             </div>
                                             <p className="shrink-0 text-right font-mono text-[11px] text-nav-fg">
                                                 {t("landing.analysis.confidence")}
-                                                <span className="block text-sm text-white">{finding.confidence.toFixed(2)}</span>
+                                                <span className="block text-sm text-nav-fg-active">{finding.confidence.toFixed(2)}</span>
                                             </p>
                                         </Panel>
                                     </li>
                                 ))}
                             </ul>
                             <div data-analysis-review className="flex flex-wrap items-center gap-2 pt-1 text-[13px] text-nav-fg">
-                                <span className="font-semibold text-white">{t("landing.analysis.reviewLabel")}</span>
+                                <span className="font-semibold text-nav-fg-active">{t("landing.analysis.reviewLabel")}</span>
                                 <span className="landing-chip">
                                     <Check aria-hidden className="size-3.5 text-landing-success" /> {t("landing.analysis.confirm")}
                                 </span>

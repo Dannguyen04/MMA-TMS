@@ -22,8 +22,8 @@ export interface BeltProgressProps {
 }
 
 /**
- * Progress drawn as a jiu-jitsu belt: white tape stripes fill the rank bar near the tip. The black belt's
- * rank bar is red, as on the mat. Colour never carries a status here; pair "at risk" with a badge.
+ * Progress drawn as a jiu-jitsu belt: tape stripes fill the rank bar near the tip. The black belt's
+ * rank bar uses belt gold, not a status colour. Pair "at risk" with a badge.
  */
 export function BeltProgress({ stripes, max = 4, belt = "blue", label, className }: BeltProgressProps) {
     const earned = Math.max(0, Math.min(max, Math.round(stripes)));
@@ -31,10 +31,10 @@ export function BeltProgress({ stripes, max = 4, belt = "blue", label, className
         <span role="img" aria-label={label} className={cn("relative block h-3 w-full rounded-[2px] shadow-[inset_0_-2px_0_rgb(0_0_0/0.15)]", BELT_CLASS[belt], className)}>
             <span
                 aria-hidden
-                className={cn("absolute inset-y-0 right-[12%] flex w-[38%] justify-center gap-1 px-1.5", belt === "black" ? "bg-corner-red" : "bg-belt-black")}
+                className={cn("absolute inset-y-0 right-[12%] flex w-[38%] justify-center gap-1 px-1.5", belt === "black" ? "bg-belt-gold" : "bg-belt-black")}
             >
                 {Array.from({ length: max }, (_, index) => (
-                    <span key={index} className={cn("w-[3px]", index < earned ? "bg-white" : "bg-white/15")} />
+                    <span key={index} className={cn("w-[3px]", index < earned ? "bg-belt-white" : "bg-belt-white/30")} />
                 ))}
             </span>
         </span>

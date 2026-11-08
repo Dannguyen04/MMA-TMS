@@ -3,10 +3,12 @@
 import { RotateCcw } from "lucide-react";
 import { useEffect } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/states";
 
 export default function AppError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
+    const t = useT();
     useEffect(() => {
         console.error(error);
     }, [error]);
@@ -14,13 +16,13 @@ export default function AppError({ error, retry }: { error: Error & { digest?: s
     return (
         <ErrorState
             className="mt-10"
-            title="This page didn't load"
+            title={t("shell.error.title")}
             description={
                 <>
-                    Something went wrong while loading this data. Try again — if it keeps happening, contact your administrator.
+                    {t("shell.error.body")}
                     {error.digest && (
                         <span className="mt-2 block text-xs text-fg-subtle">
-                            Reference <code className="font-mono">{error.digest}</code>
+                            {t("shell.error.reference")} <code className="font-mono">{error.digest}</code>
                         </span>
                     )}
                 </>
@@ -28,7 +30,7 @@ export default function AppError({ error, retry }: { error: Error & { digest?: s
             action={
                 <Button onClick={() => retry()}>
                     <RotateCcw aria-hidden />
-                    Try again
+                    {t("shell.error.retry")}
                 </Button>
             }
         />

@@ -4,6 +4,7 @@ import { CheckCheck, CircleCheck, ListRestart, Plus, TriangleAlert, X } from "lu
 import { useState, type ReactNode } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/form";
 import { TONE_SOFT, TONE_TEXT } from "@/components/ui/tone";
@@ -78,7 +79,8 @@ export interface VitalsFieldsProps {
 /** The seven readings, each checked against athlete reference ranges as it's typed. Out-of-range readings are flagged, never blocked. */
 export function VitalsFields({ form, value, onChange, weightLimitKg, required }: VitalsFieldsProps) {
     const { error } = form;
-    const checks = checkVitals(value, weightLimitKg);
+    const t = useT();
+    const checks = checkVitals(value, weightLimitKg, t);
     const outOfRange = Object.values(checks).filter((check) => check?.status === "check").length;
     const set = (name: keyof VitalsDraft, next: string) => onChange({ ...value, [name]: next });
     const id = (name: string) => form.control(name).id;
@@ -109,7 +111,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
         <>
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {vitalInput("weightKg", "Cân nặng", "kg", { step: "0.1", min: 35, max: 180 }, checks.weightKg)}
-                {vitalInput("restingHeartRate", "Mạch nghỉ", "bpm", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
+                {vitalInput("restingHeartRate", "Mạch nghỉ", "nhịp/phút", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
                 {vitalInput("temperatureC", "Nhiệt độ", "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC, <TermHint term="bodyTemperature" />)}
                 <fieldset className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-2">
                     <legend className="mb-1.5 text-sm font-medium text-fg">
@@ -254,8 +256,8 @@ const presetRows = (type: ExaminationType | "", startKey: number): AssessmentRow
  * Assessment rows that start from the examination type's list. Until the doctor edits a row, changing the type swaps
  * the list; afterwards their rows stay and "Reset" brings the list back.
  */
-export function useAssessmentRows(form: FormControls, initialType: ExaminationType | "") {
-    const [rows, setRows] = useState<AssessmentRow[]>(() => presetRows(initialType, 0));
+export function useAssessmentRows(form: FormControls, initialType: ExaminationType | "", initialResult: AssessmentResult | "" = "") {
+    const [rows, setRows] = useState<AssessmentRow[]>(() => presetRows(initialType, 0).map((row) => ({ ...row, result: initialResult })));
     const [edited, setEdited] = useState(false);
     const [nextKey, setNextKey] = useState(100);
 
@@ -309,7 +311,7 @@ export function useAssessmentRows(form: FormControls, initialType: ExaminationTy
 
 export type AssessmentRows = ReturnType<typeof useAssessmentRows>;
 
-/** One row per area examined, sent as a single serialized field. No row starts with a result. */
+/** One row per area examined, sent as a single serialized field. */
 export function AssessmentsField({
     form,
     type,

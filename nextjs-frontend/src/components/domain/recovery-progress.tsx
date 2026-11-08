@@ -237,7 +237,7 @@ export function RecoveryPhaseDot({ status, index, size = "md" }: { status: Recov
             className={cn(
                 "relative flex shrink-0 items-center justify-center rounded-full text-xs font-semibold",
                 size === "sm" ? "size-6" : "size-7",
-                status === "completed" && "bg-success-solid text-white",
+                status === "completed" && "bg-success-solid text-primary-fg",
                 status === "current" && "bg-info-soft text-info-fg ring-2 ring-info-solid",
                 status === "upcoming" && "bg-surface text-fg-subtle ring-1 ring-border-strong",
             )}

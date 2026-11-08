@@ -1,5 +1,12 @@
 import {
     Activity,
+    Bandage,
+    ClipboardList,
+    FileText,
+    FolderHeart,
+    History,
+    MessageSquareText,
+    Radar,
     CalendarDays,
     Cpu,
     Dumbbell,
@@ -20,7 +27,8 @@ import type { Role } from "@/lib/domain/types";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 
-export type NavBadgeKey = "notifications" | "reviewQueue" | "newAlerts" | "failedJobs";
+export type NavBadgeKey = "notifications" | "reviewQueue" | "newAlerts" | "failedJobs" | "doctorBlocked" | "doctorReviews" | "doctorAlerts";
+export type WorkspaceRole = Role | "applicant";
 
 /** Screen-reader suffix read after a nav badge count ("3 failed"). */
 export const BADGE_LABELS: Record<NavBadgeKey, MessageKey> = {
@@ -28,6 +36,9 @@ export const BADGE_LABELS: Record<NavBadgeKey, MessageKey> = {
     reviewQueue: "shell.badge.reviewQueue",
     newAlerts: "shell.badge.newAlerts",
     failedJobs: "shell.badge.failedJobs",
+    doctorBlocked: "doctor.badge.blocked",
+    doctorReviews: "doctor.badge.reviews",
+    doctorAlerts: "doctor.badge.alerts",
 };
 
 /** A page inside a hub, shown as a route tab above that page's header. */
@@ -38,6 +49,8 @@ export interface NavTab {
 
 export interface NavItem {
     label: string;
+    message?: MessageKey;
+    requiresRecords?: boolean;
     /** Compact label for the mobile bottom bar; defaults to `label`. */
     shortLabel?: string;
     /** Where the link goes. For a hub, this is its first tab. */
@@ -52,12 +65,17 @@ export interface NavItem {
 
 export interface NavSection {
     label?: string;
+    message?: MessageKey;
     items: NavItem[];
 }
 
 /**
  * Role-based information architecture. Every role gets a handful of hubs, each answering one kind of question;
  * related pages sit behind the hub's tabs.
+ *
+ * HLV giữ hub Bouts (Sắp tới, Đình chỉ, Sẵn sàng). Danh sách hub cũ trong tài liệu không có mục này,
+ * nhưng Fight Camp và các route trận đấu đang chạy — không xoá chúng chỉ để khớp danh sách cũ.
+ * Menu trực tiếp của bác sĩ được khai báo trong WORKSPACE_NAVIGATION.
  */
 export const NAVIGATION: Record<Role, NavSection[]> = {
     fighter: [
@@ -165,6 +183,34 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
             ],
         },
     ],
+};
+
+/** Workspace menus. The medical menu retains its original groups and record flag. */
+export const WORKSPACE_NAVIGATION: Record<WorkspaceRole, NavSection[]> = {
+    ...NAVIGATION,
+    doctor: [
+        {
+            message: "doctor.nav.daily",
+            items: [
+                { label: "Today", message: "doctor.nav.today", href: routes.doctor.dashboard, icon: Activity },
+                { label: "Fighters", message: "doctor.fighters.title", href: routes.doctor.fighters, icon: Users, badge: "doctorBlocked" },
+                { label: "Review requests", message: "doctor.reviews.title", href: routes.doctor.reviewRequests, icon: MessageSquareText, badge: "doctorReviews" },
+                { label: "AI observations", message: "doctor.alerts.title", href: routes.doctor.aiAlerts, icon: Radar, badge: "doctorAlerts" },
+            ],
+        },
+        {
+            message: "doctor.nav.chart",
+            items: [
+                { label: "Examinations", message: "doctor.examinations.title", href: routes.doctor.examinations, icon: ClipboardList },
+                { label: "Injuries", message: "doctor.injuries.title", href: routes.doctor.injuries, icon: Bandage },
+                { label: "Recovery", message: "doctor.recovery.title", href: routes.doctor.recovery, icon: HeartPulse },
+                { label: "Clearance", message: "doctor.clearance.title", href: routes.doctor.clearance, icon: ShieldCheck },
+                { label: "History", message: "doctor.history.title", href: routes.doctor.history, icon: History },
+                { label: "Records", message: "doctor.tab.records", href: routes.doctor.records, icon: FolderHeart, requiresRecords: true },
+            ],
+        },
+    ],
+    applicant: [{ items: [{ label: "Application", message: "auth.applyTitle", href: routes.apply, icon: FileText }] }],
 };
 
 /** The admin hubs the mobile bottom bar shows; Training stays in the menu. Admissions is frozen (T-001). */

@@ -3,6 +3,7 @@
 import { Rocket } from "lucide-react";
 import { startTransition, useActionState, useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/form";
@@ -20,6 +21,7 @@ export interface PromoteModelButtonProps {
 
 /** Promotes a staging model to active after confirming that the current active model is deprecated. */
 export function PromoteModelButton({ modelId, modelLabel, taskLabel, activeLabel }: PromoteModelButtonProps) {
+    const t = useT();
     const toast = useToast();
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<string | undefined>();
@@ -28,7 +30,7 @@ export function PromoteModelButton({ modelId, modelLabel, taskLabel, activeLabel
         const result = await setModelStatusAction(previous, formData);
         if (result.status === "success") {
             setOpen(false);
-            toast({ title: result.message ?? "Model promoted." });
+            toast({ title: result.message ?? t("adminForms.promoted") });
         } else {
             setError(result.message);
         }
@@ -51,7 +53,7 @@ export function PromoteModelButton({ modelId, modelLabel, taskLabel, activeLabel
                 }}
             >
                 <Rocket aria-hidden />
-                Promote to active
+                {t("adminForms.promote")}
             </Button>
             <ConfirmDialog
                 open={open}
@@ -59,12 +61,12 @@ export function PromoteModelButton({ modelId, modelLabel, taskLabel, activeLabel
                 onConfirm={confirm}
                 pending={pending}
                 tone="primary"
-                title={`Promote ${modelLabel}?`}
-                confirmLabel="Promote to active"
+                title={t("adminForms.promoteTitle", { label: modelLabel })}
+                confirmLabel={t("adminForms.promote")}
                 description={
                     activeLabel
-                        ? `New jobs will use ${modelLabel} for ${taskLabel.toLowerCase()}. The currently active model, ${activeLabel}, will be deprecated and kept for rollback. Jobs already queued or running aren't affected.`
-                        : `New jobs will use ${modelLabel} for ${taskLabel.toLowerCase()}. Jobs already queued or running aren't affected.`
+                        ? t("adminForms.promoteWith", { label: modelLabel, task: taskLabel, active: activeLabel })
+                        : t("adminForms.promoteWithout", { label: modelLabel, task: taskLabel })
                 }
             >
                 <FormMessage status={error ? "error" : "idle"} message={error} />

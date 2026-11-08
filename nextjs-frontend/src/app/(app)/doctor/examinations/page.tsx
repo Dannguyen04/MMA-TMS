@@ -1,22 +1,28 @@
 import { FilePlus2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SegmentMotion } from "@/components/ui/segment-motion";
 
 import { examKind } from "@/components/doctor/exam-meta";
 import { OUTCOME, SCOPE, fmtDate } from "@/components/doctor/labels";
 import { Empty, FighterFilter, PageHead, Panel, Pill } from "@/components/doctor/ui";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import type { ExaminationScope } from "@/lib/domain/medical-contract";
 import { routes } from "@/lib/routes";
 import { listExaminations } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Phiếu khám" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctor.examinations.title") };
+}
 
 /** Phiếu khám của mọi võ sĩ được giao: ghép `GET /fighters/:id/medical-examinations` từng võ sĩ (chưa có danh sách theo bác sĩ). */
 export default async function DoctorExaminationsPage({ searchParams }: PageProps<"/doctor/examinations">) {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const query = await searchParams;
     const requested = param(query.fighter);
@@ -47,7 +53,7 @@ export default async function DoctorExaminationsPage({ searchParams }: PageProps
     return (
         <div className="yt-page">
             <PageHead
-                title="Phiếu khám"
+                title={t("doctor.examinations.title")}
                 sub={`${list.length} phiếu · mới nhất trước`}
                 actions={
                     <Link href={newHref} className="yt-btn" data-v="primary">
@@ -59,11 +65,11 @@ export default async function DoctorExaminationsPage({ searchParams }: PageProps
             <div className="yt-filters">
                 <FighterFilter base={routes.doctor.examinations} fighters={fighters} current={fighterId} extra={{ scope }} />
                 {hasScopes && (
-                    <nav className="yt-segs" aria-label="Phạm vi">
+                    <SegmentMotion className="yt-segs" aria-label="Phạm vi">
                         {seg(undefined, "Mọi phạm vi")}
                         {seg("TRAINING", "Tập luyện")}
                         {seg("COMPETITION", "Thi đấu")}
-                    </nav>
+                    </SegmentMotion>
                 )}
             </div>
             <Panel id="bang">

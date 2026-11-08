@@ -16,8 +16,10 @@ import { PageHeader } from "@/components/ui/page-header";
 import { ProgressBar } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/states";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { AI_MODEL_TASK_LABELS } from "@/lib/domain/labels";
-import { formatConfidence, formatDate, formatDateTime, formatNumber, formatPercent, formatRelative, pluralize } from "@/lib/format";
+import { formatConfidence, formatDate, formatDateTime, formatNumber, formatPercent, formatRelative } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getAIModel, listAIJobs, listAIModels } from "@/lib/services/ai";
@@ -34,6 +36,8 @@ export async function generateMetadata({ params }: PageProps<"/admin/ai-models/[
 }
 
 export default async function AdminAIModelDetailPage({ params }: PageProps<"/admin/ai-models/[modelId]">) {
+    const { t } = await getTranslator();
+    const locale = t.locale === "en" ? "en" : "vi";
     await requireRole("admin");
     const { modelId } = await params;
     const now = new Date().toISOString();
@@ -58,7 +62,7 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
     return (
         <>
             <PageHeader
-                back={{ href: routes.admin.aiModels, label: "AI models" }}
+                back={{ href: routes.admin.aiModels, label: t("adminBody.models.back") }}
                 eyebrow={taskLabel}
                 title={
                     <>
@@ -72,7 +76,7 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
                         <Badge tone="neutral" variant="outline">
                             {model.framework}
                         </Badge>
-                        <span className="text-[13px] text-fg-muted">Deployed {formatDate(model.deployedAt)}</span>
+                        <span className="text-[13px] text-fg-muted">{t("adminBody.models.deployed", { when: formatDate(model.deployedAt) })}</span>
                     </>
                 }
                 actions={
@@ -84,14 +88,14 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
 
             <div className="flex flex-col gap-6">
                 <Card>
-                    <CardHeader title="Evaluation" description="Offline evaluation and live review figures for this version" icon={<BrainCircuit />} />
+                    <CardHeader title={t("adminBody.models.evaluation")} description={t("adminBody.models.evaluationDesc")} icon={<BrainCircuit />} />
                     <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-                        <MetricTile label="Precision" value={formatRatio(model.precision)} hint="correct when flagged" />
-                        <MetricTile label="Recall" value={formatRatio(model.recall)} hint="share of events found" />
-                        <MetricTile label="F1 score" value={formatRatio(f1Score(model.precision, model.recall))} hint="balance of both" />
-                        <MetricTile label="Human agreement" value={formatPercent(model.humanAgreementPct, 1)} hint="reviews confirming" />
-                        <MetricTile label="Reviews" value={formatNumber(model.reviewsCount)} hint="human decisions" />
-                        <MetricTile label="Avg latency" value={model.avgLatencyMs} unit="ms" hint="per inference" />
+                        <MetricTile label={t("adminBody.models.precision")} value={formatRatio(model.precision)} hint={t("adminBody.models.precisionHint")} />
+                        <MetricTile label={t("adminBody.models.recall")} value={formatRatio(model.recall)} hint={t("adminBody.models.recallHint")} />
+                        <MetricTile label={t("adminBody.models.f1")} value={formatRatio(f1Score(model.precision, model.recall))} hint={t("adminBody.models.f1Hint")} />
+                        <MetricTile label={t("adminBody.models.agreement")} value={formatPercent(model.humanAgreementPct, 1)} hint={t("adminBody.models.agreementHint")} />
+                        <MetricTile label={t("adminBody.models.reviews")} value={formatNumber(model.reviewsCount)} hint={t("adminBody.models.reviewsHint")} />
+                        <MetricTile label={t("adminBody.models.latency")} value={model.avgLatencyMs} unit="ms" hint={t("adminBody.models.latencyHint")} />
                     </CardContent>
                 </Card>
 
@@ -99,8 +103,8 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                         <Card>
                             <CardHeader
-                                title="Confidence thresholds"
-                                description="Decide which outputs are dropped, flagged for human review, or shown as-is"
+                                title={t("adminBody.models.thresholds")}
+                                description={t("adminBody.models.thresholdsDesc")}
                                 icon={<SlidersHorizontal />}
                             />
                             <CardContent className="flex flex-col gap-5">
@@ -114,7 +118,7 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
                                         lowConfidencePct: Math.round(settings.aiLowConfidenceThreshold * 100),
                                     }}
                                     disabledReason={
-                                        model.status === "deprecated" ? "Deprecated models don't process new jobs, so their thresholds are read-only." : null
+                                        model.status === "deprecated" ? t("adminBody.models.deprecated") : null
                                     }
                                 />
                                 <AINotice audience="admin" compact />
@@ -123,35 +127,31 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
 
                         <Card>
                             <CardHeader
-                                title="Pipeline usage"
-                                description={usage.length > 0 ? `${pluralize(usage.length, "job")} in the job history used this model` : "Jobs that ran on this model"}
+                                title={t("adminBody.models.usage")}
+                                description={usage.length > 0 ? plural(t, "adminBody.models.usageCount", usage.length) : t("adminBody.models.usageEmpty")}
                                 icon={<Activity />}
                             />
                             <CardContent>
                                 {usage.length === 0 ? (
                                     <EmptyState
                                         compact
-                                        title="No production jobs yet"
-                                        description={
-                                            model.status === "staging"
-                                                ? "Staging models aren't used for new jobs until they're promoted to active."
-                                                : "No job in the current history ran on this version."
-                                        }
+                                        title={t("adminBody.models.noJobs")}
+                                        description={model.status === "staging" ? t("adminBody.models.stagingWait") : t("adminBody.models.noHistory")}
                                     />
                                 ) : (
                                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                                        <MetricTile label="Completed" value={completed.length} hint={`${failed.length} failed`} />
+                                        <MetricTile label={t("adminBody.today.completed")} value={completed.length} hint={t("adminBody.models.failedHint", { n: failed.length })} />
                                         <MetricTile
-                                            label="Failure rate"
+                                            label={t("adminBody.today.failureRate")}
                                             value={formatPercent(percentOf(failed.length, completed.length + failed.length), 1)}
-                                            hint="of finished jobs"
+                                            hint={t("adminBody.today.ofFinished")}
                                         />
                                         <MetricTile
-                                            label="Avg job confidence"
+                                            label={t("adminBody.models.avgConfidence")}
                                             value={confidences.length > 0 ? formatConfidence(average(confidences)) : "—"}
-                                            hint={`${completed.filter((job) => job.lowConfidence).length} low confidence`}
+                                            hint={t("adminBody.models.lowJobs", { n: completed.filter((job) => job.lowConfidence).length })}
                                         />
-                                        <MetricTile label="Last used" value={lastUsed ? formatRelative(lastUsed, now) : "—"} hint={lastUsed ? formatDateTime(lastUsed) : undefined} />
+                                        <MetricTile label={t("adminBody.models.lastUsed")} value={lastUsed ? formatRelative(lastUsed, now, locale) : "—"} hint={lastUsed ? formatDateTime(lastUsed) : undefined} />
                                     </div>
                                 )}
                             </CardContent>
@@ -160,31 +160,31 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
 
                     <div className="flex min-w-0 flex-col gap-6">
                         <Card>
-                            <CardHeader title="Human feedback" description="Coach and doctor review decisions on this model's outputs" icon={<UserCheck />} />
+                            <CardHeader title={t("adminBody.models.feedback")} description={t("adminBody.models.feedbackDesc")} icon={<UserCheck />} />
                             <CardContent className="flex flex-col gap-4">
                                 {model.reviewsCount === 0 ? (
-                                    <p className="text-sm text-fg-muted">No outputs from this version have been reviewed yet.</p>
+                                    <p className="text-sm text-fg-muted">{t("adminBody.models.noReviews")}</p>
                                 ) : (
                                     <>
                                         <ProgressBar
                                             value={model.humanAgreementPct}
-                                            label="Reviewers agreed with the model"
+                                            label={t("adminBody.models.agreed")}
                                             showLabel
                                             tone={model.humanAgreementPct >= 85 ? "success" : model.humanAgreementPct >= 75 ? "warning" : "danger"}
                                             valueText={formatPercent(model.humanAgreementPct, 1)}
                                         />
                                         <dl className="grid grid-cols-2 gap-3">
                                             <div className="rounded-lg bg-surface-muted px-3 py-2.5">
-                                                <dt className="text-xs text-fg-muted">Confirmed</dt>
+                                                <dt className="text-xs text-fg-muted">{t("adminBody.models.confirmed")}</dt>
                                                 <dd className="mt-0.5 text-lg font-semibold text-fg">≈ {formatNumber(agreed)}</dd>
                                             </div>
                                             <div className="rounded-lg bg-surface-muted px-3 py-2.5">
-                                                <dt className="text-xs text-fg-muted">Corrected or rejected</dt>
+                                                <dt className="text-xs text-fg-muted">{t("adminBody.models.corrected")}</dt>
                                                 <dd className="mt-0.5 text-lg font-semibold text-fg">≈ {formatNumber(disagreed)}</dd>
                                             </div>
                                         </dl>
                                         <p className="text-[13px] text-fg-muted">
-                                            Based on {pluralize(model.reviewsCount, "review")}. Corrections and rejections are collected as training data for the next version.
+                                            {plural(t, "adminBody.models.basedOn", model.reviewsCount)}
                                         </p>
                                     </>
                                 )}
@@ -192,7 +192,7 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
                         </Card>
 
                         <Card className="overflow-hidden">
-                            <CardHeader title="Versions for this task" description={taskLabel} icon={<GitBranch />} />
+                            <CardHeader title={t("adminBody.models.siblings")} description={taskLabel} icon={<GitBranch />} />
                             <ul className="divide-y divide-border border-t border-border">
                                 {siblings.map((sibling) => {
                                     const current = sibling.id === model.id;
@@ -209,7 +209,8 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
                                                     </Link>
                                                 )}
                                                 <p className="text-xs text-fg-subtle">
-                                                    {current ? "This version · " : ""}F1 {formatRatio(f1Score(sibling.precision, sibling.recall))} · deployed {formatDate(sibling.deployedAt)}
+                                                    {current ? `${t("adminBody.models.thisVersion")} · ` : ""}
+                                                    {t("adminBody.models.versionLine", { f1: formatRatio(f1Score(sibling.precision, sibling.recall)), deployed: t("adminBody.models.deployedShort", { when: formatDate(sibling.deployedAt) }) })}
                                                 </p>
                                             </div>
                                             <ModelStatusBadge status={sibling.status} size="sm" />
@@ -221,7 +222,7 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
 
                         <p className="flex items-start gap-2 px-1 text-[13px] text-fg-subtle">
                             <GitBranch aria-hidden className="mt-px size-4 shrink-0" />
-                            Only one model per task is active. Promoting a staging version deprecates the current one, which stays available for rollback.
+                            {t("adminBody.models.oneActive")}
                         </p>
                     </div>
                 </div>

@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { SegmentMotion } from "./segment-motion";
 
 export interface TabNavItem {
     href: string;
@@ -28,7 +29,7 @@ export function TabLabel({ label, count }: { label: ReactNode; count?: number })
 export function TabNav({ items, label, className }: { items: TabNavItem[]; label: string; className?: string }) {
     const pathname = usePathname();
     return (
-        <nav aria-label={label} className={cn("scrollbar-thin -mx-1 overflow-x-auto border-b border-border", className)}>
+        <SegmentMotion aria-label={label} className={cn("scrollbar-thin overflow-x-auto", className)}>
             <ul className="flex min-w-max gap-1 px-1">
                 {items.map((item) => {
                     const active = item.exact ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);
@@ -37,11 +38,7 @@ export function TabNav({ items, label, className }: { items: TabNavItem[]; label
                             <Link
                                 href={item.href}
                                 aria-current={active ? "page" : undefined}
-                                className={cn(
-                                    "relative inline-flex h-10 items-center gap-2 px-3 font-display text-[16px] font-semibold tracking-[0.01em] transition-colors",
-                                    "after:absolute after:inset-x-2 after:-bottom-px after:h-[3px] after:-skew-x-12",
-                                    active ? "text-fg after:bg-corner-red" : "text-fg-muted hover:text-fg",
-                                )}
+                                className="inline-flex items-center gap-2"
                             >
                                 <TabLabel label={item.label} count={item.count} />
                             </Link>
@@ -49,7 +46,7 @@ export function TabNav({ items, label, className }: { items: TabNavItem[]; label
                     );
                 })}
             </ul>
-        </nav>
+        </SegmentMotion>
     );
 }
 
@@ -115,7 +112,7 @@ export function Tabs({
 
     return (
         <div className={className}>
-            <div role="tablist" aria-label={label} className={cn("scrollbar-thin flex gap-1 overflow-x-auto border-b border-border", listClassName)}>
+            <SegmentMotion as="div" role="tablist" aria-label={label} className={cn("scrollbar-thin flex gap-1 overflow-x-auto", listClassName)}>
                 {items.map((item, index) => {
                     const selected = item.id === active;
                     return (
@@ -132,17 +129,13 @@ export function Tabs({
                             tabIndex={selected ? 0 : -1}
                             onClick={() => select(index)}
                             onKeyDown={(event) => onKeyDown(event, index)}
-                            className={cn(
-                                "relative inline-flex h-10 shrink-0 items-center gap-2 px-3 font-display text-[16px] font-semibold tracking-[0.01em] whitespace-nowrap transition-colors",
-                                "after:absolute after:inset-x-2 after:-bottom-px after:h-[3px] after:-skew-x-12",
-                                selected ? "text-fg after:bg-corner-red" : "text-fg-muted hover:text-fg",
-                            )}
+                            className="inline-flex shrink-0 items-center gap-2"
                         >
                             {item.label}
                         </button>
                     );
                 })}
-            </div>
+            </SegmentMotion>
             {items.map((item) => (
                 <div
                     key={item.id}

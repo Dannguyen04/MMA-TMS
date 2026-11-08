@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Top-right rounded corner tile 16x16, radius 8 (rounded-lg). Rotate 180deg for bottom-left. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+  <path d="M0,0.5 H8 A7.5,7.5 0 0 1 15.5,8 V16" fill="none" stroke="currentColor" stroke-width="1" vector-effect="non-scaling-stroke"/>
+</svg>

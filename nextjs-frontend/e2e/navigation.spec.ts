@@ -7,35 +7,41 @@ interface NavTarget {
     h1: string | RegExp;
 }
 
-/** Every sidebar destination per role, in sidebar order (src/components/layout/navigation.ts). A hub opens its first tab. */
+/** Every sidebar destination per role, in sidebar order. Doctor uses the grouped rail in `doctor/shell.tsx`, not hubs. */
 const SIDEBAR: Record<Role, NavTarget[]> = {
     fighter: [
-        { link: "Training", href: "/fighter/schedule", h1: "Schedule" },
-        { link: "Film", href: "/fighter/videos", h1: "Film" },
-        { link: "Progress", href: "/fighter/performance", h1: "Performance" },
-        { link: "Health", href: "/fighter/health", h1: "Health & Medical Clearance" },
-        { link: "Today", href: DASHBOARDS.fighter, h1: /, Minh$/ },
+        { link: "Hôm nay", href: DASHBOARDS.fighter, h1: /, Minh$/ },
+        { link: "Trận đấu", href: "/fighter/bout", h1: "Trận đấu" },
+        { link: "Tập luyện", href: "/fighter/schedule", h1: "Lịch tập" },
+        { link: "Video", href: "/fighter/videos", h1: "Video" },
+        { link: "Sức khỏe", href: "/fighter/health", h1: "Sức khỏe & Cấp phép y tế" },
     ],
     coach: [
-        { link: "Roster", href: "/coach/fighters", h1: "Fighters" },
-        { link: "Training", href: "/coach/sessions", h1: "Sessions" },
-        { link: "Film room", href: "/coach/video-analysis", h1: "Film room" },
-        { link: "Clearance", href: "/coach/medical-clearance", h1: "Medical Clearance" },
-        { link: "Today", href: DASHBOARDS.coach, h1: /, Rafael$/ },
+        { link: "Hôm nay", href: DASHBOARDS.coach, h1: /, Rafael$/ },
+        { link: "Trận đấu", href: "/coach/bouts", h1: "Trận đấu" },
+        { link: "Võ sĩ", href: "/coach/fighters", h1: "Võ sĩ" },
+        { link: "Tập luyện", href: "/coach/sessions", h1: "Buổi tập" },
+        { link: "Phòng video", href: "/coach/video-analysis", h1: "Phòng video" },
+        { link: "Cấp phép", href: "/coach/medical-clearance", h1: "Cấp phép y tế" },
     ],
     doctor: [
-        { link: "Patients", href: "/doctor/fighters", h1: "Fighters" },
-        { link: "Clinical", href: "/doctor/examinations", h1: "Examinations" },
-        { link: "Observations", href: "/doctor/ai-alerts", h1: "AI movement observations" },
-        { link: "Triage", href: DASHBOARDS.doctor, h1: "Triage" },
+        { link: "Hôm nay", href: DASHBOARDS.doctor, h1: "Phân loại hôm nay" },
+        { link: "Võ sĩ", href: "/doctor/fighters", h1: "Võ sĩ" },
+        { link: "Yêu cầu xem xét", href: "/doctor/review-requests", h1: "Yêu cầu xem xét" },
+        { link: "Quan sát AI", href: "/doctor/ai-alerts", h1: "Quan sát AI" },
+        { link: "Phiếu khám", href: "/doctor/examinations", h1: "Phiếu khám" },
+        { link: "Chấn thương", href: "/doctor/injuries", h1: "Chấn thương" },
+        { link: "Kế hoạch phục hồi", href: "/doctor/recovery", h1: "Kế hoạch phục hồi" },
+        { link: "Giấy phép", href: "/doctor/medical-clearance", h1: "Giấy phép" },
+        { link: "Lịch sử y tế", href: "/doctor/history", h1: "Lịch sử y tế" },
+        { link: "Bệnh án", href: "/doctor/medical-records", h1: "Bệnh án" },
     ],
     admin: [
-        { link: "People", href: "/admin/users", h1: "Users" },
-        { link: "Admissions", href: "/admin/admissions", h1: "Admissions" },
-        { link: "Training", href: "/admin/exercises", h1: "Exercise library" },
-        { link: "AI platform", href: "/admin/ai-jobs", h1: "AI jobs" },
-        { link: "System", href: "/admin/audit-logs", h1: "Audit logs" },
-        { link: "Today", href: DASHBOARDS.admin, h1: /^Good (morning|afternoon|evening)$/ },
+        { link: "Hôm nay", href: DASHBOARDS.admin, h1: /^Chào buổi (sáng|chiều|tối)$/ },
+        { link: "Người dùng", href: "/admin/users", h1: "Người dùng" },
+        { link: "Tập luyện", href: "/admin/exercises", h1: "Thư viện bài tập" },
+        { link: "Nền tảng AI", href: "/admin/ai-jobs", h1: "Tác vụ AI" },
+        { link: "Hệ thống", href: "/admin/audit-logs", h1: "Nhật ký hệ thống" },
     ],
 };
 
@@ -43,78 +49,52 @@ const SIDEBAR: Record<Role, NavTarget[]> = {
 const HUB_TABS: Partial<Record<Role, { hub: string; tabs: NavTarget[] }[]>> = {
     fighter: [
         {
-            hub: "Training",
+            hub: "Tập luyện",
             tabs: [
-                { link: "Plans", href: "/fighter/training", h1: "Training plans" },
-                { link: "History", href: "/fighter/training/history", h1: "Training history" },
-                { link: "Schedule", href: "/fighter/schedule", h1: "Schedule" },
-            ],
-        },
-        {
-            hub: "Progress",
-            tabs: [
-                { link: "Goals", href: "/fighter/goals", h1: "Goals" },
-                { link: "Performance", href: "/fighter/performance", h1: "Performance" },
+                { link: "Giáo án", href: "/fighter/training", h1: "Giáo án tập luyện" },
+                { link: "Lịch sử", href: "/fighter/training/history", h1: "Lịch sử tập luyện" },
+                { link: "Lịch tập", href: "/fighter/schedule", h1: "Lịch tập" },
             ],
         },
     ],
     coach: [
         {
-            hub: "Roster",
+            hub: "Trận đấu",
             tabs: [
-                { link: "Performance", href: "/coach/performance", h1: "Team performance" },
-                { link: "Goals", href: "/coach/goals", h1: "Goals" },
-                { link: "Fighters", href: "/coach/fighters", h1: "Fighters" },
+                { link: "Đình chỉ", href: "/coach/bouts/suspensions", h1: "Đình chỉ" },
+                { link: "Sẵn sàng", href: "/coach/bouts/readiness", h1: "Sẵn sàng thi đấu" },
+                { link: "Sắp tới", href: "/coach/bouts", h1: "Trận đấu" },
             ],
         },
         {
-            hub: "Training",
+            hub: "Tập luyện",
             tabs: [
-                { link: "Plans", href: "/coach/training-plans", h1: "Training plans" },
-                { link: "Sessions", href: "/coach/sessions", h1: "Sessions" },
-            ],
-        },
-    ],
-    doctor: [
-        {
-            hub: "Patients",
-            tabs: [
-                { link: "Records", href: "/doctor/medical-records", h1: "Medical records" },
-                { link: "Fighters", href: "/doctor/fighters", h1: "Fighters" },
-            ],
-        },
-        {
-            hub: "Clinical",
-            tabs: [
-                { link: "Injuries", href: "/doctor/injuries", h1: "Injuries" },
-                { link: "Recovery", href: "/doctor/recovery", h1: "Recovery" },
-                { link: "Clearance", href: "/doctor/medical-clearance", h1: "Medical Clearance" },
-                { link: "Examinations", href: "/doctor/examinations", h1: "Examinations" },
+                { link: "Giáo án", href: "/coach/training-plans", h1: "Giáo án tập luyện" },
+                { link: "Buổi tập", href: "/coach/sessions", h1: "Buổi tập" },
             ],
         },
     ],
     admin: [
         {
-            hub: "People",
+            hub: "Người dùng",
             tabs: [
-                { link: "Roles & permissions", href: "/admin/roles", h1: "Roles & permissions" },
-                { link: "Users", href: "/admin/users", h1: "Users" },
+                { link: "Vai trò và quyền", href: "/admin/roles", h1: "Vai trò và quyền" },
+                { link: "Người dùng", href: "/admin/users", h1: "Người dùng" },
             ],
         },
         {
-            hub: "AI platform",
+            hub: "Nền tảng AI",
             tabs: [
-                { link: "Videos", href: "/admin/videos", h1: "Videos" },
-                { link: "AI models", href: "/admin/ai-models", h1: "AI models" },
-                { link: "AI jobs", href: "/admin/ai-jobs", h1: "AI jobs" },
+                { link: "Video", href: "/admin/videos", h1: "Video" },
+                { link: "Tác vụ AI", href: "/admin/ai-jobs", h1: "Tác vụ AI" },
             ],
         },
         {
-            hub: "System",
+            hub: "Hệ thống",
             tabs: [
-                { link: "Broadcasts", href: "/admin/notifications", h1: "Broadcasts" },
-                { link: "Settings", href: "/admin/settings", h1: "System settings" },
-                { link: "Audit logs", href: "/admin/audit-logs", h1: "Audit logs" },
+                { link: "Thông báo chung", href: "/admin/notifications", h1: "Thông báo chung" },
+                { link: "Cài đặt", href: "/admin/settings", h1: "Cài đặt hệ thống" },
+                { link: "Nhật ký hệ thống", href: "/admin/audit-logs", h1: "Nhật ký hệ thống" },
             ],
         },
     ],
@@ -130,7 +110,7 @@ test.describe("sidebar navigation", () => {
             test.slow(); // one test visits a dozen pages, each compiled on first visit by the dev server
             await signInAs(role);
             await page.goto(DASHBOARDS[role]);
-            const sidebar = page.getByRole("navigation", { name: "Main" });
+            const sidebar = page.getByRole("navigation", { name: "Điều hướng chính" });
 
             for (const target of SIDEBAR[role]) {
                 await test.step(`${target.link} → ${target.href}`, async () => {
@@ -152,12 +132,12 @@ test.describe("hub tabs", () => {
             test.slow();
             await signInAs(role);
             await page.goto(DASHBOARDS[role]);
-            const sidebar = page.getByRole("navigation", { name: "Main" });
+            const sidebar = page.getByRole("navigation", { name: "Điều hướng chính" });
 
             for (const { hub, tabs } of HUB_TABS[role] ?? []) {
                 const hubLink = sidebar.getByRole("link", { name: linkName(hub) });
                 await hubLink.click();
-                const tabNav = page.getByRole("navigation", { name: `${hub} sections` });
+                const tabNav = page.getByRole("navigation", { name: `Các mục của ${hub}` });
                 await expect(tabNav).toBeVisible();
 
                 for (const target of tabs) {
@@ -177,17 +157,17 @@ test.describe("hub tabs", () => {
     test("profile and preferences are reachable from the account menu", async ({ page, signInAs }) => {
         await signInAs("fighter");
         await page.goto(DASHBOARDS.fighter);
-        const menu = page.getByRole("button", { name: /^Account menu for/ });
+        const menu = page.getByRole("button", { name: /^Menu tài khoản của/ });
 
         await menu.click();
-        await page.getByRole("link", { name: "Profile", exact: true }).click();
+        await page.getByRole("link", { name: "Hồ sơ", exact: true }).click();
         await expect(page).toHaveURL("/profile");
-        await expectPageReady(page, "Profile");
+        await expectPageReady(page, "Hồ sơ");
 
         await menu.click();
-        await page.getByRole("link", { name: "Preferences", exact: true }).click();
+        await page.getByRole("link", { name: "Tùy chọn", exact: true }).click();
         await expect(page).toHaveURL("/settings");
-        await expectPageReady(page, "Preferences");
+        await expectPageReady(page, "Tùy chọn");
     });
 });
 
@@ -201,7 +181,7 @@ test.describe("mobile navigation @mobile", () => {
         await page.goto(DASHBOARDS.fighter);
         await expectPageReady(page, /, Minh$/);
 
-        const bar = page.getByRole("navigation", { name: "Primary" });
+        const bar = page.getByRole("navigation", { name: "Điều hướng nhanh" });
         await expect(bar.getByRole("link")).toHaveCount(SIDEBAR.fighter.length);
         for (const target of SIDEBAR.fighter) {
             const link = bar.getByRole("link", { name: linkName(target.link) });
@@ -217,24 +197,24 @@ test.describe("mobile navigation @mobile", () => {
         await page.goto(DASHBOARDS.coach);
         await expectPageReady(page, /, Rafael$/);
 
-        const open = page.getByRole("button", { name: "Open navigation" });
-        const drawer = page.getByRole("dialog", { name: "Navigation" });
+        const open = page.getByRole("button", { name: "Mở menu" });
+        const drawer = page.getByRole("dialog", { name: "Menu" });
         await expect(drawer).toBeHidden();
 
         // Open and navigate: the drawer closes on its own and focus goes back to the menu button.
         await open.click();
         await expect(drawer).toBeVisible();
         await expect(open).toHaveAttribute("aria-expanded", "true");
-        await drawer.getByRole("link", { name: linkName("Training") }).click();
+        await drawer.getByRole("link", { name: linkName("Tập luyện") }).click();
         await expect(page).toHaveURL("/coach/sessions");
         await expect(drawer).toBeHidden();
-        await expectPageReady(page, "Sessions");
+        await expectPageReady(page, "Buổi tập");
         await expect(open).toHaveAttribute("aria-expanded", "false");
         await expect(open).toBeFocused();
 
         // The current page is marked in the drawer.
         await open.click();
-        await expect(drawer.getByRole("link", { name: linkName("Training") })).toHaveAttribute("aria-current", "page");
+        await expect(drawer.getByRole("link", { name: linkName("Tập luyện") })).toHaveAttribute("aria-current", "page");
 
         // Escape closes it and returns focus.
         await page.keyboard.press("Escape");
@@ -244,7 +224,7 @@ test.describe("mobile navigation @mobile", () => {
         // So does the close button.
         await open.click();
         await expect(drawer).toBeVisible();
-        await drawer.getByRole("button", { name: "Close navigation" }).click();
+        await drawer.getByRole("button", { name: "Đóng menu" }).click();
         await expect(drawer).toBeHidden();
         await expect(open).toBeFocused();
         await expect(page).toHaveURL("/coach/sessions");

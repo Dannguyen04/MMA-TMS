@@ -47,7 +47,7 @@ export function LandingExperience({ children }: { children: ReactNode }) {
     );
 
     return (
-        <div ref={root} className="landing-shell relative min-h-dvh overflow-x-clip text-white">
+        <div ref={root} className="landing-shell relative min-h-dvh overflow-x-clip text-nav-fg-active">
             <FighterStage story={story} labels={labels} compact={compact} animate={reducedMotion === false} ready={stageReady} onReady={onStageReady} />
             {children}
         </div>

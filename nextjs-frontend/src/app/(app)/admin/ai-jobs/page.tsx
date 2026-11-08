@@ -14,9 +14,11 @@ import { SegmentedLinks, type SegmentedLinkItem } from "@/components/ui/segmente
 import { EmptyState } from "@/components/ui/states";
 import { Pagination, SortableTH, Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { AI_JOB_STATUS_LABELS, PIPELINE_STAGE_LABELS } from "@/lib/domain/labels";
 import type { AIJob, AIJobStatus } from "@/lib/domain/types";
-import { formatConfidence, formatDateTime, formatRelative, pluralize } from "@/lib/format";
+import { formatConfidence, formatDateTime, formatRelative } from "@/lib/format";
+import { plural } from "@/lib/i18n/translate";
 import { hrefWith, paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listAIJobs, type AIJobListItem } from "@/lib/services/ai";
@@ -28,12 +30,12 @@ export const metadata: Metadata = { title: "AI jobs" };
 const SEGMENTS = ["all", "processing", "queued", "completed", "failed", "low_confidence"] as const;
 type Segment = (typeof SEGMENTS)[number];
 const SEGMENT_META: Record<Segment, { label: string; icon: LucideIcon }> = {
-    all: { label: "All", icon: Layers },
+    all: { label: "", icon: Layers },
     processing: { label: AI_JOB_STATUS_LABELS.processing, icon: LoaderCircle },
     queued: { label: AI_JOB_STATUS_LABELS.queued, icon: Clock },
     completed: { label: AI_JOB_STATUS_LABELS.completed, icon: CircleCheck },
     failed: { label: AI_JOB_STATUS_LABELS.failed, icon: CircleX },
-    low_confidence: { label: "Low confidence", icon: TriangleAlert },
+    low_confidence: { label: "", icon: TriangleAlert },
 };
 const STATUS_ORDER: AIJobStatus[] = ["processing", "queued", "failed", "completed"];
 const SORT_KEYS = ["queued", "duration", "confidence", "status"] as const;
@@ -47,6 +49,7 @@ function inSegment(segment: Segment, { job }: AIJobListItem): boolean {
 }
 
 export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admin/ai-jobs">) {
+    const { t } = await getTranslator();
     await requireRole("admin");
     const params = await searchParams;
     const now = new Date().toISOString();
@@ -74,7 +77,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
     const reportsConfidence = items.some(({ job }) => job.avgConfidence !== null);
     const segments: SegmentedLinkItem[] = SEGMENTS.filter((value) => reportsConfidence || value !== "low_confidence").map((value) => ({
         href: hrefWith(pathname, params, { status: value === "all" ? null : value, page: null }),
-        label: SEGMENT_META[value].label,
+        label: value === "all" ? t("adminBody.jobs.all") : value === "low_confidence" ? t("adminBody.jobs.low") : SEGMENT_META[value].label,
         icon: SEGMENT_META[value].icon,
         count: items.filter((item) => inSegment(value, item)).length,
         active: value === segment,
@@ -83,21 +86,21 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
     return (
         <>
             <PageHeader
-                title="AI jobs"
-                description={`Every video analysis run through the pipeline — watch progress${platformFeatureAvailable("aiJobControl") ? ", investigate failures and retry." : " and investigate failures."}`}
+                title={t("screens.misc.adminPages.jobs.title")}
+                description={platformFeatureAvailable("aiJobControl") ? t("adminBody.jobs.descControl") : t("adminBody.jobs.descPlain")}
                 actions={<RefreshControl renderedAt={now} autoRefreshMs={inFlight > 0 ? AUTO_REFRESH_MS : null} />}
             />
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                    <SegmentedLinks label="Filter jobs by status" items={segments} />
-                    <FilterBar filters={[{ type: "search", name: "q", label: "Search jobs", placeholder: "Search job, video, fighter or error" }]} />
+                    <SegmentedLinks label={t("adminBody.jobs.filter")} items={segments} />
+                    <FilterBar filters={[{ type: "search", name: "q", label: t("adminBody.jobs.search"), placeholder: t("adminBody.jobs.placeholder") }]} />
                 </div>
 
                 <Card className="overflow-hidden">
                     <CardHeader
-                        title={segment === "all" ? pluralize(filtered.length, "job") : `${pluralize(filtered.length, "job")} · ${SEGMENT_META[segment].label}`}
-                        description={`${inFlight} in flight right now`}
+                        title={segment === "all" ? plural(t, "adminBody.jobs.count", filtered.length) : `${plural(t, "adminBody.jobs.count", filtered.length)} · ${segments.find((item) => item.active)?.label ?? ""}`}
+                        description={t("adminBody.jobs.inFlight", { n: inFlight })}
                         icon={<Cpu />}
                     />
                     {page.total === 0 ? (
@@ -105,21 +108,21 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                             {search || segment !== "all" ? (
                                 <EmptyState
                                     compact
-                                    title="No jobs match these filters"
-                                    description="Try another status or search term."
+                                    title={t("screens.misc.adminPages.jobs.noneMatch")}
+                                    description={t("adminBody.jobs.tryAnother")}
                                     action={
                                         <ButtonLink href={pathname} variant="secondary" size="sm">
-                                            Clear filters
+                                            {t("adminBody.users.clear")}
                                         </ButtonLink>
                                     }
                                 />
                             ) : (
-                                <EmptyState compact title="No AI jobs yet" description="A job is created every time a coach or fighter uploads training footage." />
+                                <EmptyState compact title={t("screens.misc.adminPages.jobs.empty")} description={t("screens.misc.adminPages.jobs.emptyDescription")} />
                             )}
                         </CardContent>
                     ) : (
                         <div className="border-t border-border">
-                            <ul className="divide-y divide-border md:hidden" aria-label="AI processing jobs">
+                            <ul className="divide-y divide-border md:hidden" aria-label={t("adminBody.jobs.list")}>
                                 {page.items.map(({ job, video, fighter }) => (
                                     <li key={job.id} className="flex flex-col gap-2 px-4 py-3.5">
                                         <div className="flex items-start justify-between gap-3">
@@ -127,17 +130,17 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                                                 <Link href={routes.admin.aiJob(job.id)} className="block truncate font-mono text-[13px] font-medium text-primary-soft-fg hover:underline">
                                                     {job.id}
                                                 </Link>
-                                                <p className="truncate text-sm font-medium text-fg">{video?.title ?? "Video removed"}</p>
+                                                <p className="truncate text-sm font-medium text-fg">{video?.title ?? t("adminBody.jobs.removed")}</p>
                                                 <p className="truncate text-xs text-fg-muted">{fighter?.name ?? job.fighterId}</p>
                                             </div>
                                             <AIJobStatusBadge status={job.status} size="sm" className="shrink-0" />
                                         </div>
                                         <JobStage job={job} />
                                         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-fg-muted">
-                                            <span>Queued {formatRelative(job.queuedAt, now)}</span>
-                                            <span>{pluralize(job.attempts, "attempt")}</span>
+                                            <span>{t("adminBody.today.queuedWhen", { when: formatRelative(job.queuedAt, now, t.locale === "en" ? "en" : "vi") })}</span>
+                                            <span>{plural(t, "adminBody.jobs.attempt", job.attempts)}</span>
                                             {job.durationSec !== null && <span>{formatDurationSec(job.durationSec)}</span>}
-                                            {job.avgConfidence !== null && <span>{formatConfidence(job.avgConfidence)} confidence</span>}
+                                            {job.avgConfidence !== null && <span>{t("adminBody.jobs.confidenceOf", { value: formatConfidence(job.avgConfidence) })}</span>}
                                             {job.lowConfidence && <LowConfidenceBadge size="sm" />}
                                         </p>
                                     </li>
@@ -145,16 +148,16 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                             </ul>
 
                             <div className="hidden md:block">
-                                <Table caption="AI processing jobs" className="relative min-w-[980px]">
+                                <Table caption={t("adminBody.jobs.list")} className="relative min-w-[980px]">
                                     <THead>
                                         <tr>
-                                            <TH>Job</TH>
-                                            <TH>Video</TH>
-                                            <SortableTH label="Status" sortKey="status" {...sortProps} />
-                                            <TH>Stage / error</TH>
-                                            <SortableTH label="Duration" sortKey="duration" align="right" className="text-right" {...sortProps} />
-                                            <SortableTH label="Confidence" sortKey="confidence" {...sortProps} />
-                                            <SortableTH label="Queued" sortKey="queued" {...sortProps} />
+                                            <TH>{t("adminBody.jobs.job")}</TH>
+                                            <TH>{t("adminBody.jobs.video")}</TH>
+                                            <SortableTH label={t("adminBody.jobs.status")} sortKey="status" {...sortProps} />
+                                            <TH>{t("adminBody.jobs.stage")}</TH>
+                                            <SortableTH label={t("adminBody.jobs.duration")} sortKey="duration" align="right" className="text-right" {...sortProps} />
+                                            <SortableTH label={t("adminBody.jobs.confidence")} sortKey="confidence" {...sortProps} />
+                                            <SortableTH label={t("adminBody.jobs.queued")} sortKey="queued" {...sortProps} />
                                         </tr>
                                     </THead>
                                     <TBody>
@@ -168,7 +171,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                                                 </TD>
                                                 <TD className="max-w-44">
                                                     <p className="truncate font-medium" title={video?.title}>
-                                                        {video?.title ?? "Video removed"}
+                                                        {video?.title ?? t("adminBody.jobs.removed")}
                                                     </p>
                                                     <p className="truncate text-xs text-fg-muted">{fighter?.name ?? job.fighterId}</p>
                                                 </TD>
@@ -181,7 +184,7 @@ export default async function AdminAIJobsPage({ searchParams }: PageProps<"/admi
                                                 <TD className="text-right whitespace-nowrap">
                                                     {job.durationSec !== null ? formatDurationSec(job.durationSec) : "—"}
                                                     <span className={cn("block text-xs", job.attempts > 1 ? "font-medium text-warning-fg" : "text-fg-subtle")}>
-                                                        {pluralize(job.attempts, "attempt")}
+                                                        {plural(t, "adminBody.jobs.attempt", job.attempts)}
                                                     </span>
                                                 </TD>
                                                 <TD className="whitespace-nowrap">

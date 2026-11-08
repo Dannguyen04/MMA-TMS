@@ -80,14 +80,18 @@ export interface UseScat6DraftOptions {
     nowInput: string;
     /** The athlete's date of birth, when known: a SCAT6 is only administered from age 13. */
     dateOfBirth: string | null;
+    initialNotAdministeredReason?: string;
 }
 
 /** The SCAT6's working state for one examination form. It lives as long as the form, never in browser storage. */
-export function useScat6Draft({ form, nowInput, dateOfBirth }: UseScat6DraftOptions): Scat6Controller {
+export function useScat6Draft({ form, nowInput, dateOfBirth, initialNotAdministeredReason }: UseScat6DraftOptions): Scat6Controller {
     /** Whether the athlete was under 13 on that day (datetime-local value), when the date of birth is known. */
     const underAgeOn = (value: string) => dateOfBirth !== null && value !== "" && ageFromBirthDate(dateOfBirth, value.slice(0, 10)) < SCAT6.MIN_AGE_YEARS;
     const tooYoung = underAgeOn(nowInput);
-    const [draft, setDraft] = useState(() => ({ ...emptyScat6Draft(nowInput), ...(tooYoung ? { status: "NOT_ADMINISTERED" as const } : {}) }));
+    const [draft, setDraft] = useState(() => ({
+        ...emptyScat6Draft(nowInput),
+        ...(tooYoung || initialNotAdministeredReason ? { status: "NOT_ADMINISTERED" as const, notAdministeredReason: initialNotAdministeredReason ?? "" } : {}),
+    }));
     const [notes, setNotes] = useState<Record<string, string>>({});
     const [attempted, setAttempted] = useState<ReadonlySet<Scat6Step>>(() => new Set());
     const problems = useMemo(() => scat6Problems(draft), [draft]);
@@ -556,7 +560,7 @@ export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
                     columns={3}
                     variant="compact"
                     options={[
-                        { value: "NO", label: "No" },
+                        { value: "NO", label: "Không" },
                         { value: "YES", label: "Có" },
                         { value: "NOT_APPLICABLE", label: "Không áp dụng" },
                     ]}

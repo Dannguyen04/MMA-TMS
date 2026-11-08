@@ -9,7 +9,7 @@ export function YoutubePlayer({ url, time, title, className }: { url: string; ti
     const src = embedUrl(url, time);
     if (!src) return null;
     return (
-        <div className={cn("relative aspect-video w-full overflow-hidden rounded-xl bg-black", className)}>
+        <div className={cn("relative aspect-video w-full overflow-hidden rounded-xl bg-nav-bg", className)}>
             <iframe
                 key={src}
                 src={src}

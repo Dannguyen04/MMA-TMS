@@ -1,6 +1,7 @@
 import { ChevronRight, CircleCheck, TriangleAlert, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface AttentionItem {
@@ -13,7 +14,7 @@ export interface AttentionItem {
 }
 
 /** "All systems normal" or a short, specific list of what needs an administrator. */
-export function SystemStatus({ items, checkedLabel, className }: { items: AttentionItem[]; checkedLabel: string; className?: string }) {
+export function SystemStatus({ items, checkedLabel, className, t }: { items: AttentionItem[]; checkedLabel: string; className?: string; t: Translator }) {
     const healthy = items.length === 0;
     return (
         <section
@@ -29,19 +30,17 @@ export function SystemStatus({ items, checkedLabel, className }: { items: Attent
                     aria-hidden
                     className={cn(
                         "octagon flex size-9 shrink-0 items-center justify-center",
-                        healthy ? "bg-success-solid text-white" : "bg-warning-solid text-white",
+                        healthy ? "bg-success-solid text-primary-fg" : "bg-warning-solid text-warning-solid-fg",
                     )}
                 >
                     {healthy ? <CircleCheck className="size-[18px]" /> : <TriangleAlert className="size-[18px]" />}
                 </span>
                 <div className="min-w-0 flex-1">
                     <h2 id="system-status-title" className={cn("text-[15px] font-semibold", healthy ? "text-success-fg" : "text-warning-fg")}>
-                        {healthy ? "All systems normal" : `${items.length === 1 ? "1 item needs" : `${items.length} items need`} attention`}
+                        {healthy ? t("adminBody.system.normal") : plural(t, "adminBody.system.needs", items.length)}
                     </h2>
                     <p className="mt-0.5 text-sm text-fg-muted">
-                        {healthy
-                            ? "The AI pipeline is processing normally, with no failed jobs, stalled workers or sign-in problems in the last 24 hours."
-                            : "Review these before they affect coaches, doctors or fighters."}
+                        {healthy ? t("adminBody.system.normalText") : t("adminBody.system.review")}
                     </p>
                 </div>
                 <p className="w-full text-xs text-fg-subtle sm:w-auto sm:pt-1">{checkedLabel}</p>

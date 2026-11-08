@@ -6,12 +6,16 @@ import { BODY_REGION, alertRatio, dayDiff, fmeta, fmtDate, injuryName, injuryPla
 import { Gate, Panel, reasonsText } from "@/components/doctor/ui";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { loadDoctorBoard, type BoardRow, type Triage } from "@/lib/services/doctor-board";
 import { listRecoveryPlans } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 
-export const metadata: Metadata = { title: "Hôm nay" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctor.dashboard.title") };
+}
 
 const LANES: { key: Triage; title: string; sub: string; empty: string }[] = [
     { key: "red", title: "Đỏ · Chặn", sub: "Chưa đủ điều kiện tập", empty: "Không ai bị chặn tập hôm nay." },
@@ -72,6 +76,7 @@ function Tag({ r, i, lane }: { r: BoardRow; i: number; lane: number }) {
  * đỏ khi chưa đủ điều kiện tập, vàng khi có giới hạn, chấn thương hoặc việc mở, còn lại xanh.
  */
 export default async function DoctorDashboardPage() {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const scope = accessibleFighterIds(user);
     const [board, plans] = await Promise.all([loadDoctorBoard(user), listRecoveryPlans({ fighterIds: scope, status: "active" })]);
@@ -111,10 +116,10 @@ export default async function DoctorDashboardPage() {
     const showAi = medicalFeatureAvailable("aiObservations");
 
     return (
-        <div className="yt-page">
+        <div className="yt-page workspace-editorial">
             <header className="yt-head td-head" data-shot="head">
                 <div className="yt-head-main">
-                    <h1>Phân loại hôm nay</h1>
+                    <h1>{t("doctor.dashboard.title")}</h1>
                     <p className="yt-head-sub">
                         {todayLabel(now)} · {rows.length} võ sĩ được giao
                     </p>
