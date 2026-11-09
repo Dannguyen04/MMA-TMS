@@ -222,7 +222,8 @@
 .yt-table th { text-align: left; font-size: 12.5px; font-weight: 600; color: var(--mute); padding: 0 12px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
 .yt-table td { padding: 13px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
 .yt-table tr:last-child td { border-bottom: 0; }
-.yt-table tbody tr { position: relative; cursor: pointer; transition: background-color .15s; animation: yt-fade .4s ease-out both; animation-delay: calc(var(--i, 0) * 35ms); }
+/* Stagger capped at row 10: on a 60-row list the last rows otherwise stayed half-faded (and below contrast) for over 2 s. */
+.yt-table tbody tr { position: relative; cursor: pointer; transition: background-color .15s; animation: yt-fade .4s ease-out both; animation-delay: calc(min(var(--i, 0), 10) * 35ms); }
 .yt-table tbody tr:hover { background: var(--s2); }
 .yt-table tbody tr:has(a.yt-rowlink:focus-visible) { outline: 2px solid var(--focus); outline-offset: -2px; }
 @keyframes yt-fade { from { opacity: 0; } }
@@ -239,6 +240,17 @@
 .ro-name .yt-hole { width: 12px; height: 12px; box-shadow: 0 0 0 4px var(--t); background: var(--s); }
 .ro-gates { display: flex; gap: 6px; flex-wrap: nowrap; }
 @media (max-width: 767px) { .yt-table .yt-hide-sm { display: none; } }
+/* Một dòng phụ chỉ hiện dưới 768 px, gộp các cột đã ẩn (yt-hide-sm) để bảng vừa màn hình điện thoại. */
+.yt-table .yt-only-sm { display: none; }
+.hx-table { table-layout: fixed; }
+.hx-table .hx-kind { width: 120px; }
+.hx-table .hx-who, .hx-table .hx-detail { width: 22%; }
+@media (max-width: 767px) {
+  .yt-table .yt-only-sm { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin-top: 4px; font-size: 12.5px; font-weight: 500; color: var(--mute); }
+  .xm-table .yt-pill { white-space: normal; }
+  .hx-table .hx-kind { width: 108px; padding-right: 4px; }
+  .hx-table .hx-detail { display: none; }
+}
 
 /* ---------- Hồ sơ võ sĩ ---------- */
 .hs-top { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 24px; align-items: end; }
@@ -257,7 +269,8 @@
 .hs-tabs a { padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--mute); border-bottom: 2.5px solid transparent; margin-bottom: -1px; white-space: nowrap; }
 .hs-tabs a:hover { color: var(--ink); }
 .hs-tabs a[aria-current] { color: var(--ink); border-color: var(--ink); }
-.hs-ladder { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; align-items: end; }
+/* Step count comes in as --n (not an inline grid-template-columns), so the one-column rule under 768 px still applies. */
+.hs-ladder { display: grid; grid-template-columns: repeat(var(--n, 5), minmax(0, 1fr)); gap: 6px; align-items: end; }
 .hs-step { position: relative; display: grid; gap: 6px; }
 .hs-step i { display: block; height: calc(14px + var(--i) * 9px); border-radius: 6px 6px 3px 3px; background: var(--chip); transform-origin: bottom; animation: hs-rise .6s var(--ease) both; animation-delay: calc(var(--i) * 80ms + 200ms); }
 @keyframes hs-rise { from { transform: scaleY(0); } }
@@ -318,7 +331,7 @@
 .tj-past { position: absolute; left: 0; top: 46px; height: 2px; background: var(--mute); width: 40%; transform-origin: left; animation: tj-draw 1s var(--ease) both .2s; }
 @keyframes tj-draw { from { transform: scaleX(0); } }
 .tj-now { position: absolute; top: 18px; bottom: 16px; width: 2px; background: var(--amb); left: 40%; }
-.tj-now::after { content: "Hôm nay"; position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11.5px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.tj-now::after { content: attr(data-label); position: absolute; top: -18px; left: 50%; transform: translateX(-50%); font-size: 11.5px; font-weight: 700; color: var(--ink); white-space: nowrap; }
 .tj-tick { position: absolute; bottom: 0; font-size: 11.5px; color: var(--mute); transform: translateX(-50%); white-space: nowrap; }
 .tj-dot { position: absolute; top: 47px; width: calc(var(--m) * 2px); height: calc(var(--m) * 2px); border-radius: 50%; background: var(--k); transform: translate(-50%, -50%); box-shadow: 0 0 0 3px var(--s); animation: tj-pop .6s var(--ease) both; animation-delay: calc(var(--d) * 1ms + 400ms); }
 .tj-dot[data-up="true"] { top: 33px; }
@@ -626,6 +639,7 @@
 .yt-formcard { background: var(--s); border-radius: 14px; box-shadow: var(--sh); padding: 22px 24px; }
 .yt-flash { padding: 12px 16px; border-radius: 12px; font-weight: 600; font-size: 14px; background: var(--ok-soft); color: var(--ok-ink); }
 .yt-flash[data-tone="red"] { background: var(--block-soft); color: var(--block-ink); }
+.yt-flash[data-tone="amber"] { background: var(--amb-soft); color: var(--amb-t); font-weight: 500; }
 .yt-section-note { font-size: 13px; color: var(--mute); }
 .yt-kv { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13.5px; color: var(--mute); }
 .yt-kv b { color: var(--ink); font-weight: 650; }

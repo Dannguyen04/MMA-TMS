@@ -93,11 +93,11 @@ export default async function DoctorHistoryPage({ searchParams }: PageProps<"/do
                             <h2>{fmtDate(`${day}T12:00:00+07:00`)}</h2>
                         </header>
                         <div className="yt-tablewrap">
-                            <table className="yt-table" style={{ tableLayout: "fixed" }}>
+                            <table className="yt-table hx-table">
                                 <tbody>
                                     {list.map((e) => (
                                         <tr key={`${e.kind}-${e.id}`}>
-                                            <td style={{ width: 120 }}>
+                                            <td className="hx-kind">
                                                 <Pill>{KIND[e.kind]}</Pill>
                                             </td>
                                             <td>
@@ -108,13 +108,18 @@ export default async function DoctorHistoryPage({ searchParams }: PageProps<"/do
                                                 ) : (
                                                     <b>{e.title}</b>
                                                 )}
+                                                {/* Dưới 768 px cột Võ sĩ và cột trạng thái ẩn đi, hiện gộp dưới tiêu đề. */}
+                                                <small className="yt-only-sm">
+                                                    {nameOf.get(e.fighterId) ?? "Võ sĩ"}
+                                                    {e.detail && <Pill tone={e.tone}>{e.detail}</Pill>}
+                                                </small>
                                             </td>
-                                            <td className="yt-hide-sm" style={{ width: "22%" }}>
+                                            <td className="yt-hide-sm hx-who">
                                                 <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>
                                                     {nameOf.get(e.fighterId) ?? "Võ sĩ"}
                                                 </Link>
                                             </td>
-                                            <td style={{ width: "22%" }}>{e.detail && <Pill tone={e.tone}>{e.detail}</Pill>}</td>
+                                            <td className="hx-detail">{e.detail && <Pill tone={e.tone}>{e.detail}</Pill>}</td>
                                         </tr>
                                     ))}
                                 </tbody>

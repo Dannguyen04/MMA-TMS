@@ -47,29 +47,28 @@ export function ObservationSummary({ alert, source, href, headingLevel = 3, clas
                 <AlertStatusBadge status={alert.status} size="sm" />
             </div>
 
-            <dl className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-lg bg-ai-soft/40 px-3 py-2.5 text-[13px] ring-1 ring-inset ring-ai-border/60">
-                <div className="min-w-0">
+            {/* A <dl> may only hold <dt>/<dd> groups, each in at most one <div>: the groups sit directly in the list and wrap. */}
+            <dl className="flex flex-wrap gap-x-4 gap-y-1 rounded-lg bg-ai-soft/40 px-3 py-2.5 text-[13px] text-fg-muted ring-1 ring-inset ring-ai-border/60">
+                <div className="mb-1 min-w-0 basis-full">
                     <dt className="text-fg-muted">{alert.metric.label}</dt>
                     <dd className="font-medium text-fg">{describeMetricComparison(alert.metric)}</dd>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-fg-muted">
-                    <div>
-                        <dt className="sr-only">Vùng cơ thể</dt>
-                        <dd>{BODY_REGION_LABELS[alert.bodyRegion]}</dd>
-                    </div>
-                    <div>
-                        <dt className="sr-only">Phát hiện</dt>
-                        <dd>
-                            Phát hiện <time dateTime={alert.detectedAt}>{formatDate(alert.detectedAt)}</time>
-                        </dd>
-                    </div>
-                    {source && (
-                        <div>
-                            <dt className="sr-only">Video nguồn</dt>
-                            <dd>Video {TRAINING_TYPE_LABELS[source.trainingType].toLowerCase()}</dd>
-                        </div>
-                    )}
+                <div>
+                    <dt className="sr-only">Vùng cơ thể</dt>
+                    <dd>{BODY_REGION_LABELS[alert.bodyRegion]}</dd>
                 </div>
+                <div>
+                    <dt className="sr-only">Phát hiện</dt>
+                    <dd>
+                        Phát hiện <time dateTime={alert.detectedAt}>{formatDate(alert.detectedAt)}</time>
+                    </dd>
+                </div>
+                {source && (
+                    <div>
+                        <dt className="sr-only">Video nguồn</dt>
+                        <dd>Video {TRAINING_TYPE_LABELS[source.trainingType].toLowerCase()}</dd>
+                    </div>
+                )}
             </dl>
 
             {alert.doctorReview ? (

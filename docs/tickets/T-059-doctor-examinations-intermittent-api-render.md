@@ -24,3 +24,13 @@ Danh sách render ổn định ở cả hai viewport, hoặc hiện trạng thá
 - Tái hiện được hoặc ghi số lượt thử không tái hiện theo môi trường và viewport.
 - Khi tái hiện, lưu mã lỗi, endpoint và thời gian đã che định danh. Xác minh lại mà không tạo phiếu khám.
 
+## Điều tra 9/11
+
+- **Nguyên nhân khả dĩ (đọc code):** trang chờ một `Promise.all` gồm `listFighters` (`GET /doctors/:id/fighters`, rút hết các trang) và `listExaminations` (mỗi võ sĩ được giao một `GET /fighters/:id/medical-examinations`), tức N+1 request. Chỉ 403/404 được bỏ qua (`nullIfUnreadable` trong `medical.api.ts`); một 5xx, timeout 10 s (`API_TIMEOUT`), lỗi mạng hay phản hồi sai dạng ở **bất kỳ** request nào cũng ném lên `doctor/error.tsx` và hiện khung lỗi. Điều này khớp với kết quả lúc 200, lúc 500, lúc timeout.
+- **Tái hiện:** máy kiểm tra không có backend nên chưa chạy được API mode (0 lượt) và chưa có mã lỗi hay endpoint thật. Ở demo mode, `ui-smoke` render 200 ở cả 390 và 1440 px trong mọi lượt chạy ngày 9/11.
+- **Đã sửa (`src/app/(app)/doctor/examinations/page.tsx`):**
+  - `listFighters` được bọc `nullIfServiceFails`. Khi lỗi, trang vẫn hiện phiếu khám, chỉ ẩn tên và bộ lọc võ sĩ, kèm thông báo.
+  - Phiếu khám được đọc riêng cho từng võ sĩ, mỗi lượt bọc `nullIfServiceFails`. Võ sĩ nào lỗi thì chỉ thiếu phiếu của võ sĩ đó, và trang báo "Không đọc được phiếu khám của N võ sĩ". Nếu mọi lượt đều lỗi, panel hiện khung lỗi kèm nút Tải lại thay cho trạng thái rỗng; cả trang không sập.
+  - Không mở rộng quyền: phạm vi vẫn lấy từ `accessibleFighterIds`/`canAccessFighter`, không thêm endpoint, số request vẫn là N+1. Phiên hết hạn (401) vẫn ném lỗi như cũ.
+  - Test: `src/app/(app)/doctor/examinations/t059-partial-read.test.ts`, 6 ca (một võ sĩ lỗi, danh sách võ sĩ lỗi, mọi lượt lỗi, 401, lọc theo võ sĩ không được giao).
+- **Còn mở:** cần chạy lại trên API mode và đọc log server theo `digest` để biết request nào trả 500. Hướng bền hơn là backend có danh sách phiếu khám theo bác sĩ, để trang không phải gửi N request.

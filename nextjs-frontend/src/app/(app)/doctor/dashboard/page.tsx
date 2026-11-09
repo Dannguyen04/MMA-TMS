@@ -2,11 +2,13 @@ import { ArrowRight, Ban, ClipboardPlus, Clock, MessageSquareText, ShieldAlert, 
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { BODY_REGION, alertRatio, dayDiff, fmeta, fmtDate, injuryName, injuryPlace, todayLabel } from "@/components/doctor/labels";
+import { BODY_REGION, alertRatio, dayDiff, fmeta, fmtDate, injuryName, injuryPlace } from "@/components/doctor/labels";
 import { Gate, Panel, reasonsText } from "@/components/doctor/ui";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { INTL_LOCALE } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { loadDoctorBoard, type BoardRow, type Triage } from "@/lib/services/doctor-board";
 import { listRecoveryPlans } from "@/lib/services/medical";
@@ -17,21 +19,17 @@ export async function generateMetadata(): Promise<Metadata> {
     return { title: t("doctor.dashboard.title") };
 }
 
-const LANES: { key: Triage; title: string; sub: string; empty: string }[] = [
-    { key: "red", title: "Đỏ · Chặn", sub: "Chưa đủ điều kiện tập", empty: "Không ai bị chặn tập hôm nay." },
-    { key: "amber", title: "Vàng · Theo dõi", sub: "Tập được, có hạn chế hoặc việc mở", empty: "Không có võ sĩ cần theo dõi." },
-    { key: "green", title: "Xanh · Thông", sub: "Đủ điều kiện, không việc mở", empty: "Chưa có võ sĩ nào thông hoàn toàn. Khi một võ sĩ đủ điều kiện và không còn việc mở, thẻ sẽ chuyển sang đây." },
-];
+const LANES: Triage[] = ["red", "amber", "green"];
 const ICON = { review: MessageSquareText, expiry: ShieldAlert, followup: Clock, suspension: Ban } as const;
 
-function Tag({ r, i, lane }: { r: BoardRow; i: number; lane: number }) {
+function Tag({ r, i, lane, t }: { r: BoardRow; i: number; lane: number; t: Translator }) {
     const reasons = reasonsText(r.training);
     const isCompact = r.tag === "green" && reasons.length === 0 && r.items.length === 0 && r.summary.activeInjuries.length === 0;
     const meta = fmeta(r.fighter);
     const gates = (r.training || r.competition) && (
         <span className="td-gates">
-            <Gate label="Tập luyện" e={r.training} />
-            <Gate label="Thi đấu" e={r.competition} />
+            <Gate label={t("screens.doctor.gate.training")} e={r.training} />
+            <Gate label={t("screens.doctor.gate.competition")} e={r.competition} />
         </span>
     );
     return (
@@ -54,7 +52,7 @@ function Tag({ r, i, lane }: { r: BoardRow; i: number; lane: number }) {
                             return (
                                 <li key={x.kind + k} data-k={x.kind}>
                                     <I aria-hidden />
-                                    {x.kind === "review" ? `Yêu cầu xem xét: ${x.text}` : x.text}
+                                    {x.kind === "review" ? t("screens.doctor.dashboard.reviewItem", { text: x.text }) : x.text}
                                 </li>
                             );
                         })}
@@ -76,7 +74,7 @@ function Tag({ r, i, lane }: { r: BoardRow; i: number; lane: number }) {
  * đỏ khi chưa đủ điều kiện tập, vàng khi có giới hạn, chấn thương hoặc việc mở, còn lại xanh.
  */
 export default async function DoctorDashboardPage() {
-    const { t } = await getTranslator();
+    const { t, locale } = await getTranslator();
     const user = await requireRole("doctor");
     const scope = accessibleFighterIds(user);
     const [board, plans] = await Promise.all([loadDoctorBoard(user), listRecoveryPlans({ fighterIds: scope, status: "active" })]);
@@ -94,14 +92,15 @@ export default async function DoctorDashboardPage() {
     for (const r of rows) {
         for (const x of r.items) {
             if (x.kind !== "review") {
-                const label =
+                const label = t(
                     x.kind === "expiry"
-                        ? "Giấy phép hết hạn"
+                        ? "screens.doctor.event.expiry"
                         : x.kind === "followup"
-                          ? "Tái khám"
+                          ? "screens.doctor.event.followup"
                           : x.graded
-                            ? "Hết lộ trình tập lại"
-                            : "Hết đình chỉ";
+                            ? "screens.doctor.event.gradedReturnEnds"
+                            : "screens.doctor.event.suspensionEnds",
+                );
                 put(x.date, x.kind, r.fighter.id, label);
             }
         }
@@ -110,9 +109,14 @@ export default async function DoctorDashboardPage() {
         for (const m of p.milestones ?? []) if (!m.isCompleted) put(m.targetDate, "milestone", p.fighterId, m.title);
         for (const ph of p.phases) if (ph.status !== "completed") put(ph.endDate, "milestone", p.fighterId, ph.name);
     }
-    const wd = new Intl.DateTimeFormat("vi-VN", { weekday: "short", timeZone: "Asia/Ho_Chi_Minh" });
-    const dd = new Intl.DateTimeFormat("vi-VN", { day: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
+    const wd = new Intl.DateTimeFormat(INTL_LOCALE[locale], { weekday: "short", timeZone: "Asia/Ho_Chi_Minh" });
+    const dd = new Intl.DateTimeFormat(INTL_LOCALE[locale], { day: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
+    // Như todayLabel của labels.ts (thứ, dd/mm/yyyy, viết hoa chữ đầu) nhưng theo ngôn ngữ người xem.
+    const today = new Intl.DateTimeFormat(INTL_LOCALE[locale], { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }).format(new Date(now));
+    const todayText = today.charAt(0).toUpperCase() + today.slice(1);
     const recent = board.alerts.slice(0, 3);
+    const blockedText = plural(t, "screens.doctor.dashboard.urgent.blocked", blocked.length);
+    const reviewsText = plural(t, "screens.doctor.dashboard.urgent.reviews", reviewCount);
     const showAi = medicalFeatureAvailable("aiObservations");
 
     return (
@@ -121,14 +125,14 @@ export default async function DoctorDashboardPage() {
                 <div className="yt-head-main">
                     <h1>{t("doctor.dashboard.title")}</h1>
                     <p className="yt-head-sub">
-                        {todayLabel(now)} · {rows.length} võ sĩ được giao
+                        {todayText} · {plural(t, "screens.doctor.assignedCount", rows.length)}
                     </p>
                 </div>
-                <ol className="td-tally" aria-label="Số võ sĩ theo màu thẻ">
+                <ol className="td-tally" aria-label={t("screens.doctor.dashboard.tally")}>
                     {LANES.map((l, i) => (
-                        <li key={l.key} data-tag={l.key} style={{ ["--i" as string]: i }}>
-                            <b>{rows.filter((r) => r.tag === l.key).length}</b>
-                            {l.title.split(" · ")[1]}
+                        <li key={l} data-tag={l} style={{ ["--i" as string]: i }}>
+                            <b>{rows.filter((r) => r.tag === l).length}</b>
+                            {t(`screens.doctor.lane.${l}.word`)}
                         </li>
                     ))}
                 </ol>
@@ -136,11 +140,11 @@ export default async function DoctorDashboardPage() {
             <div className="yt-head-actions">
                 <Link href={routes.doctor.newExamination} className="yt-btn" data-v="primary">
                     <ClipboardPlus aria-hidden />
-                    Tạo phiếu khám
+                    {t("screens.doctor.newExamination")}
                 </Link>
                 <Link href={routes.doctor.grantClearance} className="yt-btn">
                     <ShieldCheck aria-hidden />
-                    Cấp giấy phép
+                    {t("screens.doctor.issueClearance")}
                 </Link>
             </div>
             {(blocked.length > 0 || reviewCount > 0) && (
@@ -149,55 +153,56 @@ export default async function DoctorDashboardPage() {
                     <p>
                         {blocked.length > 0 && reviewCount > 0 && (
                             <>
-                                <b>{blocked.length} võ sĩ bị chặn tập</b> và <b>{reviewCount} yêu cầu xem xét</b> đang chờ. Xử lý thẻ đỏ trước buổi tập.
+                                <b>{blockedText}</b> {t("screens.doctor.dashboard.urgent.and")} <b>{reviewsText}</b> {t("screens.doctor.dashboard.urgent.waiting")}{" "}
+                                {t("screens.doctor.dashboard.urgent.handleRed")}
                             </>
                         )}
                         {blocked.length > 0 && reviewCount === 0 && (
                             <>
-                                <b>{blocked.length} võ sĩ bị chặn tập</b>. Xử lý thẻ đỏ trước buổi tập.
+                                <b>{blockedText}</b>. {t("screens.doctor.dashboard.urgent.handleRed")}
                             </>
                         )}
                         {blocked.length === 0 && reviewCount > 0 && (
                             <>
-                                <b>{reviewCount} yêu cầu xem xét</b> đang chờ.
+                                <b>{reviewsText}</b> {t("screens.doctor.dashboard.urgent.waiting")}
                             </>
                         )}
                     </p>
                     {reviewCount > 0 ? (
                         <Link href={routes.doctor.reviewRequests}>
-                            Mở yêu cầu <ArrowRight aria-hidden />
+                            {t("screens.doctor.dashboard.openRequests")} <ArrowRight aria-hidden />
                         </Link>
                     ) : (
                         <Link href="#ln-red">
-                            Xem thẻ đỏ <ArrowRight aria-hidden />
+                            {t("screens.doctor.dashboard.seeRed")} <ArrowRight aria-hidden />
                         </Link>
                     )}
                 </div>
             )}
             {rows.length === 0 ? (
                 <Panel>
-                    <p className="yt-muted">Bạn chưa được giao võ sĩ nào. Khi quản trị viên giao võ sĩ, thẻ phân loại sẽ hiện ở đây.</p>
+                    <p className="yt-muted">{t("screens.doctor.dashboard.noFighters")}</p>
                 </Panel>
             ) : (
                 <div className="td-lanes" data-shot="lanes">
                     {LANES.map((l, li) => {
-                        const rs = rows.filter((r) => r.tag === l.key);
+                        const rs = rows.filter((r) => r.tag === l);
                         return (
-                            <section key={l.key} className="td-lane" data-tag={l.key} aria-labelledby={`ln-${l.key}`}>
+                            <section key={l} className="td-lane" data-tag={l} aria-labelledby={`ln-${l}`}>
                                 <header>
-                                    <h2 id={`ln-${l.key}`}>{l.title}</h2>
-                                    <p>{l.sub}</p>
+                                    <h2 id={`ln-${l}`}>{t(`screens.doctor.lane.${l}.title`)}</h2>
+                                    <p>{t(`screens.doctor.lane.${l}.sub`)}</p>
                                 </header>
                                 {rs.length ? (
                                     <ol>
                                         {rs.map((r, i) => (
-                                            <Tag key={r.fighter.id} r={r} i={i} lane={li} />
+                                            <Tag key={r.fighter.id} r={r} i={i} lane={li} t={t} />
                                         ))}
                                     </ol>
                                 ) : (
                                     <p className="td-lane-empty">
-                                        <b>Trống</b>
-                                        {l.empty}
+                                        <b>{t("screens.doctor.dashboard.laneEmpty")}</b>
+                                        {t(`screens.doctor.lane.${l}.empty`)}
                                     </p>
                                 )}
                             </section>
@@ -207,11 +212,11 @@ export default async function DoctorDashboardPage() {
             )}
             <div className="td-below">
                 <Panel
-                    title="7 ngày tới"
+                    title={t("screens.doctor.dashboard.week")}
                     id="week"
                     aside={
                         <Link className="yt-go" href={routes.doctor.recovery}>
-                            Kế hoạch phục hồi <ArrowRight aria-hidden />
+                            {t("screens.doctor.dashboard.recoveryPlans")} <ArrowRight aria-hidden />
                         </Link>
                     }
                 >
@@ -219,10 +224,10 @@ export default async function DoctorDashboardPage() {
                         {days.map((d) => (
                             <li key={d.d} className="td-day" data-today={d.d === 0} data-empty={d.ev.length === 0 ? "true" : undefined}>
                                 <header>
-                                    <span>{d.d === 0 ? "Hôm nay" : wd.format(d.date)}</span>
+                                    <span>{d.d === 0 ? t("screens.doctor.today") : wd.format(d.date)}</span>
                                     <b>{dd.format(d.date)}</b>
                                 </header>
-                                {d.d === 0 && d.ev.length === 0 && <span className="td-day-empty">Không có lịch</span>}
+                                {d.d === 0 && d.ev.length === 0 && <span className="td-day-empty">{t("screens.doctor.dashboard.nothingToday")}</span>}
                                 {d.ev.map((e, i) => (
                                     <span key={i} className="td-ev" data-k={e.k} title={`${e.who} · ${e.text}`}>
                                         <b>{e.who}</b>
@@ -233,44 +238,44 @@ export default async function DoctorDashboardPage() {
                         ))}
                     </ol>
                     {days.every((d) => d.ev.length === 0) && (
-                        <p className="td-week-empty">Không có lịch trong 7 ngày tới</p>
+                        <p className="td-week-empty">{t("screens.doctor.dashboard.weekEmpty")}</p>
                     )}
                     <p className="td-weeklegend">
                         <span style={{ ["--k" as string]: "var(--blue)" }}>
                             <i />
-                            Tái khám
+                            {t("screens.doctor.event.followup")}
                         </span>
                         <span style={{ ["--k" as string]: "var(--amb)" }}>
                             <i />
-                            Giấy phép hết hạn
+                            {t("screens.doctor.event.expiry")}
                         </span>
                         <span style={{ ["--k" as string]: "var(--grn)" }}>
                             <i />
-                            Mốc phục hồi
+                            {t("screens.doctor.event.milestone")}
                         </span>
                         <span style={{ ["--k" as string]: "var(--red)" }}>
                             <i />
-                            Hết đình chỉ
+                            {t("screens.doctor.event.suspensionEnds")}
                         </span>
                     </p>
                 </Panel>
                 {showAi && (
                     <Panel
-                        title="Quan sát AI mới"
+                        title={t("screens.doctor.dashboard.aiTitle")}
                         id="ai"
                         aside={
                             <Link className="yt-go" href={routes.doctor.aiAlerts}>
-                                Tất cả <ArrowRight aria-hidden />
+                                {t("screens.doctor.all")} <ArrowRight aria-hidden />
                             </Link>
                         }
                     >
                         {!board.alertsAvailable ? (
-                            <p className="yt-muted">Chưa đọc được quan sát từ MMA Vision. Thử tải lại trang sau ít phút.</p>
+                            <p className="yt-muted">{t("screens.doctor.dashboard.aiUnavailable")}</p>
                         ) : recent.length ? (
                             <ul className="td-alerts">
                                 {recent.map((a) => {
                                     const ratio = alertRatio(a.metric);
-                                    const who = rows.find((r) => r.fighter.id === a.fighterId)?.fighter.name ?? "Võ sĩ chưa gán";
+                                    const who = rows.find((r) => r.fighter.id === a.fighterId)?.fighter.name ?? t("screens.doctor.dashboard.aiUnassigned");
                                     return (
                                         <li key={a.id}>
                                             <span className="td-rom" style={{ ["--r" as string]: ratio }} aria-hidden>
@@ -282,16 +287,14 @@ export default async function DoctorDashboardPage() {
                                                         {who} · {BODY_REGION[a.bodyRegion]}
                                                     </b>
                                                 </Link>
-                                                <small>
-                                                    Đạt {Math.round(ratio * 100)}% mức nền · {fmtDate(a.detectedAt)}
-                                                </small>
+                                                <small>{t("screens.doctor.dashboard.aiRatio", { pct: Math.round(ratio * 100), date: fmtDate(a.detectedAt) })}</small>
                                             </span>
                                         </li>
                                     );
                                 })}
                             </ul>
                         ) : (
-                            <p className="yt-muted">Không có cảnh báo mới từ MMA Vision.</p>
+                            <p className="yt-muted">{t("screens.doctor.dashboard.aiNone")}</p>
                         )}
                     </Panel>
                 )}

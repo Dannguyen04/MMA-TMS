@@ -8,6 +8,7 @@ import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-but
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import type { MedicalClearance } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -62,25 +63,33 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                             <li key={c.id} className="gp-card" data-tone={tone}>
                                 <header>
                                     <Link href={routes.doctor.fighter(c.fighterId)} className="yt-rowlink">
-                                        <b>{nameOf.get(c.fighterId) ?? "Võ sĩ"}</b>
+                                        <b>{nameOf.get(c.fighterId) ?? t("screens.doctor.fighterFallback")}</b>
                                     </Link>
                                     <Pill tone={tone}>{CLEARANCE_LEVEL[c.level]}</Pill>
                                 </header>
                                 <div className="gp-body">
                                     <div className="gp-meta">
                                         <p className="gp-status">
-                                            {c.status === "revoked" ? "Đã thu hồi" : c.status === "superseded" ? "Đã thay thế" : !live ? "Hết hạn" : c.validUntil ? `Còn ${dayDiff(c.validUntil, now)} ngày` : "Không thời hạn"}
+                                            {c.status === "revoked"
+                                                ? t("screens.doctor.clearance.revoked")
+                                                : c.status === "superseded"
+                                                  ? t("screens.doctor.clearance.superseded")
+                                                  : !live
+                                                    ? t("screens.doctor.clearance.expired")
+                                                    : c.validUntil
+                                                      ? plural(t, "screens.doctor.clearance.daysLeft", dayDiff(c.validUntil, now))
+                                                      : t("screens.doctor.noEndDate")}
                                         </p>
                                         {c.clearanceType && <p>{CLEARANCE_TYPE[c.clearanceType]}</p>}
                                     </div>
                                     <dl className="gp-dates">
                                         <div>
-                                            <dt>Từ ngày</dt>
+                                            <dt>{t("screens.doctor.clearance.from")}</dt>
                                             <dd>{fmtDate(c.issuedAt)}</dd>
                                         </div>
                                         <div>
-                                            <dt>Đến ngày</dt>
-                                            <dd>{c.validUntil ? fmtDate(c.validUntil) : "Không giới hạn"}</dd>
+                                            <dt>{t("screens.doctor.clearance.until")}</dt>
+                                            <dd>{c.validUntil ? fmtDate(c.validUntil) : t("screens.doctor.clearance.noLimit")}</dd>
                                         </div>
                                     </dl>
                                     {live && total > 0 && (
@@ -90,7 +99,7 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                                     )}
                                     {c.revokedReason && (
                                         <p className="gp-revoked">
-                                            <strong>Thu hồi {fmtDate(c.revokedAt)}</strong>
+                                            <strong>{t("screens.doctor.clearance.revokedOn", { date: fmtDate(c.revokedAt) })}</strong>
                                             {c.revokedReason}
                                         </p>
                                     )}
@@ -100,14 +109,14 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                                         <ul className="yt-chips">
                                             {regions.map((r) => (
                                                 <li key={r} data-tone="block">
-                                                    Tránh {BODY_REGION[r].toLowerCase()}
+                                                    {t("screens.doctor.avoid", { region: BODY_REGION[r].toLowerCase() })}
                                                 </li>
                                             ))}
                                         </ul>
                                     )}
                                     {live && c.level !== "not_cleared" && (
                                         <div>
-                                            <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? "võ sĩ"} emphasis="quiet" className="gp-revoke-action" />
+                                            <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? t("screens.doctor.fighterFallbackLower")} emphasis="quiet" className="gp-revoke-action" />
                                         </div>
                                     )}
                                 </div>
@@ -116,7 +125,7 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                     })}
                 </ol>
             ) : (
-                <Empty title="Không có giấy phép" />
+                <Empty title={t("screens.doctor.clearance.none")} />
             )}
         </section>
     );
@@ -125,17 +134,17 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
         <div className="yt-page gp-page">
             <PageHead
                 title={t("doctor.clearance.title")}
-                sub={`Cảnh báo khi còn ≤ ${warn} ngày theo cài đặt hệ thống`}
+                sub={t("screens.doctor.clearance.sub", { n: warn })}
                 actions={
                     <Link href={issueHref} className="yt-btn" data-v="primary">
                         <ShieldCheck aria-hidden />
-                        Cấp giấy phép
+                        {t("screens.doctor.issueClearance")}
                     </Link>
                 }
             />
             <FighterFilter base={routes.doctor.clearance} fighters={fighters} current={fighterId} />
             {missing.length > 0 && (
-                <Panel title={`Chưa có giấy phép hợp lệ · ${missing.length}`} id="thieu">
+                <Panel title={t("screens.doctor.clearance.missing", { n: missing.length })} id="thieu">
                     <ul className="hs-clr">
                         {missing.map((r) => (
                             <li key={r.fighter.id}>
@@ -144,7 +153,7 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                                 </Link>
                                 <small>
                                     <Link className="yt-go" href={`${routes.doctor.grantClearance}?fighter=${r.fighter.id}`}>
-                                        Cấp giấy phép
+                                        {t("screens.doctor.issueClearance")}
                                     </Link>
                                 </small>
                                 <Pill tone={CLEARANCE_STATE[r.state].tone}>{CLEARANCE_STATE[r.state].label}</Pill>
@@ -154,9 +163,9 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                 </Panel>
             )}
             <div className="gp-cols">
-                {col("Hiệu lực", "green", valid, "Đang dùng", ShieldCheck)}
-                {col("Sắp hết hạn", "amber", soon, `Còn ≤ ${warn} ngày`, Clock)}
-                {col("Thu hồi / hết hạn", "red", off, "Lưu trữ", Archive)}
+                {col(t("screens.doctor.clearance.col.valid"), "green", valid, t("screens.doctor.clearance.col.validNote"), ShieldCheck)}
+                {col(t("screens.doctor.clearance.col.soon"), "amber", soon, t("screens.doctor.clearance.col.soonNote", { n: warn }), Clock)}
+                {col(t("screens.doctor.clearance.col.off"), "red", off, t("screens.doctor.clearance.col.offNote"), Archive)}
             </div>
         </div>
     );

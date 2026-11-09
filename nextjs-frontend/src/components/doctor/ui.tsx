@@ -184,8 +184,8 @@ export function FighterFilter({ base, fighters, current, extra = {}, param = "fi
     );
 }
 
-/** Thông báo một lần sau khi lưu (tham số `?saved=`), thay cho toast tiếng Anh cũ. */
-export function Flash({ text, tone }: { text: string | null; tone?: "red" }) {
+/** Thông báo một lần sau khi lưu (tham số `?saved=`), thay cho toast tiếng Anh cũ; `amber` cho dữ liệu đọc thiếu. */
+export function Flash({ text, tone }: { text: string | null; tone?: "red" | "amber" }) {
     if (!text) return null;
     return (
         <p className="yt-flash" role="status" data-tone={tone}>
