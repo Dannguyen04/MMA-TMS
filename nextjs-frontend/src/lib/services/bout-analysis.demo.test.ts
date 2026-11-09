@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { BoutOutcome } from "@/lib/domain/bout";
 import type { User } from "@/lib/domain/types";
-import { getBoutReport, saveTacticReviews, upsertBoutRound } from "./bout-analysis.demo";
+import { getBoutAnalysisDetail, getBoutReport, saveTacticReviews, upsertBoutRound } from "./bout-analysis.demo";
 import { recordDemoResult, resetDemoCampStore } from "./bouts.demo";
 
 // Diego's seeded bout is weighed in and fights today, so demo mode can walk it to the report (T-041 R8).
@@ -120,5 +120,15 @@ describe("demo next-round plan (T-037 B)", () => {
         await expect(upsertBoutRound(BOUT, 3, { nextRoundPlan: plan }, coach)).resolves.toEqual({ ok: false, error: "BOUT_NEXT_ROUND_PLAN_LAST_ROUND" });
         await expect(upsertBoutRound(BOUT, 1, { nextRoundPlan: { focusTacticIds: ["nope"] } }, coach)).resolves.toEqual({ ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" });
         await expect(upsertBoutRound(BOUT, 1, { tacticMarks: { "r1-a1": "EFFECTIVE" } }, coach)).resolves.toEqual({ ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" });
+    });
+});
+
+describe("demo sample analysis (parity with API mode)", () => {
+    it("gives a bout with no analysis the sample on first read, once", async () => {
+        resetDemoCampStore(TODAY);
+        const first = await getBoutAnalysisDetail("b-kenji-pacific");
+        expect(first?.opponentAnalysis.tactics?.length).toBe(4);
+        const again = await getBoutAnalysisDetail("b-kenji-pacific");
+        expect(again?.opponentAnalysis.tactics?.map((t) => t.id)).toEqual(first?.opponentAnalysis.tactics?.map((t) => t.id));
     });
 });

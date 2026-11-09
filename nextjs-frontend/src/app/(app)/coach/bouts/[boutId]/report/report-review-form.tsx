@@ -9,6 +9,7 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import { saveTacticReviewsAction } from "@/lib/actions/bout-analysis";
 import { isPrefilled, reportedOutcome, TACTIC_REVIEW_NOTE_MAX, type ReportTactic } from "@/lib/domain/bout-report";
 import { tacticOutcomeSchema, type TacticOutcome } from "@/lib/domain/round-advice";
+import { useNotify } from "../../use-notify";
 
 const OUTCOME_TONE: Record<TacticOutcome, Tone> = { EFFECTIVE: "success", INEFFECTIVE: "danger", NOT_USED: "neutral" };
 
@@ -31,10 +32,27 @@ function RoundPips({ effective, ineffective, label }: { effective: number; ineff
     );
 }
 
-/** T-041 §2.1 item 3: every tactic with its round count and the coach's verdict, saved together. */
+/**
+ * T-041 §2.1 item 3: every tactic with its round count and the coach's verdict. Only the tactics the coach changed are
+ * sent, so the others keep "filled in by the app" until the coach has a different view of them.
+ */
 export function ReportReviewForm({ boutId, tactics }: { boutId: string; tactics: ReportTactic[] }) {
     const t = useT();
-    const form = useActionForm(saveTacticReviewsAction, { id: "tactic-review" });
+    const notify = useNotify();
+    const form = useActionForm(saveTacticReviewsAction, {
+        id: "tactic-review",
+        onSuccess: notify,
+        prepare(fd) {
+            const changed = tactics.filter(
+                (tactic) =>
+                    fd.get(`outcome_${tactic.id}`) !== (reportedOutcome(tactic) ?? "NOT_USED") ||
+                    String(fd.get(`note_${tactic.id}`) ?? "").trim() !== (tactic.review?.note ?? ""),
+            );
+            if (changed.length === 0) return { status: "error", message: t("boutAnalysis.report.review.nothingChanged") };
+            fd.delete("tacticId");
+            for (const tactic of changed) fd.append("tacticId", tactic.id);
+        },
+    });
 
     return (
         <form {...form.formProps} className="flex min-w-0 flex-col gap-4">

@@ -5,7 +5,7 @@ import { useState, useTransition, type ReactNode } from "react";
 
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
-import { Term, TermHint } from "@/components/domain/term-hint";
+import { glossaryEntry, Term, TermHint } from "@/components/domain/term-hint";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChoiceGroup } from "@/components/ui/choice-group";
@@ -19,7 +19,7 @@ import { appendSuggestion, SuggestionChips } from "@/components/ui/suggestion-ch
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { loadPlanCopy } from "@/lib/actions/training";
-import { GLOSSARY, type GlossaryTerm } from "@/lib/domain/glossary";
+import type { GlossaryTerm } from "@/lib/domain/glossary";
 import { planStatusLabel, techniqueLabel, trainingPhaseLabel } from "@/lib/domain/labels";
 import {
     PHASE_OBJECTIVE_SUGGESTIONS,
@@ -427,7 +427,7 @@ export function PlanCreateForm({
                                     options={phaseOptions}
                                     value={values.phase}
                                     onChange={(next) => set("phase", next)}
-                                    hint={GLOSSARY[PHASE_TERM[values.phase]].definition}
+                                    hint={glossaryEntry(PHASE_TERM[values.phase], locale).definition}
                                     error={error("phase")}
                                 />
 

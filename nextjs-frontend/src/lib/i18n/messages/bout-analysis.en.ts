@@ -308,6 +308,7 @@ export const enBoutAnalysis = {
     "boutAnalysis.report.review.saving": "Saving…",
     "boutAnalysis.report.review.saved": "Review saved.",
     "boutAnalysis.report.review.saveFailed": "Couldn't save the review.",
+    "boutAnalysis.report.review.nothingChanged": "Change a verdict or a note first.",
     "boutAnalysis.report.review.locked": "The review opens once the bout has a result.",
     "boutAnalysis.report.review.tacticGone": "A tactic is no longer in the analysis. Reload the page.",
     "boutAnalysis.report.review.noteTooLong": "Keep the note to {max} characters.",

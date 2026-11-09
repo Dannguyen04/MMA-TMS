@@ -310,6 +310,7 @@ export const viBoutAnalysis = {
     "boutAnalysis.report.review.saving": "Đang lưu…",
     "boutAnalysis.report.review.saved": "Đã lưu đánh giá.",
     "boutAnalysis.report.review.saveFailed": "Không lưu được đánh giá.",
+    "boutAnalysis.report.review.nothingChanged": "Hãy đổi một kết luận hoặc ghi chú trước.",
     "boutAnalysis.report.review.locked": "Chỉ đánh giá được sau khi trận có kết quả.",
     "boutAnalysis.report.review.tacticGone": "Một chiến thuật không còn trong phân tích. Tải lại trang.",
     "boutAnalysis.report.review.noteTooLong": "Ghi chú tối đa {max} ký tự.",

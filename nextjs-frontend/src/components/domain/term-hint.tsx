@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * The glossary entry in the viewer's language. Terms with `screens.shared.glossary.<term>.*` keys are translated;
  * the rest, and every term when `locale` is omitted, stay as the English glossary has them.
  */
-function glossaryEntry(term: GlossaryTerm, locale?: Locale): GlossaryEntry {
+export function glossaryEntry(term: GlossaryTerm, locale?: Locale): GlossaryEntry {
     const entry = GLOSSARY[term];
     const termKey = `screens.shared.glossary.${term}.term`;
     const definitionKey = `screens.shared.glossary.${term}.definition`;

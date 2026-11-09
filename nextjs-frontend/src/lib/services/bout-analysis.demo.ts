@@ -1,10 +1,12 @@
 import "server-only";
 
 import { buildBoutReport, type TacticReviewsInput } from "@/lib/domain/bout-report";
+import { SAMPLE_OPPONENT_ANALYSIS, sampleOpponentAnalysisWithSessions } from "@/lib/domain/opponent-analysis-seed";
 import {
     buildCornerCard,
     buildRoundAdvice,
     nextRoundPlanSchema,
+    opponentAnalysisSchema,
     type OpponentAnalysis,
     type RoundInput,
     type RoundRecord,
@@ -21,6 +23,7 @@ import type {
     UpsertBoutRoundResult,
 } from "./bout-analysis";
 import { demoCampStore, type DemoBoutRecord } from "./bouts.demo";
+import { listSessions } from "./training";
 
 function findBoutRecord(boutId: string): DemoBoutRecord | null {
     const bout = demoCampStore().bouts.find((b) => b.id === boutId);
@@ -38,10 +41,24 @@ function getRounds(bout: DemoBoutRecord): RoundRecord[] {
     return [...bout.boutRounds].sort((a, b) => a.roundNo - b.roundNo);
 }
 
+/**
+ * API mode gives a bout with no analysis the sample one on first read, linked to the fighter's two latest sessions
+ * (`seedSampleAnalysis` in bout-analysis.ts). Demo does the same, so a new bout has tactics in both modes. A bout
+ * past the stage that accepts an analysis keeps it empty; its corner card shows the sample read-only.
+ */
+async function seedSampleIfEmpty(bout: DemoBoutRecord): Promise<void> {
+    if ((bout.opponentAnalysis?.tactics?.length ?? 0) > 0) return;
+    if (bout.phase === "COMPLETED" || bout.phase === "CANCELLED") return;
+    const sessions = await listSessions({ fighterIds: [bout.fighterId], order: "desc" }).catch(() => []);
+    const ids = sessions.slice(0, 2).map((session) => session.id);
+    bout.opponentAnalysis = opponentAnalysisSchema.parse(ids.length > 0 ? sampleOpponentAnalysisWithSessions(ids) : SAMPLE_OPPONENT_ANALYSIS);
+}
+
 export async function getBoutAnalysisDetail(boutId: string): Promise<BoutAnalysisDetail | null> {
     const bout = findBoutRecord(boutId);
     if (!bout) return null;
 
+    await seedSampleIfEmpty(bout);
     const analysis = getAnalysis(bout);
     return {
         scheduledRounds: bout.scheduledRounds ?? null,
@@ -60,9 +77,12 @@ export async function getCornerCard(boutId: string): Promise<GetCornerCardResult
         return { ok: false, error: "BOUT_INVALID_TRANSITION" };
     }
 
+    await seedSampleIfEmpty(bout);
     const analysis = getAnalysis(bout);
     const rounds = getRounds(bout);
-    const card = buildCornerCard(analysis, rounds, bout.weighIn?.acuteLoss ?? null);
+    // Still empty (the bout is completed): the API shows the sample read-only.
+    const shown = (analysis.tactics?.length ?? 0) > 0 ? analysis : opponentAnalysisSchema.parse(SAMPLE_OPPONENT_ANALYSIS);
+    const card = buildCornerCard(shown, rounds, bout.weighIn?.acuteLoss ?? null);
     return { ok: true, card };
 }
 
