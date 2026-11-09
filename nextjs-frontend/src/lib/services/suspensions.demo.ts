@@ -21,9 +21,12 @@ import {
 } from "@/lib/domain/suspension-rules";
 import type {
     CompetitionRuleset,
+    LossOfConsciousness,
     ReadinessRow,
     Suspension,
     SuspensionCreation,
+    SuspensionIssuer,
+    SuspensionReason,
     User,
 } from "@/lib/domain/types";
 import { db, newId, nowIso } from "@/lib/mocks/db";
@@ -126,54 +129,88 @@ export async function createSuspension(
             ? blockedTypesForMaxTier(input.maxTier)
             : input.blockedSessionTypes ?? [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES];
 
-    const maxTier = maxAllowedTier(blockedSessionTypes);
+    const [created] = insertDemoSuspensions(
+        [
+            {
+                fighterId: input.fighterId,
+                boutId: null,
+                reason: input.reason,
+                startsOn,
+                endsOn,
+                lossOfConsciousness: input.lossOfConsciousness ?? null,
+                suggestedDays: null,
+                overrideReason: null,
+                blockedSessionTypes,
+                requiresClearance,
+                issuedBy: input.issuedBy,
+                issuerReference: input.issuerReference,
+            },
+        ],
+        actor.id,
+    );
+    return created;
+}
 
-    const suspensionId = newId("susp");
-    const created: Suspension = {
-        id: suspensionId,
-        fighterId: input.fighterId,
-        boutId: null,
-        reason: input.reason,
-        startsOn,
-        endsOn,
-        lossOfConsciousness: input.lossOfConsciousness ?? null,
-        suggestedDays: null,
-        overrideReason: null,
-        blockedSessionTypes,
-        maxAllowedTier: maxTier,
-        requiresClearance,
+/** One suspension as the service inserts it, whether entered by hand (`POST /suspensions`) or made by a bout's result. */
+export interface DemoSuspensionInsert {
+    fighterId: string;
+    boutId: string | null;
+    reason: SuspensionReason;
+    startsOn: string;
+    endsOn: string;
+    lossOfConsciousness: LossOfConsciousness | null;
+    suggestedDays: number | null;
+    overrideReason: string | null;
+    blockedSessionTypes: SessionType[];
+    requiresClearance: boolean;
+    issuedBy?: SuspensionIssuer;
+    issuerReference?: string | null;
+}
+
+/**
+ * Saves suspensions and applies what their creation does to the fighter's scheduled sessions and plans (R28), like
+ * the service's `SuspensionEffects.runOnCreated`. `POST /suspensions` saves one; a bout's result may save a knockout
+ * suspension and a mandatory rest together (`BoutsService.recordResult`), so both count as in force for the effects.
+ */
+export function insertDemoSuspensions(rows: DemoSuspensionInsert[], createdById: string, now = new Date()): SuspensionCreation[] {
+    const today = academyDateOf(now);
+    const at = now.toISOString();
+    const created: Suspension[] = rows.map((row) => ({
+        id: newId("susp"),
+        fighterId: row.fighterId,
+        boutId: row.boutId,
+        reason: row.reason,
+        startsOn: row.startsOn,
+        endsOn: row.endsOn,
+        lossOfConsciousness: row.lossOfConsciousness,
+        suggestedDays: row.suggestedDays,
+        overrideReason: row.overrideReason,
+        blockedSessionTypes: row.blockedSessionTypes,
+        maxAllowedTier: maxAllowedTier(row.blockedSessionTypes),
+        requiresClearance: row.requiresClearance,
         clearedAt: null,
         clearedById: null,
         clearanceNote: null,
-        createdById: actor.id,
-        createdAt: nowIso(),
-        updatedAt: nowIso(),
-        status: suspensionStatusOn({ startsOn, endsOn, requiresClearance, clearedAt: null }, today),
+        createdById,
+        createdAt: at,
+        updatedAt: at,
+        status: suspensionStatusOn({ startsOn: row.startsOn, endsOn: row.endsOn, requiresClearance: row.requiresClearance, clearedAt: null }, today),
         gradedReturn: null,
-        issuedBy: input.issuedBy ?? "CLUB",
-        issuerReference: input.issuedBy === "ORGANIZER" ? (input.issuerReference ?? null) : null,
+        issuedBy: row.issuedBy ?? "CLUB",
+        issuerReference: row.issuedBy === "ORGANIZER" ? (row.issuerReference ?? null) : null,
         earlyEndExaminationId: null,
         liftReference: null,
-    };
+    }));
 
-    const fighterSuspensions = db().suspensions.filter((s) => s.fighterId === input.fighterId);
-    const allSuspensions = [...fighterSuspensions, created];
+    const results = created.map((item) => {
+        const fighterSuspensions = [...db().suspensions, ...created].filter((s) => s.fighterId === item.fighterId);
+        // Auto-apply side effects to demo sessions and plans
+        const { affectedSessions, affectedPlans } = applySuspensionSideEffects(item, fighterSuspensions, db().trainingSessions, db().trainingPlans);
+        return { ...item, affectedSessions, affectedPlans };
+    });
 
-    // Auto-apply side effects to demo sessions and plans
-    const { affectedSessions, affectedPlans } = applySuspensionSideEffects(
-        created,
-        allSuspensions,
-        db().trainingSessions,
-        db().trainingPlans,
-    );
-
-    db().suspensions.push(created);
-
-    return {
-        ...created,
-        affectedSessions,
-        affectedPlans,
-    };
+    db().suspensions.push(...created);
+    return results;
 }
 
 export async function clearSuspension(

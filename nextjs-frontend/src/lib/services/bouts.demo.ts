@@ -41,28 +41,46 @@ import {
     type RequirementUpdate,
 } from "@/lib/domain/bout-rules";
 import { BOUT_PHASE_LABELS, CANCEL_REASON_LABELS, GATE1_REASON_LABELS } from "@/lib/domain/labels";
-import { blockingSuspensions, isSuspensionActive, suspensionEndsOn, type SuspensionDraft } from "@/lib/domain/bout-suspension-rules";
+import {
+    blockingSuspensions,
+    isSuspensionActive,
+    suggestSuspension,
+    suspensionDays,
+    suspensionReasonFor,
+    type SuspensionDraft,
+} from "@/lib/domain/bout-suspension-rules";
+import { DEFAULT_MANUAL_BLOCKED_SESSION_TYPES } from "@/lib/domain/intensity-tiers";
+import type { SessionType } from "@/lib/domain/medical-contract";
 import { wayOffCount } from "@/lib/domain/nutrition";
-import type { TrainingPlan, TrainingType } from "@/lib/domain/types";
+import { academyDateOf, deriveRequiresClearance, endsOnFor } from "@/lib/domain/suspension-rules";
+import { sessionTypeFor, TRAINING_TYPE_FOR } from "@/lib/domain/training-contract";
+import type { Suspension as StoredSuspension, TrainingPlan, TrainingType, User } from "@/lib/domain/types";
 import type { PlanAdherence } from "@/lib/domain/weight-chart";
 import { buildWeightTrack, type WeightTrack } from "@/lib/domain/weight-track";
 import type { WriteResult } from "@/lib/domain/write-result";
 import { academyWallClockToIso, addDaysToKey, dayKey, daysBetweenKeys, formatDate } from "@/lib/format";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
+import { ApiError } from "@/lib/api/client";
 import { AIBA_REFERENCE_ID, CUSTOM_RULESET_ID, mockRulesets, VMMAF_2021_ID } from "@/lib/mocks/rulesets";
 import { db } from "@/lib/mocks/db";
 import { TODAY_KEY } from "@/lib/mocks/time";
 import { round } from "@/lib/utils";
+import { clearSuspension as clearStoredSuspension, insertDemoSuspensions, type DemoSuspensionInsert } from "./suspensions.demo";
 
 /**
- * The demo's bouts, camp weights, plan answers and suspensions. One in-memory store per server process, seeded
- * relative to the academy day it is first read on; restart the dev server to reset it. Every rule comes from
+ * The demo's bouts, camp weights and plan answers. One in-memory store per server process, seeded relative to the
+ * academy day it is first read on; restart the dev server to reset it. Every rule comes from
  * `lib/domain/bout-rules.ts` and `bout-suspension-rules.ts`, the same functions the pages use.
+ *
+ * Suspensions live in one store, the T-030 one (`db().suspensions`, written through `suspensions.demo.ts`), as the
+ * API has one table: a bout's result saves its suspensions there, and the bout page, Gate 2 and the knockout history
+ * read them back from there. The Suspensions page, the readiness board and the fighter's card read the same rows, and
+ * clearing one there is seen everywhere.
  *
  * Seed (review 2, option a): Minh has no bout, so the coach creates one live. Kenji is red with a complete
  * checklist and can enter fight week; Aigerim is yellow; Emma is grey, and Gate 1 stops her fight week on a missing
  * "Chụp CT não" past the documents deadline (T-008a F3).
- * Linh is in fight week with weigh-in and bout today, for the official weigh-in and result. Diego has a
- * hand-entered suspension after a knockout in sparring.
+ * Linh is in fight week with weigh-in and bout today, for the official weigh-in and result.
  */
 
 export type DemoBoutRecord = CampBout & {
@@ -86,13 +104,17 @@ interface CampStore {
     bouts: DemoBoutRecord[];
     measurements: DemoMeasurement[];
     checkins: NutritionCheckin[];
-    suspensions: Suspension[];
     sequence: number;
 }
 
 export interface Actor {
     name: string;
+    /** The user's id, kept as `createdById` on the suspensions a write saves; the name stands in when absent. */
+    id?: string;
 }
+
+/** Refusals default to English, so tests and callers outside a request need no translator. */
+const english = createTranslator("en");
 
 export type CreateResult = { ok: true; boutId: string; warning: string | null } | { ok: false; message: string; fieldErrors?: Record<string, string> };
 
@@ -498,29 +520,7 @@ export function createCampStore(todayOn: string): CampStore {
         checkin("b-linh-saigon", day(-1), "ON_PLAN", null),
     ];
 
-    const suspensions: Suspension[] = [
-        {
-            id: "sus-diego-sparring",
-            fighterId: "f-diego-alvarez",
-            boutId: null,
-            reason: "KO",
-            startsOn: day(-6),
-            endsOn: suspensionEndsOn(day(-6), 30),
-            lossOfConsciousness: "UNDER_1_MIN",
-            suggestedDays: null,
-            overrideReason: null,
-            blockedSessionTypes: ["sparring", "grappling"],
-            requiresClearance: true,
-            clearedAt: null,
-            clearedBy: null,
-            clearanceNote: null,
-            createdBy: RAFAEL,
-            createdAt: academyWallClockToIso(day(-6), "19:10"),
-            note: "Bị knock-out khi đấu tập. Tập lại từng bước theo hướng dẫn của bác sĩ thể thao.",
-        },
-    ];
-
-    return { rulesets: mockRulesets.map(cloneRuleset), bouts, measurements, checkins, suspensions, sequence: 1 };
+    return { rulesets: mockRulesets.map(cloneRuleset), bouts, measurements, checkins, sequence: 1 };
 }
 
 function checkin(boutId: string, loggedOn: string, adherence: PlanAdherence, note: string | null): NutritionCheckin {
@@ -606,15 +606,50 @@ export function demoCheckinsFor(boutId: string): NutritionCheckin[] {
     return campCheckins(boutId).map((item) => ({ ...item }));
 }
 
+/** The fighters' suspensions from the one suspensions store, as the bout screens read them (like `listApiSuspensions`). */
 export function listDemoSuspensions(fighterIds: string[] | "all" = "all"): Suspension[] {
-    return demoCampStore()
+    return db()
         .suspensions.filter((item) => fighterIds === "all" || fighterIds.includes(item.fighterId))
-        .map(cloneSuspension);
+        .map(boutSuspension);
 }
 
 /** Gate 2: the suspensions that stop this fighter doing this kind of session on `day`. */
 export function demoBlockingSuspensions(fighterId: string, type: TrainingType, day: string): Suspension[] {
-    return blockingSuspensions(demoCampStore().suspensions, fighterId, type, day).map(cloneSuspension);
+    return blockingSuspensions(listDemoSuspensions([fighterId]), fighterId, type, day);
+}
+
+/**
+ * A stored suspension in the bouts vocabulary, the mapping `bouts.api.ts` gives `/suspensions` rows: interface training
+ * types, the length counted from day 1, and the people by name where the demo knows them.
+ */
+function boutSuspension(item: StoredSuspension): Suspension {
+    const name = (id: string) => db().users.find((user) => user.id === id)?.name ?? id;
+    return {
+        id: item.id,
+        fighterId: item.fighterId,
+        boutId: item.boutId,
+        reason: item.reason,
+        startsOn: item.startsOn,
+        endsOn: item.endsOn,
+        days: suspensionDays(item) + 1,
+        lossOfConsciousness: item.lossOfConsciousness,
+        suggestedDays: item.suggestedDays,
+        overrideReason: item.overrideReason,
+        blockedSessionTypes: [...new Set(item.blockedSessionTypes.map((type) => TRAINING_TYPE_FOR[type]))],
+        requiresClearance: item.requiresClearance,
+        clearedAt: item.clearedAt,
+        clearedBy: item.clearedById ? name(item.clearedById) : null,
+        clearanceNote: item.clearanceNote,
+        createdBy: name(item.createdById),
+        createdAt: item.createdAt,
+        note: null,
+    };
+}
+
+/** The service's session types for interface training types; with none left, the service's default for a manual suspension. */
+function sessionTypesOf(types: readonly TrainingType[]): SessionType[] {
+    const mapped = [...new Set(types.map(sessionTypeFor).filter((type): type is SessionType => type !== null))];
+    return mapped.length > 0 ? mapped : [...DEFAULT_MANUAL_BLOCKED_SESSION_TYPES];
 }
 
 /* ─── Weigh-ins and plan answers ──────────────────────────────────────────── */
@@ -742,7 +777,7 @@ export function createDemoBout(input: NewBout, actor: Actor, now = new Date()): 
 
     // F1: warn, but still create, when a suspension runs past the bout day.
     const bOn = boutOn(bout);
-    const blocking = camp.suspensions.find((item) => item.fighterId === input.fighterId && isSuspensionActive(item, bOn));
+    const blocking = listDemoSuspensions([input.fighterId]).find((item) => isSuspensionActive(item, bOn));
     const warning = blocking ? `${input.fighterName} is suspended until ${formatDate(blocking.endsOn)}, after the bout day.` : null;
     return { ok: true, boutId: id, warning };
 }
@@ -954,8 +989,23 @@ function demoAcuteLoss(bout: CampBout, officialKg: number) {
     return computeAcuteLoss(weights, officialKg, dayKey(bout.weighInAt), bout.acuteWindowDays, bout.acuteLossLimitPct);
 }
 
-/** F6: WEIGHED_IN → COMPLETED from the bout day; a mandatory rest from the ruleset follows every bout. */
-export function recordDemoResult(boutId: string, outcome: BoutOutcome, actor: Actor, now = new Date()): WriteResult {
+/**
+ * F6: WEIGHED_IN → COMPLETED from the bout day, saving in the same step the suspensions the result calls for (R27),
+ * as `BoutsService.recordResult` does: a KO loss or a head-strike TKO loss, a DQ loss when the ruleset has a DQ rule,
+ * and the ruleset's mandatory rest after every bout.
+ *
+ * `coachDays` is the suspension length the coach typed in the result form, null when left empty; the service's
+ * refusals then apply as in API mode, and a refusal saves nothing. Callers without a form (fixtures, other services'
+ * tests) leave it undefined: a knockout the ruleset gives no length for is then recorded without its suspension.
+ */
+export function recordDemoResult(
+    boutId: string,
+    outcome: BoutOutcome,
+    actor: Actor,
+    now = new Date(),
+    coachDays?: number | null,
+    t: Translator = english,
+): WriteResult {
     const camp = demoCampStore();
     const bout = findBout(boutId);
     if (!bout) return { ok: false, message: BOUT_GONE };
@@ -966,85 +1016,146 @@ export function recordDemoResult(boutId: string, outcome: BoutOutcome, actor: Ac
             message: check.reason === "BOUT_NOT_STARTED" ? `The result can be recorded from ${formatDate(bout.boutAt)}.` : "Record the official weigh-in first.",
         };
     }
+    const rules = camp.rulesets.find((item) => item.id === bout.rulesetId) ?? null;
+    const planned = resultSuspensions(bout, outcome, rules, coachDays, academyDateOf(now), t);
+    if (!planned.ok) return { ok: false, message: planned.message, fieldErrors: { suspensionDays: planned.message } };
+
     bout.outcome = outcome;
     if (bout.opponentAnalysis) {
         const reviewed = withAutoReviews(bout.opponentAnalysis, bout.boutRounds ?? []);
         if (reviewed !== bout.opponentAnalysis) bout.opponentAnalysis = { ...reviewed, updatedAt: now.toISOString() };
     }
     move(bout, "COMPLETED", actor, now);
-    const rules = camp.rulesets.find((item) => item.id === bout.rulesetId);
+    if (planned.rows.length > 0) insertDemoSuspensions(planned.rows, actor.id ?? actor.name, now);
+    return { ok: true };
+}
+
+type PlannedSuspensions = { ok: true; rows: DemoSuspensionInsert[] } | { ok: false; message: string };
+
+/**
+ * R27 as `suggestSuspensions` in the service works it out for a result: every suspension starts on the day the result
+ * is recorded, blocks the ruleset's default session types, and a knockout's needs clearance. The knockout's length is
+ * the ruleset's suggestion (the same `suggestSuspension` the bout page shows), which the coach's days must equal, or the
+ * coach's days when the ruleset suggests none.
+ */
+function resultSuspensions(
+    bout: CampBout,
+    outcome: BoutOutcome,
+    rules: CompetitionRuleset | null,
+    coachDays: number | null | undefined,
+    today: string,
+    t: Translator,
+): PlannedSuspensions {
+    const reason = suspensionReasonFor(outcome);
+    const knockout = reason === "KO" || reason === "TKO" ? reason : null;
+    // The service's BOUT_RESULT_INVALID (SUSPENSION_DAYS_NOT_ALLOWED), which the API mode words the same way.
+    if (!knockout && coachDays !== undefined && coachDays !== null) return { ok: false, message: t("boutMsg.api.resultInvalid") };
+
+    const base = {
+        fighterId: bout.fighterId,
+        boutId: bout.id,
+        startsOn: today,
+        overrideReason: null,
+        blockedSessionTypes: sessionTypesOf(rules?.defaultBlockedSessionTypes ?? []),
+    };
+    const rows: DemoSuspensionInsert[] = [];
+    if (knockout) {
+        const suggestion = rules
+            ? suggestSuspension(rules.suspensionRules, {
+                  reason: knockout,
+                  lossOfConsciousness: outcome.lossOfConsciousness,
+                  priorKnockoutStarts: demoKnockoutHistory(bout.fighterId),
+                  on: boutOn(bout),
+              })
+            : null;
+        const fromForm = coachDays !== undefined;
+        if (!suggestion && fromForm && coachDays === null) return { ok: false, message: t("boutMsg.api.suspensionDaysRequired") };
+        if (suggestion && fromForm && coachDays !== null && coachDays !== suggestion.days) {
+            return { ok: false, message: t("boutMsg.api.suspensionDaysDiffer", { days: suggestion.days }) };
+        }
+        const days = suggestion?.days ?? coachDays ?? null;
+        if (days !== null) {
+            rows.push({
+                ...base,
+                reason: knockout,
+                endsOn: endsOnFor(today, days),
+                lossOfConsciousness: outcome.lossOfConsciousness,
+                suggestedDays: suggestion?.days ?? null,
+                requiresClearance: true,
+            });
+        }
+    }
+    const dqDays = Math.max(0, ...(rules?.suspensionRules ?? []).filter((rule) => rule.reason?.includes("DQ")).map((rule) => rule.minDays));
+    if (reason === "DQ" && dqDays > 0) {
+        rows.push({ ...base, reason: "DQ", endsOn: endsOnFor(today, dqDays), lossOfConsciousness: null, suggestedDays: dqDays, requiresClearance: false });
+    }
     if (rules && rules.restDaysAfterBout > 0) {
-        const startsOn = boutOn(bout);
-        camp.suspensions.push({
-            id: `sus-${camp.sequence++}`,
-            fighterId: bout.fighterId,
-            boutId: bout.id,
+        rows.push({
+            ...base,
             reason: "MANDATORY_REST",
-            startsOn,
-            endsOn: suspensionEndsOn(startsOn, rules.restDaysAfterBout),
+            endsOn: endsOnFor(today, rules.restDaysAfterBout),
             lossOfConsciousness: null,
             suggestedDays: rules.restDaysAfterBout,
-            overrideReason: null,
-            blockedSessionTypes: [...rules.defaultBlockedSessionTypes],
             requiresClearance: false,
-            clearedAt: null,
-            clearedBy: null,
-            clearanceNote: null,
-            createdBy: actor.name,
-            createdAt: now.toISOString(),
-            note: null,
         });
     }
-    return { ok: true };
+    return { ok: true, rows };
 }
 
 /* ─── Suspensions (T-007) ─────────────────────────────────────────────────── */
 
+/**
+ * A suspension the coach confirms on the bout page (a DQ loss the ruleset has no rule for) or enters by hand, saved
+ * the way `createApiSuspension` sends it to `POST /suspensions`: the length counted from the start day as day 1, the
+ * clearance the reason requires, the ruleset's interface types as the service's session types. Unlike the API, which
+ * takes no bout, the demo keeps the bout on it, so the bout page sees it and refuses a second one.
+ */
 export function createDemoSuspension(fighterId: string, boutId: string | null, draft: SuspensionDraft, actor: Actor, now = new Date()): WriteResult {
-    const camp = demoCampStore();
+    let lossOfConsciousness: BoutOutcome["lossOfConsciousness"] = null;
     if (boutId) {
         const bout = findBout(boutId);
         if (!bout || bout.fighterId !== fighterId) return { ok: false, message: BOUT_GONE };
-        if (camp.suspensions.some((item) => item.boutId === boutId && item.reason !== "MANDATORY_REST")) {
+        if (db().suspensions.some((item) => item.boutId === boutId && item.reason !== "MANDATORY_REST")) {
             return { ok: false, message: "This bout already has a suspension." };
         }
+        lossOfConsciousness = bout.outcome?.lossOfConsciousness ?? null;
     }
-    camp.suspensions.push({
-        id: `sus-${camp.sequence++}`,
-        fighterId,
-        boutId,
-        reason: draft.reason,
-        startsOn: draft.startsOn,
-        endsOn: draft.endsOn,
-        lossOfConsciousness: boutId ? (findBout(boutId)?.outcome?.lossOfConsciousness ?? null) : null,
-        suggestedDays: draft.suggestedDays,
-        overrideReason: draft.overrideReason,
-        blockedSessionTypes: draft.blockedSessionTypes,
-        requiresClearance: draft.requiresClearance,
-        clearedAt: null,
-        clearedBy: null,
-        clearanceNote: null,
-        createdBy: actor.name,
-        createdAt: now.toISOString(),
-        note: draft.note,
-    });
+    const clearance = deriveRequiresClearance(draft.reason, draft.reason === "MEDICAL" || draft.reason === "OTHER" ? draft.requiresClearance : undefined);
+    insertDemoSuspensions(
+        [
+            {
+                fighterId,
+                boutId,
+                reason: draft.reason,
+                startsOn: draft.startsOn,
+                endsOn: endsOnFor(draft.startsOn, suspensionDays(draft)),
+                lossOfConsciousness,
+                suggestedDays: draft.suggestedDays,
+                overrideReason: draft.overrideReason,
+                blockedSessionTypes: sessionTypesOf(draft.blockedSessionTypes),
+                requiresClearance: clearance.ok ? clearance.requiresClearance : draft.requiresClearance,
+            },
+        ],
+        actor.id ?? actor.name,
+        now,
+    );
     return { ok: true };
 }
 
-export function clearDemoSuspension(id: string, note: string, actor: Actor, now = new Date()): WriteResult {
-    const suspension = demoCampStore().suspensions.find((item) => item.id === id);
-    if (!suspension) return { ok: false, message: "That suspension no longer exists." };
-    if (suspension.clearedAt) return { ok: false, message: "This suspension needs no clearance." };
-    if (note.trim().length < 3 || note.trim().length > 500) return { ok: false, message: "A clearance note of 3–500 characters is required." };
-    suspension.clearedAt = now.toISOString();
-    suspension.clearedBy = actor.name;
-    suspension.clearanceNote = note;
-    return { ok: true };
+/** Clearing goes through the suspensions store's own rule (T-049: only once it awaits clearance), as `/clear` does. */
+export async function clearDemoSuspension(id: string, note: string, actor: User): Promise<WriteResult> {
+    try {
+        await clearStoredSuspension(id, note, actor);
+        return { ok: true };
+    } catch (error) {
+        if (error instanceof ApiError) return { ok: false, message: error.message };
+        throw error;
+    }
 }
 
-/** Start days of the fighter's earlier KO/TKO suspensions, for the next suggestion. */
+/** Start days of the fighter's earlier KO/TKO suspensions, hand-entered ones included, for the next suggestion. */
 export function demoKnockoutHistory(fighterId: string): string[] {
-    return demoCampStore()
+    return db()
         .suspensions.filter((item) => item.fighterId === fighterId && (item.reason === "KO" || item.reason === "TKO"))
         .map((item) => item.startsOn);
 }
@@ -1072,10 +1183,6 @@ function cloneRuleset(item: CompetitionRuleset): CompetitionRuleset {
         suspensionRules: item.suspensionRules.map((rule) => ({ ...rule })),
         defaultBlockedSessionTypes: [...item.defaultBlockedSessionTypes],
     };
-}
-
-function cloneSuspension(item: Suspension): Suspension {
-    return { ...item, blockedSessionTypes: [...item.blockedSessionTypes] };
 }
 
 function cloneBout(bout: DemoBoutRecord): DemoBoutRecord {

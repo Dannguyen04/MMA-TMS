@@ -26,8 +26,9 @@ vi.mock("@/lib/i18n/server", async () => {
 });
 
 import { addDaysToKey, dayKey } from "@/lib/format";
-import { getDemoBout, listDemoBouts, recordDemoResult, recordDemoWeighIn, resetDemoCampStore } from "@/lib/services/bouts.demo";
-import { createBoutAction, createSuspensionAction, enterFightWeekAction, recordWeighInAction, updateRequirementAction } from "./bouts";
+import { db } from "@/lib/mocks/db";
+import { getDemoBout, listDemoBouts, recordDemoWeighIn, resetDemoCampStore } from "@/lib/services/bouts.demo";
+import { createBoutAction, createSuspensionAction, enterFightWeekAction, recordResultAction, recordWeighInAction, updateRequirementAction } from "./bouts";
 import { IDLE } from "./state";
 
 function rafael(fighterIds = ROSTER): User {
@@ -76,6 +77,8 @@ describe("bout actions in demo mode", () => {
         coach.current = rafael();
         navigation.redirect.mockClear();
         resetDemoCampStore();
+        // Results save their suspensions in the suspensions store; start it from its seed too.
+        delete (globalThis as Record<string, unknown>).__mmaMockDb;
     });
 
     it("refuses a bout that starts before its weigh-in, at the bout field, and saves nothing", async () => {
@@ -132,21 +135,37 @@ describe("bout actions in demo mode", () => {
         expect(getDemoBout("b-linh-saigon")).toMatchObject({ phase: "WEIGHED_IN", catchweightKg: 60.5 });
     });
 
-    it("works out the suggested suspension itself and asks why the days changed", async () => {
-        const now = new Date();
-        recordDemoWeighIn("b-linh-saigon", { weightKg: 59.8, hydrationCheck: null, decision: null, catchweightKg: null, note: null }, { name: "Rafael Costa" }, now);
-        recordDemoResult(
-            "b-linh-saigon",
-            { result: "LOSS", method: "KO", round: 2, knockedDown: true, lossOfConsciousness: "NONE", stoppedByHeadStrikes: null, injuryNote: null, notes: null, recordedAt: now.toISOString() },
-            { name: "Rafael Costa" },
-            now,
-        );
-        const fields = { boutId: "b-linh-saigon", reason: "KO", startsOn: today(), days: "45", overrideReason: "", note: "" };
-        const data = form(fields);
-        data.append("blockedSessionTypes", "sparring");
-        // AIBA suggests 30 days for a first KO: 45 needs a reason.
-        await expect(createSuspensionAction(IDLE, data)).resolves.toMatchObject({ status: "error", fieldErrors: { overrideReason: "Say why this differs from the 30 days the ruleset suggests." } });
-        data.set("days", "30");
-        await expect(createSuspensionAction(IDLE, data)).resolves.toMatchObject({ status: "success" });
+    it("takes a knockout's suspension days in the result form and saves the suspension with the result, as API mode does", async () => {
+        const koLoss = { boutId: "bout-weighed-in", result: "LOSS", method: "KO", round: "2", lossOfConsciousness: "UNDER_1_MIN" };
+        // VMMAF 2021 suggests no length, so the days are required, at the field; the bout stays weighed in.
+        await expect(recordResultAction(IDLE, form({ ...koLoss, suspensionDays: "" }))).resolves.toMatchObject({
+            status: "error",
+            message: "This bout's ruleset suggests no suspension length. Enter the days the event rules set, then save again.",
+            fieldErrors: { suspensionDays: expect.any(String) },
+        });
+        expect(getDemoBout("bout-weighed-in")?.phase).toBe("WEIGHED_IN");
+
+        await expect(recordResultAction(IDLE, form({ ...koLoss, suspensionDays: "30" }))).resolves.toMatchObject({ status: "success" });
+        expect(getDemoBout("bout-weighed-in")?.phase).toBe("COMPLETED");
+        const saved = db().suspensions.filter((item) => item.boutId === "bout-weighed-in");
+        expect(saved).toEqual([expect.objectContaining({ reason: "KO", startsOn: today(), endsOn: addDaysToKey(today(), 29), requiresClearance: true, status: "ACTIVE" })]);
+
+        // The bout page has nothing left to confirm: a second suspension for the bout is refused.
+        const confirm = form({ boutId: "bout-weighed-in", reason: "KO", startsOn: today(), days: "30", overrideReason: "", note: "" });
+        confirm.append("blockedSessionTypes", "sparring");
+        await expect(createSuspensionAction(IDLE, confirm)).resolves.toMatchObject({ status: "error", message: "This bout already has a suspension." });
+        expect(db().suspensions.filter((item) => item.boutId === "bout-weighed-in")).toHaveLength(1);
+    });
+
+    it("refuses days that differ from the ruleset's suggestion, and uses the suggestion when they are left empty", async () => {
+        recordDemoWeighIn("b-linh-saigon", { weightKg: 59.8, hydrationCheck: null, decision: null, catchweightKg: null, note: null }, { name: "Rafael Costa" }, new Date());
+        // AIBA: Linh's KO five weeks ago makes this her second within 90 days.
+        const koLoss = { boutId: "b-linh-saigon", result: "LOSS", method: "KO", round: "2", lossOfConsciousness: "NONE" };
+        await expect(recordResultAction(IDLE, form({ ...koLoss, suspensionDays: "45" }))).resolves.toMatchObject({
+            status: "error",
+            fieldErrors: { suspensionDays: "This bout's ruleset suggests 90 days of suspension. Leave the days empty to use them, or enter 90." },
+        });
+        await expect(recordResultAction(IDLE, form({ ...koLoss, suspensionDays: "" }))).resolves.toMatchObject({ status: "success" });
+        expect(db().suspensions.filter((item) => item.boutId === "b-linh-saigon")).toEqual([expect.objectContaining({ reason: "KO", suggestedDays: 90 })]);
     });
 });

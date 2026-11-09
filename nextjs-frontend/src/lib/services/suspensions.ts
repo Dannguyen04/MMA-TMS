@@ -332,12 +332,14 @@ export async function getReadiness(
 
 /**
  * Event names of the bouts suspensions point at. Demo mode reads the suspensions store's own bouts, the ones its
- * sample suspensions were made from (T-030 B); API mode asks the bouts service.
+ * sample suspensions were made from (T-030 B), and the camp's bouts, whose results save suspensions there too; API
+ * mode asks the bouts service.
  */
 export async function suspensionBoutNames(fighterIds: string[] | "all"): Promise<Map<string, string>> {
     if (isDemoAuthEnabled()) {
         const { db } = await import("@/lib/mocks/db");
-        return new Map(db().bouts.filter((bout) => fighterIds === "all" || fighterIds.includes(bout.fighterId)).map((bout) => [bout.id, bout.eventName]));
+        const samples = db().bouts.filter((bout) => fighterIds === "all" || fighterIds.includes(bout.fighterId));
+        return new Map([...samples.map((bout): [string, string] => [bout.id, bout.eventName]), ...(await listCampBouts(fighterIds)).map((bout): [string, string] => [bout.id, bout.event])]);
     }
     return new Map((await listCampBouts(fighterIds)).map((bout) => [bout.id, bout.event]));
 }

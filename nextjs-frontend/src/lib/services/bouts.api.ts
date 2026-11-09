@@ -137,6 +137,9 @@ function boutRefusal(error: ApiError, t: Translator, locale: Locale): string {
             return t("boutMsg.api.stateChanged");
         case "SUSPENSION_DAYS_REQUIRED":
             return t("boutMsg.api.suspensionDaysRequired");
+        case "SUSPENSION_OVERRIDE_REASON_REQUIRED":
+            // The service sends no suggested days with this refusal.
+            return t("boutMsg.api.suspensionDaysDifferFromRuleset");
         case "SUSPENSION_ALREADY_CLEARED":
             return t("boutMsg.api.suspensionAlreadyCleared");
         default:

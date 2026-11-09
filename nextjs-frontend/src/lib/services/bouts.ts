@@ -20,6 +20,7 @@ import type { WriteResult } from "@/lib/domain/write-result";
 import { addDaysToKey, dayKey, daysBetweenKeys } from "@/lib/format";
 import { nullIfServiceFails } from "./api-helpers";
 import type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
+import { getTranslator } from "@/lib/i18n/server";
 import { getFighter, getUser } from "./people";
 import { getPlan } from "./training";
 
@@ -28,8 +29,8 @@ export type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } f
 /**
  * Bouts, their camp weight and checklist, and suspensions (T-003, T-004, T-006, T-007). Demo mode runs on
  * `bouts.demo.ts`. API mode calls the T-003 and T-006 contracts through `bouts.api.ts`; until the backend serves
- * them, reads come back empty and writes say so instead of failing. Suspensions (T-007) have no contract yet and
- * stay demo-only.
+ * them, reads come back empty and writes say so instead of failing. Suspensions are read from the one suspensions
+ * store in both modes (`/suspensions`, or `db().suspensions` in demo mode), mapped to the bouts vocabulary.
  */
 
 export interface WeightAlert {
@@ -46,8 +47,8 @@ export const BOUTS_UNAVAILABLE = "Bouts are not available from the server yet.";
 
 const unavailable = (message = BOUTS_UNAVAILABLE): WriteResult => ({ ok: false, message });
 
-function actorOf(user: Pick<User, "name">) {
-    return { name: user.name };
+function actorOf(user: Pick<User, "id" | "name">) {
+    return { id: user.id, name: user.name };
 }
 
 const demo = () => import("./bouts.demo");
@@ -294,8 +295,16 @@ export async function recordWeighIn(boutId: string, entry: WeighInEntry, actor: 
     return (await api()).recordApiWeighIn(boutId, entry, recorded);
 }
 
+/**
+ * F6 and R27: the result, and the suspensions it calls for saved with it. `suspensionDays` is what the coach typed in
+ * the result form (null when empty); the service needs it when the ruleset suggests no length.
+ */
 export async function recordResult(boutId: string, outcome: BoutOutcome, actor: User, now = new Date(), suspensionDays: number | null = null): Promise<WriteResult> {
-    if (isDemoAuthEnabled()) return (await demo()).recordDemoResult(boutId, outcome, actorOf(actor), now);
+    if (isDemoAuthEnabled()) {
+        // The demo words its refusals in the viewer's language, as `bouts.api.ts` does the service's.
+        const t = (await getTranslator().catch(() => null))?.t;
+        return (await demo()).recordDemoResult(boutId, outcome, actorOf(actor), now, suspensionDays, t);
+    }
     return (await api()).recordApiResult(boutId, outcome, suspensionDays);
 }
 
@@ -306,8 +315,8 @@ export async function createSuspension(fighterId: string, boutId: string | null,
     return (await api()).createApiSuspension(fighterId, draft, bout?.outcome?.lossOfConsciousness ?? null);
 }
 
-export async function clearSuspension(id: string, note: string, actor: User, now = new Date()): Promise<WriteResult> {
-    if (isDemoAuthEnabled()) return (await demo()).clearDemoSuspension(id, note, actorOf(actor), now);
+export async function clearSuspension(id: string, note: string, actor: User): Promise<WriteResult> {
+    if (isDemoAuthEnabled()) return (await demo()).clearDemoSuspension(id, note, actor);
     return (await api()).clearApiSuspension(id, note);
 }
 

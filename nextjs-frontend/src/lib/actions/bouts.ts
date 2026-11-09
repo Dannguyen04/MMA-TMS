@@ -476,9 +476,12 @@ export async function recordResultAction(_prev: ActionState, formData: FormData)
         }
     }
     const result = await recordResult(found.bout.id, outcome.value, found.user, new Date(), suspensionDays);
-    if (!result.ok) return actionError(serviceMessage(result.message, t));
+    if (!result.ok) return actionError(serviceMessage(result.message, t), result.fieldErrors);
+    // The suspensions saved with the result reach the readiness board, sessions and plans (R28).
     revalidateBout(found.bout);
     revalidatePath(routes.coach.sessions);
+    revalidatePath(routes.coach.readiness);
+    revalidatePath(routes.coach.plans);
     return actionSuccess(t("boutMsg.action.resultRecorded"));
 }
 

@@ -120,6 +120,8 @@ export const viBoutMessages = {
     "boutMsg.api.resultInvalid": "Hệ thống không nhận kết quả này. Kiểm tra lại các ô rồi thử lại.",
     "boutMsg.api.stateChanged": "Trận vừa chuyển trạng thái. Tải lại trang.",
     "boutMsg.api.suspensionDaysRequired": "Bộ luật thi đấu của trận này không gợi ý số ngày đình chỉ. Nhập số ngày đình chỉ theo điều lệ giải rồi lưu lại.",
+    "boutMsg.api.suspensionDaysDiffer": "Bộ luật thi đấu của trận này gợi ý đình chỉ {days} ngày. Để trống ô số ngày để dùng số này, hoặc nhập {days}.",
+    "boutMsg.api.suspensionDaysDifferFromRuleset": "Bộ luật thi đấu gợi ý số ngày khác. Để trống ô số ngày để dùng số gợi ý.",
     "boutMsg.api.suspensionAlreadyCleared": "Võ sĩ đã được cho tập lại trước đó. Tải lại trang.",
     "boutMsg.api.missedOnService": "Đã lưu buổi cân là trượt. Chọn catchweight hoặc huỷ trận.",
     "boutMsg.action.catchweightNote": "Ghi lại điều đã thỏa thuận, ví dụ bị trừ tiền thù lao.",
