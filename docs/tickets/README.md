@@ -111,3 +111,4 @@ Chủ dự án giao Claude gộp các nhánh UI và làm các ticket còn mở c
 | Khu bác sĩ | Đồng nhất UI với app: APPROVED ([review](./DOCTOR-UI-REVIEW.md)) |
 | T-050 | Migration 033 chưa có trên Supabase dù bảng ghi đã áp. Claude áp ngày 9/11 theo yêu cầu của chủ dự án |
 | T-009 B1, B3 | Đã gộp vào release |
+| [T-062](./T-062-persistence-spec-off-shared-db.md) | READY, Dan. Spec backend ghi rác vào Supabase mỗi lần chạy `pnpm test`. Ngày 9/11 đã xoá 984 tài khoản `@test.invalid` (chủ dự án đồng ý). Tới khi xong ticket: không chạy test backend khi có `.env` |
