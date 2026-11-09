@@ -517,11 +517,12 @@ const steps = [
                     () => visible(page.locator(`form#round-form-${roundNo}`).getByRole("button", { name: t("boutAnalysis.rounds.updateRound", { roundNo }), exact: true })),
                     { what: `saving round ${roundNo}` },
                 );
-                // The card holds the round title and badge (header) beside the form (content).
+                // The card holds the round title and badge (header) beside the form (content). Match the title as a
+                // heading: tactics planned for a round carry a badge with the same words inside the form.
                 const card = page
                     .locator("div")
                     .filter({ has: page.locator(`form#round-form-${roundNo}`) })
-                    .filter({ has: page.getByText(t("boutAnalysis.rounds.roundTitle", { roundNo }), { exact: true }) })
+                    .filter({ has: page.getByRole("heading", { name: t("boutAnalysis.rounds.roundTitle", { roundNo }), exact: true }) })
                     .last();
                 await expectText(card.getByText(t("boutAnalysis.rounds.recordedBadge"), { exact: true }), `the "${t("boutAnalysis.rounds.recordedBadge")}" badge on round ${roundNo}`);
             }
