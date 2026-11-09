@@ -27,17 +27,26 @@ Mở `http://localhost:3100/login`.
 
 Cổng 3100 để khỏi đụng server demo (3000). Nếu 3100 đang bận, tắt process đó rồi chạy lại.
 
-### 3. Quay lại demo mode (không dùng cho kịch bản này)
+### 3. Phương án dự phòng: demo mode, không cần backend
 
-Tắt frontend 3100, rồi:
+Nếu backend hoặc Supabase có sự cố khi trình bày: tắt frontend 3100, rồi chạy
 
 ```powershell
 cd nextjs-frontend
-$env:APP_DATA_MODE='demo'
+$env:APP_DATA_MODE='demo'; $env:NEXT_PUBLIC_VIDEO_PIPELINE='mock'
 corepack pnpm dev
 ```
 
-Mở `http://localhost:3000`. Không cần backend.
+Mở `http://localhost:3000`, đăng nhập bằng nút "Rafael Costa". Phải đặt `NEXT_PUBLIC_VIDEO_PIPELINE=mock`: `.env.local` đang để `api`, nên khi backend tắt thì các màn video sẽ báo lỗi. Ở demo mode, luồng này đã đạt UAT 3/3 ngày 9/11. Riêng bước C4, dùng Diego Alvarez (TKO, đang chờ xác nhận).
+
+### Run-sheet sáng 10/11
+
+1. `git pull` nhánh `release/final-review`, rồi `corepack pnpm install`.
+2. **Không** chạy `next build` khi `next dev` đang chạy trong cùng thư mục: build xoá `.next` và server dev sẽ crash.
+3. Bật backend (mục 1), đợi `/health` trả 200, rồi bật frontend 3100 (mục 2).
+4. Đăng nhập Rafael Costa. Mở **Đình chỉ** để chắc trang tải được (migration 033 đã áp 9/11) và **Aigerim Sadykova** đang ở **Chờ xác nhận** (để chiếu C4).
+5. Võ sĩ cho phần chính: **Minh Trần**, đang "Sẵn sàng". Kenji đã dùng cho lượt thử ngày 9/11, đang bị đình chỉ KO.
+6. Đặt giờ thi **sau giờ hiện tại** (ví dụ 22:00), cân 08:00 cùng ngày.
 
 **Tài khoản HLV**
 
