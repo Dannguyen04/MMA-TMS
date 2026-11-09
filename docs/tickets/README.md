@@ -96,3 +96,18 @@ Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, m
 | [T-032](./T-032-backend-json-schema-dto-fixes.md) | Hotfix: backend không khởi động được vì `Date` trong JSON Schema của Swagger (đình chỉ, T-007); trùng tên `AssignCoachDto` | Backend | Fon sửa (27/10), lỗi gốc của Ken | — | DONE. [APPROVED](./T-032-REVIEW.md), merge 27/10 (`62155cc`) |
 
 Thứ tự ưu tiên: T-021 và T-014, T-015, T-016, T-020, T-018, T-017, T-019, rồi T-022 đến T-024, T-025 cuối cùng.
+
+## Cập nhật 9/11: nhánh `release/final-review` (buổi review cuối 10/11)
+
+Chủ dự án giao Claude gộp các nhánh UI và làm các ticket còn mở của Fon. Nhánh `release/final-review` đã push; Dan merge vào `fight-camp` sau buổi review. Chi tiết: [RELEASE-FINAL-REVIEW.md](../RELEASE-FINAL-REVIEW.md), [UAT-FINAL-REVIEW.md](../UAT-FINAL-REVIEW.md).
+
+| Ticket | Trạng thái 9/11 |
+| --- | --- |
+| T-041 | Màn báo cáo sau trận: xong trên release (demo và API mode), đã kiểm ở API mode |
+| T-037 B | Khối "Hiệp sau" và chế độ ghi giữa hiệp: APPROVED ([review](./T-037B-REVIEW.md)) |
+| T-048 | Võ sĩ xem đình chỉ trên điện thoại: xong trên release |
+| T-058, T-060, T-061 | Lệnh đọc phụ không còn làm sập trang. Mỗi ticket có mục "Điều tra 9/11". Còn phải kiểm với đăng nhập thật của võ sĩ, bác sĩ, admin |
+| T-059 | Trang phiếu khám vẫn hiện khi đọc dữ liệu bị lỗi một phần: xong |
+| Khu bác sĩ | Đồng nhất UI với app: APPROVED ([review](./DOCTOR-UI-REVIEW.md)) |
+| T-050 | Migration 033 chưa có trên Supabase dù bảng ghi đã áp. Claude áp ngày 9/11 theo yêu cầu của chủ dự án |
+| T-009 B1, B3 | Đã gộp vào release |
