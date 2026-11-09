@@ -11,6 +11,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "ui:smoke": "node scripts/ui-smoke.mjs",
+    "uat:demo": "node scripts/uat-demo.mjs",
     "test:e2e:real": "playwright test"
   },
   "dependencies": {
