@@ -43,10 +43,13 @@ Mở `http://localhost:3000`, đăng nhập bằng nút "Rafael Costa". Phải �
 
 1. `git pull` nhánh `release/final-review`, rồi `corepack pnpm install`.
 2. **Không** chạy `next build` khi `next dev` đang chạy trong cùng thư mục: build xoá `.next` và server dev sẽ crash.
-3. Bật backend (mục 1), đợi `/health` trả 200, rồi bật frontend 3100 (mục 2).
-4. Đăng nhập Rafael Costa. Mở **Đình chỉ** để chắc trang tải được (migration 033 đã áp 9/11) và **Aigerim Sadykova** đang ở **Chờ xác nhận** (để chiếu C4).
-5. Võ sĩ cho phần chính: **Minh Trần**, đang "Sẵn sàng". Kenji đã dùng cho lượt thử ngày 9/11, đang bị đình chỉ KO.
-6. Đặt giờ thi **sau giờ hiện tại** (ví dụ 22:00), cân 08:00 cùng ngày.
+3. **Đổi giữa demo mode và API mode thì xoá `nextjs-frontend/.next` trước khi bật lại** (`Remove-Item -Recurse -Force nextjs-frontend\.next`). `.next` cũ từng làm `/login` trả 404 ở API mode (9/11).
+4. **`DATABASE_URL` trong `nestjs-api/.env` phải dùng cổng `6543`** (pooler transaction mode), không dùng `5432`. Cổng 5432 là session mode, tối đa 15 kết nối cho cả team. Ngày 9/11 dashboard admin trả 500 với lỗi `max clients reached in session mode`. Máy chủ dự án đã đổi; máy nào khác dùng để demo cũng phải đổi.
+5. **Bật Redis** trước backend: `redis-server --port 6379` (máy chủ dự án đã cài). Thiếu Redis, thông báo và hàng đợi AI sẽ báo lỗi kết nối liên tục.
+6. Bật backend (mục 1), đợi `/health` trả 200, rồi bật frontend 3100 (mục 2). Lần đầu mở mỗi trang, Next dev phải biên dịch, có thể mất vài chục giây. Nên mở trước một lượt các màn sẽ chiếu.
+7. Đăng nhập Rafael Costa. Mở **Đình chỉ** để chắc trang tải được (migration 033 đã áp 9/11) và **Aigerim Sadykova** đang ở **Chờ xác nhận** (để chiếu C4).
+8. Võ sĩ cho phần chính: **Minh Trần**, đang "Sẵn sàng". Kenji đã dùng cho lượt thử ngày 9/11, đang bị đình chỉ KO.
+9. Đặt giờ thi **sau giờ hiện tại** (ví dụ 22:00), cân 08:00 cùng ngày.
 
 **Tài khoản HLV**
 
