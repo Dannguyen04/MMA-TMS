@@ -180,18 +180,30 @@ async function passwordFor(email) {
     return password;
 }
 
-/** API-mode email per demo name: the coach, the fighter (--fighter-email) and the doctor (--doctor-email). */
-function apiEmailFor(name) {
+const askedEmails = new Map();
+
+/** Asks once on the terminal for a role's account email (Enter skips that role). */
+async function askEmail(role) {
+    if (askedEmails.has(role)) return askedEmails.get(role);
+    const { createInterface } = await import("node:readline");
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    const answer = (await new Promise((resolve) => rl.question(`Email for the ${role} account (Enter to skip): `, resolve))).trim();
+    rl.close();
+    askedEmails.set(role, answer || null);
+    return answer || null;
+}
+
+/** API-mode email per demo name: --email, --fighter-email, --doctor-email, --admin-email, or asked on the terminal. */
+async function apiEmailFor(name) {
     if (name === COACH) return args.email;
-    if (name === DOCTOR) return args["doctor-email"];
-    if (name === ADMIN) return args["admin-email"];
-    return args["fighter-email"];
+    const role = name === DOCTOR ? "doctor" : name === ADMIN ? "admin" : "fighter";
+    return args[`${role}-email`] ?? (process.stdin.isTTY ? askEmail(role) : null);
 }
 
 async function signIn(page, name) {
     await page.goto(`${base}/login`, { waitUntil: "load" });
     if (apiMode) {
-        const email = apiEmailFor(name);
+        const email = await apiEmailFor(name);
         if (!email) return false;
         const password = await passwordFor(email);
         if (!password) throw new Error(`API mode needs the password for ${email}.`);
