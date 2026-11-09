@@ -164,15 +164,15 @@ Hai nút **Ghi hiệp** và **Thẻ góc đài** chỉ hiện từ lúc **Đã c
 
 ### B1. Ghi hiệp 1
 
-Mở **Ghi hiệp**.
+Mở **Ghi hiệp**. Màn chỉ mở **hiệp đang ghi** (lúc đầu là hiệp 1, nhãn **Đang ghi**); các hiệp sau chỉ là một dòng **Chưa tới**. Mặc định hiệp đang ghi có 4 chạm: hai **chiến thuật đang dặn**, một **quan sát chính** và **HLV tự chấm hiệp**.
 
-1. Tự chấm: chọn **Thua hiệp** (hoặc tương đương trên UI).
-2. Knockdown: `0`.
-3. Có thể bật **Mệt**.
-4. Đánh dấu vài quan sát / chiến thuật nếu có (không bắt buộc).
-5. Lưu. Phải hiện badge đã ghi và **gợi ý cho hiệp sau**.
+1. Chiến thuật thứ nhất: **Hiệu quả**; chiến thuật thứ hai: **Không hiệu quả**.
+2. Tự chấm: chọn **Thua hiệp**.
+3. Bấm **Ghi thêm** để mở tình trạng võ sĩ, knockdown, các chiến thuật và quan sát khác, ghi chú. Bật **Mệt**, knockdown `0`.
+4. Bấm **Lưu hiệp 1**. Hiệp 1 thu gọn thành một dòng (Đã lưu · Thua hiệp · 0 knockdown · Mệt · số đánh dấu). Phía trên hiện **lời dặn giữa hiệp** và khối **Hiệp 2: làm gì**; hiệp 2 thành hiệp đang ghi.
+5. Ghi hiệp 2 giống vậy (cùng hai chiến thuật; nếu chiến thuật không nằm trong 2 chạm mặc định thì tìm trong **Ghi thêm**).
 
-Sửa lại thì bấm **Cập nhật hiệp 1**, không tạo hiệp mới.
+Sửa lại thì bấm **Sửa hiệp 1** trên dòng tóm tắt rồi **Cập nhật hiệp 1**, không tạo hiệp mới.
 
 **Hay sai:** mở trang này khi trận chưa cân → báo chưa ghi được. Tạo trận không có số hiệp → báo “chưa được thiết lập số hiệp dự kiến”.
 

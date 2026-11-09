@@ -118,10 +118,10 @@ export function RoundReplay({ data, fighter, opponent }: RoundReplayProps) {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="secondary" size="icon" aria-label={t("figure3d.replay.restart")} title={t("figure3d.replay.restart")} onClick={() => seek(0)} disabled={step === 0 && !playing}>
+                    <Button variant="secondary" size="icon" className="min-h-11 min-w-11" aria-label={t("figure3d.replay.restart")} title={t("figure3d.replay.restart")} onClick={() => seek(0)} disabled={step === 0 && !playing}>
                         <RotateCcw aria-hidden />
                     </Button>
-                    <Button onClick={playing ? pause : play} className="min-w-28">
+                    <Button onClick={playing ? pause : play} className="min-h-11 min-w-28">
                         {playing ? <Pause aria-hidden /> : <Play aria-hidden />}
                         {playing ? t("figure3d.replay.pause") : done ? t("figure3d.replay.again") : step === 0 ? t("figure3d.replay.play") : t("figure3d.replay.resume")}
                     </Button>

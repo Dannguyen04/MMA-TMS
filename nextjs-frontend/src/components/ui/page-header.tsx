@@ -22,7 +22,7 @@ export function PageHeader({ title, description, eyebrow, back, actions, meta, c
             {back && (
                 <Link
                     href={back.href}
-                    className="-ml-1 inline-flex w-fit items-center gap-1 rounded-md px-1 py-0.5 text-sm text-fg-muted hover:text-fg"
+                    className="-my-2.5 -ml-1 inline-flex min-h-11 w-fit items-center gap-1 rounded-md px-1 text-sm text-fg-muted hover:text-fg"
                 >
                     <ChevronLeft aria-hidden className="size-4" />
                     {back.label}

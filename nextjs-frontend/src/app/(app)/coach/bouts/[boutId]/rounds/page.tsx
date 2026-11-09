@@ -86,12 +86,12 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
                 actions={
                     <>
                         {bout.phase === "COMPLETED" && (
-                            <ButtonLink href={`${routes.coach.bout(bout.id)}/report`}>
+                            <ButtonLink href={`${routes.coach.bout(bout.id)}/report`} className="min-h-11">
                                 <Trophy aria-hidden />
                                 {t("boutAnalysis.nav.report")}
                             </ButtonLink>
                         )}
-                        <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary">
+                        <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary" className="min-h-11">
                             <FileText aria-hidden />
                             {t("boutAnalysis.nav.cornerCard")}
                         </ButtonLink>

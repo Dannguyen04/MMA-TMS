@@ -132,6 +132,7 @@ export function NextRoundPlanForm({
                         disabled={!custom.trim() && instructionCount >= MAX_INSTRUCTIONS}
                         placeholder={t("boutAnalysis.nextRound.customPlaceholder")}
                         onChange={(event) => setCustom(event.target.value)}
+                        className="min-h-11"
                     />
                 </Field>
             </fieldset>
@@ -178,6 +179,7 @@ export function NextRoundPlanForm({
                                     value={tactic.text}
                                     maxLength={NEXT_ROUND_TEXT_MAX}
                                     placeholder={t("boutAnalysis.nextRound.addedTacticPlaceholder")}
+                                    className="min-h-11"
                                     onChange={(event) =>
                                         setAdded((prev) => prev.map((x, i) => (i === index ? { ...x, text: event.target.value } : x)))
                                     }
@@ -186,6 +188,7 @@ export function NextRoundPlanForm({
                             <Button
                                 type="button"
                                 variant="ghost"
+                                className="min-h-11 min-w-11"
                                 aria-label={t("boutAnalysis.nextRound.removeTactic")}
                                 onClick={() => {
                                     setAdded((prev) => prev.filter((_, i) => i !== index));

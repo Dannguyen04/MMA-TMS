@@ -316,6 +316,41 @@ async function selectByText(select, pattern, what) {
     return option;
 }
 
+/**
+ * The rounds screen on a 390 px phone (T-037 B): no sideways scroll and no tap target in main under 44 px. Notes how
+ * many screens the "Hiệp sau" block and the open round take, and saves a screenshot when --shots is given.
+ */
+async function phoneCheck(page, when, name) {
+    const size = page.viewportSize();
+    await page.setViewportSize({ width: 390, height: 844 });
+    try {
+        await page.waitForTimeout(400);
+        const m = await page.evaluate(() => {
+            const main = document.querySelector("main");
+            const targets = [...main.querySelectorAll('button, a[href], input:not([type="hidden"]), select, textarea, [role="button"]')];
+            const small = targets
+                .filter((node) => {
+                    const box = node.getBoundingClientRect();
+                    return box.width > 0 && box.height > 0 && box.height < 44;
+                })
+                .map((node) => `${node.tagName.toLowerCase()} "${(node.innerText || node.getAttribute("aria-label") || node.getAttribute("name") || "").trim().slice(0, 40)}" ${Math.round(node.getBoundingClientRect().height)}px`);
+            const forms = [...document.querySelectorAll('form[id^="round-form-"]')].filter((form) => form.getClientRects().length > 0);
+            const open = forms.find((form) => !form.closest('[id$="-edit"]'));
+            const plan = document.querySelector('form[id^="next-round-"]');
+            const tops = [plan, open].filter(Boolean).map((node) => node.getBoundingClientRect().top);
+            const top = tops.length > 0 ? Math.min(...tops) : 0;
+            const bottom = open ? open.getBoundingClientRect().bottom : top;
+            return { scrollWidth: document.documentElement.scrollWidth, small, screens: (bottom - top) / window.innerHeight };
+        });
+        observe(`390 px ${when}: "Hiệp sau" + open round span ${m.screens.toFixed(2)} screens; ${m.small.length} tap targets under 44 px; page width ${m.scrollWidth}px`);
+        if (shotsDir) await shoot(page, join(shotsDir, `${name}.png`));
+        if (m.scrollWidth > 390) throw new AppProblem(`390 px ${when}: the page scrolls sideways (${m.scrollWidth}px wide)`);
+        if (m.small.length > 0) throw new AppProblem(`390 px ${when}: tap targets under 44 px in main: ${m.small.slice(0, 8).join("; ")}`);
+    } finally {
+        if (size) await page.setViewportSize(size);
+    }
+}
+
 /* ─── Steps ───────────────────────────────────────────────────────────────── */
 
 const page = await newPage({ width: 1440, height: 900 });
@@ -519,41 +554,58 @@ const steps = [
         needs: ["A5", "A6"],
         async run() {
             await open(page, `${boutPath()}/rounds`);
+            await phoneCheck(page, "before recording", "B1-390-before");
             for (const roundNo of [1, 2]) {
+                // Between-round mode (T-037 B): only the round being recorded is open, with four taps by default.
                 const form = page.locator(`form#round-form-${roundNo}`);
-                await expectText(form, `the round ${roundNo} card (form#round-form-${roundNo})`);
+                await expectText(form, `round ${roundNo} open for recording (form#round-form-${roundNo})`);
                 const press = async (button) => {
                     if ((await button.getAttribute("aria-pressed")) !== "true") await button.click();
                     if ((await button.getAttribute("aria-pressed")) !== "true") throw new AppProblem(`round ${roundNo}: "${await button.innerText()}" did not stay selected`);
                 };
-                await press(form.getByRole("button", { name: t("boutAnalysis.rounds.selfScore.LOSS"), exact: true }));
-                await form.locator('input[name="knockdownsAgainst"]').fill("0");
-                await press(form.getByRole("button", { name: t("boutAnalysis.rounds.fatigued"), exact: true }));
                 const effective = form.getByRole("button", { name: t("boutAnalysis.rounds.tacticMark.EFFECTIVE"), exact: true });
-                const ineffective = form.getByRole("button", { name: t("boutAnalysis.rounds.tacticMark.INEFFECTIVE"), exact: true });
-                if ((await effective.count()) < 2) throw new AppProblem(`round ${roundNo}: ${await effective.count()} tactics to mark, expected at least 2`);
-                await press(effective.nth(0));
-                await press(ineffective.nth(1));
+                const fatigued = form.getByRole("button", { name: t("boutAnalysis.rounds.fatigued"), exact: true });
+                const quick = await effective.count();
+                if (quick < 1 || quick > 2) throw new AppProblem(`round ${roundNo}: ${quick} tactics shown by default, expected 2`);
+                if (await visible(fatigued)) throw new AppProblem(`round ${roundNo}: "${t("boutAnalysis.rounds.fatigued")}" shows before "${t("boutAnalysis.rounds.recordMore")}"`);
+                await press(form.getByRole("button", { name: t("boutAnalysis.rounds.selfScore.LOSS"), exact: true }));
+                // Condition and knockdowns sit behind "Ghi thêm", which also lists the other tactics.
+                const more = form.getByRole("button", { name: t("boutAnalysis.rounds.recordMore") });
+                if ((await more.getAttribute("aria-expanded")) !== "true") await more.click();
+                await form.locator('input[name="knockdownsAgainst"]').fill("0");
+                await press(fatigued);
                 if (roundNo === 1) {
+                    // The first two tactics, as the default taps show them; round 2 marks the same two.
+                    if ((await effective.count()) < 2) throw new AppProblem(`round 1: ${await effective.count()} tactics to mark, expected at least 2`);
                     ctx.tactics = await form.evaluate((node, label) => {
                         const rows = [...node.querySelectorAll("button")].filter((button) => button.textContent.trim() === label).map((button) => button.closest("div.rounded-lg"));
-                        return rows.map((row) => row?.querySelector("p")?.textContent.trim() ?? "");
+                        return rows.slice(0, 2).map((row) => row?.querySelector("p")?.textContent.trim() ?? "");
                     }, t("boutAnalysis.rounds.tacticMark.EFFECTIVE"));
                 }
+                const row = (text) => form.locator("div.rounded-lg").filter({ has: page.locator("p").getByText(text, { exact: true }) }).last();
+                await press(row(ctx.tactics[0]).getByRole("button", { name: t("boutAnalysis.rounds.tacticMark.EFFECTIVE"), exact: true }));
+                await press(row(ctx.tactics[1]).getByRole("button", { name: t("boutAnalysis.rounds.tacticMark.INEFFECTIVE"), exact: true }));
+                // Saved, the round folds into one line under its heading: badge, "Thua hiệp", "Mệt" and an edit button.
+                const card = page.locator('[data-ui="card"]').filter({ has: page.getByRole("heading", { name: t("boutAnalysis.rounds.roundTitle", { roundNo }), exact: true }) });
+                const edit = card.getByRole("button", { name: t("boutAnalysis.rounds.editRound", { roundNo }), exact: true });
                 await settle(
                     page,
                     () => form.getByRole("button", { name: t("boutAnalysis.rounds.saveRound", { roundNo }), exact: true }).click(),
-                    () => visible(page.locator(`form#round-form-${roundNo}`).getByRole("button", { name: t("boutAnalysis.rounds.updateRound", { roundNo }), exact: true })),
+                    () => visible(edit),
                     { what: `saving round ${roundNo}` },
                 );
-                // The card holds the round title and badge (header) beside the form (content). Match the title as a
-                // heading: tactics planned for a round carry a badge with the same words inside the form.
-                const card = page
-                    .locator("div")
-                    .filter({ has: page.locator(`form#round-form-${roundNo}`) })
-                    .filter({ has: page.getByRole("heading", { name: t("boutAnalysis.rounds.roundTitle", { roundNo }), exact: true }) })
-                    .last();
                 await expectText(card.getByText(t("boutAnalysis.rounds.recordedBadge"), { exact: true }), `the "${t("boutAnalysis.rounds.recordedBadge")}" badge on round ${roundNo}`);
+                const summary = (await card.innerText()).replace(/\s+/g, " ");
+                for (const word of [t("boutAnalysis.rounds.selfScore.LOSS"), t("boutAnalysis.rounds.fatigued")]) {
+                    if (!summary.includes(word)) throw new AppProblem(`round ${roundNo}: the summary line lacks "${word}": "${summary.slice(0, 200)}"`);
+                }
+                if (roundNo === 1) {
+                    // Opening a recorded round shows its form again, saved with "Cập nhật hiệp 1".
+                    await edit.click();
+                    await expectText(card.getByRole("button", { name: t("boutAnalysis.rounds.updateRound", { roundNo }), exact: true }), `"${t("boutAnalysis.rounds.updateRound", { roundNo })}" after opening round 1`);
+                    await card.getByRole("button", { name: t("boutAnalysis.rounds.closeEdit"), exact: true }).click();
+                    await phoneCheck(page, "after round 1", "B1-390-round1");
+                }
             }
             if (ctx.tactics.filter(Boolean).length < 2) throw new AppProblem(`could not read the tactic texts: ${JSON.stringify(ctx.tactics)}`);
         },
