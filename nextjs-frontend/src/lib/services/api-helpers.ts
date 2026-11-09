@@ -103,10 +103,12 @@ function pageContents<T>(page: NumberedPage<T>): { items: T[]; total: number; ha
         : { items: page.items, total: page.total, hasNextPage: page.page * page.limit < page.total };
 }
 
+const PAGE_CONCURRENCY = 2;
+
 const paginationLimit = (limit: string) => new ApiError({ message: `Dịch vụ ${limit}.`, kind: "invalid_response", code: "PAGINATION_LIMIT_EXCEEDED" });
 
 /**
- * Reads every page of a `?page=&limit=` list endpoint: the first page gives the total, the rest are read together.
+ * Reads every page of a `?page=&limit=` list endpoint: the first page gives the total, the rest are read two at a time.
  * Bounded so a screen that needs the whole set fails loudly instead of silently truncating it.
  */
 export async function drainNumberedPages<T extends z.ZodType>(
@@ -124,6 +126,12 @@ export async function drainNumberedPages<T extends z.ZodType>(
     // The service may cap the page size below the one asked for; the first page shows the size it uses.
     const pageCount = Math.ceil(first.total / Math.max(first.items.length, 1));
     if (pageCount > MAX_PAGES) throw paginationLimit(`vượt giới hạn ${MAX_PAGES} trang`);
-    const rest = await Promise.all(Array.from({ length: pageCount - 1 }, (_, index) => read(index + 2)));
+    // At most PAGE_CONCURRENCY pages at once: a screen drains several lists together, and the backend's 10 database
+    // connections ran out when every page of a 553-account user list went at once (admin dashboard, 9/11).
+    const rest: Awaited<ReturnType<typeof read>>[] = [];
+    for (let page = 2; page <= pageCount; page += PAGE_CONCURRENCY) {
+        const batch = Array.from({ length: Math.min(PAGE_CONCURRENCY, pageCount - page + 1) }, (_, index) => read(page + index));
+        rest.push(...(await Promise.all(batch)));
+    }
     return [first, ...rest].flatMap((page) => page.items);
 }
