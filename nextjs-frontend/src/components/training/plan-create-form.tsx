@@ -104,13 +104,22 @@ const STEP_NAMES: Record<string, MessageKey> = {
 
 const PHASES: TrainingPhase[] = ["base", "build", "fight_camp", "taper", "rehab", "maintenance"];
 
-/** A template's card copy in the viewer's language; the template file keeps the English that fills the form. */
+/** A template's copy in the viewer's language: its card and the title, objective and notes it fills in. */
 function templateLabel(t: Translator, template: PlanTemplate): string {
     return t(`screens.training.template.${template.id}.label` as MessageKey);
 }
 
 function templateSummary(t: Translator, template: PlanTemplate): string {
     return t(`screens.training.template.${template.id}.summary` as MessageKey);
+}
+
+function templateText(t: Translator, template: PlanTemplate, field: "objective" | "notes"): string {
+    return t(`screens.training.template.${template.id}.${field}` as MessageKey);
+}
+
+/** The phase's objective chips in the viewer's language (`PHASE_OBJECTIVE_SUGGESTIONS` keeps the English). */
+function objectiveSuggestions(t: Translator, phase: TrainingPhase): string[] {
+    return PHASE_OBJECTIVE_SUGGESTIONS[phase].map((_, index) => t(`screens.training.objectiveSuggestion.${phase}.${index}` as MessageKey));
 }
 
 /** "Fight camp template", or "Template" when the template is gone. */
@@ -225,11 +234,11 @@ export function PlanCreateForm({
         applied(
             { kind: "template", id: template.id },
             {
-                title: template.label,
+                title: templateLabel(t, template),
                 phase: template.phase,
                 endDate: planEndKey(isDateKey(values.startDate) ? values.startDate : today, template.weeks),
-                objective: template.objective,
-                notes: template.notes,
+                objective: templateText(t, template, "objective"),
+                notes: templateText(t, template, "notes"),
             },
             draftsFromTemplate(template, library, t),
         );
@@ -525,7 +534,7 @@ export function PlanCreateForm({
                                     </Field>
                                     <SuggestionChips
                                         label={t("screens.training.planCreate.ideas")}
-                                        suggestions={PHASE_OBJECTIVE_SUGGESTIONS[values.phase].map((suggestion) => ({ label: suggestion }))}
+                                        suggestions={objectiveSuggestions(t, values.phase).map((suggestion) => ({ label: suggestion }))}
                                         onPick={(value) => set("objective", appendSuggestion(values.objective, value))}
                                     />
                                 </div>
