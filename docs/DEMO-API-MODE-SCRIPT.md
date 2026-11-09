@@ -230,11 +230,13 @@ API mode **không** hiện cảnh báo trên form xem trước. Chặn lúc lưu
 
 ### C4. Cho tập lại
 
-Vào lại **Đình chỉ** → **Cho tập lại**.
+**Không làm được trên Minh ngay sau trận.** Từ T-049, "Cho tập lại" chỉ mở khi đình chỉ **đã hết hạn và đang chờ xác nhận**. Đình chỉ KO 30 ngày vừa tạo vẫn đang chạy, nên API trả 409 `SUSPENSION_NOT_AWAITING_CLEARANCE`, và nút không hiện. Khi trình bày, nói rõ: "30 ngày sau, HLV hoặc bác sĩ xác nhận ở đây". Sau đó chiếu C4 trên một võ sĩ đang chờ xác nhận:
 
-Ghi chú bắt buộc, ví dụ: `Bác sĩ thần kinh cho phép, CT bình thường`.
+- **Chuẩn bị từ hôm trước (9/11):** tạo đình chỉ tay cho một võ sĩ phụ của Rafael: lý do **Y tế**, **1 ngày**, bắt đầu hôm nay, cần xác nhận. Sang ngày 10/11, võ sĩ đó ở trạng thái **Chờ xác nhận tập lại**, và thẻ Việc cần làm có nguồn này.
+- **Khi demo:** vào **Đình chỉ**, dòng đang chờ xác nhận → **Cho tập lại**. Ghi chú bắt buộc, ví dụ `Bác sĩ thần kinh cho phép, CT bình thường`. Lưu, phải thấy "Rafael Costa xác nhận được tập lại, …".
+- Sau KO/TKO, võ sĩ còn **tập lại theo bậc** (T-045, mỗi bậc tối thiểu 24 giờ). Đấu tập có thể vẫn bị chặn tới bậc cuối; không hứa "tạo lại buổi đấu tập là lưu được".
 
-Lưu. Phải thấy “Rafael Costa xác nhận được tập lại, …”. Minh về **Sẵn sàng**. Tạo lại buổi đấu tập lúc này thì lưu được.
+Ở demo mode, Diego Alvarez có sẵn một đình chỉ TKO đang chờ xác nhận.
 
 ## Nếu muốn chiếu thêm, không bắt buộc
 
