@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xem trước · Tạo phiếu khám</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Bản xem trước tĩnh, không phải code của app. Màu và font lấy đúng từ nextjs-frontend/src/app/globals.css. */
+:root {
+  --bg: #eef1f5; --surface: #ffffff; --surface-muted: #f2f4f8; --border: #d8dee7; --control-border: #7a8699;
+  --fg: #0e1a2b; --fg-muted: #4a5668; --fg-subtle: #5b6778;
+  --primary: #1846c4; --primary-hover: #133a9e; --primary-fg: #fff; --primary-soft: #e6ecfb; --primary-soft-fg: #173b9e; --ring: #3b6be0;
+  --corner-red: #c92637;
+  --success-soft: #e6f5eb; --success-fg: #176b34; --success-solid: #1a7a3d;
+  --warning-soft: #fcf2da; --warning-fg: #855600; --warning-solid: #c98200;
+  --danger-soft: #fce9ea; --danger-fg: #b0222c; --danger-solid: #cf2f3d; --danger-border: #f3c0c4;
+  --neutral-soft: #edf0f4; --neutral-fg: #4a5263;
+  --shadow-sm: 0 1px 2px rgba(14, 26, 43, .06);
+  --shadow-card: 0 1px 2px rgba(14, 26, 43, .05), 0 4px 14px -6px rgba(14, 26, 43, .10);
+  --body: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --disp: "Barlow Condensed", "Arial Narrow", sans-serif;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0d1626; --surface: #142036; --surface-muted: #18263f; --border: #243552; --control-border: #6b7c99;
+  --fg: #e9eef6; --fg-muted: #aab6ca; --fg-subtle: #8e9bb2;
+  --primary: #3a6be6; --primary-hover: #4d7cf0; --primary-soft: rgba(96, 140, 255, .16); --primary-soft-fg: #a9c1ff; --ring: #6e93f5;
+  --corner-red: #f05a67;
+  --success-soft: rgba(42, 165, 90, .14); --success-fg: #74d49c; --success-solid: #218049;
+  --warning-soft: rgba(224, 160, 30, .14); --warning-fg: #f0c263; --warning-solid: #c98a12;
+  --danger-soft: rgba(230, 70, 82, .15); --danger-fg: #ff8d95; --danger-solid: #d93a48; --danger-border: rgba(255, 141, 149, .3);
+  --neutral-soft: rgba(255, 255, 255, .06); --neutral-fg: #c3ccdb;
+  --shadow-sm: 0 1px 2px rgba(3, 7, 15, .45);
+  --shadow-card: 0 1px 2px rgba(3, 7, 15, .5), 0 6px 18px -8px rgba(3, 7, 15, .6);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); font-variant-numeric: tabular-nums; }
+::selection { background: var(--primary-soft); color: var(--primary-soft-fg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+svg { flex: none; }
+.ico { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+/* ---------- Khung app (rút gọn) ---------- */
+.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+.side { background: var(--surface); border-right: 1px solid var(--border); padding: 18px 14px; display: grid; align-content: start; gap: 4px; position: sticky; top: 0; height: 100vh; }
+.brand { font: italic 800 20px/1 var(--disp); padding: 4px 10px 18px; letter-spacing: .01em; }
+.brand small { display: block; font: 500 11px var(--body); color: var(--fg-muted); font-style: normal; margin-top: 3px; }
+.side h6 { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-subtle); padding: 14px 10px 6px; }
+.side a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; color: var(--fg-muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+.side a[aria-current] { background: var(--primary-soft); color: var(--primary-soft-fg); font-weight: 600; }
+.main { min-width: 0; padding: 22px 32px 64px; display: grid; gap: 22px; align-content: start; }
+
+/* ---------- Đầu hồ sơ (giữ nguyên như app) ---------- */
+.back { display: inline-flex; gap: 6px; align-items: center; color: var(--fg-muted); text-decoration: none; font-size: 14px; }
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.id { display: flex; gap: 20px; align-items: center; }
+.tag { width: 104px; height: 118px; border-radius: 14px; background: var(--danger-solid); color: #fff; display: grid; place-items: center; align-content: center; gap: 6px; box-shadow: var(--shadow-sm); position: relative; }
+.tag::before { content: ""; position: absolute; top: 10px; width: 13px; height: 13px; border-radius: 50%; background: var(--bg); }
+.tag b { font: 800 27px/.9 var(--disp); margin-top: 12px; }
+.tag small { font-size: 11.5px; font-weight: 600; }
+.id h1 { font: italic 800 38px/1.02 var(--disp); letter-spacing: -.005em; }
+.id p { color: var(--fg-muted); margin-top: 6px; }
+.gates { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; list-style: none; padding: 0; }
+.gates li { display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 10px; font-size: 13.5px; background: var(--danger-soft); color: var(--danger-fg); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; color: var(--fg); transition: background-color .15s, border-color .15s; }
+.btn:hover { border-color: var(--control-border); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); box-shadow: var(--shadow-sm); }
+.btn.primary:hover { background: var(--primary-hover); }
+.btn.pressed { background: var(--primary-soft); color: var(--primary-soft-fg); border-color: var(--primary); }
+.btn.sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--fg-muted); }
+.btn.ghost:hover { background: var(--neutral-soft); color: var(--fg); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+/* Thanh tab dính ở đầu vùng nội dung khi cuộn; nền đặc để nội dung trôi bên dưới không lộ qua. */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); overflow-x: auto; overflow-y: hidden; scrollbar-width: none; position: sticky; top: -1px; z-index: 5; background: var(--bg); margin: 0 -32px; padding: 5px 32px 0; }
+.tabs.stuck { box-shadow: 0 6px 12px -10px rgba(14, 26, 43, .35); }
+.tabs a { padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--fg-muted); text-decoration: none; border-bottom: 2.5px solid transparent; white-space: nowrap; }
+.tabs a[aria-current] { color: var(--fg); border-color: var(--corner-red); }
+
+/* ---------- Form mới ---------- */
+.ex-title h2 { font: 800 26px/1.15 var(--disp); }
+.ex-title p { color: var(--fg-muted); margin-top: 4px; max-width: 70ch; }
+.ex { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-card); }
+.sec { padding: 24px 28px 28px; display: grid; gap: 18px; scroll-margin-top: 64px; }
+.sec + .sec { border-top: 1px solid var(--border); }
+.sec-h { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.sec-h h3 { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.sec-h p { color: var(--fg-muted); font-size: 13.5px; margin-top: 2px; max-width: 62ch; }
+.count { font-size: 13px; font-weight: 600; color: var(--fg-muted); white-space: nowrap; padding-top: 2px; }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 20px; }
+.span2 { grid-column: span 2; }
+.field { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.field > label, .lbl { font-size: 14px; font-weight: 500; display: flex; gap: 4px; align-items: center; }
+.req { color: var(--danger-fg); }
+.hint { font-size: 13px; color: var(--fg-subtle); }
+.input, .select, .textarea { width: 100%; min-height: 42px; border: 1px solid var(--control-border); border-radius: 8px; background: var(--surface); padding: 9px 12px; }
+.input::placeholder, .textarea::placeholder { color: var(--fg-subtle); }
+.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--ring); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 25%, transparent); }
+.textarea { min-height: 88px; resize: vertical; }
+.unit { position: relative; }
+.unit .input { padding-right: 48px; }
+.unit span { position: absolute; right: 12px; top: 50%; translate: 0 -50%; font-size: 13px; color: var(--fg-subtle); pointer-events: none; }
+.bp { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+.bp i { color: var(--fg-subtle); font-style: normal; }
+.lbl .sub { font-size: 13px; font-weight: 400; color: var(--fg-subtle); margin-left: 4px; }
+.check { display: flex; gap: 6px; align-items: flex-start; font-size: 13px; color: var(--fg-subtle); }
+.check svg { width: 14px; height: 14px; margin-top: 3px; }
+.check.ok svg { color: var(--success-fg); }
+.check.warn { color: var(--warning-fg); font-weight: 600; }
+.input.warn { border-color: var(--warning-solid); }
+
+/* Dải tham chiếu lần khám trước: đặt ngay trên ô nhập sinh hiệu, nơi bác sĩ cần nó. */
+.prev { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px 16px; align-items: center; padding: 12px 14px; border-radius: 10px; background: var(--surface-muted); }
+.prev-t { font-size: 13px; color: var(--fg-muted); }
+.prev-t b { color: var(--fg); font-weight: 600; }
+.prev dl { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 4px; font-size: 13.5px; }
+.prev dt { color: var(--fg-subtle); }
+.prev dd { font-weight: 600; margin: 0 0 0 5px; }
+.prev dl div { display: flex; }
+
+/* Đánh giá: mỗi vùng một hàng, kết quả là nhóm nút liền. */
+.rows { display: grid; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+.row { display: grid; grid-template-columns: minmax(0, 1.1fr) auto minmax(0, 1.3fr) 32px; gap: 14px; align-items: center; padding: 10px 12px 10px 16px; }
+.row + .row { border-top: 1px solid var(--border); }
+.row-head { background: var(--surface-muted); font-size: 12px; font-weight: 600; color: var(--fg-muted); padding-top: 8px; padding-bottom: 8px; }
+.area { font-weight: 500; font-size: 14px; }
+.seg { display: inline-flex; border: 1px solid var(--control-border); border-radius: 8px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 6px 11px; font-size: 13px; font-weight: 500; color: var(--fg-muted); cursor: pointer; display: inline-flex; gap: 5px; align-items: center; }
+.seg button + button { border-left: 1px solid var(--border); }
+.seg button svg { width: 14px; height: 14px; }
+.seg button[aria-pressed="true"][data-r="normal"] { background: var(--success-soft); color: var(--success-fg); font-weight: 600; }
+.seg button[aria-pressed="true"][data-r="abnormal"] { background: var(--danger-soft); color: var(--danger-fg); font-weight: 600; }
+.seg button[aria-pressed="true"][data-r="unclear"] { background: var(--warning-soft); color: var(--warning-fg); font-weight: 600; }
+.row .input { min-height: 36px; padding: 6px 10px; font-size: 14px; }
+.row .input.need { border-color: var(--danger-solid); }
+.iconbtn { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; border: 0; background: transparent; color: var(--fg-subtle); cursor: pointer; }
+.iconbtn:hover { background: var(--neutral-soft); color: var(--fg); }
+.toolbar { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Kết luận: ba lựa chọn ngang hàng, mỗi lựa chọn nói rõ hệ quả. */
+.outcomes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.oc { display: grid; gap: 6px; align-content: start; padding: 14px 16px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; }
+.oc:hover { border-color: var(--control-border); }
+.oc b { display: flex; gap: 8px; align-items: center; font-size: 14.5px; }
+.oc small { font-size: 13px; color: var(--fg-muted); line-height: 1.45; }
+.oc[data-t="ok"] b svg { color: var(--success-fg); }
+.oc[data-t="lim"] b svg { color: var(--warning-fg); }
+.oc[data-t="no"] b svg { color: var(--danger-fg); }
+.oc[aria-pressed="true"][data-t="ok"] { border-color: var(--success-solid); background: var(--success-soft); }
+.oc[aria-pressed="true"][data-t="lim"] { border-color: var(--warning-solid); background: var(--warning-soft); }
+.oc[aria-pressed="true"][data-t="no"] { border-color: var(--danger-solid); background: var(--danger-soft); }
+.note { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; padding: 10px 12px; border-radius: 8px; background: var(--primary-soft); color: var(--primary-soft-fg); }
+.note svg { margin-top: 2px; }
+.picks { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.picks .input { width: 180px; }
+.chip { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--fg-muted); }
+.chip[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-soft-fg); font-weight: 600; }
+
+/* Cột tóm tắt: dính theo khi cuộn; nút lưu luôn trong tầm tay. */
+.rail { position: sticky; top: 68px; display: grid; gap: 0; }
+.rail-sec { padding: 18px 20px; }
+.rail-sec + .rail-sec { border-top: 1px solid var(--border); }
+.rail h4 { font-size: 13px; font-weight: 600; color: var(--fg-muted); margin-bottom: 10px; }
+.steps { list-style: none; padding: 0; display: grid; gap: 2px; }
+.steps a { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 10px; margin: 0 -10px; border-radius: 8px; color: var(--fg); text-decoration: none; font-size: 14px; font-weight: 500; }
+.steps a:hover { background: var(--surface-muted); }
+.steps small { font-size: 12.5px; color: var(--fg-subtle); font-weight: 500; }
+.steps [data-s="need"] small { color: var(--danger-fg); font-weight: 600; }
+.steps [data-s="done"] small { color: var(--success-fg); }
+
+/* Vòng tiến độ: hình quạt bên trong tô theo % của mục, luôn bắt đầu ở 12 giờ và đi ngược chiều kim đồng hồ (vẽ bằng path, không phụ thuộc cách trình duyệt xoay nét); đủ 100% thì tô kín, hiện dấu tick và nảy lên một lần. */
+.pie { display: grid; width: 20px; height: 20px; }
+.pie svg { width: 20px; height: 20px; overflow: visible; }
+.pie-ring { fill: none; stroke: var(--control-border); stroke-width: 1.5; transition: stroke .3s; }
+.pie-fill { fill: var(--primary); transition: fill .3s; }
+.pie-tick { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 12; stroke-dashoffset: 12; transition: stroke-dashoffset .3s .18s ease-out; }
+[data-s="need"] .pie-fill { fill: var(--danger-solid); }
+[data-s="need"] .pie-ring { stroke: var(--danger-solid); }
+[data-s="done"] .pie-ring { stroke: var(--success-solid); }
+[data-s="done"] .pie-fill { fill: var(--success-solid); }
+[data-s="done"] .pie-tick { stroke-dashoffset: 0; }
+.pie.pop { animation: pie-pop .55s cubic-bezier(.34, 1.56, .64, 1); }
+@keyframes pie-pop { 0% { transform: translateY(0) scale(1); } 40% { transform: translateY(-5px) scale(1.22); } 70% { transform: translateY(0) scale(.94); } 100% { transform: none; } }
+.bar { height: 6px; border-radius: 999px; background: var(--neutral-soft); overflow: hidden; margin: 2px 0 12px; }
+.bar i { display: block; height: 100%; width: 0; background: var(--primary); border-radius: inherit; transition: width .5s cubic-bezier(.16, 1, .3, 1); }
+.save { display: grid; gap: 10px; }
+.save .btn { width: 100%; }
+.save p { font-size: 13px; color: var(--fg-muted); }
+.after { font-size: 13px; color: var(--fg-muted); line-height: 1.5; }
+
+/* Thanh demo: tách khỏi form bằng viền nét đứt để không lẫn với dữ liệu thật. */
+.demo { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px 14px; align-items: center; padding: 12px 16px; border: 1px dashed color-mix(in oklab, var(--primary) 45%, var(--border)); border-radius: 12px; background: color-mix(in oklab, var(--primary-soft) 55%, transparent); }
+.demo > svg { width: 20px; height: 20px; color: var(--primary-soft-fg); }
+.demo b { font-size: 14px; }
+.demo p { font-size: 13px; color: var(--fg-muted); margin-top: 2px; max-width: 80ch; }
+.demo-actions { display: flex; gap: 8px; }
+@media (max-width: 900px) { .demo { grid-template-columns: auto minmax(0, 1fr); } .demo-actions { grid-column: 1 / -1; } }
+
+/* Bản xem trước: nút chuyển sáng/tối và chú thích. */
+.pv { position: fixed; right: 16px; bottom: 16px; z-index: 10; display: flex; gap: 6px; padding: 6px; border-radius: 12px; background: var(--fg); box-shadow: 0 6px 20px -6px rgba(0, 0, 0, .4); }
+.pv button { border: 0; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; background: transparent; color: var(--bg); cursor: pointer; }
+.pv button[aria-pressed="true"] { background: var(--bg); color: var(--fg); }
+
+@media (max-width: 1280px) {
+  .ex { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: static; order: -1; }
+  .rail .rail-sec.save-sec { display: none; }
+  .mobile-save { display: flex !important; }
+}
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .side { display: none; }
+  .main { padding: 16px 16px 96px; }
+  .tabs { margin: 0 -16px; padding: 4px 16px 0; }
+  .grid3, .grid2, .outcomes { grid-template-columns: 1fr; }
+  .prev { grid-template-columns: 1fr; }
+  .prev .btn { justify-self: start; }
+  .span2 { grid-column: auto; }
+  .row { grid-template-columns: minmax(0, 1fr) 32px; }
+  .row .seg, .row .input { grid-column: 1 / -1; }
+  .row-head { display: none; }
+  .sec { padding: 20px 16px 22px; }
+  .id h1 { font-size: 32px; }
+}
+.mobile-save { display: none; position: sticky; bottom: 0; gap: 10px; justify-content: flex-end; padding: 12px 16px; margin: 0 -16px; background: var(--surface); border-top: 1px solid var(--border); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } .pie.pop { animation: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-circle-check" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke-dasharray="3 3"/></symbol>
+  <symbol id="i-half" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20Z" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-x-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6M9 9l6 6"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></symbol>
+  <symbol id="i-history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5M12 7v5l4 2"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72M14 7l3 3M5 6v4M19 14v4M10 2v2M7 8H3M21 16h-4M11 3H9"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14"/></symbol>
+  <symbol id="i-check-all" viewBox="0 0 24 24"><path d="M18 6 7 17l-5-5M22 10l-7.5 7.5L13 16"/></symbol>
+  <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4M9 15h6M12 18v-6"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></symbol>
+</svg>
+
+<div class="app">
+  <nav class="side" aria-label="Điều hướng (rút gọn)">
+    <div class="brand">MMA-TMS<small>Khu làm việc bác sĩ</small></div>
+    <h6>Hằng ngày</h6>
+    <a href="#">Hôm nay</a><a href="#" aria-current="page">Võ sĩ</a><a href="#">Yêu cầu xem xét</a><a href="#">Quan sát AI</a>
+    <h6>Hồ sơ y tế</h6>
+    <a href="#">Phiếu khám</a><a href="#">Chấn thương</a><a href="#">Kế hoạch phục hồi</a><a href="#">Giấy phép</a><a href="#">Lịch sử y tế</a>
+  </nav>
+
+  <main class="main">
+    <a class="back" href="#"><svg class="ico"><use href="#i-left"/></svg>Võ sĩ</a>
+    <div class="top">
+      <div class="id">
+        <div class="tag" role="img" aria-label="Thẻ Chặn"><b>Chặn</b><small>Thẻ hôm nay</small></div>
+        <div>
+          <h1>Diego Alvarez</h1>
+          <p>Hạng bán trung 77 kg · 33 tuổi · Thuận tay phải · 180 cm · sải tay 185 cm</p>
+          <ul class="gates">
+            <li><svg class="ico"><use href="#i-x"/></svg><b>Tập luyện</b> Phiếu khám kết luận không đủ điều kiện</li>
+            <li><svg class="ico"><use href="#i-x"/></svg><b>Đình chỉ</b> Đình chỉ TKO đã hết hạn, chờ xác nhận tập lại</li>
+          </ul>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn pressed" href="#" aria-current="page"><svg class="ico"><use href="#i-file"/></svg>Tạo phiếu khám</a>
+        <a class="btn primary" href="#"><svg class="ico"><use href="#i-shield"/></svg>Cấp giấy phép</a>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Mục hồ sơ">
+      <a href="#">Tổng quan</a><a href="#" aria-current="page">Phiếu khám</a><a href="#">Chấn thương</a><a href="#">Phục hồi</a><a href="#">Giấy phép</a><a href="#">Lịch sử</a>
+    </nav>
+
+    <header class="ex-title">
+      <h2>Tạo phiếu khám</h2>
+      <p>Ghi sinh hiệu, đánh giá từng vùng và kết luận. Giấy phép được cập nhật riêng ở bước sau, hệ thống sẽ nhắc nếu cần.</p>
+    </header>
+
+    <!-- Chỉ hiện ở chế độ demo: điền sẵn mọi ô bằng dữ liệu mẫu để trình bày nhanh. -->
+    <div class="demo" role="region" aria-label="Dữ liệu mẫu cho demo">
+      <svg class="ico"><use href="#i-wand"/></svg>
+      <div><b>Chế độ demo</b><p>Điền sẵn mọi ô bằng dữ liệu mẫu hợp lý: sinh hiệu trong ngưỡng, các vùng bình thường, kết luận đủ điều kiện, tái khám sau 4 tuần. Vẫn sửa được từng ô trước khi lưu.</p></div>
+      <div class="demo-actions"><button class="btn sm" type="button" id="demo-clear">Xóa hết</button><button class="btn sm primary" type="button" id="demo-fill">Điền dữ liệu mẫu</button></div>
+    </div>
+
+    <form class="ex" onsubmit="return false">
+      <div class="card">
+        <!-- Lần khám: không còn ô chọn võ sĩ, võ sĩ đã cố định theo hồ sơ -->
+        <section class="sec" id="visit" aria-labelledby="visit-h">
+          <div class="sec-h"><div><h3 id="visit-h">Lần khám</h3><p>Khi nào và loại khám gì. Loại khám quyết định danh sách vùng cần đánh giá.</p></div></div>
+          <div class="grid2">
+            <div class="field"><label for="f-date">Ngày giờ <span class="req">*</span></label><input class="input" id="f-date" type="datetime-local" value="2026-11-09T20:06"><span class="hint">Giờ học viện (TP. Hồ Chí Minh)</span></div>
+            <div class="field"><label for="f-type">Loại phiếu khám <span class="req">*</span></label>
+              <select class="select" id="f-type"><option>Khám định kỳ</option><option>Khám nền</option><option>Khám trước trận</option><option>Đánh giá sau chấn thương</option><option>Tầm soát chấn động</option><option>Đánh giá trở lại tập</option></select>
+              <span class="hint">Khám định kỳ, hoặc đánh giá trọng tâm khi chưa ghi nhận chấn thương.</span></div>
+          </div>
+        </section>
+
+        <!-- Sinh hiệu: số đo lần trước đặt ngay trên ô nhập -->
+        <section class="sec" id="vitals" aria-labelledby="vitals-h">
+          <div class="sec-h"><div><h3 id="vitals-h">Sinh hiệu</h3><p>Chỉ số ngoài ngưỡng vận động viên được đánh dấu để đo lại, không bị chặn.</p></div><span class="count">2/7 chỉ số</span></div>
+          <div class="prev">
+            <div>
+              <p class="prev-t">Lần khám trước: <b>Tầm soát chấn động</b> · 06/11/2026</p>
+              <dl><div><dt>Cân nặng</dt><dd>79.4 kg</dd></div><div><dt>Mạch nghỉ</dt><dd>60 bpm</dd></div><div><dt>Huyết áp</dt><dd>125/80</dd></div><div><dt>Nhiệt độ</dt><dd>36.6 °C</dd></div><div><dt>SpO2</dt><dd>98%</dd></div><div><dt>Mức nước</dt><dd>Tốt</dd></div></dl>
+            </div>
+            <button class="btn sm" type="button"><svg class="ico"><use href="#i-history"/></svg>Điền ô trống từ lần trước</button>
+          </div>
+          <div class="grid3">
+            <div class="field"><label for="v-w">Cân nặng <span class="req">*</span></label><div class="unit"><input class="input warn" id="v-w" inputmode="decimal" value="80.1"><span>kg</span></div><p class="check warn"><svg class="ico"><use href="#i-alert"/></svg>Vượt giới hạn hạng cân 77.1 kg, 3.0 kg</p></div>
+            <div class="field"><label for="v-hr">Mạch nghỉ <span class="req">*</span></label><div class="unit"><input class="input" id="v-hr" inputmode="numeric" value="58"><span>bpm</span></div><p class="check ok"><svg class="ico"><use href="#i-circle-check"/></svg>Trong ngưỡng vận động viên 38–75</p></div>
+            <div class="field"><label for="v-t">Nhiệt độ <span class="req">*</span></label><div class="unit"><input class="input" id="v-t" inputmode="decimal" placeholder="Lần trước: 36.6"><span>°C</span></div></div>
+            <div class="field span2"><span class="lbl">Huyết áp <span class="req">*</span> <span class="sub">tâm thu / tâm trương</span></span><div class="bp"><div class="unit"><input class="input" id="v-sys" aria-label="Huyết áp tâm thu" placeholder="Lần trước: 125"><span>mmHg</span></div><i>/</i><div class="unit"><input class="input" id="v-dia" aria-label="Huyết áp tâm trương" placeholder="Lần trước: 80"><span>mmHg</span></div></div></div>
+            <div class="field"><label for="v-s">SpO2 <span class="req">*</span></label><div class="unit"><input class="input" id="v-s" inputmode="numeric" placeholder="Lần trước: 98"><span>%</span></div></div>
+            <div class="field"><label for="v-h">Mức nước <span class="req">*</span></label><select class="select" id="v-h"><option>Chọn… (lần trước: Tốt)</option><option>Tốt</option><option>Trung bình</option><option>Kém</option></select></div>
+          </div>
+        </section>
+
+        <!-- Đánh giá: một hàng mỗi vùng, kết quả bấm một lần -->
+        <section class="sec" id="assess" aria-labelledby="assess-h">
+          <div class="sec-h"><div><h3 id="assess-h">Đánh giá</h3><p>Mỗi hàng một vùng khám. Vùng bất thường cần mô tả để lần tái khám có căn cứ.</p></div><span class="count">2/6 vùng</span></div>
+          <div class="rows" role="table" aria-label="Các vùng đánh giá">
+            <div class="row row-head" role="row"><span>Vùng</span><span>Kết quả</span><span>Ghi chú</span><span></span></div>
+            <div class="row" role="row"><span class="area">Tim mạch</span><span class="seg"><button data-r="normal" aria-pressed="true"><svg class="ico"><use href="#i-check"/></svg>Bình thường</button><button data-r="abnormal" aria-pressed="false">Bất thường</button><button data-r="unclear" aria-pressed="false">Chưa rõ</button></span><input class="input" placeholder="Kết quả (không bắt buộc)"><button class="iconbtn" aria-label="Xóa vùng Tim mạch"><svg class="ico"><use href="#i-x"/></svg></button></div>
+            <div class="row" role="row"><span class="area">Hô hấp</span><span class="seg"><button data-r="normal" aria-pressed="false">Bình thường</button><button data-r="abnormal" aria-pressed="true"><svg class="ico"><use href="#i-alert"/></svg>Bất thường</button><button data-r="unclear" aria-pressed="false">Chưa rõ</button></span><input class="input need" placeholder="Mô tả dấu hiệu bất thường (bắt buộc)"><button class="iconbtn" aria-label="Xóa vùng Hô hấp"><svg class="ico"><use href="#i-x"/></svg></button></div>
+            <div class="row" role="row"><span class="area">Biên độ vận động chủ động</span><span class="seg"><button data-r="normal" aria-pressed="false">Bình thường</button><button data-r="abnormal" aria-pressed="false">Bất thường</button><button data-r="unclear" aria-pressed="false">Chưa rõ</button></span><input class="input" placeholder="Kết quả (không bắt buộc)"><button class="iconbtn" aria-label="Xóa vùng"><svg class="ico"><use href="#i-x"/></svg></button></div>
+            <div class="row" role="row"><span class="area">Sức mạnh</span><span class="seg"><button data-r="normal" aria-pressed="false">Bình thường</button><button data-r="abnormal" aria-pressed="false">Bất thường</button><button data-r="unclear" aria-pressed="false">Chưa rõ</button></span><input class="input" placeholder="Kết quả (không bắt buộc)"><button class="iconbtn" aria-label="Xóa vùng"><svg class="ico"><use href="#i-x"/></svg></button></div>
+            <div class="row" role="row"><span class="area">Nghiệm pháp đặc hiệu</span><span class="seg"><button data-r="normal" aria-pressed="false">Bình thường</button><button data-r="abnormal" aria-pressed="false">Bất thường</button><button data-r="unclear" aria-pressed="false">Chưa rõ</button></span><input class="input" placeholder="Kết quả (không bắt buộc)"><button class="iconbtn" aria-label="Xóa vùng"><svg class="ico"><use href="#i-x"/></svg></button></div>
+            <div class="row" role="row"><span class="area">Cân nặng & mức nước</span><span class="seg"><button data-r="normal" aria-pressed="false">Bình thường</button><button data-r="abnormal" aria-pressed="false">Bất thường</button><button data-r="unclear" aria-pressed="false">Chưa rõ</button></span><input class="input" placeholder="Kết quả (không bắt buộc)"><button class="iconbtn" aria-label="Xóa vùng"><svg class="ico"><use href="#i-x"/></svg></button></div>
+          </div>
+          <div class="toolbar">
+            <button class="btn sm" type="button"><svg class="ico"><use href="#i-check-all"/></svg>Đánh dấu 4 vùng còn lại là Bình thường</button>
+            <button class="btn sm ghost" type="button"><svg class="ico"><use href="#i-plus"/></svg>Thêm vùng</button>
+          </div>
+        </section>
+
+        <!-- Kết luận & kế hoạch -->
+        <section class="sec" id="decide" aria-labelledby="decide-h">
+          <div class="sec-h"><div><h3 id="decide-h">Kết luận & kế hoạch</h3><p>Kết luận của bạn, việc võ sĩ và ban huấn luyện cần làm tiếp, và khi nào xem lại.</p></div></div>
+          <div class="field">
+            <span class="lbl">Kết luận <span class="req">*</span></span>
+            <div class="outcomes" role="radiogroup" aria-label="Kết luận">
+              <button type="button" class="oc" data-t="ok" aria-pressed="false"><b><svg class="ico"><use href="#i-circle-check"/></svg>Đủ điều kiện</b><small>Tập không giới hạn. Đề nghị cấp giấy phép đầy đủ.</small></button>
+              <button type="button" class="oc" data-t="lim" aria-pressed="true"><b><svg class="ico"><use href="#i-alert"/></svg>Có hạn chế</b><small>Tập trong giới hạn bạn ghi ở khuyến nghị. Đề nghị giấy phép có hạn chế.</small></button>
+              <button type="button" class="oc" data-t="no" aria-pressed="false"><b><svg class="ico"><use href="#i-x-circle"/></svg>Không đủ điều kiện</b><small>Chưa được tập. Giấy phép hiện tại sẽ được đề nghị thu hồi.</small></button>
+            </div>
+            <p class="note"><svg class="ico"><use href="#i-info"/></svg>Kết luận này tương ứng “Tập có hạn chế”, giấy phép hiện tại của Diego là “Chưa được tập”. Lưu phiếu không đổi giấy phép; bước sau sẽ đề nghị cập nhật.</p>
+          </div>
+          <div class="field"><label for="d-sum">Tóm tắt kết quả khám <span class="req">*</span></label><textarea class="textarea" id="d-sum" placeholder="VD: Sinh hiệu trong ngưỡng. Hô hấp có ran ẩm đáy phổi phải, cần theo dõi."></textarea><span class="hint">Võ sĩ xem được trên trang Sức khỏe.</span></div>
+          <div class="field"><label for="d-rec">Khuyến nghị <span class="req">*</span></label><textarea class="textarea" id="d-rec" placeholder="VD: Chỉ tập kỹ thuật, không va chạm 1 tuần. Tái khám hô hấp trước khi tăng cường độ."></textarea><span class="hint">Hướng dẫn tập luyện, điều trị và bước tiếp theo.</span></div>
+          <div class="field"><label for="d-fu">Khám theo dõi</label>
+            <div class="picks"><input class="input" id="d-fu" type="date" value="2026-12-07"><button type="button" class="chip" aria-pressed="false">Sau 1 tuần</button><button type="button" class="chip" aria-pressed="false">Sau 2 tuần</button><button type="button" class="chip" aria-pressed="true">Sau 4 tuần</button><button type="button" class="btn sm ghost">Xóa</button></div>
+            <span class="hint">Mặc định theo loại khám. Hiện trên trang Hôm nay khi gần đến ngày.</span></div>
+        </section>
+        <div class="mobile-save"><button class="btn" type="button">Hủy</button><button class="btn primary" type="submit">Lưu phiếu khám</button></div>
+      </div>
+
+      <!-- Cột tóm tắt -->
+      <aside class="card rail" aria-label="Tiến độ phiếu khám">
+        <div class="rail-sec">
+          <h4>Tiến độ phiếu</h4>
+          <div class="bar" aria-hidden="true"><i style="width:0"></i></div>
+          <ol class="steps">
+            <li><a href="#visit" data-step="visit" data-s="todo"><span class="pie" aria-hidden="true"><svg viewBox="0 0 20 20"><circle class="pie-ring" cx="10" cy="10" r="9"/><path class="pie-fill" d=""/><path class="pie-tick" d="M6 10.4l2.7 2.7L14.2 7.6"/></svg></span>Lần khám<small></small></a></li>
+            <li><a href="#vitals" data-step="vitals" data-s="todo"><span class="pie" aria-hidden="true"><svg viewBox="0 0 20 20"><circle class="pie-ring" cx="10" cy="10" r="9"/><path class="pie-fill" d=""/><path class="pie-tick" d="M6 10.4l2.7 2.7L14.2 7.6"/></svg></span>Sinh hiệu<small></small></a></li>
+            <li><a href="#assess" data-step="assess" data-s="todo"><span class="pie" aria-hidden="true"><svg viewBox="0 0 20 20"><circle class="pie-ring" cx="10" cy="10" r="9"/><path class="pie-fill" d=""/><path class="pie-tick" d="M6 10.4l2.7 2.7L14.2 7.6"/></svg></span>Đánh giá<small></small></a></li>
+            <li><a href="#decide" data-step="decide" data-s="todo"><span class="pie" aria-hidden="true"><svg viewBox="0 0 20 20"><circle class="pie-ring" cx="10" cy="10" r="9"/><path class="pie-fill" d=""/><path class="pie-tick" d="M6 10.4l2.7 2.7L14.2 7.6"/></svg></span>Kết luận<small></small></a></li>
+          </ol>
+        </div>
+        <div class="rail-sec save-sec save">
+          <button class="btn primary" type="submit">Lưu phiếu khám</button>
+          <button class="btn" type="button">Hủy</button>
+          <p id="save-note"></p>
+        </div>
+        <div class="rail-sec">
+          <h4>Sau khi lưu</h4>
+          <p class="after">Phiếu hiện trong tab Phiếu khám và trên trang Sức khỏe của võ sĩ. Giấy phép không tự đổi; nếu kết luận khác giấy phép hiện tại, bạn sẽ được đưa sang bước cấp giấy phép.</p>
+        </div>
+      </aside>
+    </form>
+  </main>
+</div>
+
+<div class="pv" role="group" aria-label="Chế độ xem trước">
+  <button type="button" aria-pressed="true" data-theme="light">Sáng</button>
+  <button type="button" aria-pressed="false" data-theme="dark">Tối</button>
+</div>
+<script>
+  // Chỉ dùng cho bản xem trước: chuyển sáng/tối và cho các nút chọn phản hồi khi bấm.
+  document.querySelectorAll(".pv button").forEach((b) => b.addEventListener("click", () => {
+    document.documentElement.dataset.theme = b.dataset.theme;
+    document.querySelectorAll(".pv button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  }));
+  document.querySelectorAll(".seg").forEach((g) => g.addEventListener("click", (e) => {
+    const t = e.target.closest("button"); if (!t) return;
+    g.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === t)));
+  }));
+  document.querySelectorAll(".outcomes, .picks").forEach((g) => g.addEventListener("click", (e) => {
+    const t = e.target.closest(".oc, .chip"); if (!t) return;
+    g.querySelectorAll(".oc, .chip").forEach((x) => x.setAttribute("aria-pressed", String(x === t)));
+  }));
+  // Thanh tab: thêm bóng mờ khi đã dính ở trên.
+  const tabs = document.querySelector(".tabs");
+  const syncStuck = () => tabs.classList.toggle("stuck", tabs.getBoundingClientRect().top <= 0 && scrollY > 0);
+  addEventListener("scroll", syncStuck, { passive: true }); syncStuck();
+  // Điền dữ liệu mẫu (chỉ chế độ demo).
+  const SAMPLE = { "v-w": "76.8", "v-hr": "58", "v-t": "36.6", "v-sys": "118", "v-dia": "76", "v-s": "98", "d-sum": "Sinh hiệu trong ngưỡng vận động viên. Khám tim mạch, hô hấp và cơ xương khớp không ghi nhận bất thường.", "d-rec": "Tiếp tục tập theo giáo án hiện tại. Giữ cân trong giới hạn hạng 77 kg. Tái khám định kỳ sau 4 tuần.", "d-fu": "2026-12-07" };
+  const setAll = (fill) => {
+    for (const [id, v] of Object.entries(SAMPLE)) { const el = document.getElementById(id); if (el) el.value = fill ? v : ""; }
+    document.getElementById("v-h").selectedIndex = fill ? 1 : 0;
+    document.getElementById("v-w").classList.remove("warn");
+    document.querySelectorAll(".check").forEach((c) => c.style.visibility = fill ? "hidden" : "");
+    document.querySelectorAll(".row:not(.row-head)").forEach((row) => {
+      row.querySelectorAll(".seg button").forEach((b, i) => b.setAttribute("aria-pressed", String(fill && i === 0)));
+      row.querySelector(".input").classList.remove("need");
+    });
+    document.querySelectorAll(".oc").forEach((o, i) => o.setAttribute("aria-pressed", String(fill && i === 0)));
+    document.querySelector(".note").hidden = !fill;
+    progress();
+  };
+  // Tiến độ: tính lại từ chính các ô sau mỗi lần gõ, chọn hay bấm.
+  const TYPE = { "Khám định kỳ": "Định kỳ", "Khám nền": "Khám nền", "Khám trước trận": "Trước trận", "Đánh giá sau chấn thương": "Sau chấn thương", "Tầm soát chấn động": "Chấn động", "Đánh giá trở lại tập": "Trở lại tập" };
+  const val = (id) => document.getElementById(id).value.trim();
+  const prev = {};
+  // Hình quạt từ 12 giờ, tô NGƯỢC chiều kim đồng hồ (sang trái trước): cờ sweep = 0 trong hệ trục SVG (y hướng xuống).
+  const R = 9.25;
+  function sector(p) {
+    if (p <= 0) return "";
+    if (p >= 1) return `M10 ${10 - R}A${R} ${R} 0 1 1 10 ${10 + R}A${R} ${R} 0 1 1 10 ${10 - R}Z`;
+    const a = p * 2 * Math.PI, x = 10 - R * Math.sin(a), y = 10 - R * Math.cos(a);
+    return `M10 10L10 ${10 - R}A${R} ${R} 0 ${p > 0.5 ? 1 : 0} 0 ${x.toFixed(3)} ${y.toFixed(3)}Z`;
+  }
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function drawPie(pie, to) {
+    const path = pie.querySelector(".pie-fill");
+    const first = pie.dataset.p === undefined;
+    const from = Number(pie.dataset.p ?? 0);
+    pie.dataset.p = to;
+    cancelAnimationFrame(pie._raf);
+    clearTimeout(pie._end);
+    // Lần vẽ đầu, giảm chuyển động hoặc tab đang ẩn: đặt thẳng giá trị cuối.
+    if (first || reduce || document.hidden || from === to) return path.setAttribute("d", sector(to));
+    // Luôn chốt giá trị cuối, kể cả khi trình duyệt tạm dừng khung hình giữa chừng.
+    pie._end = setTimeout(() => { cancelAnimationFrame(pie._raf); path.setAttribute("d", sector(to)); }, 500);
+    const t0 = performance.now(), dur = 450;
+    const step = (now) => {
+      const k = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+      path.setAttribute("d", sector(from + (to - from) * e));
+      if (k < 1) pie._raf = requestAnimationFrame(step);
+    };
+    pie._raf = requestAnimationFrame(step);
+  }
+  function setStep(key, pct, text, state) {
+    const a = document.querySelector(`[data-step="${key}"]`);
+    const was = prev[key];
+    a.dataset.s = state;
+    drawPie(a.querySelector(".pie"), Math.max(0, Math.min(1, pct)));
+    a.querySelector("small").textContent = text;
+    a.setAttribute("aria-label", `${a.firstChild.nextSibling.textContent.trim()}: ${text}`);
+    if (state === "done" && was !== undefined && was !== "done") {
+      const pie = a.querySelector(".pie");
+      pie.classList.remove("pop"); void pie.offsetWidth; pie.classList.add("pop");
+    }
+    prev[key] = state;
+  }
+  function progress() {
+    const date = val("f-date"), type = document.getElementById("f-type").value;
+    const visit = (date ? 1 : 0) + (type ? 1 : 0);
+    setStep("visit", visit / 2, visit === 2 ? `${TYPE[type] ?? type} · ${date.slice(8, 10)}/${date.slice(5, 7)}` : "Chưa đủ", visit === 2 ? "done" : visit ? "part" : "todo");
+
+    const vitals = ["v-w", "v-hr", "v-t", "v-sys", "v-dia", "v-s"].filter((id) => val(id) !== "").length + (document.getElementById("v-h").selectedIndex > 0 ? 1 : 0);
+    setStep("vitals", vitals / 7, `${vitals}/7`, vitals === 7 ? "done" : vitals ? "part" : "todo");
+
+    const rows = [...document.querySelectorAll(".row:not(.row-head)")];
+    let marked = 0, undescribed = 0;
+    rows.forEach((row) => {
+      const on = row.querySelector('.seg [aria-pressed="true"]');
+      const note = row.querySelector(".input");
+      if (on) marked++;
+      const needs = on?.dataset.r === "abnormal" && note.value.trim() === "";
+      note.classList.toggle("need", needs);
+      note.placeholder = on?.dataset.r === "abnormal" ? "Mô tả dấu hiệu bất thường (bắt buộc)" : "Kết quả (không bắt buộc)";
+      if (needs) undescribed++;
+    });
+    const assessDone = marked === rows.length && undescribed === 0;
+    setStep("assess", (marked - undescribed * 0.5) / rows.length, undescribed ? `${undescribed} cần mô tả` : `${marked}/${rows.length}`, undescribed ? "need" : assessDone ? "done" : marked ? "part" : "todo");
+
+    const outcome = document.querySelector('.oc[aria-pressed="true"]');
+    const parts = [!!outcome, val("d-sum") !== "", val("d-rec") !== ""];
+    const have = parts.filter(Boolean).length;
+    const missing = !outcome ? "Chưa chọn" : !parts[1] ? "Thiếu tóm tắt" : !parts[2] ? "Thiếu khuyến nghị" : outcome.querySelector("b").textContent.trim();
+    setStep("decide", have / 3, missing, have === 3 ? "done" : have ? "part" : "todo");
+    document.querySelector(".note").hidden = !outcome;
+
+    const total = (visit / 2 + vitals / 7 + marked / rows.length + have / 3) / 4;
+    document.querySelector(".bar i").style.width = `${Math.round(total * 100)}%`;
+    const left = [...document.querySelectorAll(".steps a")].filter((a) => a.dataset.s !== "done").length;
+    document.getElementById("save-note").textContent = left ? `Còn ${left} mục cần hoàn tất. Bấm lưu sẽ đưa bạn tới chỗ còn thiếu.` : "Đã đủ thông tin. Kiểm tra lại rồi lưu.";
+  }
+  document.querySelector("form.ex").addEventListener("input", progress);
+  document.querySelector("form.ex").addEventListener("change", progress);
+  document.querySelector("form.ex").addEventListener("click", (e) => { if (e.target.closest(".seg button, .oc")) progress(); });
+  progress();
+  document.getElementById("demo-fill").addEventListener("click", () => setAll(true));
+  document.getElementById("demo-clear").addEventListener("click", () => setAll(false));
+</script>
+</body>
+</html>

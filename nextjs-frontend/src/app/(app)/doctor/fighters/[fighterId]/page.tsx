@@ -1,24 +1,22 @@
-import { ArrowRight, CircleCheck, CircleX, FilePlus2, ShieldCheck, Stethoscope, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, CircleX, Stethoscope, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { BodyPanel } from "@/components/doctor/body-panel";
 import { DECISION_OF, examLabel } from "@/components/doctor/exam-meta";
-import { FighterHead } from "@/components/doctor/fighter-head";
+import { loadFighterRow } from "@/components/doctor/fighter-row";
 import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_TYPE, DECISION, INJURY_STATUS, REQUESTER_ROLE, clearanceBadge, dayDiff, fmtDate, fmtDateTime, injuryName, injuryPlace, jointOf } from "@/components/doctor/labels";
 import { Panel, Pill, Restrictions, Vitals } from "@/components/doctor/ui";
 import { FlashToast } from "@/components/medical/flash-toast";
 import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-button";
 import type { ToastInput } from "@/components/ui/toast";
-import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
+import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import type { MedicalClearance } from "@/lib/domain/types";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listAlerts } from "@/lib/services/ai";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
-import { loadDoctorRow } from "@/lib/services/doctor-board";
 import { getClearanceHistory, listExaminations, listInjuries, listRecoveryPlans, listReviewRequests } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter } from "@/lib/services/people";
@@ -55,14 +53,13 @@ function clearanceExcluded(c: MedicalClearance | null): string[] {
 }
 
 export default async function DoctorFighterProfilePage({ params, searchParams }: PageProps<"/doctor/fighters/[fighterId]">) {
-    const user = await requireRole("doctor");
-    const { fighterId } = await params;
-    const query = await searchParams;
-    const stored = await requireFighterAccess(user, fighterId);
+    const [{ fighterId }, query] = await Promise.all([params, searchParams]);
+    // Same cached read as the profile layout, so the record is fetched once.
+    const { user, row } = await loadFighterRow(fighterId);
+    const stored = row.fighter;
     const now = new Date().toISOString();
 
-    const [row, examinations, injuries, clearances, plans, reviewRequests, observations, suspensions] = await Promise.all([
-        loadDoctorRow(stored),
+    const [examinations, injuries, clearances, plans, reviewRequests, observations, suspensions] = await Promise.all([
         listExaminations({ fighterIds: [stored.id] }),
         listInjuries({ fighterIds: [stored.id] }),
         getClearanceHistory(stored.id),
@@ -71,8 +68,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         medicalFeatureAvailable("aiObservations") ? nullIfServiceFails(listAlerts({ fighterIds: [stored.id] })) : Promise.resolve([]),
         nullIfServiceFails(listSuspensions({ fighterId: stored.id }, user)),
     ]);
-    if (!row) notFound();
-    const { fighter, summary, training, competition, dossier, tag } = row;
+    const { fighter, summary, dossier } = row;
 
     // Căn cứ tập luyện: phiếu khám đang quyết định phạm vi tập (API) hoặc phiếu gần nhất (demo).
     const currentTrainingId = dossier?.currentExaminations.TRAINING?.id;
@@ -81,23 +77,8 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const shownInjuries = injuries.filter((i) => i.status !== "resolved" || (i.resolvedAt && dayDiff(i.resolvedAt, now) >= -RECENT_RESOLVED_DAYS));
     const excluded = [...new Set([...(basis?.decisionRestrictions?.excludedJoints ?? []), ...clearanceExcluded(summary.clearance)])];
     const abnormalHead = !!basis?.assessments.some((a) => a.result !== "normal" && /neuro|thần kinh|thị lực|vision|head|đầu/i.test(a.area));
-    const activePlan = summary.activeRecoveryPlan;
     const openReviews = reviewRequests.filter((r) => r.status === "OPEN");
 
-    // Đường trở lại thi đấu, suy ra từ hồ sơ.
-    const milestones = activePlan?.plan.milestones ?? [];
-    const steps = [
-        { key: "baseline", label: "Khám ban đầu", state: summary.needsBaseline ? "blocked" : "done", note: summary.needsBaseline ? "Chưa có" : "Đã có" },
-        { key: "injury", label: "Chấn thương", state: summary.activeInjuries.length ? "current" : "skip", note: summary.activeInjuries.length ? `${summary.activeInjuries.length} đang mở` : "Không có" },
-        {
-            key: "recovery",
-            label: "Phục hồi",
-            state: activePlan ? "current" : "skip",
-            note: activePlan ? (milestones.length ? `${milestones.filter((m) => m.isCompleted).length}/${milestones.length} mốc` : `${activePlan.progressPct}%`) : "Không có kế hoạch",
-        },
-        { key: "training", label: "Tập luyện", state: training ? (training.eligible ? "done" : "blocked") : "skip", note: training ? (training.eligible ? "Đủ điều kiện" : "Chưa đủ") : "Chưa rõ" },
-        ...(competition ? [{ key: "competition", label: "Thi đấu", state: competition.eligible ? "done" : "blocked", note: competition.eligible ? "Đủ điều kiện" : "Chưa đủ" }] : []),
-    ];
 
     // Quỹ đạo 5 tuần.
     const ev: { kind: Kind; day: number; text: string }[] = [];
@@ -114,38 +95,9 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const decision = basis ? (basis.scope ? (dossier?.currentExaminations.TRAINING?.decision ?? DECISION_OF[basis.outcome]) : DECISION_OF[basis.outcome]) : null;
 
     return (
-        <div className="yt-page">
+        <>
             <FlashToast notice={notice} cleanHref={hrefWith(pathname, query, { notice: null })} />
-            <FighterHead
-                fighter={fighter}
-                training={training}
-                competition={competition}
-                tag={tag}
-                actions={
-                    <>
-                        <Link href={`${routes.doctor.newExamination}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
-                            <FilePlus2 aria-hidden />
-                            Tạo phiếu khám
-                        </Link>
-                        <Link href={`${routes.doctor.grantClearance}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
-                            <ShieldCheck aria-hidden />
-                            Cấp giấy phép
-                        </Link>
-                    </>
-                }
-            />
 
-            <Panel title="Đường trở lại thi đấu" id="ladder" aside="Suy ra từ hồ sơ y tế">
-                <ol className="hs-ladder" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
-                    {steps.map((s, i) => (
-                        <li key={s.key} className="hs-step" data-state={s.state} style={{ ["--i" as string]: i }}>
-                            <i aria-hidden />
-                            <b>{s.label}</b>
-                            <small>{s.note}</small>
-                        </li>
-                    ))}
-                </ol>
-            </Panel>
 
             <div className="hs-grid">
                 <Panel title="Bản đồ cơ thể" id="body3d" tone="plate" aside={<span className="yt-drag-hint">Kéo để xoay</span>}>
@@ -156,7 +108,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         title={`Chấn thương · ${summary.activeInjuries.length}`}
                         id="chan-thuong"
                         aside={
-                            <Link className="yt-go" href={`${routes.doctor.injuries}?fighter=${fighter.id}`}>
+                            <Link className="yt-go" href={routes.doctor.fighterInjuries(fighter.id)}>
                                 Tất cả <ArrowRight aria-hidden />
                             </Link>
                         }
@@ -165,7 +117,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             <ul className="hs-inj">
                                 {shownInjuries.map((i) => (
                                     <li key={i.id}>
-                                        <Link href={routes.doctor.injury(i.id)}>{injuryName(i)}</Link>
+                                        <Link href={routes.doctor.fighterInjury(i.fighterId, i.id)}>{injuryName(i)}</Link>
                                         <small>
                                             {injuryPlace(i)} · {fmtDate(i.occurredAt)}
                                         </small>
@@ -187,7 +139,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         id="can-cu"
                         aside={
                             basis ? (
-                                <Link className="yt-go" href={routes.doctor.examination(basis.id)}>
+                                <Link className="yt-go" href={routes.doctor.fighterExamination(basis.fighterId, basis.id)}>
                                     Phiếu khám <ArrowRight aria-hidden />
                                 </Link>
                             ) : undefined
@@ -220,7 +172,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                 <Stethoscope aria-hidden />
                                 <p className="yt-empty-t">Chưa có phiếu khám tập luyện</p>
                                 <p className="yt-empty-d">Võ sĩ cần phiếu khám ban đầu trước khi được tập.</p>
-                                <Link href={`${routes.doctor.newExamination}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
+                                <Link href={hrefWith(routes.doctor.fighterNewExamination(fighter.id), {}, { type: "baseline" })} className="yt-btn" data-v="primary">
                                     Tạo phiếu khám ban đầu
                                 </Link>
                             </div>
@@ -367,7 +319,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         title="Giấy phép"
                         id="giay-phep"
                         aside={
-                            <Link className="yt-go" href={`${routes.doctor.clearance}?fighter=${fighter.id}`}>
+                            <Link className="yt-go" href={routes.doctor.fighterClearance(fighter.id)}>
                                 Tất cả <ArrowRight aria-hidden />
                             </Link>
                         }
@@ -457,6 +409,6 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     )}
                 </div>
             </div>
-        </div>
+        </>
     );
 }

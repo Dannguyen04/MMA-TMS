@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCheck, CircleCheck, ListRestart, Plus, TriangleAlert, X } from "lucide-react";
+import { CheckCheck, CircleCheck, History, ListRestart, Plus, TriangleAlert, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
@@ -13,7 +13,7 @@ import type { AssessmentResult, ExaminationType } from "@/lib/domain/types";
 import { addDaysToKey } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ASSESSMENT_RESULT_META } from "./clinical-badges";
-import { ASSESSMENT_PRESETS, checkVitals, EXAMINATION_TYPE_HINTS, markUnmarkedNormal, unmarkedAreas, type VitalCheck } from "./examination-presets";
+import { ASSESSMENT_PRESETS, checkVitals, EXAMINATION_TYPE_HINTS, fillBlankVitals, FOLLOW_UP_DEFAULT_DAYS, markUnmarkedNormal, unmarkedAreas, type VitalCheck } from "./examination-presets";
 import { QuickFill } from "./quick-fill";
 
 /**
@@ -73,11 +73,45 @@ export interface VitalsFieldsProps {
     weightLimitKg: number | null;
     /** Vitals go together: when optional, filling any reading makes the rest required. */
     required: boolean;
+    /** The previous examination's readings: shown as placeholders, and copied into blank fields only when the doctor asks. */
+    previous?: VitalsDraft | null;
+    /** Names the previous examination on the strip above the readings, e.g. its type and date. */
+    previousLabel?: ReactNode;
 }
 
+const HYDRATION_LABELS: Record<string, string> = { good: "Tốt", fair: "Trung bình", poor: "Kém" };
+/** The previous readings as the strip shows them. */
+const PREVIOUS_ITEMS: { label: string; read: (v: VitalsDraft) => string }[] = [
+    { label: "Cân nặng", read: (v) => (v.weightKg ? `${v.weightKg} kg` : "") },
+    { label: "Mạch nghỉ", read: (v) => (v.restingHeartRate ? `${v.restingHeartRate} bpm` : "") },
+    { label: "Huyết áp", read: (v) => (v.bloodPressureSystolic ? `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic}` : "") },
+    { label: "Nhiệt độ", read: (v) => (v.temperatureC ? `${v.temperatureC} °C` : "") },
+    { label: "SpO2", read: (v) => (v.spo2Pct ? `${v.spo2Pct}%` : "") },
+    { label: "Mức nước", read: (v) => HYDRATION_LABELS[v.hydration] ?? "" },
+];
+const VITAL_NAMES: Record<keyof VitalsDraft, string> = {
+    weightKg: "cân nặng",
+    restingHeartRate: "mạch nghỉ",
+    bloodPressureSystolic: "huyết áp tâm thu",
+    bloodPressureDiastolic: "huyết áp tâm trương",
+    temperatureC: "nhiệt độ",
+    spo2Pct: "SpO2",
+    hydration: "mức nước",
+};
+
 /** The seven readings, each checked against athlete reference ranges as it's typed. Out-of-range readings are flagged, never blocked. */
-export function VitalsFields({ form, value, onChange, weightLimitKg, required }: VitalsFieldsProps) {
+export function VitalsFields({ form, value, onChange, weightLimitKg, required, previous, previousLabel }: VitalsFieldsProps) {
     const { error } = form;
+    const [fillNote, setFillNote] = useState<string>();
+    const canFill = !!previous && fillBlankVitals(value, previous).filled.length > 0;
+    const fillPrevious = () => {
+        if (!previous) return;
+        const { next, filled } = fillBlankVitals(value, previous);
+        onChange(next);
+        for (const key of filled) form.markEdited(key);
+        setFillNote(`Đã điền ${filled.map((key) => VITAL_NAMES[key]).join(", ")} từ lần khám trước. Hãy đo lại nếu tình trạng đã thay đổi.`);
+    };
+    const was = (name: keyof VitalsDraft) => (previous?.[name] ? `Lần trước: ${previous[name]}` : undefined);
     const checks = checkVitals(value, weightLimitKg);
     const outOfRange = Object.values(checks).filter((check) => check?.status === "check").length;
     const set = (name: keyof VitalsDraft, next: string) => onChange({ ...value, [name]: next });
@@ -88,9 +122,21 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
         const message = error(name);
         const hintId = `${id(name)}-range`;
         return (
-            <Field label={`${label} (${unit})`} htmlFor={id(name)} error={message} required={required} info={info}>
+            <Field
+                label={
+                    <>
+                        {label}
+                        <span className="sr-only"> ({unit})</span>
+                    </>
+                }
+                htmlFor={id(name)}
+                error={message}
+                required={required}
+                info={info}
+            >
                 <Input
                     {...form.control(name, { required })}
+                    suffix={unit}
                     type="number"
                     inputMode="decimal"
                     value={value[name]}
@@ -98,6 +144,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                     step={props.step ?? "1"}
                     min={props.min}
                     max={props.max}
+                    placeholder={was(name)}
                     aria-describedby={message ? `${id(name)}-error` : check ? hintId : undefined}
                 />
                 {!message && <RangeHint id={hintId} check={check ?? null} />}
@@ -107,37 +154,62 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
 
     return (
         <>
+            {previous && (
+                <div className="grid gap-3 rounded-lg bg-surface-muted px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                    <div className="min-w-0 text-[13px] text-fg-muted">
+                        <p>{previousLabel ?? "Lần khám trước"}</p>
+                        <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                            {PREVIOUS_ITEMS.map(({ label, read }) => {
+                                const shown = read(previous);
+                                return shown ? (
+                                    <div key={label} className="flex gap-1.5">
+                                        <dt className="text-fg-subtle">{label}</dt>
+                                        <dd className="font-semibold text-fg">{shown}</dd>
+                                    </div>
+                                ) : null;
+                            })}
+                        </dl>
+                    </div>
+                    <QuickFill label="Điền ô trống từ lần trước" icon={History} available={canFill} note={fillNote} onClick={fillPrevious} className="sm:max-w-64" />
+                </div>
+            )}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
                 {vitalInput("weightKg", "Cân nặng", "kg", { step: "0.1", min: 35, max: 180 }, checks.weightKg)}
                 {vitalInput("restingHeartRate", "Mạch nghỉ", "bpm", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
                 {vitalInput("temperatureC", "Nhiệt độ", "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC, <TermHint term="bodyTemperature" />)}
                 <fieldset className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-2">
-                    <legend className="mb-1.5 text-sm font-medium text-fg">
-                        Huyết áp (mmHg)
+                    <legend className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-fg">
+                        Huyết áp<span className="sr-only"> (mmHg)</span>
                         {required && (
                             <span className="ml-0.5 text-danger-fg" aria-hidden>
                                 *
                             </span>
                         )}
+                        <span className="inline-flex items-center gap-1 text-[13px] font-normal text-fg-subtle">
+                            tâm thu <TermHint term="systolicPressure" /> / tâm trương <TermHint term="diastolicPressure" />
+                        </span>
                     </legend>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                         <BpInput
                             id={id("bloodPressureSystolic")}
                             name="bloodPressureSystolic"
                             label="Tâm thu"
-                            info={<TermHint term="systolicPressure" />}
                             value={value.bloodPressureSystolic}
+                            placeholder={was("bloodPressureSystolic")}
                             required={required}
                             error={error("bloodPressureSystolic")}
                             rangeId={bpRangeId}
                             onChange={(next) => set("bloodPressureSystolic", next)}
                         />
+                        <span aria-hidden className="text-fg-subtle">
+                            /
+                        </span>
                         <BpInput
                             id={id("bloodPressureDiastolic")}
                             name="bloodPressureDiastolic"
                             label="Tâm trương"
-                            info={<TermHint term="diastolicPressure" />}
                             value={value.bloodPressureDiastolic}
+                            placeholder={was("bloodPressureDiastolic")}
                             required={required}
                             error={error("bloodPressureDiastolic")}
                             rangeId={bpRangeId}
@@ -154,7 +226,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required }:
                         onChange={(event) => set("hydration", event.target.value)}
                         aria-describedby={error("hydration") ? `${id("hydration")}-error` : checks.hydration ? `${id("hydration")}-range` : undefined}
                     >
-                        <option value="">Chọn…</option>
+                        <option value="">{previous?.hydration ? `Chọn… (lần trước: ${HYDRATION_LABELS[previous.hydration] ?? previous.hydration})` : "Chọn…"}</option>
                         <option value="good">Tốt</option>
                         <option value="fair">Trung bình</option>
                         <option value="poor">Kém</option>
@@ -189,40 +261,40 @@ function BpInput({
     id,
     name,
     label,
-    info,
     value,
     required,
     error,
     rangeId,
+    placeholder,
     onChange,
 }: {
     id: string;
     name: string;
     label: string;
-    info?: ReactNode;
     value: string;
     required: boolean;
     error?: string;
     rangeId: string;
+    placeholder?: string;
     onChange: (value: string) => void;
 }) {
     return (
         <div className="flex min-w-0 flex-col gap-1">
-            <div className="flex items-center gap-1">
-                <label htmlFor={id} className="text-xs text-fg-muted">
-                    {label}
-                </label>
-                {info}
-            </div>
+            {/* The legend above names the pair; each input keeps its own name for screen readers. */}
+            <label htmlFor={id} className="sr-only">
+                {label}
+            </label>
             <Input
                 id={id}
                 name={name}
+                suffix="mmHg"
                 type="number"
                 inputMode="numeric"
                 min={40}
                 max={220}
                 required={required}
                 value={value}
+                placeholder={placeholder}
                 onChange={(event) => onChange(event.target.value)}
                 aria-invalid={error ? true : undefined}
                 aria-describedby={error ? `${id}-error` : rangeId}
@@ -349,7 +421,7 @@ export function AssessmentsField({
                 onClick={markNormal}
             />
             {form.error("assessments") && <p className="text-[13px] font-medium text-danger-fg">{form.error("assessments")}</p>}
-            <ol className="flex flex-col gap-3">
+            <ol className="flex flex-col divide-y divide-border overflow-hidden rounded-lg border border-border">
                 {rows.rows.map((row, index) => (
                     <AssessmentRowEditor
                         key={row.key}
@@ -392,8 +464,9 @@ function AssessmentRowEditor({
     const name = row.area.trim() || `đánh giá ${index + 1}`;
     const noteRequired = row.result === "abnormal";
     return (
-        <li className={cn("rounded-lg border bg-surface-muted/50 p-3", errors.area || errors.result || errors.note ? "border-danger-border" : "border-border")}>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <li className={cn("px-3 py-2.5", errors.area || errors.result || errors.note ? "bg-danger-soft/40" : "bg-surface")}>
+            {/* One row per area on very wide screens (area, result, note, remove); below that the note takes its own line. */}
+            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto] 2xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.25fr)_auto]">
                 <div className="flex min-w-0 flex-col gap-1">
                     <label htmlFor={`${idPrefix}-area`} className="sr-only">
                         Vùng được đánh giá, dòng {index + 1}
@@ -447,7 +520,7 @@ function AssessmentRowEditor({
                         </p>
                     )}
                 </div>
-                <div className="col-span-2 flex min-w-0 flex-col gap-1 lg:col-span-3">
+                <div className="col-span-2 flex min-w-0 flex-col gap-1 lg:col-span-3 2xl:col-span-1 2xl:col-start-3 2xl:row-start-1">
                     <label htmlFor={`${idPrefix}-note`} className="sr-only">
                         Kết quả cho {name}
                         {noteRequired ? "(bắt buộc khi bất thường)" : "(không bắt buộc)"}
@@ -466,7 +539,7 @@ function AssessmentRowEditor({
                         </p>
                     )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Xóa ${name}`} className="col-start-2 row-start-1 lg:col-start-3">
+                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Xóa ${name}`} className="col-start-2 row-start-1 lg:col-start-3 2xl:col-start-4">
                     <X />
                 </Button>
             </div>
@@ -477,6 +550,31 @@ function AssessmentRowEditor({
 /* ─── Follow-up ───────────────────────────────────────────────────────────── */
 
 const FOLLOW_UP_PICKS = [7, 14, 28];
+
+/** The starting follow-up date for an examination type, or "" when the type has none. */
+export function defaultFollowUp(type: ExaminationType | "", examDay: string): string {
+    const days = type ? FOLLOW_UP_DEFAULT_DAYS[type] : null;
+    return days && examDay ? addDaysToKey(examDay, days) : "";
+}
+
+/**
+ * The follow-up date, starting from the examination type's default and following the type until the doctor sets it
+ * themself; after that their date stays.
+ */
+export function useFollowUpDate(initialType: ExaminationType | "", examDay: string) {
+    const [value, setValue] = useState(() => defaultFollowUp(initialType, examDay));
+    const [edited, setEdited] = useState(false);
+    return {
+        value,
+        set: (next: string) => {
+            setValue(next);
+            setEdited(true);
+        },
+        typeChanged: (type: ExaminationType | "") => {
+            if (!edited) setValue(defaultFollowUp(type, examDay));
+        },
+    };
+}
 
 /** An optional follow-up date after the examination day, with quick picks. */
 export function FollowUpField({ form, examDay, value, onChange, hint }: { form: FormControls; examDay: string; value: string; onChange: (value: string) => void; hint: string }) {

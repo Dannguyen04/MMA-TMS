@@ -134,32 +134,6 @@ export function Sk({ w = "100%", h = 14, r = 6 }: { w?: string | number; h?: num
     return <span className="yt-sk" style={{ width: w, height: h, borderRadius: r }} />;
 }
 
-export function ListSkeleton({ label, rows = 6, head = true }: { label: string; rows?: number; head?: boolean }) {
-    return (
-        <div aria-busy="true" aria-live="polite" className="yt-skel-page">
-            <span className="sr-only">{label}</span>
-            {head && (
-                <div className="yt-skel-head">
-                    <Sk w={320} h={44} r={8} />
-                    <Sk w={220} h={14} />
-                </div>
-            )}
-            <div className="yt-panel yt-skel-list">
-                {Array.from({ length: rows }, (_, i) => (
-                    <div key={i} className="yt-skel-row" style={{ ["--i" as string]: i }}>
-                        <Sk w={44} h={44} r={22} />
-                        <div>
-                            <Sk w="40%" h={16} />
-                            <Sk w="65%" h={12} />
-                        </div>
-                        <Sk w={90} h={26} r={999} />
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-}
-
 /** Lọc theo võ sĩ bằng liên kết (giữ các tham số khác). */
 export function FighterFilter({ base, fighters, current, extra = {}, param = "fighter" }: { base: string; fighters: { id: string; name: string }[]; current?: string; extra?: Record<string, string | undefined>; param?: string }) {
     const q = (f?: string) => {

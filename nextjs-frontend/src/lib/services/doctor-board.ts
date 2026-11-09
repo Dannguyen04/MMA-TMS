@@ -34,6 +34,8 @@ export interface BoardItem {
     date: string | null;
     /** Thuộc lộ trình tập lại theo bậc. */
     graded?: true;
+    /** Với đình chỉ: đỏ khi chặn tập, vàng khi tập được có giới hạn (cùng quy tắc với màu thẻ). */
+    tone?: "red" | "amber";
 }
 
 export interface BoardRow {
@@ -184,6 +186,7 @@ async function loadRow(
             kind: "suspension",
             text: susp.item.text,
             date: susp.item.date,
+            ...(susp.tag ? { tone: susp.tag } : {}),
             ...(susp.item.graded ? { graded: true } : {}),
         });
     }

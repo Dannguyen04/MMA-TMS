@@ -31,7 +31,8 @@ import {
 import type { ExaminationType } from "@/lib/domain/types";
 import { addDaysToKey, formatDate, formatDateTime, formatRelative } from "@/lib/format";
 import type { CurrentExamination } from "@/lib/services/medical";
-import { AssessmentsField, EMPTY_VITALS, ExaminationTypeField, FollowUpField, useAssessmentRows, VitalsFields } from "./examination-details-fields";
+import { AssessmentsField, EMPTY_VITALS, ExaminationTypeField, FollowUpField, useAssessmentRows, useFollowUpDate, VitalsFields } from "./examination-details-fields";
+import { vitalsDraftFrom } from "./examination-presets";
 import { assessmentRowsProblem } from "./examination-presets";
 import { ExaminationReview, type ReviewRestrictions } from "./examination-review";
 import { findingsSummary } from "./findings-summary";
@@ -119,7 +120,8 @@ export function ExaminationDecisionForm({
     const [reasonNote, setReasonNote] = useState<string>();
     const [validUntil, setValidUntil] = useState("");
     const [recommendations, setRecommendations] = useState("");
-    const [followUpDate, setFollowUpDate] = useState("");
+    const followUp = useFollowUpDate(defaultType, nowInput.slice(0, 10));
+    const followUpDate = followUp.value;
     const [answered, setAnswered] = useState<string[]>(openReviewRequests.map((request) => request.id));
     const [restrictions, setRestrictions] = useState<ReviewRestrictions | null>(null);
 
@@ -260,6 +262,7 @@ export function ExaminationDecisionForm({
                                     onChange={(next) => {
                                         setType(next);
                                         rows.typeChanged(next);
+                                        followUp.typeChanged(next);
                                     }}
                                 />
                                 <Field label="Thời điểm khám" htmlFor={control("examinedAt").id} error={error("examinedAt")} required hint="Giờ học viện (TP. Hồ Chí Minh)">
@@ -301,7 +304,14 @@ export function ExaminationDecisionForm({
                             )}
                         </FormSection>
                         <FormSection title="Sinh hiệu" description={baseline ? "Bắt buộc với khám nền. Chỉ số ngoài ngưỡng vận động viên được đánh dấu, không bị chặn." : "Không bắt buộc. Nhập đủ mọi chỉ số, hoặc bỏ trống hết."}>
-                            <VitalsFields form={form} value={vitals} onChange={setVitals} weightLimitKg={weightLimitKg} required={baseline} />
+                            <VitalsFields
+                                form={form}
+                                value={vitals}
+                                onChange={setVitals}
+                                weightLimitKg={weightLimitKg}
+                                required={baseline}
+                                previous={vitalsDraftFrom(Object.values(currentExaminations).find((exam) => exam?.details?.vitals)?.details?.vitals)}
+                            />
                         </FormSection>
                     </FormStep>
 
@@ -428,7 +438,7 @@ export function ExaminationDecisionForm({
                                     onChange={(event) => setRecommendations(event.target.value)}
                                 />
                             </Field>
-                            <FollowUpField form={form} examDay={examDay} value={followUpDate} onChange={setFollowUpDate} hint="Hiện trên trang Hôm nay khi gần đến ngày." />
+                            <FollowUpField form={form} examDay={examDay} value={followUp.value} onChange={followUp.set} hint="Hiện trên trang Hôm nay khi gần đến ngày." />
                         </FormSection>
 
                         {answersRequests && (

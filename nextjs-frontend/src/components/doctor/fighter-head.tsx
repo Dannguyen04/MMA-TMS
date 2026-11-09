@@ -1,30 +1,62 @@
-import { ArrowLeft, Check, X } from "lucide-react";
+import { ArrowLeft, Ban, Check, X } from "lucide-react";
 import Link from "next/link";
-import type { ReactNode } from "react";
 
 import type { MedicalEligibility } from "@/lib/domain/medical-contract";
 import type { Fighter } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
-import type { Triage } from "@/lib/services/doctor-board";
+import type { BoardItem, Triage } from "@/lib/services/doctor-board";
+import { FighterActions, FighterTabs } from "./fighter-nav";
 import { fmeta } from "./labels";
 import { reasonsText } from "./ui";
 
-const WORD: Record<Triage, string> = { red: "Chặn", amber: "Theo dõi", green: "Thông" };
+const WORD: Record<Triage, string> = { red: "Chặn", amber: "Theo dõi", green: "Thông qua" };
 
-export function fighterTabs(fighterId: string) {
-    const q = `?fighter=${fighterId}`;
-    return [
-        { key: "overview", label: "Tổng quan", href: routes.doctor.fighter(fighterId) },
-        { key: "exams", label: "Phiếu khám", href: routes.doctor.examinations + q },
-        { key: "injuries", label: "Chấn thương", href: routes.doctor.injuries + q },
-        { key: "recovery", label: "Phục hồi", href: routes.doctor.recovery + q },
-        { key: "clearance", label: "Giấy phép", href: routes.doctor.clearance + q },
-        { key: "history", label: "Lịch sử", href: routes.doctor.history + q },
-    ];
+export type GateTone = "ok" | "block" | "warn";
+
+export interface HeaderGate {
+    key: "training" | "competition" | "suspension";
+    label: string;
+    tone: GateTone;
+    text: string;
 }
 
-export function FighterHead({ fighter, training, competition, tag, actions }: { fighter: Fighter; training: MedicalEligibility | null; competition: MedicalEligibility | null; tag: Triage; actions?: ReactNode }) {
-    const gates = ([["Tập luyện", training], ["Thi đấu", competition]] as const).filter(([, e]) => e !== null);
+/**
+ * Dòng điều kiện ở đầu hồ sơ: tập luyện, thi đấu, và đình chỉ khi còn cần xử lý.
+ * Màu đình chỉ lấy từ cùng quy tắc với thẻ phân loại, nên đầu hồ sơ không bao giờ trái với màu thẻ.
+ */
+export function headerGates(training: MedicalEligibility | null, competition: MedicalEligibility | null, items: readonly BoardItem[] = []): HeaderGate[] {
+    const gates: HeaderGate[] = [];
+    for (const [key, label, e] of [["training", "Tập luyện", training], ["competition", "Thi đấu", competition]] as const) {
+        if (e) gates.push({ key, label, tone: e.eligible ? "ok" : "block", text: e.eligible ? "Đủ điều kiện" : reasonsText(e).join(" · ") });
+    }
+    const suspension = items.find((item) => item.kind === "suspension");
+    if (suspension) gates.push({ key: "suspension", label: "Đình chỉ", tone: suspension.tone === "red" ? "block" : "warn", text: suspension.text });
+    return gates;
+}
+
+const GATE_ICON = { ok: Check, block: X, warn: Ban } as const;
+
+export { fighterTabs, type FighterSection, type FighterTab } from "./fighter-sections";
+
+/**
+ * The fighter's header: card, name and gates are rendered once by the profile layout; the tabs and form buttons are
+ * small client components that only follow the URL.
+ */
+export function FighterHead({
+    fighter,
+    training,
+    competition,
+    tag,
+    items = [],
+}: {
+    fighter: Fighter;
+    training: MedicalEligibility | null;
+    competition: MedicalEligibility | null;
+    tag: Triage;
+    /** Việc mở của võ sĩ trên bảng phân loại; dùng để hiện đình chỉ. */
+    items?: readonly BoardItem[];
+}) {
+    const gates = headerGates(training, competition, items);
     return (
         <>
             <Link href={routes.doctor.fighters} className="yt-back">
@@ -47,26 +79,23 @@ export function FighterHead({ fighter, training, competition, tag, actions }: { 
                         </p>
                         {gates.length > 0 && (
                             <ul className="hs-gates">
-                                {gates.map(([l, e]) => (
-                                    <li key={l} data-ok={e!.eligible}>
-                                        {e!.eligible ? <Check aria-hidden /> : <X aria-hidden />}
-                                        <b>{l}</b>
-                                        {e!.eligible ? "Đủ điều kiện" : reasonsText(e).join(" · ")}
-                                    </li>
-                                ))}
+                                {gates.map((g) => {
+                                    const Icon = GATE_ICON[g.tone];
+                                    return (
+                                        <li key={g.key} data-tone={g.tone}>
+                                            <Icon aria-hidden />
+                                            <b>{g.label}</b>
+                                            {g.text}
+                                        </li>
+                                    );
+                                })}
                             </ul>
                         )}
                     </div>
                 </div>
-                {actions && <div className="yt-head-actions">{actions}</div>}
+                <FighterActions fighterId={fighter.id} />
             </div>
-            <nav className="hs-tabs" aria-label="Mục hồ sơ">
-                {fighterTabs(fighter.id).map((t) => (
-                    <Link key={t.key} href={t.href} aria-current={t.key === "overview" ? "page" : undefined}>
-                        {t.label}
-                    </Link>
-                ))}
-            </nav>
+            <FighterTabs fighterId={fighter.id} />
         </>
     );
 }

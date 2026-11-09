@@ -10,7 +10,7 @@ import { TRIAGE_ORDER, loadDoctorBoard, type Triage } from "@/lib/services/docto
 import { param } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Võ sĩ" };
-const TAG_WORD: Record<Triage, string> = { red: "Chặn", amber: "Theo dõi", green: "Thông" };
+const TAG_WORD: Record<Triage, string> = { red: "Chặn", amber: "Theo dõi", green: "Thông qua" };
 const LOC: Record<string, Triage | null> = { all: null, blocked: "red", watch: "amber", ok: "green" };
 
 export default async function DoctorFightersPage({ searchParams }: PageProps<"/doctor/fighters">) {
@@ -44,9 +44,9 @@ export default async function DoctorFightersPage({ searchParams }: PageProps<"/d
                 <input type="hidden" name="loc" value={loc} />
                 <nav className="yt-segs" aria-label="Lọc theo thẻ">
                     {seg("all", "Tất cả")}
-                    {seg("blocked", "Đỏ · Chặn")}
-                    {seg("watch", "Vàng · Theo dõi")}
-                    {seg("ok", "Xanh · Thông")}
+                    {seg("blocked", "Chặn")}
+                    {seg("watch", "Theo dõi")}
+                    {seg("ok", "Thông qua")}
                 </nav>
             </form>
             <Panel id="roster">

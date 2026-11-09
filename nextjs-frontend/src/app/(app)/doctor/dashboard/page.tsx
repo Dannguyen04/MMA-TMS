@@ -14,9 +14,9 @@ import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 export const metadata: Metadata = { title: "Hôm nay" };
 
 const LANES: { key: Triage; title: string; sub: string; empty: string }[] = [
-    { key: "red", title: "Đỏ · Chặn", sub: "Chưa đủ điều kiện tập", empty: "Không ai bị chặn tập hôm nay." },
-    { key: "amber", title: "Vàng · Theo dõi", sub: "Tập được, có hạn chế hoặc việc mở", empty: "Không có võ sĩ cần theo dõi." },
-    { key: "green", title: "Xanh · Thông", sub: "Đủ điều kiện, không việc mở", empty: "Chưa có võ sĩ nào thông hoàn toàn. Khi một võ sĩ đủ điều kiện và không còn việc mở, thẻ sẽ chuyển sang đây." },
+    { key: "red", title: "Chặn", sub: "Chưa đủ điều kiện tập", empty: "Không ai bị chặn tập hôm nay." },
+    { key: "amber", title: "Theo dõi", sub: "Tập được, có hạn chế hoặc việc mở", empty: "Không có võ sĩ cần theo dõi." },
+    { key: "green", title: "Thông qua", sub: "Đủ điều kiện, không việc mở", empty: "Chưa có võ sĩ nào thông hoàn toàn. Khi một võ sĩ đủ điều kiện và không còn việc mở, thẻ sẽ chuyển sang đây." },
 ];
 const ICON = { review: MessageSquareText, expiry: ShieldAlert, followup: Clock, suspension: Ban } as const;
 
@@ -123,7 +123,7 @@ export default async function DoctorDashboardPage() {
                     {LANES.map((l, i) => (
                         <li key={l.key} data-tag={l.key} style={{ ["--i" as string]: i }}>
                             <b>{rows.filter((r) => r.tag === l.key).length}</b>
-                            {l.title.split(" · ")[1]}
+                            {l.title}
                         </li>
                     ))}
                 </ol>
@@ -180,11 +180,15 @@ export default async function DoctorDashboardPage() {
                         return (
                             <section key={l.key} className="td-lane" data-tag={l.key} aria-labelledby={`ln-${l.key}`}>
                                 <header>
-                                    <h2 id={`ln-${l.key}`}>{l.title}</h2>
+                                    <h2 id={`ln-${l.key}`}>
+                                        {l.title}
+                                        <span className="td-count">{rs.length}</span>
+                                    </h2>
                                     <p>{l.sub}</p>
                                 </header>
                                 {rs.length ? (
-                                    <ol>
+                                    // Cột dài cuộn riêng; tabIndex để cuộn được bằng bàn phím.
+                                    <ol tabIndex={rs.length > 3 ? 0 : undefined} aria-label={`${l.title}: ${rs.length} võ sĩ`}>
                                         {rs.map((r, i) => (
                                             <Tag key={r.fighter.id} r={r} i={i} lane={li} />
                                         ))}

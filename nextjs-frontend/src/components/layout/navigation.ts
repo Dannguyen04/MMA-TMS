@@ -1,15 +1,20 @@
 import {
     Activity,
+    Bandage,
     CalendarDays,
+    ClipboardList,
     Cpu,
     Dumbbell,
+    FolderHeart,
     HeartPulse,
+    History,
     LayoutDashboard,
+    MessageSquareText,
+    Radar,
     Scale,
     ScanLine,
     Settings,
     ShieldCheck,
-    Stethoscope,
     Swords,
     Users,
     Video,
@@ -20,7 +25,7 @@ import type { Role } from "@/lib/domain/types";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 
-export type NavBadgeKey = "notifications" | "reviewQueue" | "newAlerts" | "failedJobs";
+export type NavBadgeKey = "notifications" | "reviewQueue" | "newAlerts" | "failedJobs" | "blockedFighters" | "openReviews";
 
 /** Screen-reader suffix read after a nav badge count ("3 failed"). */
 export const BADGE_LABELS: Record<NavBadgeKey, MessageKey> = {
@@ -28,7 +33,12 @@ export const BADGE_LABELS: Record<NavBadgeKey, MessageKey> = {
     reviewQueue: "shell.badge.reviewQueue",
     newAlerts: "shell.badge.newAlerts",
     failedJobs: "shell.badge.failedJobs",
+    blockedFighters: "shell.badge.blockedFighters",
+    openReviews: "shell.badge.openReviews",
 };
+
+/** Badges that report something blocking (solid red), as opposed to a count of work waiting. */
+export const URGENT_BADGES: readonly NavBadgeKey[] = ["failedJobs", "blockedFighters"];
 
 /** A page inside a hub, shown as a route tab above that page's header. */
 export interface NavTab {
@@ -109,20 +119,26 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
             ],
         },
     ],
+    // The doctor workspace keeps its own two groups (daily work, then the medical file), drawn by the shared shell.
     doctor: [
         {
+            label: "Daily",
             items: [
-                { label: "Triage", href: routes.doctor.dashboard, icon: Activity },
-                { label: "Patients", href: routes.doctor.fighters, icon: Users },
-                {
-                    label: "Clinical",
-                    href: routes.doctor.injuries,
-                    icon: Stethoscope,
-                    tabs: [
-                        { label: "Injuries", href: routes.doctor.injuries },
-                        { label: "Clearance", href: routes.doctor.clearance },
-                    ],
-                },
+                { label: "Today", href: routes.doctor.dashboard, icon: Activity },
+                { label: "Fighters", href: routes.doctor.fighters, icon: Users, badge: "blockedFighters" },
+                { label: "Review requests", shortLabel: "Reviews", href: routes.doctor.reviewRequests, icon: MessageSquareText, badge: "openReviews" },
+                { label: "AI observations", shortLabel: "AI", href: routes.doctor.aiAlerts, icon: Radar, badge: "newAlerts" },
+            ],
+        },
+        {
+            label: "Medical",
+            items: [
+                { label: "Examinations", href: routes.doctor.examinations, icon: ClipboardList },
+                { label: "Injuries", href: routes.doctor.injuries, icon: Bandage },
+                { label: "Recovery plans", href: routes.doctor.recovery, icon: HeartPulse },
+                { label: "Clearances", href: routes.doctor.clearance, icon: ShieldCheck },
+                { label: "Medical history", href: routes.doctor.history, icon: History },
+                { label: "Medical records", href: routes.doctor.records, icon: FolderHeart },
             ],
         },
     ],
@@ -170,10 +186,23 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
 /** The admin hubs the mobile bottom bar shows; Training stays in the menu. Admissions is frozen (T-001). */
 const ADMIN_MOBILE_HUBS: readonly string[] = [routes.admin.dashboard, routes.admin.users, routes.admin.aiJobs, routes.admin.auditLogs];
 
-/** Destinations for the mobile bottom bar: every hub, or for admin the four above. */
+/** The doctor's daily pages; the medical file stays in the menu. */
+const DOCTOR_MOBILE_HUBS: readonly string[] = [routes.doctor.dashboard, routes.doctor.fighters, routes.doctor.reviewRequests, routes.doctor.aiAlerts];
+
+/** The role's sections without the destinations this deployment hides (e.g. medical records in API mode). */
+export function navSectionsFor(role: Role, hidden: readonly string[] = []): NavSection[] {
+    if (hidden.length === 0) return NAVIGATION[role];
+    return NAVIGATION[role]
+        .map((section) => ({ ...section, items: section.items.filter((item) => !hidden.includes(item.href)) }))
+        .filter((section) => section.items.length > 0);
+}
+
+/** Destinations for the mobile bottom bar: every hub, or for admin and doctor the four above. */
 export function mobilePrimaryItems(role: Role): NavItem[] {
     const items = NAVIGATION[role].flatMap((section) => section.items);
-    return role === "admin" ? items.filter((item) => ADMIN_MOBILE_HUBS.includes(item.href)) : items;
+    if (role === "admin") return items.filter((item) => ADMIN_MOBILE_HUBS.includes(item.href));
+    if (role === "doctor") return items.filter((item) => DOCTOR_MOBILE_HUBS.includes(item.href));
+    return items;
 }
 
 function matchesPath(href: string, pathname: string): boolean {

@@ -14,7 +14,7 @@ import { BADGE_LABELS, isNavItemActive, mobilePrimaryItems } from "./navigation"
 import { SidebarNav, type NavCounts } from "./sidebar-nav";
 
 /** Hamburger + slide-in navigation drawer for small and medium screens. */
-export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCounts }) {
+export function MobileNavDrawer({ role, counts, hidden }: { role: Role; counts: NavCounts; hidden?: readonly string[] }) {
     const [open, setOpen] = useState(false);
     const t = useT();
     const dialogRef = useRef<HTMLDialogElement>(null);
@@ -71,7 +71,7 @@ export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCount
                         </div>
                         <p className="mb-4 px-3 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{t("shell.workspace", { role: t(`role.${role}`) })}</p>
                         <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto py-1 pr-1 pl-3">
-                            <SidebarNav role={role} counts={counts} onNavigate={() => setOpen(false)} />
+                            <SidebarNav role={role} counts={counts} hidden={hidden} onNavigate={() => setOpen(false)} />
                         </div>
                     </div>
                 )}

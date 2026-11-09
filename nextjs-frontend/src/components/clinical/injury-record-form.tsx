@@ -42,12 +42,12 @@ const SEVERITY_OPTIONS: ChoiceOption<ApiInjurySeverity>[] = API_INJURY_SEVERITIE
 }));
 
 /**
- * When the injury happened, as a day and a time that start empty: nothing is assumed. "Now", "Today" and "Yesterday"
- * fill them in one tap ("Today" and "Yesterday" fill only the day); the action reads the combined value.
+ * When the injury happened, as a day and a time that start at the moment the form opened. "Now", "Today" and
+ * "Yesterday" change them in one tap ("Today" and "Yesterday" change only the day); the action reads the combined value.
  */
-function OccurredAtField({ form, maxDay }: { form: Pick<ActionForm<unknown>, "control" | "error" | "markEdited">; maxDay: string }) {
-    const [day, setDay] = useState("");
-    const [time, setTime] = useState("");
+function OccurredAtField({ form, maxDay, nowInput }: { form: Pick<ActionForm<unknown>, "control" | "error" | "markEdited">; maxDay: string; nowInput: string }) {
+    const [day, setDay] = useState(nowInput.slice(0, 10));
+    const [time, setTime] = useState(nowInput.slice(11, 16));
     const control = form.control("occurredAt", { hint: true, required: true });
     const message = form.error("occurredAt");
     const pick = (value: string) => {
@@ -150,7 +150,7 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
                 </FormSection>
 
                 <FormSection title="Thời điểm và chẩn đoán" description="Xảy ra khi nào và bạn phát hiện gì.">
-                    <OccurredAtField form={form} maxDay={nowInput.slice(0, 10)} />
+                    <OccurredAtField form={form} maxDay={nowInput.slice(0, 10)} nowInput={nowInput} />
                     <Field label="Dấu hiệu lâm sàng" htmlFor={control("description").id} error={error("description")} optional hint="Cơ chế, triệu chứng, khám và chẩn đoán hình ảnh. HLV không bao giờ thấy phần này.">
                         <Textarea {...control("description", { hint: true })} rows={5} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
                     </Field>

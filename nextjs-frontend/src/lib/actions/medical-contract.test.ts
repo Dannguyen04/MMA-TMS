@@ -83,7 +83,7 @@ describe("recording an examination the service didn't confirm", () => {
         services.recordExaminationDecision.mockRejectedValue(timeout());
         services.rereadClinicalDossier.mockResolvedValue(dossier({ currentExaminations: { TRAINING: exam(), COMPETITION: null } }));
 
-        await expect(recordExaminationDecisionAction(START, form(examFields))).rejects.toThrow(`redirect:/doctor/medical-clearance/new?fighter=${FIGHTER}&exam=exam-9&notice=examination-recorded`);
+        await expect(recordExaminationDecisionAction(START, form(examFields))).rejects.toThrow(`redirect:/doctor/fighters/${FIGHTER}/clearance/new?exam=exam-9&notice=examination-recorded`);
         expect(services.recordExaminationDecision).toHaveBeenCalledTimes(1);
     });
 
