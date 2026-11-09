@@ -14,7 +14,8 @@ const PLAN_TEXT_MAX = 2000;
 /** Messages default to English, so the demo store and the tests need no translator. */
 const english = createTranslator("en");
 const NOTE_MAX = 200;
-const AUTHOR_MAX = 80;
+/** T-009 §A2: `author` 1–100. */
+const AUTHOR_MAX = 100;
 
 /** The fighter sees one phase. Completed and cancelled camps have nothing to show. */
 export function nutritionPhaseFor(phase: BoutPhase): NutritionPhaseKey | null {
@@ -27,6 +28,17 @@ export function nutritionPhaseFor(phase: BoutPhase): NutritionPhaseKey | null {
 export function planForPhase(plan: NutritionPlan, phase: BoutPhase): NutritionNote | null {
     const key = nutritionPhaseFor(phase);
     return key ? plan[key] : null;
+}
+
+/** The plan after a save: blank boxes are cleared, unchanged boxes keep their author and date. */
+export function nextNutritionPlan(before: NutritionPlan, texts: Record<NutritionPhaseKey, string>, authorName: string, now: Date): NutritionPlan {
+    const at = now.toISOString();
+    const note = (key: NutritionPhaseKey): NutritionNote | null => {
+        const text = texts[key].trim();
+        if (!text) return null;
+        return before[key]?.text === text ? before[key] : { text, authorName, updatedAt: at };
+    };
+    return { camp: note("camp"), fightWeek: note("fightWeek"), postWeighIn: note("postWeighIn") };
 }
 
 export function isPlanAdherence(value: string): value is PlanAdherence {

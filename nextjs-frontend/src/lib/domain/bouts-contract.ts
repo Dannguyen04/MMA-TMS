@@ -11,6 +11,8 @@ import {
     type CancelReason,
     type CompetitionRuleset,
     type HydrationCheck,
+    type NutritionPhaseKey,
+    type NutritionPlan,
     type OfficialWeighIn,
     type RequirementState,
 } from "./bout";
@@ -86,6 +88,16 @@ export const apiRequirementSchema = z.object({
     validityDays: z.number().nullable().optional(),
 });
 
+/** T-009 §A2: one meal-plan box. The service stamps `updatedAt` and `updatedById`; the app keeps the author's name. */
+const apiNutritionNoteSchema = z.object({ text: z.string(), author: z.string(), updatedAt: z.string() });
+
+/** Each phase may be missing. */
+export const apiNutritionPlanSchema = z.object({
+    camp: apiNutritionNoteSchema.nullable().optional(),
+    fightWeek: apiNutritionNoteSchema.nullable().optional(),
+    postWeighIn: apiNutritionNoteSchema.nullable().optional(),
+});
+
 export const apiBoutSchema = z.object({
     id: z.string(),
     fighterId: z.string(),
@@ -121,6 +133,8 @@ export const apiBoutSchema = z.object({
     knockedDown: z.boolean().nullable().optional(),
     /** Only on `GET /bouts/:id`, and null until the official weigh-in (R19). */
     acuteLoss: apiAcuteLossSchema.nullable().optional(),
+    /** T-009: absent until migration 026 is live; the caller then keeps its own copy. */
+    nutritionPlan: apiNutritionPlanSchema.optional(),
 });
 
 export type ApiRuleset = z.output<typeof apiRulesetSchema>;
@@ -152,7 +166,29 @@ export function toRuleset(raw: ApiRuleset): CompetitionRuleset {
 }
 
 /** A bout from the service, with the ruleset it was created from filling what the bout row doesn't repeat. */
-export function toCampBout(raw: ApiBout, ruleset: CompetitionRuleset | null): CampBout {
+const NUTRITION_PHASES: NutritionPhaseKey[] = ["camp", "fightWeek", "postWeighIn"];
+const EMPTY_NUTRITION_PLAN: NutritionPlan = { camp: null, fightWeek: null, postWeighIn: null };
+
+export function toNutritionPlan(raw: z.output<typeof apiNutritionPlanSchema>): NutritionPlan {
+    const note = (key: NutritionPhaseKey) => {
+        const item = raw[key];
+        return item ? { text: item.text, authorName: item.author, updatedAt: item.updatedAt } : null;
+    };
+    return { camp: note("camp"), fightWeek: note("fightWeek"), postWeighIn: note("postWeighIn") };
+}
+
+/** `PUT /bouts/:id/nutrition-plan` replaces the whole block, so empty phases are left out. */
+export function nutritionPlanBody(plan: NutritionPlan): Partial<Record<NutritionPhaseKey, { text: string; author: string }>> {
+    return Object.fromEntries(
+        NUTRITION_PHASES.flatMap((key) => {
+            const note = plan[key];
+            return note ? [[key, { text: note.text, author: note.authorName }]] : [];
+        }),
+    );
+}
+
+/** `nutritionFallback` is used when the service sends no meal plan yet (before migration 026). */
+export function toCampBout(raw: ApiBout, ruleset: CompetitionRuleset | null, nutritionFallback: NutritionPlan = EMPTY_NUTRITION_PLAN): CampBout {
     const weightClass = ruleset?.weightClasses.find((option) => option.code === raw.weightClassCode);
     const createdOn = dayKey(raw.createdAt);
     return {
@@ -195,7 +231,7 @@ export function toCampBout(raw: ApiBout, ruleset: CompetitionRuleset | null): Ca
             statusReason: item.statusReason ?? null,
             validityDays: item.validityDays ?? null,
         })),
-        nutritionPlan: { camp: null, fightWeek: null, postWeighIn: null },
+        nutritionPlan: raw.nutritionPlan ? toNutritionPlan(raw.nutritionPlan) : nutritionFallback,
         history: (raw.history ?? []).map((entry) => ({ at: entry.at, by: entry.by, from: entry.from, to: entry.to, reason: entry.reason ?? null })),
         weighIn: weighInOf(raw),
         outcome: outcomeOf(raw),

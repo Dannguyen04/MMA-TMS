@@ -12,9 +12,9 @@ export const viBoutLabels = {
     "boutLabel.adherence.SLIGHTLY_OFF": "Lệch một chút",
     "boutLabel.adherence.WAY_OFF": "Lệch nhiều",
 
-    "boutLabel.nutritionPhase.camp": "Camp",
+    "boutLabel.nutritionPhase.camp": "Trong camp",
     "boutLabel.nutritionPhase.fightWeek": "Tuần thi đấu",
-    "boutLabel.nutritionPhase.postWeighIn": "Sau buổi cân chính thức",
+    "boutLabel.nutritionPhase.postWeighIn": "Từ lúc cân đến giờ thi",
 
     "boutLabel.phase.SCHEDULED": "Đã lên lịch",
     "boutLabel.phase.CAMP": "Đang chuẩn bị thi đấu",

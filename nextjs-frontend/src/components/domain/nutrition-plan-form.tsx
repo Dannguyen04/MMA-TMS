@@ -7,11 +7,25 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import { saveNutritionPlanAction } from "@/lib/actions/bouts";
 import type { NutritionPhaseKey, NutritionPlan } from "@/lib/domain/bout";
 import { formatDateTime } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
 const PHASES: NutritionPhaseKey[] = ["camp", "fightWeek", "postWeighIn"];
 
-/** Three phase notes the coach types or pastes from a specialist. The app stores the words and nothing else. */
-export function NutritionPlanForm({ boutId, plan, authorName }: { boutId: string; plan: NutritionPlan; authorName: string }) {
+/**
+ * Three phase notes the coach types or pastes from a specialist. The app stores the words and nothing else. The box
+ * the fighter sees now (`currentPhase`) stands out.
+ */
+export function NutritionPlanForm({
+    boutId,
+    plan,
+    authorName,
+    currentPhase,
+}: {
+    boutId: string;
+    plan: NutritionPlan;
+    authorName: string;
+    currentPhase: NutritionPhaseKey | null;
+}) {
     const t = useT();
     const locale = useLocale();
     const form = useActionForm(saveNutritionPlanAction);
@@ -25,10 +39,21 @@ export function NutritionPlanForm({ boutId, plan, authorName }: { boutId: string
             {PHASES.map((phase) => {
                 const note = plan[phase];
                 const control = form.control(phase, { hint: Boolean(note) });
+                const current = phase === currentPhase;
                 return (
                     <Field
                         key={phase}
-                        label={t(`boutLabel.nutritionPhase.${phase}`)}
+                        className={cn(current && "-mx-3 rounded-lg bg-primary-soft/60 px-3 py-3 ring-1 ring-primary/40")}
+                        label={
+                            <>
+                                {t(`boutLabel.nutritionPhase.${phase}`)}
+                                {current && (
+                                    <span className="ml-2 inline-flex h-5 items-center rounded-md bg-primary px-1.5 align-middle text-[11px] font-semibold text-primary-fg">
+                                        {t("boutFighter.plan.currentPhase")}
+                                    </span>
+                                )}
+                            </>
+                        }
                         htmlFor={control.id}
                         error={form.error(phase)}
                         hint={note ? t("boutFighter.plan.lastEdited", { name: note.authorName, date: formatDateTime(note.updatedAt, locale) }) : undefined}
@@ -38,7 +63,7 @@ export function NutritionPlanForm({ boutId, plan, authorName }: { boutId: string
                 );
             })}
             <Field label={t("boutFighter.plan.writtenBy")} htmlFor={author.id} required error={form.error("authorName")} hint={t("boutFighter.plan.writtenByHint")}>
-                <Input {...author} maxLength={80} defaultValue={authorName} />
+                <Input {...author} maxLength={100} defaultValue={authorName} />
             </Field>
             <SubmitButton pending={form.pending} size="lg" pendingLabel={t("boutFighter.plan.saving")} className="min-h-11 w-full sm:w-auto">
                 {t("boutFighter.plan.save")}
