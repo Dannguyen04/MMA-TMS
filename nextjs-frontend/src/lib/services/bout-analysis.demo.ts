@@ -1,5 +1,6 @@
 import "server-only";
 
+import { buildBoutReport, type TacticReviewsInput } from "@/lib/domain/bout-report";
 import {
     buildCornerCard,
     buildRoundAdvice,
@@ -11,9 +12,11 @@ import type { OpponentAnalysisInput } from "@/lib/domain/opponent-analysis-form"
 import type { User } from "@/lib/domain/types";
 import type {
     BoutAnalysisDetail,
+    GetBoutReportResult,
     GetBoutRoundsResult,
     GetCornerCardResult,
     SaveOpponentAnalysisResult,
+    SaveTacticReviewsResult,
     UpsertBoutRoundResult,
 } from "./bout-analysis";
 import { demoCampStore, type DemoBoutRecord } from "./bouts.demo";
@@ -83,6 +86,33 @@ export async function getBoutRounds(boutId: string): Promise<GetBoutRoundsResult
             advice,
         },
     };
+}
+
+export async function getBoutReport(boutId: string): Promise<GetBoutReportResult> {
+    const bout = findBoutRecord(boutId);
+    if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
+    if (bout.phase !== "COMPLETED") return { ok: false, error: "BOUT_INVALID_TRANSITION" };
+    return { ok: true, report: buildBoutReport(getAnalysis(bout), getRounds(bout), bout.outcome, bout.weighIn?.acuteLoss ?? null) };
+}
+
+export async function saveTacticReviews(boutId: string, input: TacticReviewsInput): Promise<SaveTacticReviewsResult> {
+    const bout = findBoutRecord(boutId);
+    if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
+    if (bout.phase !== "COMPLETED") return { ok: false, error: "BOUT_INVALID_TRANSITION" };
+
+    const analysis = getAnalysis(bout);
+    const tactics = analysis.tactics ?? [];
+    if (input.reviews.some((r) => !tactics.some((t) => t.id === r.tacticId))) {
+        return { ok: false, error: "OPPONENT_TACTIC_UNKNOWN" };
+    }
+    bout.opponentAnalysis = {
+        ...analysis,
+        tactics: tactics.map((t) => {
+            const review = input.reviews.find((r) => r.tacticId === t.id);
+            return review ? { ...t, review: { outcome: review.outcome, note: review.note ?? null, auto: false } } : t;
+        }),
+    };
+    return { ok: true };
 }
 
 export async function upsertBoutRound(

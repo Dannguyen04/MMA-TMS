@@ -12,13 +12,14 @@ import {
     type ObservationMark,
     type TacticOutcome,
 } from "@/lib/domain/round-advice";
+import { TACTIC_REVIEW_NOTE_MAX, tacticReviewsInputSchema } from "@/lib/domain/bout-report";
 import { analysisFieldErrors, buildOpponentAnalysisInput } from "@/lib/domain/opponent-analysis-form";
 import { isSupportedVideoUrl, type VideoSuggestion } from "@/lib/domain/opponent-video-suggestions";
 import type { User } from "@/lib/domain/types";
 import { getTranslator } from "@/lib/i18n/server";
 import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
-import { getBoutAnalysisDetail, saveOpponentAnalysis, upsertBoutRound } from "@/lib/services/bout-analysis";
+import { getBoutAnalysisDetail, saveOpponentAnalysis, saveTacticReviews, upsertBoutRound } from "@/lib/services/bout-analysis";
 import { suggestObservationsFromVideo } from "@/lib/services/opponent-video-ai";
 import { getCampBout } from "@/lib/services/bouts";
 import { actionError, actionSuccess, validationError, type ActionState } from "./state";
@@ -39,6 +40,7 @@ function revalidateBoutAnalysisPaths(boutId: string, fighterId?: string) {
     revalidatePath(`${boutPath}/corner-card`);
     revalidatePath(`${boutPath}/rounds`);
     revalidatePath(`${boutPath}/opponent-analysis`);
+    revalidatePath(`${boutPath}/report`);
     revalidatePath(routes.coach.dashboard);
     if (fighterId) {
         revalidatePath(routes.coach.fighter(fighterId));
@@ -165,6 +167,48 @@ export async function suggestObservationsFromVideoAction(
         t("boutAnalysis.analysis.ai.done", { count: result.suggestions.length }),
         { suggestions: result.suggestions, analyzedAt: result.analyzedAt, cached: result.cached },
     );
+}
+
+/** T-041: the coach confirms or corrects every tactic's outcome on the report; each `tacticId` posts `outcome_<id>` and `note_<id>`. */
+export async function saveTacticReviewsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const { t } = await getTranslator();
+    const auth = await authorizeCoach(t);
+    if (!auth.ok) return auth.state;
+
+    const boutId = String(formData.get("boutId") ?? "").trim();
+    if (!boutId) return actionError(t("boutAnalysis.action.boutIdRequired"));
+
+    const existing = await getCampBout(boutId);
+    if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
+        return actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster"));
+    }
+
+    const fieldErrors: Record<string, string> = {};
+    const reviews = formData.getAll("tacticId").map((raw) => {
+        const tacticId = String(raw);
+        const note = String(formData.get(`note_${tacticId}`) ?? "").trim();
+        if (note.length > TACTIC_REVIEW_NOTE_MAX) {
+            fieldErrors[`note_${tacticId}`] = t("boutAnalysis.report.review.noteTooLong", { max: TACTIC_REVIEW_NOTE_MAX });
+        }
+        return { tacticId, outcome: String(formData.get(`outcome_${tacticId}`) ?? ""), ...(note ? { note } : {}) };
+    });
+    if (Object.keys(fieldErrors).length > 0) return actionError(t("form.fixFields"), fieldErrors);
+
+    const parsed = tacticReviewsInputSchema.safeParse({ reviews });
+    if (!parsed.success) return actionError(t("form.fixFields"));
+
+    try {
+        const result = await saveTacticReviews(boutId, parsed.data);
+        if (!result.ok) {
+            if (result.error === "BOUT_INVALID_TRANSITION") return actionError(t("boutAnalysis.report.review.locked"));
+            if (result.error === "OPPONENT_TACTIC_UNKNOWN") return actionError(t("boutAnalysis.report.review.tacticGone"));
+            return actionError(t("boutAnalysis.report.review.saveFailed"));
+        }
+        revalidateBoutAnalysisPaths(boutId, existing.fighterId);
+        return actionSuccess(t("boutAnalysis.report.review.saved"));
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : t("boutAnalysis.report.review.saveFailed"));
+    }
 }
 
 export async function saveOpponentAnalysisAction(_prev: ActionState, formData: FormData): Promise<ActionState> {

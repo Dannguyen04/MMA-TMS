@@ -8,6 +8,7 @@ import {
     authenticatedMutableApiRequest,
 } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { boutReportSchema, type BoutReport, type TacticReviewsInput } from "@/lib/domain/bout-report";
 import { SAMPLE_OPPONENT_ANALYSIS, sampleOpponentAnalysisWithSessions } from "@/lib/domain/opponent-analysis-seed";
 import {
     buildCornerCard,
@@ -39,13 +40,13 @@ export interface BoutAnalysisDetail {
     tacticsWithoutSessions: string[];
 }
 
-export type GetCornerCardResult =
-    | { ok: true; card: CornerCard }
-    | { ok: false; error: "BOUT_NOT_FOUND" | "BOUT_INVALID_TRANSITION" | "FORBIDDEN" };
+type ReadError = "BOUT_NOT_FOUND" | "BOUT_INVALID_TRANSITION" | "FORBIDDEN";
 
-export type GetBoutRoundsResult =
-    | { ok: true; data: RoundsResponse }
-    | { ok: false; error: "BOUT_NOT_FOUND" | "BOUT_INVALID_TRANSITION" | "FORBIDDEN" };
+export type GetCornerCardResult = { ok: true; card: CornerCard } | { ok: false; error: ReadError };
+
+export type GetBoutRoundsResult = { ok: true; data: RoundsResponse } | { ok: false; error: ReadError };
+
+export type GetBoutReportResult = { ok: true; report: BoutReport } | { ok: false; error: ReadError };
 
 export type UpsertBoutRoundResult =
     | { ok: true; data: RoundsResponse }
@@ -53,9 +54,29 @@ export type UpsertBoutRoundResult =
 
 export type SaveOpponentAnalysisResult = { ok: true } | { ok: false; error: string };
 
+export type SaveTacticReviewsResult = { ok: true } | { ok: false; error: string };
+
 /** Backend error code (e.g. `BOUT_ROUND_MARK_UNKNOWN`) when the reply carried one; `ApiError` keeps it on `code`. */
 function backendCode(error: unknown): string | undefined {
     return error instanceof ApiError && !error.code.startsWith("HTTP_") ? error.code : undefined;
+}
+
+/** A failed read the page can explain (missing bout, wrong stage, not your fighter); anything else is rethrown. */
+function readError(error: unknown): ReadError {
+    if (isNotFound(error)) return "BOUT_NOT_FOUND";
+    const status = (error as { status?: number })?.status;
+    if (status === 409) return "BOUT_INVALID_TRANSITION";
+    if (status === 403) return "FORBIDDEN";
+    throw error;
+}
+
+/** A rejected analysis write: the backend's own code for 400/422, a generic one otherwise; anything else is rethrown. */
+function analysisWriteError(error: unknown): string {
+    if (isNotFound(error)) return "BOUT_NOT_FOUND";
+    const status = (error as { status?: number })?.status;
+    if (status === 409) return "BOUT_INVALID_TRANSITION";
+    if (status === 422 || status === 400) return backendCode(error) ?? "BOUT_ANALYSIS_INVALID";
+    throw error;
 }
 
 async function demoService(): Promise<typeof import("./bout-analysis.demo")> {
@@ -177,11 +198,7 @@ export async function getCornerCard(boutId: string): Promise<GetCornerCardResult
         }
         return { ok: true, card };
     } catch (error: unknown) {
-        if (isNotFound(error)) return { ok: false, error: "BOUT_NOT_FOUND" };
-        const err = error as { status?: number };
-        if (err?.status === 409) return { ok: false, error: "BOUT_INVALID_TRANSITION" };
-        if (err?.status === 403) return { ok: false, error: "FORBIDDEN" };
-        throw error;
+        return { ok: false, error: readError(error) };
     }
 }
 
@@ -196,11 +213,35 @@ export async function getBoutRounds(boutId: string): Promise<GetBoutRoundsResult
         );
         return { ok: true, data };
     } catch (error: unknown) {
-        if (isNotFound(error)) return { ok: false, error: "BOUT_NOT_FOUND" };
-        const err = error as { status?: number };
-        if (err?.status === 409) return { ok: false, error: "BOUT_INVALID_TRANSITION" };
-        if (err?.status === 403) return { ok: false, error: "FORBIDDEN" };
-        throw error;
+        return { ok: false, error: readError(error) };
+    }
+}
+
+/** Business flow 14. The backend answers 409 until the result is recorded. */
+export async function getBoutReport(boutId: string): Promise<GetBoutReportResult> {
+    if (isDemoAuthEnabled()) return (await demoService()).getBoutReport(boutId);
+    if (!platformFeatureAvailable("bouts")) return { ok: false, error: "BOUT_NOT_FOUND" };
+
+    try {
+        return { ok: true, report: await authenticatedApiRequest(analysisPath(boutId, "/report"), boutReportSchema) };
+    } catch (error: unknown) {
+        return { ok: false, error: readError(error) };
+    }
+}
+
+/** The coach's verdict per tactic after the bout; replaces what R29 filled in for those tactics. */
+export async function saveTacticReviews(boutId: string, input: TacticReviewsInput): Promise<SaveTacticReviewsResult> {
+    if (isDemoAuthEnabled()) return (await demoService()).saveTacticReviews(boutId, input);
+    if (!platformFeatureAvailable("bouts")) unsupportedOperation("Reviewing bout tactics", "bouts");
+
+    try {
+        await authenticatedMutableApiRequest(analysisPath(boutId, "/opponent-analysis/review"), z.unknown(), {
+            method: "PUT",
+            body: JSON.stringify(input),
+        });
+        return { ok: true };
+    } catch (error: unknown) {
+        return { ok: false, error: analysisWriteError(error) };
     }
 }
 
@@ -257,12 +298,6 @@ export async function saveOpponentAnalysis(
         );
         return { ok: true };
     } catch (error: unknown) {
-        if (isNotFound(error)) return { ok: false, error: "BOUT_NOT_FOUND" };
-        const err = error as { status?: number };
-        if (err?.status === 409) return { ok: false, error: "BOUT_INVALID_TRANSITION" };
-        if (err?.status === 422 || err?.status === 400) {
-            return { ok: false, error: backendCode(error) ?? "BOUT_ANALYSIS_INVALID" };
-        }
-        throw error;
+        return { ok: false, error: analysisWriteError(error) };
     }
 }

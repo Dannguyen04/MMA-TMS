@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
     buildCornerCard,
+    buildImprovementPoints,
     buildRoundAdvice,
+    evaluateTactics,
     filterCornerCardTactics,
+    type AnalysisRound,
     type OpponentAnalysis,
 } from "./round-advice";
 
@@ -235,5 +238,66 @@ describe("round-advice domain (R20–R24)", () => {
         expect(filterCornerCardTactics(tactics, 1).map((t) => t.id)).toEqual(["t1", "t2", "t4"]);
         expect(filterCornerCardTactics(tactics, 2).map((t) => t.id)).toEqual(["t1", "t3", "t4"]);
         expect(filterCornerCardTactics(tactics, 3).map((t) => t.id)).toEqual(["t1", "t4"]);
+    });
+});
+
+// T-041 R8: the same cases as nestjs-api `bout-analysis.model.spec.ts` ("T-010 report calculations"), so demo mode
+// and the API agree on R29 and R30.
+describe("report calculations mirrored from the backend (R29, R30)", () => {
+    const observation = (id: string) => ({ id, kind: "OPENING" as const, text: id, evidenceNote: "video", confidence: "ONCE" as const });
+    const tactic = (id: string) => ({ id, text: id, observationIds: ["o1"], sessionIds: [], round: null });
+
+    it("R29 evaluates counts, ties, unused tactics and observation evidence without mutation", () => {
+        const a: OpponentAnalysis = {
+            observations: [observation("o1"), observation("o2"), observation("o3")],
+            tactics: [tactic("t1"), tactic("t2"), tactic("t3")],
+        };
+        const rounds: AnalysisRound[] = [
+            { roundNo: 1, tacticMarks: { t1: "EFFECTIVE", t2: "EFFECTIVE" }, observationMarks: { o1: "NOT_SEEN", o2: "SEEN" } },
+            { roundNo: 2, tacticMarks: { t1: "EFFECTIVE", t2: "INEFFECTIVE" }, observationMarks: { o1: "NOT_SEEN", o2: "NOT_SEEN" } },
+            { roundNo: 3, tacticMarks: { t1: "NOT_USED", t2: "INEFFECTIVE" } },
+        ];
+        const before = structuredClone({ a, rounds });
+        const evaluated = evaluateTactics(a, rounds);
+        expect(evaluated.tactics).toEqual([
+            { id: "t1", text: "t1", effectiveRounds: 2, ineffectiveRounds: 0, outcome: "EFFECTIVE" },
+            { id: "t2", text: "t2", effectiveRounds: 1, ineffectiveRounds: 2, outcome: "INEFFECTIVE" },
+            { id: "t3", text: "t3", effectiveRounds: 0, ineffectiveRounds: 0, outcome: "NOT_USED" },
+        ]);
+        expect(evaluateTactics(a, rounds.slice(0, 2)).tactics[1]?.outcome).toBe("EFFECTIVE");
+        expect(evaluated.observations.map((o) => o.notSeenInBout)).toEqual([true, false, false]);
+        expect(evaluateTactics({}, [])).toEqual({ tactics: [], observations: [] });
+        expect({ a, rounds }).toEqual(before);
+    });
+
+    it("R30 uses saved reviews before calculated outcomes and omits tactics without rounds", () => {
+        const a: OpponentAnalysis = {
+            tactics: [
+                { ...tactic("t1"), review: { outcome: "INEFFECTIVE", auto: false } },
+                { ...tactic("t2"), review: { outcome: "EFFECTIVE", auto: true } },
+                tactic("t3"),
+            ],
+        };
+        const rounds: AnalysisRound[] = [{ roundNo: 1, tacticMarks: { t1: "EFFECTIVE", t2: "INEFFECTIVE", t3: "INEFFECTIVE" } }];
+        expect(buildImprovementPoints(a, rounds, null)).toEqual([
+            { code: "TACTIC_INEFFECTIVE", tacticId: "t1", text: "t1" },
+            { code: "TACTIC_INEFFECTIVE", tacticId: "t3", text: "t3" },
+        ]);
+        expect(buildImprovementPoints(a, [], { status: "EXCEEDED" })).toEqual([{ code: "ACUTE_LOSS_EXCEEDED" }]);
+    });
+
+    it("R30 detects only a consecutive fatigue suffix, sorting without mutation", () => {
+        const rounds = [4, 2, 3, 1].map((roundNo) => ({ roundNo, fatigued: roundNo >= 2 }));
+        const before = structuredClone(rounds);
+        expect(buildImprovementPoints({}, rounds, { status: "EXCEEDED" })).toEqual([
+            { code: "ACUTE_LOSS_EXCEEDED" },
+            { code: "FATIGUE_FROM_ROUND_2", fromRound: 2 },
+        ]);
+        expect(rounds).toEqual(before);
+        for (const status of ["NO_DATA", "WITHIN"]) {
+            expect(buildImprovementPoints({}, [{ roundNo: 2, fatigued: true }, { roundNo: 3 }, { roundNo: 4, fatigued: true }], { status })).toEqual([]);
+            expect(buildImprovementPoints({}, [{ roundNo: 2, fatigued: true }, { roundNo: 4, fatigued: true }], { status })).toEqual([]);
+            expect(buildImprovementPoints({}, [{ roundNo: 1, fatigued: true }, { roundNo: 2, fatigued: true }, { roundNo: 3 }], { status })).toEqual([]);
+        }
     });
 });

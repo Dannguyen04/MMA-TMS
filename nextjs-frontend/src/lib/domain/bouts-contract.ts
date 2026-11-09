@@ -49,7 +49,7 @@ const apiHistoryEntrySchema = z.object({
     injuryNote: z.string().optional(),
 });
 
-const apiAcuteLossSchema = z.object({
+export const apiAcuteLossSchema = z.object({
     status: z.enum(["EXCEEDED", "WITHIN", "NO_DATA"]),
     startKg: z.coerce.number().nullable(),
     startOn: z.string().nullable(),

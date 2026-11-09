@@ -1,4 +1,4 @@
-import { FileText, TriangleAlert } from "lucide-react";
+import { FileText, TriangleAlert, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -84,10 +84,18 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
                     rounds: scheduledRounds ?? 0,
                 })}
                 actions={
-                    <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary">
-                        <FileText aria-hidden />
-                        {t("boutAnalysis.nav.cornerCard")}
-                    </ButtonLink>
+                    <>
+                        {bout.phase === "COMPLETED" && (
+                            <ButtonLink href={`${routes.coach.bout(bout.id)}/report`}>
+                                <Trophy aria-hidden />
+                                {t("boutAnalysis.nav.report")}
+                            </ButtonLink>
+                        )}
+                        <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary">
+                            <FileText aria-hidden />
+                            {t("boutAnalysis.nav.cornerCard")}
+                        </ButtonLink>
+                    </>
                 }
             />
 

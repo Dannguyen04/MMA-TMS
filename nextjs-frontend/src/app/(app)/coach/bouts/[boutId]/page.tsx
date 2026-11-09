@@ -1,4 +1,4 @@
-import { CalendarClock, CheckCircle2, CircleSlash, ClipboardList, FileText, Info, ShieldAlert, ShieldCheck, Swords } from "lucide-react";
+import { CalendarClock, CheckCircle2, CircleSlash, ClipboardList, FileText, Info, ShieldAlert, ShieldCheck, Swords, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -244,6 +244,15 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                                         <span>{t("boutAnalysis.nav.rounds")}</span>
                                     </Link>
                                 </>
+                            )}
+                            {bout.phase === "COMPLETED" && (
+                                <Link
+                                    href={`${routes.coach.bout(bout.id)}/report`}
+                                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-semibold text-fg transition hover:bg-surface-muted"
+                                >
+                                    <Trophy aria-hidden className="size-3.5 shrink-0" />
+                                    <span>{t("boutAnalysis.nav.report")}</span>
+                                </Link>
                             )}
                             <Link
                                 href={`${routes.coach.bout(bout.id)}/opponent-analysis`}
