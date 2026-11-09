@@ -41,6 +41,8 @@ const { values: args } = parseArgs({
         "fighter-email": { type: "string" },
         "doctor-email": { type: "string" },
         "admin-email": { type: "string" },
+        // Run only these steps, comma separated (e.g. `--only AD`); steps they need are not run, so pick ones with no needs.
+        only: { type: "string" },
     },
 });
 const apiMode = Boolean(args.email);
@@ -210,7 +212,10 @@ async function signIn(page, name) {
         await page.locator('input[name="email"]').fill(email);
         await page.locator('input[name="password"]').fill(password);
         await page.getByRole("button", { name: t("auth.submit"), exact: true }).click();
-        await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 60_000 });
+        await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 60_000 }).catch(async (error) => {
+            const alert = await page.locator('[role="alert"]').allInnerTexts().catch(() => []);
+            throw new Error(alert.length ? `sign-in for ${email} refused: ${alert.join(" / ").trim()}` : error.message);
+        });
         return true;
     }
     const button = page.getByRole("button").filter({ hasText: name }).first();
@@ -980,7 +985,8 @@ async function trySparring(tag) {
 console.log(`uat:demo ${base} · fighter ${fighterName} · ${args.locale} · run ${runLabel} · academy ${todayKey} ${academyNow().toISOString().slice(11, 16)}`);
 const status = new Map();
 let index = 0;
-for (const step of steps) {
+const onlyIds = args.only ? new Set(args.only.split(",").map((id) => id.trim())) : null;
+for (const step of onlyIds ? steps.filter((s) => onlyIds.has(s.id)) : steps) {
     index++;
     currentStep = step.id;
     const started = Date.now();

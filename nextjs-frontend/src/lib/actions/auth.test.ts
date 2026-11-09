@@ -71,6 +71,15 @@ describe("applicant email codes and sign-in in API mode", () => {
         });
     });
 
+    it("reads the backend's 422 for a password under 8 characters as a wrong password, not 'Validation failed'", async () => {
+        apiRequest.mockRejectedValue(new ApiError({ message: "Validation failed", kind: "http", status: 422, code: "VALIDATION_ERROR" }));
+
+        await expect(signIn(IDLE, form({ email: "admin@example.test", password: "short" }))).resolves.toMatchObject({
+            status: "error",
+            message: "That email and password combination is incorrect.",
+        });
+    });
+
     it("sends a signed-in applicant to their application, whatever ?next= says", async () => {
         apiRequest.mockResolvedValue({ user: guest, session });
 
