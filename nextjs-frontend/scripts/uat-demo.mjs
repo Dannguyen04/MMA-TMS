@@ -153,12 +153,28 @@ async function newPage(viewport) {
     return page;
 }
 
+let typedPassword;
+
+/** UAT_PASSWORD, or asked once on the terminal with the typing masked; it stays in this process only. */
+async function coachPassword() {
+    if (process.env.UAT_PASSWORD) return process.env.UAT_PASSWORD;
+    if (typedPassword !== undefined) return typedPassword;
+    const { createInterface } = await import("node:readline");
+    const question = `Password for ${args.email}: `;
+    const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
+    rl._writeToOutput = (text) => process.stdout.write(text.startsWith(question) ? question : text.replace(/[^\r\n]/g, "*"));
+    typedPassword = await new Promise((resolve) => rl.question(question, resolve));
+    rl.close();
+    process.stdout.write("\n");
+    return typedPassword;
+}
+
 async function signIn(page, name) {
     await page.goto(`${base}/login`, { waitUntil: "load" });
     if (apiMode) {
         if (name !== COACH) return false;
-        const password = process.env.UAT_PASSWORD;
-        if (!password) throw new Error("API mode needs the coach's password in the UAT_PASSWORD environment variable.");
+        const password = await coachPassword();
+        if (!password) throw new Error("API mode needs the coach's password (UAT_PASSWORD, or typed at the prompt).");
         await page.locator('input[name="email"]').fill(args.email);
         await page.locator('input[name="password"]').fill(password);
         await page.getByRole("button", { name: t("auth.submit"), exact: true }).click();
