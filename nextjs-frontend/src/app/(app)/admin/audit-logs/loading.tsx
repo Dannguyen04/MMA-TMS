@@ -1,8 +1,10 @@
 import { FilterRowSkeleton, LoadingRegion, PageHeaderSkeleton, Skeleton, TableCardSkeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function Loading() {
+export default async function Loading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading audit logs">
+        <LoadingRegion label={t("screens.admin.loading.auditLogs")}>
             <PageHeaderSkeleton />
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3">

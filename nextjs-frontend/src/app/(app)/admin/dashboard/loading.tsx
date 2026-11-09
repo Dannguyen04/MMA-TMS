@@ -1,5 +1,7 @@
 import { QueueSkeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function Loading() {
-    return <QueueSkeleton label="Loading today" actions={1} />;
+export default async function Loading() {
+    const { t } = await getTranslator();
+    return <QueueSkeleton label={t("screens.admin.loading.today")} actions={1} />;
 }

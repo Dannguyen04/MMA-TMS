@@ -4,12 +4,17 @@ import { PageHeader } from "@/components/ui/page-header";
 import { UploadWizard } from "@/components/video/upload-wizard";
 import { loadUploadWizardData } from "@/components/video/upload-wizard-data";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Upload video" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.video.page.uploadVideo") };
+}
 
 export default async function CoachUploadVideoPage({ searchParams }: PageProps<"/coach/video-analysis/upload">) {
+    const { t } = await getTranslator();
     const user = await requireRole("coach");
     const params = await searchParams;
     const data = await loadUploadWizardData(user);
@@ -19,9 +24,9 @@ export default async function CoachUploadVideoPage({ searchParams }: PageProps<"
     return (
         <>
             <PageHeader
-                back={{ href: validFighter ? routes.coach.fighterVideos(validFighter) : routes.coach.videoAnalysis, label: validFighter ? "Fighter videos" : "Film room" }}
-                title="Upload training video"
-                description="Add footage for a fighter on your roster. The AI analyses it and the findings land in your review queue."
+                back={{ href: validFighter ? routes.coach.fighterVideos(validFighter) : routes.coach.videoAnalysis, label: validFighter ? t("screens.video.page.fighterVideos") : t("screens.video.page.filmRoom") }}
+                title={t("screens.video.page.uploadTitle")}
+                description={t("screens.video.page.uploadDescCoach")}
             />
             <UploadWizard
                 role="coach"

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createElement } from 'react';
+import { createElement, type ComponentProps } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 const { request, token } = vi.hoisted(() => ({ request: vi.fn(), token: vi.fn() }));
 vi.mock('@/lib/api/client', () => ({ apiRequest: request, apiErrorResponse: (_error: unknown, message: string, headers: HeadersInit) => Response.json({ message }, { status: 502, headers }) }));
@@ -12,6 +12,7 @@ import { POST as createJob } from '@/app/api/ai-jobs/route';
 import { GET as exercises } from '@/app/api/ai-jobs/exercises/route';
 import { movementReviewInputSchema } from '@/lib/domain/movement-review';
 import { ExerciseContextFields } from '@/components/video/exercise-context-fields';
+import { LocaleProvider } from '@/components/i18n/locale-provider';
 
 const jobId = '10000000-0000-4000-8000-000000000001';
 const input = { requestId: '10000000-0000-4000-8000-000000000002', windowId: 'w1', expectedRevision: 0, decision: 'confirmed', notes: 'Visible hand.' };
@@ -64,7 +65,9 @@ describe('movement evidence BFF', () => {
         expect(movementReviewInputSchema.safeParse({ ...input, decision: 'corrected', startMs: 3, endMs: 1 }).success).toBe(false);
     });
     it('renders exercise/protocol controls with no implied verification', () => {
-        const html = renderToStaticMarkup(createElement(ExerciseContextFields, { details: { fighterId: '', sessionId: '', trainingType: '', cameraAngle: '', title: '', titleEdited: false, notes: '' }, onChange: () => {} }));
+        // The assertions read the English copy (Vietnamese is the app default).
+        const fields = createElement(ExerciseContextFields, { details: { fighterId: '', sessionId: '', trainingType: '', cameraAngle: '', title: '', titleEdited: false, notes: '' }, onChange: () => {} });
+        const html = renderToStaticMarkup(createElement(LocaleProvider, { locale: 'en' } as ComponentProps<typeof LocaleProvider>, fields));
         expect(html).toContain('Assigned exercise'); expect(html).toContain('does not verify its execution');
         expect(html).toContain('Upper body'); expect(html).toContain('Not a clinical measurement protocol');
     });

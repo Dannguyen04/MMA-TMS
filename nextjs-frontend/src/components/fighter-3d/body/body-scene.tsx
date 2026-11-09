@@ -54,6 +54,7 @@ export default function BodyScene(props: BodySceneProps) {
     const [lite] = useState(() => graphicsTier() === "lite");
     return (
         <Canvas
+            role="img"
             aria-label={props.ariaLabel}
             dpr={lite ? 1 : [1, 1.6]}
             gl={{ antialias: !lite, alpha: true, powerPreference: "high-performance" }}

@@ -15,7 +15,8 @@ import { cn } from "@/lib/utils";
  */
 export function Table({ className, caption, children, ...props }: ComponentProps<"table"> & { caption?: string }) {
     return (
-        <div className="scrollbar-thin relative w-full overflow-x-auto">
+        // Focusable so keyboard users can scroll a wide table sideways (WCAG 2.1.1).
+        <div tabIndex={0} className="scrollbar-thin relative w-full overflow-x-auto rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
             <table className={cn("w-full border-collapse text-left text-sm", className)} {...props}>
                 {caption && <caption className="sr-only">{caption}</caption>}
                 {children}

@@ -1,6 +1,8 @@
 import { ChevronRight, CircleCheck, TriangleAlert, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator, plural } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface AttentionItem {
@@ -13,7 +15,8 @@ export interface AttentionItem {
 }
 
 /** "All systems normal" or a short, specific list of what needs an administrator. */
-export function SystemStatus({ items, checkedLabel, className }: { items: AttentionItem[]; checkedLabel: string; className?: string }) {
+export function SystemStatus({ items, checkedLabel, locale, className }: { items: AttentionItem[]; checkedLabel: string; locale: Locale; className?: string }) {
+    const t = createTranslator(locale);
     const healthy = items.length === 0;
     return (
         <section
@@ -36,12 +39,10 @@ export function SystemStatus({ items, checkedLabel, className }: { items: Attent
                 </span>
                 <div className="min-w-0 flex-1">
                     <h2 id="system-status-title" className={cn("text-[15px] font-semibold", healthy ? "text-success-fg" : "text-warning-fg")}>
-                        {healthy ? "All systems normal" : `${items.length === 1 ? "1 item needs" : `${items.length} items need`} attention`}
+                        {healthy ? t("screens.admin.status.normal") : plural(t, "screens.admin.status.attention", items.length)}
                     </h2>
                     <p className="mt-0.5 text-sm text-fg-muted">
-                        {healthy
-                            ? "The AI pipeline is processing normally, with no failed jobs, stalled workers or sign-in problems in the last 24 hours."
-                            : "Review these before they affect coaches, doctors or fighters."}
+                        {healthy ? t("screens.admin.status.normalDescription") : t("screens.admin.status.attentionDescription")}
                     </p>
                 </div>
                 <p className="w-full text-xs text-fg-subtle sm:w-auto sm:pt-1">{checkedLabel}</p>

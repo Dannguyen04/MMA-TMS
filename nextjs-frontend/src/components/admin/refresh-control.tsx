@@ -4,10 +4,12 @@ import { RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useState, useTransition } from "react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { useVisibleInterval } from "@/components/ui/use-visible-interval";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { splitAround } from "./admin-format";
 
 export interface RefreshControlProps {
     /** Server render time (ISO); changes after every refresh. */
@@ -21,6 +23,8 @@ const TICK_MS = 15_000;
 
 /** "Updated just now" with a Refresh button that re-renders the server data in place. Timers pause while the tab is hidden. */
 export function RefreshControl({ renderedAt, autoRefreshMs = null, className }: RefreshControlProps) {
+    const t = useT();
+    const locale = useLocale();
     const router = useRouter();
     const [pending, startTransition] = useTransition();
     const [now, setNow] = useState(renderedAt);
@@ -38,24 +42,27 @@ export function RefreshControl({ renderedAt, autoRefreshMs = null, className }: 
     useVisibleInterval(tickClock, { intervalMs: TICK_MS });
     useVisibleInterval(refresh, { intervalMs: autoRefreshMs ?? TICK_MS, enabled: Boolean(autoRefreshMs) });
 
+    const [updatedBefore, updatedAfter] = splitAround(t("screens.admin.refresh.updated"), "when");
+
     return (
         <div className={cn("flex flex-wrap items-center gap-x-3 gap-y-1", className)}>
             <p className="text-[13px] text-fg-muted" aria-live="polite">
                 {pending ? (
-                    "Updating…"
+                    t("screens.admin.refresh.updating")
                 ) : (
                     <>
-                        Updated{" "}
-                        <time dateTime={renderedAt} title={formatDateTime(renderedAt)}>
-                            {formatRelative(renderedAt, now)}
+                        {updatedBefore}
+                        <time dateTime={renderedAt} title={formatDateTime(renderedAt, locale)}>
+                            {formatRelative(renderedAt, now, locale)}
                         </time>
+                        {updatedAfter}
                     </>
                 )}
-                {autoRefreshMs ? <span className="text-fg-subtle"> · auto-refreshes every {Math.round(autoRefreshMs / 1000)} s while jobs run</span> : null}
+                {autoRefreshMs ? <span className="text-fg-subtle"> · {t("screens.admin.refresh.auto", { s: Math.round(autoRefreshMs / 1000) })}</span> : null}
             </p>
             <Button variant="secondary" size="sm" onClick={refresh} disabled={pending}>
                 <RefreshCw aria-hidden className={cn(pending && "animate-spin")} />
-                Refresh
+                {t("screens.admin.common.refresh")}
             </Button>
         </div>
     );

@@ -7,6 +7,7 @@ import { useState, useTransition, type ReactNode } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { Term, TermHint } from "@/components/domain/term-hint";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Callout } from "@/components/training/callout";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Avatar } from "@/components/ui/avatar";
@@ -16,11 +17,13 @@ import { Field, Select, Textarea } from "@/components/ui/form";
 import { useToast } from "@/components/ui/toast";
 import { endAssignmentAction } from "@/lib/actions/admin";
 import { assignCareTeamMemberAction } from "@/lib/actions/care-team";
-import { CARE_ROLE_LABELS, CARE_ROLES, END_REASON_MAX, type CareRole, type CareTeam, type CareTeamMember, type StaffOption } from "@/lib/domain/care-team";
+import { CARE_ROLES, END_REASON_MAX, type CareRole, type CareTeam, type CareTeamMember, type StaffOption } from "@/lib/domain/care-team";
 import { careTeamChange } from "@/lib/domain/care-team-change";
 import { formatDate } from "@/lib/format";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { CARE_TEAM_ANCHOR, routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
+import { splitAround } from "./admin-format";
 
 export interface CareTeamCardProps {
     fighterId: string;
@@ -31,9 +34,34 @@ export interface CareTeamCardProps {
     className?: string;
 }
 
-const SECTION_TITLES: Record<CareRole, string> = { coach: "Coaches", doctor: "Sports doctors" };
-const FIELD_LABELS: Record<CareRole, string> = { coach: "Coach", doctor: "Sports doctor" };
-const ASSIGN_LABELS: Record<CareRole, string> = { coach: "Assign coach", doctor: "Assign sports doctor" };
+/** Per-role wording: the section title, the field label and each sentence that names the role. */
+const ROLE_KEYS: Record<
+    CareRole,
+    { section: MessageKey; field: MessageKey; assign: MessageKey; assignTitle: MessageKey; choose: MessageKey; addAccount: MessageKey; noStaff: MessageKey; loadError: MessageKey; nextStep: MessageKey }
+> = {
+    coach: {
+        section: "screens.admin.rolePlural.coach",
+        field: "role.coach",
+        assign: "screens.admin.careTeam.assign.coach",
+        assignTitle: "screens.admin.careTeam.assignTitle.coach",
+        choose: "screens.admin.careTeam.choose.coach",
+        addAccount: "screens.admin.careTeam.addAccount.coach",
+        noStaff: "screens.admin.careTeam.noStaff.coach",
+        loadError: "screens.admin.careTeam.loadError.coach",
+        nextStep: "screens.admin.nextStep.coach.title",
+    },
+    doctor: {
+        section: "screens.admin.rolePlural.doctor",
+        field: "role.doctor",
+        assign: "screens.admin.careTeam.assign.doctor",
+        assignTitle: "screens.admin.careTeam.assignTitle.doctor",
+        choose: "screens.admin.careTeam.choose.doctor",
+        addAccount: "screens.admin.careTeam.addAccount.doctor",
+        noStaff: "screens.admin.careTeam.noStaff.doctor",
+        loadError: "screens.admin.careTeam.loadError.doctor",
+        nextStep: "screens.admin.nextStep.doctor.title",
+    },
+};
 
 /**
  * The fighter's current coaches and sports doctors, with assigning and ending an assignment. An empty role is the
@@ -44,6 +72,8 @@ const ASSIGN_LABELS: Record<CareRole, string> = { coach: "Assign coach", doctor:
  * refused if the team changed after the form opened (`assignCareTeamMemberAction`).
  */
 export function CareTeamCard({ fighterId, fighterName, team, staff, className }: CareTeamCardProps) {
+    const t = useT();
+    const locale = useLocale();
     const router = useRouter();
     const toast = useToast();
     const [refreshing, startRefresh] = useTransition();
@@ -61,7 +91,7 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
     const staffIds = (role: CareRole) => team[role]?.map((member) => member.staffId) ?? [];
     const unassigned = (role: CareRole) => staff[role].filter((option) => !team[role]?.some((member) => member.staffId === option.staffId));
     const accountOf = (role: CareRole, staffId: string) => staff[role].find((option) => option.staffId === staffId);
-    const notify = (state: { message?: string }) => toast({ title: state.message ?? "Care team updated." });
+    const notify = (state: { message?: string }) => toast({ title: state.message ?? t("screens.admin.careTeam.updated") });
 
     // Once the fresh read has landed, open the form only if nobody changed the role in the meantime.
     if (checking && !refreshing) {
@@ -92,7 +122,7 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             onClick={() => requestAssign(role)}
         >
             <UserPlus aria-hidden />
-            {ASSIGN_LABELS[role]}
+            {t(ROLE_KEYS[role].assign)}
         </Button>
     );
 
@@ -101,20 +131,21 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             <CardHeader
                 title={
                     <span className="inline-flex items-center gap-1">
-                        Care team
-                        <TermHint term="careTeam" />
+                        {t("screens.admin.careTeam.title")}
+                        <TermHint term="careTeam" locale={locale} />
                     </span>
                 }
-                description={`Who coaches ${fighterName} and looks after their health`}
+                description={t("screens.admin.careTeam.description", { name: fighterName })}
                 icon={<UsersRound />}
             />
             <CardContent className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                 {CARE_ROLES.map((role) => {
                     const members = team[role];
+                    const section = t(ROLE_KEYS[role].section);
                     return (
-                        <section key={role} aria-label={SECTION_TITLES[role]} className="min-w-0">
+                        <section key={role} aria-label={section} className="min-w-0">
                             <div className="flex min-h-8 flex-wrap items-center justify-between gap-3">
-                                <h3 className="text-sm font-semibold text-fg">{SECTION_TITLES[role]}</h3>
+                                <h3 className="text-sm font-semibold text-fg">{section}</h3>
                                 {/* An empty role carries its button in the callout below. */}
                                 {members !== null && members.length > 0 && assignButton(role, "secondary")}
                             </div>
@@ -128,13 +159,10 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                             </div>
                             {members === null ? (
                                 <div className="mt-2 flex flex-wrap items-center gap-3">
-                                    <p className="text-sm text-danger-fg">
-                                        The current {SECTION_TITLES[role].toLowerCase()} couldn&apos;t be loaded: the {role === "coach" ? "fighter" : "medical"} service
-                                        returned an error.
-                                    </p>
+                                    <p className="text-sm text-danger-fg">{t(ROLE_KEYS[role].loadError)}</p>
                                     <Button size="sm" variant="secondary" loading={refreshing && checking === null} onClick={() => startRefresh(() => router.refresh())}>
                                         <RefreshCw aria-hidden />
-                                        Try again
+                                        {t("screens.admin.common.tryAgain")}
                                     </Button>
                                 </div>
                             ) : members.length === 0 ? (
@@ -156,9 +184,11 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                                                         ) : (
                                                             name
                                                         )}
-                                                        {member.primary && <span className="ml-1.5 font-normal text-fg-subtle">(primary)</span>}
+                                                        {member.primary && <span className="ml-1.5 font-normal text-fg-subtle">{t("screens.admin.careTeam.primary")}</span>}
                                                     </p>
-                                                    {member.since && <p className="text-[13px] text-fg-muted">Since {formatDate(member.since)}</p>}
+                                                    {member.since && (
+                                                        <p className="text-[13px] text-fg-muted">{t("screens.admin.careTeam.since", { date: formatDate(member.since, locale) })}</p>
+                                                    )}
                                                 </div>
                                                 <Button
                                                     size="sm"
@@ -169,8 +199,8 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                                                     }}
                                                 >
                                                     <UserMinus aria-hidden />
-                                                    End
-                                                    <span className="sr-only"> {name}&apos;s assignment</span>
+                                                    {t("screens.admin.careTeam.end")}
+                                                    <span className="sr-only"> {t("screens.admin.careTeam.endSr", { name })}</span>
                                                 </Button>
                                             </li>
                                         );
@@ -185,11 +215,11 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             <ActionDialog
                 open={assigning}
                 onClose={() => setAssigning(false)}
-                title={`Assign a ${CARE_ROLE_LABELS[assignRole]}`}
-                description={`The assignment starts now. ${fighterName} appears on their roster straight away.`}
+                title={t(ROLE_KEYS[assignRole].assignTitle)}
+                description={t("screens.admin.careTeam.assignDescription", { name: fighterName })}
                 action={assignCareTeamMemberAction}
-                submitLabel="Assign"
-                pendingLabel="Assigning…"
+                submitLabel={t("screens.admin.careTeam.assignSubmit")}
+                pendingLabel={t("screens.admin.careTeam.assigning")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -202,10 +232,10 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                             {assignSeen.map((staffId) => (
                                 <input key={staffId} type="hidden" name="expected" value={staffId} />
                             ))}
-                            <Field label={FIELD_LABELS[assignRole]} htmlFor={control.id} required error={form.error("staffId")}>
+                            <Field label={t(ROLE_KEYS[assignRole].field)} htmlFor={control.id} required error={form.error("staffId")}>
                                 <Select {...control} defaultValue="">
                                     <option value="" disabled>
-                                        Choose a {CARE_ROLE_LABELS[assignRole]}
+                                        {t(ROLE_KEYS[assignRole].choose)}
                                     </option>
                                     {unassigned(assignRole).map((option) => (
                                         <option key={option.staffId} value={option.staffId}>
@@ -222,12 +252,12 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
             <ActionDialog
                 open={endOpen}
                 onClose={() => setEndOpen(false)}
-                title={ending ? `End ${ending.member.name}'s assignment?` : "End assignment?"}
-                description={`They stop seeing ${fighterName} on their roster. The assignment stays in the fighter's history with your reason.`}
+                title={ending ? t("screens.admin.careTeam.endTitle", { name: ending.member.name }) : t("screens.admin.careTeam.endTitleFallback")}
+                description={t("screens.admin.careTeam.endDescription", { name: fighterName })}
                 action={endAssignmentAction}
-                submitLabel="End assignment"
+                submitLabel={t("screens.admin.careTeam.endSubmit")}
                 submitVariant="danger"
-                pendingLabel="Ending…"
+                pendingLabel={t("screens.admin.careTeam.ending")}
                 onSuccess={notify}
             >
                 {(form) => {
@@ -237,8 +267,8 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                             <input type="hidden" name="fighterId" value={fighterId} />
                             <input type="hidden" name="role" value={ending?.role ?? ""} />
                             <input type="hidden" name="assignmentId" value={ending?.member.assignmentId ?? ""} />
-                            <Field label="Reason" htmlFor={control.id} required error={form.error("reason")}>
-                                <Textarea {...control} rows={3} maxLength={END_REASON_MAX} placeholder="e.g. Moved to another camp" />
+                            <Field label={t("screens.admin.common.reason")} htmlFor={control.id} required error={form.error("reason")}>
+                                <Textarea {...control} rows={3} maxLength={END_REASON_MAX} placeholder={t("screens.admin.careTeam.endPlaceholder")} />
                             </Field>
                         </>
                     );
@@ -253,12 +283,15 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
  * examination, so the fighter can't train; without a coach nobody plans their training.
  */
 function EmptyRole({ role, fighterName, canAssign, action }: { role: CareRole; fighterName: string; canAssign: boolean; action: ReactNode }) {
+    const t = useT();
+    const locale = useLocale();
     const doctor = role === "doctor";
+    const [beforeTerm, afterTerm] = splitAround(t("screens.admin.careTeam.noDoctor", { name: fighterName }), "term");
     return (
         <Callout
             tone={doctor ? "warning" : "info"}
             icon={doctor ? Stethoscope : UsersRound}
-            title={doctor ? "Next: assign a sports doctor" : "Next: assign a coach"}
+            title={t(ROLE_KEYS[role].nextStep)}
             className="mt-2"
             action={
                 canAssign ? (
@@ -266,19 +299,23 @@ function EmptyRole({ role, fighterName, canAssign, action }: { role: CareRole; f
                 ) : (
                     <ButtonLink href={routes.admin.newUserAs(role)} size="sm" variant="secondary">
                         <UserPlus aria-hidden />
-                        Add a {CARE_ROLE_LABELS[role]} account
+                        {t(ROLE_KEYS[role].addAccount)}
                     </ButtonLink>
                 )
             }
         >
             {doctor ? (
                 <>
-                    {fighterName} can&apos;t train until a sports doctor runs the <Term term="baselineExam">baseline examination</Term>.
+                    {beforeTerm}
+                    <Term term="baselineExam" locale={locale}>
+                        {t("screens.admin.careTeam.baselineTerm")}
+                    </Term>
+                    {afterTerm}
                 </>
             ) : (
-                `Nobody plans ${fighterName}'s training until a coach is assigned.`
+                t("screens.admin.careTeam.noCoach", { name: fighterName })
             )}
-            {!canAssign && ` There's no active ${CARE_ROLE_LABELS[role]} account to choose from yet.`}
+            {!canAssign && ` ${t(ROLE_KEYS[role].noStaff)}`}
         </Callout>
     );
 }

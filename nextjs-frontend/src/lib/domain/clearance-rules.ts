@@ -1,7 +1,7 @@
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import type { Translator } from "@/lib/i18n/translate";
-import { BODY_REGION_LABELS, techniqueLabel, trainingTypeLabel } from "./labels";
+import { bodyRegionLabel, techniqueLabel, trainingTypeLabel } from "./labels";
 import { clearanceState } from "./rules";
 import type { BodyRegion, MedicalClearance, Technique, TrainingRestriction, TrainingType } from "./types";
 
@@ -176,7 +176,7 @@ export function clearanceConflictMessage(t: Translator, conflict: ClearanceConfl
             });
         case "protected_region":
             return t("training.conflict.protectedRegion", {
-                regions: (conflict.regions ?? []).map((reg) => BODY_REGION_LABELS[reg] ?? reg).join(", "),
+                regions: (conflict.regions ?? []).map((reg) => bodyRegionLabel(reg, locale)).join(", "),
                 label: conflict.label ?? "",
             });
         case "suspended":

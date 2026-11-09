@@ -3,6 +3,7 @@
 import { PenLine, Trash2 } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -26,6 +27,7 @@ export interface AccountActionsProps {
 
 /** Edit-profile and delete actions for one account, in the user service's terms (`usesUserServiceForms`). */
 export function AccountActions({ user, account, canDelete, today }: AccountActionsProps) {
+    const t = useT();
     const toast = useToast();
     const [editing, setEditing] = useState(false);
     // On success the action opens the user list, so there is nothing to report here.
@@ -36,13 +38,13 @@ export function AccountActions({ user, account, canDelete, today }: AccountActio
             {account && (
                 <Button variant="secondary" onClick={() => setEditing(true)}>
                     <PenLine aria-hidden />
-                    Edit profile
+                    {t("screens.admin.accountActions.edit")}
                 </Button>
             )}
             {canDelete && (
                 <Button variant="danger-soft" onClick={() => removal.request(user.id)}>
                     <Trash2 aria-hidden />
-                    Delete account
+                    {t("screens.admin.accountActions.delete")}
                 </Button>
             )}
 
@@ -50,13 +52,13 @@ export function AccountActions({ user, account, canDelete, today }: AccountActio
                 <ActionDialog
                     open={editing}
                     onClose={() => setEditing(false)}
-                    title="Edit profile"
+                    title={t("screens.admin.accountActions.edit")}
                     description={user.email}
                     size="lg"
                     action={updateAccountAction}
-                    submitLabel="Save changes"
-                    pendingLabel="Saving…"
-                    onSuccess={(state) => toast({ title: state.message ?? "Profile updated." })}
+                    submitLabel={t("screens.admin.common.saveChanges")}
+                    pendingLabel={t("screens.admin.common.saving")}
+                    onSuccess={(state) => toast({ title: state.message ?? t("screens.admin.accountActions.updated") })}
                 >
                     {(form) => (
                         <>
@@ -71,9 +73,9 @@ export function AccountActions({ user, account, canDelete, today }: AccountActio
             <ConfirmDialog
                 {...removal.dialogProps}
                 tone="danger"
-                title={`Delete ${user.name}'s account?`}
-                confirmLabel="Delete account"
-                description={`${user.name} can no longer sign in, and the account and its profile leave the user list and rosters. Their records are kept, but the account can't be restored from here.`}
+                title={t("screens.admin.accountActions.deleteTitle", { name: user.name })}
+                confirmLabel={t("screens.admin.accountActions.delete")}
+                description={t("screens.admin.accountActions.deleteDescription", { name: user.name })}
             />
         </>
     );

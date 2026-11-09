@@ -4,6 +4,7 @@ import { Check, Copy, KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ChoiceGroup } from "@/components/ui/choice-group";
 import { Field, FormMessage, Input } from "@/components/ui/form";
@@ -13,15 +14,13 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { createAccountAction } from "@/lib/actions/admin";
 import { PASSWORD_LENGTH } from "@/lib/auth/password-rules";
-import { ROLE_LABELS } from "@/lib/domain/labels";
 import type { Role } from "@/lib/domain/types";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { AccountProfileFields } from "./account-profile-fields";
+import { roleLabel, splitAround } from "./admin-format";
 import { generatePassword } from "./password-generator";
-import { ROLE_HINT, roleChoiceOptions, type RoleOption } from "./role-options";
-
-const EMAIL_HINT = "They sign in with this email. Each account needs its own.";
-const PASSWORD_HINT = `${PASSWORD_LENGTH.min} to ${PASSWORD_LENGTH.max} characters. Share it privately; they can choose their own with “Forgot password”.`;
+import { roleChoiceOptions, type RoleOption } from "./role-options";
 
 export interface CreateAccountFormProps {
     roles: RoleOption[];
@@ -36,18 +35,26 @@ export interface CreateAccountFormProps {
  * the account, then the profile (administrators have none). On success the action opens the new account.
  */
 export function CreateAccountForm({ roles, defaultRole, presetRole = null, today }: CreateAccountFormProps) {
+    const t = useT();
     const form = useActionForm(createAccountAction, { id: "create-account" });
     const [role, setRole] = useState<Role>(presetRole ?? defaultRole);
     const [pickingRole, setPickingRole] = useState(presetRole === null);
     const { control, error } = form;
-    const email = control("email", { hint: EMAIL_HINT, required: true });
+    const emailHint = t("screens.admin.create.emailHint");
+    const email = control("email", { hint: emailHint, required: true });
+    const [creatingBefore, creatingAfter] = splitAround(t("screens.admin.create.creatingAs"), "role");
 
+    const accountStep: FormStepDefinition = { id: "account", label: t("screens.admin.create.account"), description: t("screens.admin.create.accountDescription") };
     const steps: FormStepDefinition[] =
         role === "admin"
-            ? [{ id: "account", label: "Account", description: "Role, email and first password" }]
+            ? [accountStep]
             : [
-                  { id: "account", label: "Account", description: "Role, email and first password" },
-                  { id: "profile", label: `${ROLE_LABELS[role]} profile`, description: role === "fighter" ? "Name, birth date, weight class" : "Name and role details" },
+                  accountStep,
+                  {
+                      id: "profile",
+                      label: t(`screens.admin.create.profile.${role}` as MessageKey),
+                      description: role === "fighter" ? t("screens.admin.create.profileFighter") : t("screens.admin.create.profileStaff"),
+                  },
               ];
 
     return (
@@ -58,12 +65,12 @@ export function CreateAccountForm({ roles, defaultRole, presetRole = null, today
                 message={<FormMessage {...form.message} />}
                 cancel={
                     <ButtonLink href={routes.admin.users} variant="secondary" size="lg" className="w-full sm:h-9 sm:w-auto sm:px-3.5 sm:text-sm">
-                        Cancel
+                        {t("screens.admin.common.cancel")}
                     </ButtonLink>
                 }
                 submit={
-                    <SubmitButton size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" pending={form.pending} pendingLabel="Creating account…">
-                        Create account
+                    <SubmitButton size="lg" className="sm:h-9 sm:px-3.5 sm:text-sm" pending={form.pending} pendingLabel={t("screens.admin.create.creating")}>
+                        {t("screens.admin.create.submit")}
                     </SubmitButton>
                 }
             >
@@ -72,11 +79,11 @@ export function CreateAccountForm({ roles, defaultRole, presetRole = null, today
                         <ChoiceGroup
                             id={control("role").id}
                             name="role"
-                            legend="Role"
+                            legend={t("screens.admin.common.role")}
                             required
                             columns={2}
-                            hint={ROLE_HINT}
-                            options={roleChoiceOptions(roles)}
+                            hint={t("screens.admin.roleOptions.hint")}
+                            options={roleChoiceOptions(roles, t)}
                             value={role}
                             onChange={setRole}
                             error={error("role")}
@@ -85,24 +92,24 @@ export function CreateAccountForm({ roles, defaultRole, presetRole = null, today
                         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-surface-muted px-3.5 py-2.5">
                             <input type="hidden" name="role" value={role} />
                             <p className="text-sm text-fg-muted">
-                                Creating a <span className="font-medium text-fg">{ROLE_LABELS[role].toLowerCase()}</span> account
+                                {creatingBefore}
+                                <span className="font-medium text-fg">{roleLabel(t, role).toLowerCase()}</span>
+                                {creatingAfter}
                             </p>
                             <Button variant="ghost" size="sm" onClick={() => setPickingRole(true)}>
-                                Change role
+                                {t("screens.admin.create.changeRole")}
                             </Button>
                         </div>
                     )}
 
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <Field label="Email" htmlFor={email.id} required hint={EMAIL_HINT} error={error("email")}>
-                            <Input {...email} type="email" autoComplete="off" placeholder="name@lotus-combat.test" />
+                        <Field label={t("screens.admin.common.email")} htmlFor={email.id} required hint={emailHint} error={error("email")}>
+                            <Input {...email} type="email" autoComplete="off" placeholder={t("screens.admin.common.emailPlaceholder")} />
                         </Field>
                         <FirstPasswordField form={form} />
                     </div>
 
-                    {role === "admin" && (
-                        <InlineNote icon={ShieldCheck}>Administrators have no fighter, coach or doctor profile: the email and password are all the account needs.</InlineNote>
-                    )}
+                    {role === "admin" && <InlineNote icon={ShieldCheck}>{t("screens.admin.create.adminNote")}</InlineNote>}
                 </FormStep>
 
                 {role !== "admin" && (
@@ -122,7 +129,9 @@ type CopyState = "idle" | "copied" | "failed";
  * can hand it over privately; it is only ever sent with this form.
  */
 function FirstPasswordField({ form }: { form: ActionForm<undefined> }) {
-    const password = form.control("password", { hint: PASSWORD_HINT, required: true });
+    const t = useT();
+    const passwordHint = t("screens.admin.create.passwordHint", { min: PASSWORD_LENGTH.min, max: PASSWORD_LENGTH.max });
+    const password = form.control("password", { hint: passwordHint, required: true });
     const [value, setValue] = useState("");
     const [generated, setGenerated] = useState<string | null>(null);
     const [copy, setCopy] = useState<CopyState>("idle");
@@ -150,7 +159,7 @@ function FirstPasswordField({ form }: { form: ActionForm<undefined> }) {
 
     return (
         <div className="flex min-w-0 flex-col gap-2">
-            <Field label="First password" htmlFor={password.id} required hint={PASSWORD_HINT} error={form.error("password")}>
+            <Field label={t("screens.admin.create.firstPassword")} htmlFor={password.id} required hint={passwordHint} error={form.error("password")}>
                 <PasswordInput
                     {...password}
                     value={value}
@@ -163,22 +172,25 @@ function FirstPasswordField({ form }: { form: ActionForm<undefined> }) {
             <div>
                 <Button variant="secondary" size="sm" onClick={generate}>
                     <KeyRound aria-hidden />
-                    {generated ? "Generate another" : "Generate password"}
+                    {generated ? t("screens.admin.create.generateAnother") : t("screens.admin.create.generate")}
                 </Button>
             </div>
             {showGenerated && (
                 <div className="flex flex-col gap-2 rounded-lg bg-surface-muted px-3 py-2.5 ring-1 ring-border ring-inset">
                     <div className="flex items-center justify-between gap-2">
                         <code className="min-w-0 font-mono text-sm break-all text-fg select-all">{generated}</code>
-                        <Button variant="ghost" size="sm" onClick={copyGenerated} aria-label={copy === "copied" ? "Password copied" : "Copy password"}>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={copyGenerated}
+                            aria-label={copy === "copied" ? t("screens.admin.create.passwordCopied") : t("screens.admin.create.copyPassword")}
+                        >
                             {copy === "copied" ? <Check aria-hidden /> : <Copy aria-hidden />}
-                            {copy === "copied" ? "Copied" : "Copy"}
+                            {copy === "copied" ? t("screens.admin.create.copied") : t("screens.admin.create.copy")}
                         </Button>
                     </div>
                     <p className="text-[13px] text-fg-muted" aria-live="polite">
-                        {copy === "failed"
-                            ? "Couldn't copy. Select the password and copy it yourself."
-                            : "Copy it now and give it to them privately. It isn't shown again once the account is created."}
+                        {copy === "failed" ? t("screens.admin.create.copyFailed") : t("screens.admin.create.copyNow")}
                     </p>
                 </div>
             )}

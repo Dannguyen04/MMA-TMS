@@ -2,10 +2,14 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { getFighter } from "@/lib/services/people";
 
-export const metadata: Metadata = { title: "Fighter" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("screens.admin.meta.fighter") };
+}
 
 /**
  * Notifications about a fighter (a new fighter waiting for a coach or a sports doctor) name the fighter profile, while

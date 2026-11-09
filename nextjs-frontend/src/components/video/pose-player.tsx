@@ -21,26 +21,29 @@ import {
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 
 import { TECHNIQUE_COLOR } from "@/components/charts/colors";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Tooltip } from "@/components/ui/tooltip";
 import { isNeedsReview } from "@/lib/domain/ai-review";
 import type { AIAnalysis, CameraAngle, PoseFrame, PoseKeypoint, Stance } from "@/lib/domain/types";
-import { formatConfidence, formatTimestamp } from "@/lib/format";
+import { formatTimestamp } from "@/lib/format";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
-import { byStart, detectionAt, eventsAt, nextDetection, previousDetection, reviewedStrikeLabel, strikeObservation } from "@/lib/video/analysis-nav";
+import { byStart, detectionAt, eventsAt, nextDetection, previousDetection } from "@/lib/video/analysis-nav";
 import { indexAtOrBefore, jointAngleDeg, LIMB_CHAIN, nearestFrame } from "@/lib/video/skeleton";
 import { createSyntheticPoseSampler } from "@/lib/video/synthetic-pose";
 import { PLAYBACK_RATES, usePlayback, usePlaybackStore } from "./playback-store";
 import { drawJointAngle, drawMat, drawSkeleton, drawTrail, readStagePalette, type StagePalette, type StageRect } from "./pose-canvas";
+import { confidencePct, possibleStrike, reviewedStrike } from "./video-copy";
 
 type OverlayKey = "skeleton" | "trail" | "angle" | "label";
 
-const OVERLAYS: { key: OverlayKey; label: string; icon: LucideIcon }[] = [
-    { key: "skeleton", label: "Khung xương", icon: PersonStanding },
-    { key: "trail", label: "Vệt chuyển động", icon: Waypoints },
-    { key: "angle", label: "Góc khớp", icon: Ruler },
-    { key: "label", label: "Nhãn đòn", icon: Tag },
+const OVERLAYS: { key: OverlayKey; label: MessageKey; icon: LucideIcon }[] = [
+    { key: "skeleton", label: "screens.video.player.skeleton" as MessageKey, icon: PersonStanding },
+    { key: "trail", label: "screens.video.player.trail" as MessageKey, icon: Waypoints },
+    { key: "angle", label: "screens.video.player.jointAngle" as MessageKey, icon: Ruler },
+    { key: "label", label: "screens.video.player.strikeLabel" as MessageKey, icon: Tag },
 ];
 
 const TRAIL_MS = 600;
@@ -66,6 +69,7 @@ type PoseDataState = { status: "none" } | { status: "loading" } | { status: "rea
  */
 export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, className }: PosePlayerProps) {
     const store = usePlaybackStore();
+    const t = useT();
     const stageRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -307,13 +311,13 @@ export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, cl
     const hintId = `${analysis.id}-player-keys`;
 
     return (
-        <section aria-label={`Trình phát: ${title}`} onKeyDown={onKeyDown} className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-card", className)}>
+        <section aria-label={t("screens.video.player.label", { title })} onKeyDown={onKeyDown} className={cn("overflow-hidden rounded-xl border border-border bg-surface shadow-card", className)}>
             <div
                 ref={stageRef}
                 tabIndex={0}
                 role="application"
-                aria-roledescription="video player"
-                aria-label={reconstruction ? "Khung dựng tư thế" : "Video tập kèm lớp tư thế"}
+                aria-roledescription={t("screens.video.player.roleDescription")}
+                aria-label={reconstruction ? t("screens.video.player.reconstructionStage") : t("screens.video.player.footageStage")}
                 aria-describedby={hintId}
                 className="relative aspect-video w-full bg-nav-bg outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
                 onClick={() => {
@@ -323,27 +327,25 @@ export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, cl
             >
                 {sourceUrl && <video ref={videoRef} src={sourceUrl} playsInline muted preload="metadata" className="absolute inset-0 size-full object-contain" />}
                 <canvas ref={canvasRef} aria-hidden className="absolute inset-0 size-full" />
-                <StageChips analysis={analysis} showLabel={overlays.label} detections={detections} />
+                <StageChips analysis={analysis} showLabel={overlays.label} detections={detections} t={t} />
                 <span className="absolute top-3 right-3 inline-flex items-center gap-1.5 rounded-md bg-nav-surface/85 px-2 py-1 text-[11px] font-medium text-nav-fg ring-1 ring-nav-border">
                     {reconstruction ? <ScanLine aria-hidden className="size-3.5" /> : <VideoIcon aria-hidden className="size-3.5" />}
-                    <span className="max-sm:sr-only">{reconstruction ? "Dựng lại tư thế" : "Video gốc"}</span>
+                    <span className="max-sm:sr-only">{reconstruction ? t("screens.video.player.reconstruction") : t("screens.video.player.original")}</span>
                 </span>
                 {reconstruction && (
-                    <p className="absolute bottom-2.5 left-3 max-w-[80%] text-[11px] leading-snug text-nav-fg/80 max-sm:hidden">
-                        Dựng lại tư thế · bản Demo không lưu Video gốc
-                    </p>
+                    <p className="absolute bottom-2.5 left-3 max-w-[80%] text-[11px] leading-snug text-nav-fg/80 max-sm:hidden">{t("screens.video.player.demoNote")}</p>
                 )}
                 {poseData.status === "unavailable" && (
                     <p role="status" className="absolute bottom-2.5 left-3 rounded-md bg-nav-surface/85 px-2 py-1 text-[11px] text-nav-fg">
-                        Không tải được dữ liệu tư thế — đang hiển thị Video không có lớp phủ.
+                        {t("screens.video.player.poseUnavailable")}
                     </p>
                 )}
             </div>
             {reconstruction && (
-                <p className="border-t border-border bg-surface-muted/60 px-3 py-1.5 text-[11px] text-fg-muted sm:hidden">Dựng lại tư thế · bản Demo không lưu Video gốc</p>
+                <p className="border-t border-border bg-surface-muted/60 px-3 py-1.5 text-[11px] text-fg-muted sm:hidden">{t("screens.video.player.demoNote")}</p>
             )}
             <p id={hintId} className="sr-only">
-                Bàn phím: phím cách để phát/tạm dừng, mũi tên trái/phải lùi/tiến một khung hình, giữ Shift kèm mũi tên để nhảy một giây, ngoặc vuông trái/phải để chuyển tới lần phát hiện trước/sau.
+                {t("screens.video.player.keyboardHint")}
             </p>
             <Transport
                 onStep={step}
@@ -352,12 +354,13 @@ export function PosePlayer({ analysis, stance, cameraAngle, sourceUrl, title, cl
                 overlays={overlays}
                 onToggleOverlay={(key) => setOverlays((current) => ({ ...current, [key]: !current[key] }))}
                 onFocusStage={() => stageRef.current?.focus()}
+                t={t}
             />
         </section>
     );
 }
 
-function StageChips({ analysis, detections, showLabel }: { analysis: AIAnalysis; detections: AIAnalysis["detections"]; showLabel: boolean }) {
+function StageChips({ analysis, detections, showLabel, t }: { analysis: AIAnalysis; detections: AIAnalysis["detections"]; showLabel: boolean; t: Translator }) {
     const detectionId = usePlayback((s) => detectionAt(detections, s.timeMs)?.id ?? null);
     const eventKey = usePlayback((s) =>
         eventsAt(analysis.movementEvents, s.timeMs)
@@ -383,12 +386,12 @@ function StageChips({ analysis, detections, showLabel }: { analysis: AIAnalysis;
                     ) : (
                         <span className="size-2.5 rounded-[3px]" style={{ backgroundColor: TECHNIQUE_COLOR[detection.type] }} />
                     )}
-                    {strikeObservation(detection.type)} · {detection.confidenceAvailable === false ? "không có độ tin cậy" : formatConfidence(detection.confidence)}
-                    {low && <span className="font-medium">· cần xem lại</span>}
+                    {possibleStrike(t, detection.type)} · {detection.confidenceAvailable === false ? t("screens.video.player.confidenceUnavailable") : confidencePct(t, detection.confidence)}
+                    {low && <span className="font-medium">{t("screens.video.player.needsReview")}</span>}
                     {detection.review && detection.review.decision !== "rejected" && (
                         <span className="inline-flex items-center gap-1 font-medium text-nav-fg">
                             <UserCheck className="size-3.5" />
-                            {reviewedStrikeLabel(detection)}
+                            {reviewedStrike(t, detection)}
                         </span>
                     )}
                 </span>
@@ -396,12 +399,12 @@ function StageChips({ analysis, detections, showLabel }: { analysis: AIAnalysis;
             {eventKey.includes("guard_drop") && (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-warning-soft px-2 py-1 text-xs font-medium text-warning-fg ring-1 ring-warning-border">
                     <TriangleAlert className="size-3.5" />
-                    Thế thủ có vẻ hạ xuống
+                    {t("screens.video.player.guardDrop")}
                 </span>
             )}
             {eventKey.includes("tracking_lost") && (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-nav-surface/90 px-2 py-1 text-xs font-medium text-nav-fg ring-1 ring-nav-border">
-                    Mất theo dõi — điểm mốc không tin cậy
+                    {t("screens.video.player.trackingLost")}
                 </span>
             )}
         </div>
@@ -415,6 +418,7 @@ function Transport({
     overlays,
     onToggleOverlay,
     onFocusStage,
+    t,
 }: {
     onStep: (ms: number) => void;
     onDetection: (direction: "previous" | "next") => void;
@@ -422,6 +426,7 @@ function Transport({
     overlays: Record<OverlayKey, boolean>;
     onToggleOverlay: (key: OverlayKey) => void;
     onFocusStage: () => void;
+    t: Translator;
 }) {
     const store = usePlaybackStore();
     const playing = usePlayback((s) => s.playing);
@@ -429,30 +434,30 @@ function Transport({
 
     return (
         <div className="flex flex-col gap-3 border-t border-border px-3 py-3 sm:px-4">
-            <Scrubber />
+            <Scrubber t={t} />
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <div className="flex items-center gap-1">
-                    <Button size="icon" onClick={() => store.toggle()} aria-label={playing ? "Tạm dừng" : "Phát"} aria-keyshortcuts="Space">
+                    <Button size="icon" onClick={() => store.toggle()} aria-label={playing ? t("screens.video.player.pause") : t("screens.video.player.play")} aria-keyshortcuts="Space">
                         {playing ? <Pause /> : <Play />}
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onStep(-frameMs)} aria-label="Khung hình trước" aria-keyshortcuts="ArrowLeft">
+                    <Button variant="ghost" size="icon" onClick={() => onStep(-frameMs)} aria-label={t("screens.video.player.previousFrame")} aria-keyshortcuts="ArrowLeft">
                         <StepBack />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onStep(frameMs)} aria-label="Khung hình sau" aria-keyshortcuts="ArrowRight">
+                    <Button variant="ghost" size="icon" onClick={() => onStep(frameMs)} aria-label={t("screens.video.player.nextFrame")} aria-keyshortcuts="ArrowRight">
                         <StepForward />
                     </Button>
                     <span aria-hidden className="mx-1 h-5 w-px bg-border" />
-                    <Button variant="ghost" size="icon" onClick={() => onDetection("previous")} aria-label="Lần phát hiện trước" aria-keyshortcuts="[">
+                    <Button variant="ghost" size="icon" onClick={() => onDetection("previous")} aria-label={t("screens.video.player.previousDetection")} aria-keyshortcuts="[">
                         <ChevronLeft />
                     </Button>
-                    <Button variant="ghost" size="icon" onClick={() => onDetection("next")} aria-label="Lần phát hiện sau" aria-keyshortcuts="]">
+                    <Button variant="ghost" size="icon" onClick={() => onDetection("next")} aria-label={t("screens.video.player.nextDetection")} aria-keyshortcuts="]">
                         <ChevronRight />
                     </Button>
                 </div>
-                <TimeReadout />
+                <TimeReadout t={t} />
                 <div className="ml-auto flex flex-wrap items-center gap-2">
                     <SegmentedControl
-                        label="Tốc độ phát"
+                        label={t("screens.video.player.speed")}
                         options={RATE_OPTIONS}
                         value={`${rate}`}
                         onChange={(value) => {
@@ -460,7 +465,7 @@ function Transport({
                             if (next) store.setRate(next);
                         }}
                     />
-                    <div role="group" aria-label="Lớp phủ" className="flex items-center gap-1">
+                    <div role="group" aria-label={t("screens.video.player.overlays")} className="flex items-center gap-1">
                         {OVERLAYS.map(({ key, label, icon: Icon }) => (
                             <Button
                                 key={key}
@@ -471,11 +476,11 @@ function Transport({
                                 className={cn("px-2", overlays[key] ? "bg-primary-soft text-primary-soft-fg hover:bg-primary-soft hover:text-primary-soft-fg" : "")}
                             >
                                 <Icon aria-hidden />
-                                <span className="max-md:sr-only">{label}</span>
+                                <span className="max-md:sr-only">{t(label)}</span>
                             </Button>
                         ))}
-                        <Tooltip content="Phím cách phát/dừng · ←/→ khung hình · Shift+←/→ 1 giây · [ ] lần phát hiện">
-                            <Button variant="ghost" size="icon-sm" onClick={onFocusStage} aria-label="Phím tắt: chọn trình phát trước">
+                        <Tooltip content={t("screens.video.player.shortcuts")}>
+                            <Button variant="ghost" size="icon-sm" onClick={onFocusStage} aria-label={t("screens.video.player.shortcutsButton")}>
                                 <Keyboard aria-hidden />
                             </Button>
                         </Tooltip>
@@ -486,7 +491,7 @@ function Transport({
     );
 }
 
-function Scrubber() {
+function Scrubber({ t }: { t: Translator }) {
     const store = usePlaybackStore();
     const tenth = usePlayback((s) => Math.round(s.timeMs / 100));
     const durationMs = usePlayback((s) => s.durationMs);
@@ -499,21 +504,21 @@ function Scrubber() {
             step={100}
             value={Math.min(timeMs, durationMs)}
             onChange={(event) => store.seek(Number(event.target.value))}
-            aria-label="Tua"
-            aria-valuetext={`${formatTimestamp(timeMs)} / ${formatTimestamp(durationMs)}`}
+            aria-label={t("screens.video.player.seek")}
+            aria-valuetext={t("screens.video.player.timeOf", { time: formatTimestamp(timeMs), duration: formatTimestamp(durationMs) })}
             className="h-6 w-full cursor-pointer accent-[var(--primary)]"
         />
     );
 }
 
-function TimeReadout() {
+function TimeReadout({ t }: { t: Translator }) {
     const tenth = usePlayback((s) => Math.round(s.timeMs / 100));
     const durationMs = usePlayback((s) => s.durationMs);
     return (
         <p className="text-sm text-fg-muted tabular-nums">
             <span className="font-semibold text-fg">{formatTimestamp(tenth * 100)}</span>
             <span aria-hidden> / </span>
-            <span className="sr-only"> / </span>
+            <span className="sr-only">{t("screens.video.player.of")}</span>
             {formatTimestamp(durationMs)}
         </p>
     );

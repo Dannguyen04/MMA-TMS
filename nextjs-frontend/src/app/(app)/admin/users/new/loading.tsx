@@ -1,8 +1,10 @@
 import { LoadingRegion, PageHeaderSkeleton, Skeleton } from "@/components/ui/skeleton";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function Loading() {
+export default async function Loading() {
+    const { t } = await getTranslator();
     return (
-        <LoadingRegion label="Loading account form">
+        <LoadingRegion label={t("screens.admin.loading.newUser")}>
             <PageHeaderSkeleton back />
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Skeleton className="h-[34rem] rounded-xl lg:col-span-2" />

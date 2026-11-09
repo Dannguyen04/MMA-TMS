@@ -1,8 +1,9 @@
 "use client";
 
 import { CircleAlert, CircleCheck, LibraryBig, Plus } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup } from "@/components/ui/choice-group";
@@ -12,15 +13,21 @@ import { useToast } from "@/components/ui/toast";
 import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import type { ActionState } from "@/lib/actions/state";
 import { createLibraryExercise, importStarterLibrary, type StarterImportResult } from "@/lib/actions/training";
-import { EXERCISE_CATEGORY_LABELS } from "@/lib/domain/labels";
+import { exerciseCategoryLabel } from "@/lib/domain/labels";
 import { EXERCISE_CATEGORY_FOR, SERVICE_EXERCISE_CATEGORIES, type ServiceExerciseCategory } from "@/lib/domain/training-contract";
-import { pluralize } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { Callout } from "./callout";
 
-const CATEGORY_OPTIONS = SERVICE_EXERCISE_CATEGORIES.map((value) => ({ value, label: EXERCISE_CATEGORY_LABELS[EXERCISE_CATEGORY_FOR[value]] }));
+const categoryOptions = (t: Translator) => SERVICE_EXERCISE_CATEGORIES.map((value) => ({ value, label: exerciseCategoryLabel(t, EXERCISE_CATEGORY_FOR[value]) }));
+
+/** "12 exercises", in the viewer's language. */
+const exercises = (t: Translator, count: number) => plural(t, "screens.admin.count.exercises", count, { n: formatNumber(count) });
 
 /** "Add exercise": one exercise for the global library, in the training service's fields. */
 export function AddExerciseButton() {
+    const t = useT();
+    const options = useMemo(() => categoryOptions(t), [t]);
     const [open, setOpen] = useState(false);
     const [category, setCategory] = useState<ServiceExerciseCategory | "">("");
     const toast = useToast();
@@ -34,48 +41,48 @@ export function AddExerciseButton() {
                 }}
             >
                 <Plus aria-hidden />
-                Add exercise
+                {t("training.exerciseBuilder.add")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
-                title="Add an exercise"
-                description="Coaches can add it to their plans straight away."
+                title={t("screens.misc.library.addTitle")}
+                description={t("screens.misc.library.addDescription")}
                 action={(previous: ActionState, fd: FormData) => createLibraryExercise(previous, fd)}
-                submitLabel="Add exercise"
-                pendingLabel="Adding…"
-                onSuccess={(state) => toast({ title: state.message ?? "Exercise added." })}
+                submitLabel={t("training.exerciseBuilder.add")}
+                pendingLabel={t("training.planExercises.submittingAdd")}
+                onSuccess={(state) => toast({ title: state.message ?? t("screens.misc.library.added") })}
             >
                 {(form) => (
                     <>
-                        <Field label="Name" htmlFor={form.control("name").id} required error={form.error("name")}>
-                            <Input {...form.control("name", { required: true })} maxLength={120} placeholder="e.g. Jab–cross–hook pad drill" />
+                        <Field label={t("screens.misc.library.name")} htmlFor={form.control("name").id} required error={form.error("name")}>
+                            <Input {...form.control("name", { required: true })} maxLength={120} placeholder={t("screens.misc.library.namePlaceholder")} />
                         </Field>
                         <ChoiceGroup
                             id={form.control("category").id}
                             name="category"
-                            legend="Category"
+                            legend={t("screens.admin.exercises.category")}
                             required
                             variant="compact"
                             columns={2}
-                            options={CATEGORY_OPTIONS}
+                            options={options}
                             value={category}
                             onChange={setCategory}
                             error={form.error("category")}
                         />
-                        <Field label="Description" htmlFor={form.control("description").id} optional error={form.error("description")}>
+                        <Field label={t("screens.misc.library.description")} htmlFor={form.control("description").id} optional error={form.error("description")}>
                             <Textarea {...form.control("description")} rows={3} maxLength={1000} />
                         </Field>
                         <Field
-                            label="Muscle groups"
+                            label={t("screens.admin.exercises.muscleGroups")}
                             htmlFor={form.control("targetMuscleGroups").id}
                             optional
-                            hint="Separate with commas, e.g. shoulders, core."
+                            hint={t("screens.misc.library.muscleHint")}
                             error={form.error("targetMuscleGroups")}
                         >
                             <Input {...form.control("targetMuscleGroups", { hint: true })} maxLength={300} />
                         </Field>
-                        <Field label="Video link" htmlFor={form.control("videoUrl").id} optional hint="A demonstration coaches can open." error={form.error("videoUrl")}>
+                        <Field label={t("screens.misc.library.videoLink")} htmlFor={form.control("videoUrl").id} optional hint={t("screens.misc.library.videoHint")} error={form.error("videoUrl")}>
                             <Input {...form.control("videoUrl", { hint: true })} type="url" inputMode="url" placeholder="https://" maxLength={1000} />
                         </Field>
                     </>
@@ -97,44 +104,45 @@ export interface StarterLibraryImportProps {
  * in their exercises. Shows what was created, skipped and refused.
  */
 export function StarterLibraryImport({ missing, total }: StarterLibraryImportProps) {
+    const t = useT();
     const toast = useToast();
     const [result, setResult] = useState<{ message: string; data: StarterImportResult } | null>(null);
     const run = useConfirmAction(() => importStarterLibrary(), {
         onSuccess: (state) => {
-            if (state.data) setResult({ message: state.message ?? "Import finished.", data: state.data });
-            toast({ title: state.message ?? "Import finished.", tone: state.data && state.data.failed.length > 0 ? "warning" : "success" });
+            if (state.data) setResult({ message: state.message ?? t("screens.misc.library.importFinished"), data: state.data });
+            toast({ title: state.message ?? t("screens.misc.library.importFinished"), tone: state.data && state.data.failed.length > 0 ? "warning" : "success" });
         },
     });
 
     return (
         <div className="flex flex-col gap-3">
             {result ? (
-                <ImportResult {...result} />
+                <ImportResult {...result} t={t} />
             ) : (
                 missing.length > 0 && (
                     <Callout
                         tone="info"
                         icon={LibraryBig}
-                        title="Import the starter library"
+                        title={t("screens.misc.library.importTitle")}
                         action={
                             <Button variant="secondary" size="sm" onClick={() => run.request(undefined)}>
-                                Import {pluralize(missing.length, "exercise")}
+                                {t("screens.misc.library.importButton", { exercises: exercises(t, missing.length) })}
                             </Button>
                         }
                     >
                         {missing.length === total
-                            ? `The plan templates use ${pluralize(total, "exercise")} the library doesn't have yet.`
-                            : `${missing.length} of the ${total} exercises the plan templates use aren't in the library yet.`}{" "}
-                        Import them so templates fill in their exercises for coaches.
+                            ? t("screens.misc.library.allMissing", { exercises: exercises(t, total) })
+                            : t("screens.misc.library.someMissing", { missing: missing.length, total })}{" "}
+                        {t("screens.misc.library.importThem")}
                     </Callout>
                 )
             )}
             <ConfirmDialog
                 {...run.dialogProps}
                 tone="primary"
-                title={`Import ${pluralize(missing.length, "exercise")}?`}
-                description="Each one is added to the global library, where every coach can use it. Exercises already in the library, matched by name, are skipped."
-                confirmLabel="Import"
+                title={t("screens.misc.library.confirmTitle", { exercises: exercises(t, missing.length) })}
+                description={t("screens.misc.library.confirmDescription")}
+                confirmLabel={t("screens.misc.library.confirmLabel")}
             >
                 <ul className="mt-3 max-h-48 list-disc overflow-y-auto pl-5 text-[13px] text-fg-muted">
                     {missing.map((name) => (
@@ -146,12 +154,12 @@ export function StarterLibraryImport({ missing, total }: StarterLibraryImportPro
     );
 }
 
-function ImportResult({ message, data }: { message: string; data: StarterImportResult }) {
+function ImportResult({ message, data, t }: { message: string; data: StarterImportResult; t: Translator }) {
     const failed = data.failed.length > 0;
     return (
         <Callout tone={failed ? "warning" : "success"} icon={failed ? CircleAlert : CircleCheck} title={message} role="status">
             <p>
-                {pluralize(data.created.length, "exercise")} created · {data.skipped.length} already in the library · {data.failed.length} failed
+                {t("screens.misc.library.result", { created: exercises(t, data.created.length), skipped: data.skipped.length, failed: data.failed.length })}
             </p>
             {failed && (
                 <ul className="mt-2 flex flex-col gap-1">
@@ -164,7 +172,7 @@ function ImportResult({ message, data }: { message: string; data: StarterImportR
             )}
             {data.created.length > 0 && (
                 <details className="mt-2">
-                    <summary className="cursor-pointer text-fg">Show what was created</summary>
+                    <summary className="cursor-pointer text-fg">{t("screens.misc.library.showCreated")}</summary>
                     <p className="mt-1">{data.created.join(", ")}</p>
                 </details>
             )}

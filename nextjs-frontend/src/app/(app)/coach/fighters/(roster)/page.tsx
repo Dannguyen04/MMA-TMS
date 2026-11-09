@@ -2,10 +2,11 @@ import { CalendarPlus, LayoutGrid, SearchX, ShieldCheck, Table2, Users } from "l
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { CLEARANCE_PRIORITY, HEALTH_PRIORITY } from "@/components/dashboard/dashboard-utils";
+import { CLEARANCE_PRIORITY, HEALTH_PRIORITY, recordText } from "@/components/dashboard/dashboard-utils";
 import { loadRoster, type RosterEntry } from "@/components/dashboard/roster-data";
 import { RosterGrid, RosterTable } from "@/components/dashboard/roster-views";
 import { PERFORMANCE_TRENDS, TREND_ORDER } from "@/components/performance/trend-badge";
+import { CsvButton } from "@/components/feedback/export-buttons";
 import { ViewToggle } from "@/components/training/view-toggle";
 import { ButtonLink, buttonClasses } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -115,6 +116,18 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
                 })}
                 actions={
                     <>
+                        <CsvButton
+                            filename="vo-si.csv"
+                            header={[t("ux.export.col.name"), t("ux.export.col.discipline"), t("ux.export.col.weightClass"), t("ux.export.col.health"), t("ux.export.col.clearance"), t("ux.export.col.record")]}
+                            rows={matching.map(({ fighter, clearanceState }) => [
+                                fighter.name,
+                                fighter.primaryDiscipline,
+                                weightClassLabel(fighter.weightClass, locale),
+                                healthStatusLabel(fighter.healthStatus, locale),
+                                t(`clearance.${clearanceState}`),
+                                recordText(fighter),
+                            ])}
+                        />
                         <ButtonLink href={routes.coach.clearance} variant="secondary">
                             <ShieldCheck aria-hidden />
                             {t("training.roster.medicalClearanceAction")}

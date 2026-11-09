@@ -1,0 +1,45 @@
+/* One entrance for the camp timeline: the fight-week band wipes in, sessions settle, today's line grows. */
+.wipe {
+    animation: wipe 600ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.dot {
+    animation: settle 320ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+.grow {
+    transform-origin: 50% 0%;
+    animation: grow 500ms cubic-bezier(0.23, 1, 0.32, 1) 200ms both;
+}
+
+/* Suspensions are striped so they never rely on colour alone. */
+.hatch {
+    background-image: repeating-linear-gradient(135deg, transparent 0 5px, color-mix(in srgb, var(--danger-solid) 22%, transparent) 5px 7px);
+}
+
+@keyframes wipe {
+    from {
+        clip-path: inset(0 100% 0 0);
+    }
+}
+
+@keyframes settle {
+    from {
+        opacity: 0;
+        transform: scale(0.6);
+    }
+}
+
+@keyframes grow {
+    from {
+        transform: scaleY(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wipe,
+    .dot,
+    .grow {
+        animation: none;
+    }
+}

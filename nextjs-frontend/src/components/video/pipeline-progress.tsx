@@ -4,25 +4,16 @@ import { Ban, Circle, CircleCheck, CircleDashed, CircleX, Clock, WifiOff, type L
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { ProgressBar } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
-import { PIPELINE_STAGE_LABELS, PIPELINE_STAGES } from "@/lib/domain/labels";
+import { PIPELINE_STAGES } from "@/lib/domain/labels";
 import type { AIJob } from "@/lib/domain/types";
 import { formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { detailedStageState, WORK_STAGES, type AIJobPollResponse, type DetailedStageState } from "@/lib/video/job-progress";
 import { useJobProgress } from "./use-job-progress";
-
-/** Screen-reader state per stage. A failed or cancelled stage reads as stopped, never as waiting. */
-const STAGE_TEXT: Record<DetailedStageState, string> = {
-    done: "done",
-    current: "in progress",
-    waiting: "waiting",
-    failed: "stopped",
-    stopped: "stopped",
-    upcoming: "not started",
-    skipped: "not run",
-};
+import { pipelineStageLabel } from "./video-copy";
 
 const STAGE_ICONS: Record<Exclude<DetailedStageState, "current">, { icon: LucideIcon; className: string }> = {
     done: { icon: CircleCheck, className: "text-success-fg" },
@@ -54,6 +45,7 @@ export interface PipelineProgressProps {
 /** Live checklist of pipeline stages with progress and elapsed time. */
 export function PipelineProgress({ jobId, initialJob, now, onSettled, refreshOnSettle = false, restartKey, className }: PipelineProgressProps) {
     const router = useRouter();
+    const t = useT();
     const { job, error, reconnecting } = useJobProgress({
         jobId,
         initialJob,
@@ -66,7 +58,7 @@ export function PipelineProgress({ jobId, initialJob, now, onSettled, refreshOnS
     const status = job?.status ?? "queued";
     const elapsed = useElapsed(job?.queuedAt ?? null, now, status === "queued" || status === "processing");
     const stageIndex = job ? WORK_STAGES.indexOf(job.stage) : -1;
-    const currentLabel = job ? PIPELINE_STAGE_LABELS[job.stage] : PIPELINE_STAGE_LABELS.queued;
+    const currentLabel = pipelineStageLabel(t, job ? job.stage : "queued");
     const progress = job?.progressPct ?? 0;
 
     return (
@@ -74,25 +66,26 @@ export function PipelineProgress({ jobId, initialJob, now, onSettled, refreshOnS
             <div>
                 <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
                     <p className="text-sm font-semibold text-fg" aria-live="polite" aria-atomic="true">
-                        {status === "completed" ? "Analysis complete" : status === "failed" ? "Analysis stopped" : currentLabel}
+                        {status === "completed" ? t("screens.video.pipeline.complete") : status === "failed" ? t("screens.video.pipeline.stopped") : currentLabel}
                     </p>
                     <p className="text-[13px] text-fg-muted tabular-nums">
-                        {stageIndex >= 0 && status === "processing" ? `Stage ${stageIndex + 1} of ${WORK_STAGES.length} · ` : ""}
-                        {progress}% · Elapsed {formatClock(elapsed)}
+                        {stageIndex >= 0 && status === "processing"
+                            ? t("screens.video.pipeline.progressWithStage", { n: stageIndex + 1, total: WORK_STAGES.length, pct: progress, time: formatClock(elapsed) })
+                            : t("screens.video.pipeline.progress", { pct: progress, time: formatClock(elapsed) })}
                     </p>
                 </div>
-                <ProgressBar value={progress} label="AI analysis progress" hideValue valueText={`${progress}%`} className="mt-2" tone={status === "failed" ? "danger" : status === "completed" ? "success" : "primary"} />
+                <ProgressBar value={progress} label={t("screens.video.aiAnalysisProgress")} hideValue valueText={`${progress}%`} className="mt-2" tone={status === "failed" ? "danger" : status === "completed" ? "success" : "primary"} />
             </div>
 
-            <ol aria-label="Pipeline stages" className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-flow-col sm:grid-rows-5">
+            <ol aria-label={t("screens.video.pipeline.stages")} className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-flow-col sm:grid-rows-5">
                 {PIPELINE_STAGES.map((stage) => {
                     const state = job ? detailedStageState(job, stage) : stage === "queued" ? "waiting" : "upcoming";
                     const reached = state !== "upcoming" && state !== "skipped";
                     return (
                         <li key={stage} className="flex items-center gap-2.5 text-sm">
                             <StageIcon state={state} />
-                            <span className={cn(reached ? "text-fg" : "text-fg-subtle", reached && state !== "done" && "font-medium")}>{PIPELINE_STAGE_LABELS[stage]}</span>
-                            <span className="sr-only">({STAGE_TEXT[state]})</span>
+                            <span className={cn(reached ? "text-fg" : "text-fg-subtle", reached && state !== "done" && "font-medium")}>{pipelineStageLabel(t, stage)}</span>
+                            <span className="sr-only">({t(`screens.video.pipeline.state.${state}`)})</span>
                         </li>
                     );
                 })}
@@ -101,7 +94,7 @@ export function PipelineProgress({ jobId, initialJob, now, onSettled, refreshOnS
             {reconnecting && !error && (
                 <p role="status" className="flex items-center gap-2 text-[13px] text-fg-muted">
                     <WifiOff aria-hidden className="size-4" />
-                    Connection interrupted — retrying…
+                    {t("screens.video.pipeline.reconnecting")}
                 </p>
             )}
             {error && (

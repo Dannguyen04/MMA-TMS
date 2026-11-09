@@ -1,7 +1,6 @@
 import { Clock, TriangleAlert, UserCheck } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { AI_REVIEW_TERMS, formatReviewCounts } from "@/lib/domain/ai-review";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator, plural } from "@/lib/i18n/translate";
 
@@ -11,7 +10,7 @@ export function CoachReviewStateBadge({
     lowConfidenceCount = 0,
     size,
     className,
-    locale,
+    locale = "en",
 }: {
     reviewed: boolean;
     /** Unreviewed low-confidence detections; shown instead of "Awaiting" when present. */
@@ -20,42 +19,6 @@ export function CoachReviewStateBadge({
     className?: string;
     /** The viewer's language; English when omitted. */
     locale?: Locale;
-}) {
-    if (locale) return <TranslatedReviewBadge reviewed={reviewed} lowConfidenceCount={lowConfidenceCount} size={size} className={className} locale={locale} />;
-    if (reviewed) {
-        return (
-            <Badge tone="success" icon={UserCheck} size={size} className={className}>
-                Coach reviewed
-            </Badge>
-        );
-    }
-    const [lowConfidence] = formatReviewCounts({ lowConfidenceDetections: lowConfidenceCount });
-    if (lowConfidence) {
-        return (
-            <Badge tone="warning" icon={TriangleAlert} size={size} className={className}>
-                {AI_REVIEW_TERMS.needsReview} · {lowConfidence}
-            </Badge>
-        );
-    }
-    return (
-        <Badge tone="neutral" icon={Clock} size={size} className={className}>
-            Awaiting coach review
-        </Badge>
-    );
-}
-
-function TranslatedReviewBadge({
-    reviewed,
-    lowConfidenceCount,
-    size,
-    className,
-    locale,
-}: {
-    reviewed: boolean;
-    lowConfidenceCount: number;
-    size?: "sm" | "md";
-    className?: string;
-    locale: Locale;
 }) {
     const t = createTranslator(locale);
     if (reviewed) {

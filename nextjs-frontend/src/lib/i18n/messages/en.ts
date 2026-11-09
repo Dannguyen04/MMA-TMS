@@ -22,6 +22,9 @@ import { enScreens } from "./screens.en";
 import { enScreensRoster } from "./screens-roster.en";
 import { enScreensPerformance } from "./screens-performance.en";
 import { enScreensTraining } from "./screens-training.en";
+import { enScreensApp } from "./screens-app.en";
+import { enScreensVideo } from "./screens-video.en";
+import { enScreensAdmin } from "./screens-admin.en";
 import { enScreensMisc } from "./screens-misc.en";
 
 export const en = {
@@ -44,6 +47,9 @@ export const en = {
     ...enScreensRoster,
     ...enScreensPerformance,
     ...enScreensTraining,
+    ...enScreensApp,
+    ...enScreensVideo,
+    ...enScreensAdmin,
     ...enScreensMisc,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",

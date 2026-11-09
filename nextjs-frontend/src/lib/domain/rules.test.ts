@@ -208,7 +208,9 @@ describe("checkTrainingAgainstClearance", () => {
         expect(conflicts[0].code).toBe("restricted_technique");
         expect(clearanceConflictMessage(t, conflicts[0])).toContain("Kick");
         expect(conflicts[1].code).toBe("protected_region");
-        expect(clearanceConflictMessage(t, conflicts[1])).toContain("Cơ đùi sau trái");
+        expect(clearanceConflictMessage(t, conflicts[1])).toContain("Left hamstring");
+        const vi = createTranslator("vi");
+        expect(clearanceConflictMessage(vi, conflicts[1], "vi")).toContain(vi("bodyRegion.left_hamstring"));
     });
 
     it("describes a suspension that blocks the session type", () => {

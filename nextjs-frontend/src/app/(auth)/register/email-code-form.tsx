@@ -29,7 +29,7 @@ export function EmailCodeForm() {
             <form {...request.formProps} className="mt-8 space-y-5">
                 <FormMessage {...request.message} />
                 <Field label={t("auth.email")} htmlFor={control.id} required error={request.error("email")}>
-                    <Input {...control} type="email" autoComplete="email" placeholder="you@example.com" />
+                    <Input {...control} type="email" autoComplete="email" placeholder={t("screens.misc.auth.emailPlaceholder")} />
                 </Field>
                 <SubmitButton size="lg" className="w-full" pending={request.pending} pendingLabel={t("auth.sendCodePending")}>
                     {t("auth.sendCode")}
