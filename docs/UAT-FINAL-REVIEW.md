@@ -41,7 +41,11 @@ Script đăng nhập bằng tài khoản demo, đi từng bước dưới đây,
 | C4 | `/coach/bouts/suspensions` | Cho tập lại, có ghi chú | Hiện xác nhận, võ sĩ không còn bị chặn |
 | F | Võ sĩ, 390 px | Dashboard, trang trận | Không có màn lỗi |
 
-## Kết quả cuối (9/11, commit `216dd47`)
+## Kết quả cuối cùng (9/11, commit `8b90ce6`)
+
+Chạy lại sau khi thêm chế độ ghi giữa hiệp (T-037B) và đồng nhất UI khu bác sĩ. **G1, G2 (cùng server), G3 (sau khi khởi động lại): 3/3 lượt, mỗi lượt 15/15, 0 lỗi console/trang/5xx.** Bước B1 kiểm thêm màn 390 px: không cuộn ngang, không có nút nào dưới 44 px.
+
+## Kết quả trước đó (9/11, commit `216dd47`)
 
 Chạy lại sau khi sửa phần dịch mẫu giáo án: **F1, F2 (cùng server), F3 (sau khi khởi động lại): 3/3 lượt, mỗi lượt 15/15, 0 lỗi console/trang/5xx.**
 
