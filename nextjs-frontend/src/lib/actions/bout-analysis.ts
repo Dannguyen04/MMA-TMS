@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { canAccessFighter } from "@/lib/auth/access";
 import { authorizeAction } from "@/lib/auth/session";
 import {
+    nextRoundPlanSchema,
     observationMarkSchema,
     roundInputSchema,
     selfScoreSchema,
@@ -17,7 +18,7 @@ import { analysisFieldErrors, buildOpponentAnalysisInput } from "@/lib/domain/op
 import { isSupportedVideoUrl, type VideoSuggestion } from "@/lib/domain/opponent-video-suggestions";
 import type { User } from "@/lib/domain/types";
 import { getTranslator } from "@/lib/i18n/server";
-import type { Translator } from "@/lib/i18n/translate";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getBoutAnalysisDetail, saveOpponentAnalysis, saveTacticReviews, upsertBoutRound } from "@/lib/services/bout-analysis";
 import { suggestObservationsFromVideo } from "@/lib/services/opponent-video-ai";
@@ -125,24 +126,53 @@ export async function recordBoutRoundAction(_prev: ActionState, formData: FormDa
 
     try {
         const result = await upsertBoutRound(boutId, roundNoRaw, parsedInput.data, auth.user);
-        if (!result.ok) {
-            if (result.error === "BOUT_INVALID_TRANSITION") {
-                return actionError(t("boutAnalysis.action.invalidTransition"));
-            }
-            if (result.error === "BOUT_ROUNDS_NOT_SET") {
-                return actionError(t("boutAnalysis.action.roundsNotSet"));
-            }
-            if (result.error === "BOUT_ROUND_OUT_OF_RANGE") {
-                return actionError(t("boutAnalysis.action.roundOutOfRange"));
-            }
-            if (result.error === "BOUT_ROUND_MARK_UNKNOWN") {
-                return actionError(t("boutAnalysis.action.markUnknown"));
-            }
-            return actionError(t("boutAnalysis.action.saveFailed"));
-        }
-
+        if (!result.ok) return actionError(roundErrorMessage(result.error, t));
         revalidateBoutAnalysisPaths(boutId, fighterId);
         return actionSuccess(t("boutAnalysis.action.roundSaved", { roundNo: roundNoRaw }));
+    } catch (error: unknown) {
+        return actionError(error instanceof Error ? error.message : t("boutAnalysis.action.saveFailed"));
+    }
+}
+
+const ROUND_ERROR_KEYS: Partial<Record<string, MessageKey>> = {
+    BOUT_INVALID_TRANSITION: "boutAnalysis.action.invalidTransition",
+    BOUT_ROUNDS_NOT_SET: "boutAnalysis.action.roundsNotSet",
+    BOUT_ROUND_OUT_OF_RANGE: "boutAnalysis.action.roundOutOfRange",
+    BOUT_ROUND_MARK_UNKNOWN: "boutAnalysis.action.markUnknown",
+    BOUT_NEXT_ROUND_PLAN_LAST_ROUND: "boutAnalysis.nextRound.lastRound",
+};
+
+function roundErrorMessage(code: string, t: Translator): string {
+    return t(ROUND_ERROR_KEYS[code] ?? "boutAnalysis.action.saveFailed");
+}
+
+/**
+ * T-037 B: the plan for the next round, saved on the round just recorded (`roundNo`) without touching its marks:
+ * the API updates only the fields it is sent.
+ */
+export async function saveNextRoundPlanAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+    const { t } = await getTranslator();
+    const auth = await authorizeBoutForm(formData, t);
+    if (!auth.ok) return auth.state;
+    const { boutId, fighterId } = auth;
+
+    const roundNo = Number(formData.get("roundNo"));
+    if (!Number.isInteger(roundNo) || roundNo < 1) return actionError(t("boutAnalysis.action.boutIdRequired"));
+
+    let raw: unknown;
+    try {
+        raw = JSON.parse(String(formData.get("nextRoundPlan") ?? "{}"));
+    } catch {
+        return actionError(t("form.fixFields"));
+    }
+    const plan = nextRoundPlanSchema.safeParse(raw);
+    if (!plan.success) return actionError(t("boutAnalysis.nextRound.invalid"));
+
+    try {
+        const result = await upsertBoutRound(boutId, roundNo, { nextRoundPlan: plan.data }, auth.user);
+        if (!result.ok) return actionError(roundErrorMessage(result.error, t));
+        revalidateBoutAnalysisPaths(boutId, fighterId);
+        return actionSuccess(t("boutAnalysis.nextRound.saved", { roundNo: roundNo + 1 }));
     } catch (error: unknown) {
         return actionError(error instanceof Error ? error.message : t("boutAnalysis.action.saveFailed"));
     }

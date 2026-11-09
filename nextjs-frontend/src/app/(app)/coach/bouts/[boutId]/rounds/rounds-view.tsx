@@ -15,6 +15,7 @@ import { Field, FormMessage, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { recordBoutRoundAction } from "@/lib/actions/bout-analysis";
+import { NextRoundPlanForm } from "./next-round-plan";
 import type {
     ObservationMark,
     OpponentObservation,
@@ -48,7 +49,16 @@ export function RoundsView({
 }: RoundsViewProps) {
     const t = useT();
     const roundNumbers = Array.from({ length: scheduledRounds }, (_, idx) => idx + 1);
-    const nextRoundNo = rounds.length + 1;
+    const recordedRoundNo = rounds.reduce((max, r) => Math.max(max, r.roundNo), 0);
+    const nextRoundNo = advice?.nextRound.roundNo ?? recordedRoundNo + 1;
+    // Tactics added at a break (T-037) can be marked from the next round on, as the API allows.
+    const tacticsFor = (roundNo: number): OpponentTactic[] => [
+        ...tactics,
+        ...rounds
+            .filter((r) => r.roundNo < roundNo)
+            .flatMap((r) => r.nextRoundPlan?.addedTactics ?? [])
+            .map((added) => ({ ...added, round: null, sessionIds: [], partnerBrief: null })),
+    ];
 
     return (
         <div className="flex min-w-0 flex-col gap-5">
@@ -82,6 +92,15 @@ export function RoundsView({
                                 </div>
                             </div>
                         )}
+
+                        {/* T-037 B: what to tell the fighter for the next round, right under the safety alert */}
+                        <NextRoundPlanForm
+                            key={`plan-${recordedRoundNo}-${rounds.find((r) => r.roundNo === recordedRoundNo)?.updatedAt ?? ""}`}
+                            boutId={boutId}
+                            recordedRoundNo={recordedRoundNo}
+                            advice={advice}
+                            observations={observations}
+                        />
 
                         {/* Self-scored standing (R23) */}
                         <div className="flex min-w-0 flex-col gap-1.5 rounded-xl border border-border bg-surface-muted p-3.5">
@@ -140,7 +159,13 @@ export function RoundsView({
                                                         score: tactic.score > 0 ? `+${tactic.score}` : tactic.score,
                                                     })}
                                                 </Badge>
-                                                {!tactic.trained && (
+                                                {tactic.focus && (
+                                                    <Badge tone="primary">{t("boutAnalysis.nextRound.focusBadge")}</Badge>
+                                                )}
+                                                {tactic.addedRound !== null && (
+                                                    <Badge tone="info">{t("boutAnalysis.nextRound.addedBadge", { round: tactic.addedRound })}</Badge>
+                                                )}
+                                                {!tactic.trained && tactic.addedRound === null && (
                                                     <Badge tone="warning" icon={TriangleAlert}>
                                                         {t("boutAnalysis.cornerCard.untrainedBadge")}
                                                     </Badge>
@@ -175,7 +200,7 @@ export function RoundsView({
                             boutId={boutId}
                             roundNo={roundNo}
                             observations={observations}
-                            tactics={tactics}
+                            tactics={tacticsFor(roundNo)}
                             existing={existing}
                         />
                     );
@@ -267,7 +292,7 @@ function RoundCardForm({
                                         type="button"
                                         aria-pressed={active}
                                         onClick={() => setSelfScore(active ? "" : score)}
-                                        className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                        className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                                             active
                                                 ? "border-primary bg-primary text-primary-fg"
                                                 : "border-border bg-surface text-fg hover:bg-surface-muted"
@@ -308,7 +333,7 @@ function RoundCardForm({
                                     type="button"
                                     aria-pressed={stunned}
                                     onClick={() => setStunned((v) => !v)}
-                                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                    className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                                         stunned
                                             ? "border-danger-border bg-danger-soft text-danger-fg"
                                             : "border-border bg-surface text-fg hover:bg-surface-muted"
@@ -320,7 +345,7 @@ function RoundCardForm({
                                     type="button"
                                     aria-pressed={bleeding}
                                     onClick={() => setBleeding((v) => !v)}
-                                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                    className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                                         bleeding
                                             ? "border-warning-border bg-warning-soft text-warning-fg"
                                             : "border-border bg-surface text-fg hover:bg-surface-muted"
@@ -332,7 +357,7 @@ function RoundCardForm({
                                     type="button"
                                     aria-pressed={fatigued}
                                     onClick={() => setFatigued((v) => !v)}
-                                    className={`rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                                    className={`min-h-11 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
                                         fatigued
                                             ? "border-warning-border bg-warning-soft text-warning-fg"
                                             : "border-border bg-surface text-fg hover:bg-surface-muted"
@@ -387,7 +412,7 @@ function RoundCardForm({
                                                                     return next;
                                                                 })
                                                             }
-                                                            className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
+                                                            className={`min-h-11 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
                                                                 active
                                                                     ? outcome === "EFFECTIVE"
                                                                         ? "border-success-border bg-success-soft text-success-fg"
@@ -450,7 +475,7 @@ function RoundCardForm({
                                                                     return next;
                                                                 })
                                                             }
-                                                            className={`rounded-md border px-2.5 py-1.5 text-xs font-semibold transition ${
+                                                            className={`min-h-11 rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
                                                                 active
                                                                     ? mark === "SEEN"
                                                                         ? "border-success-border bg-success-soft text-success-fg"

@@ -92,3 +92,33 @@ describe("demo post-bout report (T-041)", () => {
         await expect(saveTacticReviews(BOUT, { reviews: [] })).resolves.toEqual({ ok: false, error: "BOUT_INVALID_TRANSITION" });
     });
 });
+
+describe("demo next-round plan (T-037 B)", () => {
+    const plan = {
+        focusTacticIds: ["tac-1"],
+        addedTactics: [{ id: "r1-a1", text: "Low kick when he steps in", observationIds: [] }],
+        instructions: [{ code: "CUSTOM" as const, text: "Breathe" }],
+    };
+
+    it("keeps the plan saved with round 1 and lets round 2 mark the tactic it added", async () => {
+        resetDemoCampStore(TODAY);
+        await upsertBoutRound(BOUT, 1, { tacticMarks: { "tac-1": "EFFECTIVE" } }, coach);
+        const saved = await upsertBoutRound(BOUT, 1, { nextRoundPlan: plan }, coach);
+        if (!saved.ok) throw new Error(saved.error);
+
+        expect(saved.data.rounds[0]?.tacticMarks).toEqual({ "tac-1": "EFFECTIVE" });
+        expect(saved.data.advice?.nextRound).toMatchObject({ roundNo: 2, plan });
+        expect(saved.data.advice?.tactics[0]).toMatchObject({ id: "tac-1", focus: true });
+        expect(saved.data.advice?.tactics.find((t) => t.id === "r1-a1")).toMatchObject({ addedRound: 1 });
+
+        const round2 = await upsertBoutRound(BOUT, 2, { tacticMarks: { "r1-a1": "EFFECTIVE" } }, coach);
+        expect(round2.ok).toBe(true);
+    });
+
+    it("refuses a plan after the last round, and ids the bout doesn't know", async () => {
+        resetDemoCampStore(TODAY);
+        await expect(upsertBoutRound(BOUT, 3, { nextRoundPlan: plan }, coach)).resolves.toEqual({ ok: false, error: "BOUT_NEXT_ROUND_PLAN_LAST_ROUND" });
+        await expect(upsertBoutRound(BOUT, 1, { nextRoundPlan: { focusTacticIds: ["nope"] } }, coach)).resolves.toEqual({ ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" });
+        await expect(upsertBoutRound(BOUT, 1, { tacticMarks: { "r1-a1": "EFFECTIVE" } }, coach)).resolves.toEqual({ ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" });
+    });
+});

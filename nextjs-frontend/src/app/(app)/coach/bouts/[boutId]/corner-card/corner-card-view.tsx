@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
     filterCornerCardTactics,
+    type breakChanges,
     type CornerCard,
 } from "@/lib/domain/round-advice";
 import { routes } from "@/lib/routes";
@@ -21,6 +22,8 @@ interface CornerCardViewProps {
     weightLimitKg: number;
     scheduledRounds: number | null;
     card: CornerCard;
+    /** T-037 B: focus tactics of the latest break and tactics added at breaks. */
+    breaks?: ReturnType<typeof breakChanges>;
 }
 
 export function CornerCardView({
@@ -30,10 +33,19 @@ export function CornerCardView({
     opponentName,
     weightLimitKg,
     scheduledRounds,
-    card,
+    card: baseCard,
+    breaks = { focusIds: [], added: [] },
 }: CornerCardViewProps) {
     const t = useT();
     const [selectedRound, setSelectedRound] = useState<number | null>(null);
+    const addedRound = new Map(breaks.added.map((added) => [added.id, added.addedRound]));
+    const card: CornerCard = {
+        ...baseCard,
+        tactics: [
+            ...baseCard.tactics,
+            ...breaks.added.map((added) => ({ id: added.id, text: added.text, round: null, partnerBrief: null, trained: false, basis: "ONCE" as const })),
+        ],
+    };
 
     const maxTacticRound = card.tactics.reduce(
         (max, item) => (item.round !== null && item.round > max ? item.round : max),
@@ -222,7 +234,11 @@ export function CornerCardView({
                                     {t(`boutAnalysis.cornerCard.basis.${tactic.basis}`)}
                                 </Badge>
 
-                                {!tactic.trained ? (
+                                {breaks.focusIds.includes(tactic.id) && <Badge tone="primary">{t("boutAnalysis.nextRound.focusBadge")}</Badge>}
+
+                                {addedRound.has(tactic.id) ? (
+                                    <Badge tone="info">{t("boutAnalysis.nextRound.addedBadge", { round: addedRound.get(tactic.id)! })}</Badge>
+                                ) : !tactic.trained ? (
                                     <Badge tone="warning" icon={TriangleAlert}>
                                         {t("boutAnalysis.cornerCard.untrainedBadge")}
                                     </Badge>

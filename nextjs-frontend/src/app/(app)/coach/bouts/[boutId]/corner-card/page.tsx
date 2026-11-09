@@ -9,7 +9,8 @@ import { requireRole } from "@/lib/auth/session";
 import { boutLimitKg } from "@/lib/domain/bout";
 import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
-import { getBoutAnalysisDetail, getCornerCard } from "@/lib/services/bout-analysis";
+import { breakChanges } from "@/lib/domain/round-advice";
+import { getBoutAnalysisDetail, getBoutRounds, getCornerCard } from "@/lib/services/bout-analysis";
 import { getCampBout } from "@/lib/services/bouts";
 import { getFighter } from "@/lib/services/people";
 import { CornerCardView } from "./corner-card-view";
@@ -37,10 +38,11 @@ export default async function CoachCornerCardPage({ params }: PageProps) {
         notFound();
     }
 
-    const [fighter, analysisDetail, cardResult] = await Promise.all([
+    const [fighter, analysisDetail, cardResult, roundsResult] = await Promise.all([
         getFighter(bout.fighterId),
         getBoutAnalysisDetail(boutId),
         getCornerCard(boutId),
+        getBoutRounds(boutId),
     ]);
 
     if (!fighter) {
@@ -94,6 +96,7 @@ export default async function CoachCornerCardPage({ params }: PageProps) {
                     weightLimitKg={weightLimitKg}
                     scheduledRounds={analysisDetail?.scheduledRounds ?? null}
                     card={cardResult.card}
+                    breaks={roundsResult.ok ? breakChanges(roundsResult.data.rounds) : undefined}
                 />
             )}
         </div>

@@ -66,7 +66,57 @@ export const opponentAnalysisSchema = z.object({
 });
 export type OpponentAnalysis = z.infer<typeof opponentAnalysisSchema>;
 
+/** T-037: what the corner tells the fighter for the next round. The backend sends codes; the UI words them. */
+export const instructionCodeSchema = z.enum([
+    "SAFETY_CHECK",
+    "STOP_TACTIC",
+    "USE_TACTIC",
+    "RECHECK_OPPONENT",
+    "MUST_WIN_ROUND",
+    "HARD_TO_WIN_ON_POINTS",
+    "CUSTOM",
+]);
+export type InstructionCode = z.infer<typeof instructionCodeSchema>;
+export const TACTIC_INSTRUCTION_CODES: readonly InstructionCode[] = ["USE_TACTIC", "STOP_TACTIC", "RECHECK_OPPONENT"];
+export const NEXT_ROUND_TEXT_MAX = 140;
+
+export const instructionSchema = z
+    .object({
+        code: instructionCodeSchema,
+        tacticId: analysisIdSchema.optional(),
+        text: z.string().trim().min(1).max(NEXT_ROUND_TEXT_MAX).optional(),
+    })
+    .strict()
+    .superRefine((instruction, ctx) => {
+        if (instruction.code === "CUSTOM" && !instruction.text) ctx.addIssue({ code: "custom", path: ["text"], message: "CUSTOM requires text" });
+        if (TACTIC_INSTRUCTION_CODES.includes(instruction.code) && !instruction.tacticId) {
+            ctx.addIssue({ code: "custom", path: ["tacticId"], message: "Instruction requires tacticId" });
+        }
+    });
+export type Instruction = z.infer<typeof instructionSchema>;
+
+export const nextRoundPlanSchema = z
+    .object({
+        focusTacticIds: z.array(analysisIdSchema).max(2).default([]),
+        addedTactics: z
+            .array(
+                z
+                    .object({
+                        id: analysisIdSchema,
+                        text: z.string().trim().min(1).max(NEXT_ROUND_TEXT_MAX),
+                        observationIds: z.array(analysisIdSchema).max(3).default([]),
+                    })
+                    .strict(),
+            )
+            .max(2)
+            .default([]),
+        instructions: z.array(instructionSchema).max(3).default([]),
+    })
+    .strict();
+export type NextRoundPlan = z.infer<typeof nextRoundPlanSchema>;
+
 export const roundInputSchema = z.object({
+    nextRoundPlan: nextRoundPlanSchema.optional(),
     tacticMarks: z.record(z.string(), tacticOutcomeSchema).optional(),
     observationMarks: z.record(z.string(), observationMarkSchema).optional(),
     selfScore: selfScoreSchema.nullable().optional(),
@@ -76,8 +126,8 @@ export const roundInputSchema = z.object({
     fatigued: z.boolean().optional(),
     note: z.string().max(300).nullable().optional(),
 });
-export type RoundInput = z.infer<typeof roundInputSchema>;
-export type AnalysisRound = RoundInput & { roundNo: number };
+export type RoundInput = z.input<typeof roundInputSchema>;
+export type AnalysisRound = Omit<RoundInput, "nextRoundPlan"> & { roundNo: number; nextRoundPlan?: z.input<typeof nextRoundPlanSchema> | null };
 
 export const cornerTacticSchema = z.object({
     id: analysisIdSchema,
@@ -96,6 +146,10 @@ export const cornerCardSchema = z.object({
 export type CornerCard = z.infer<typeof cornerCardSchema>;
 
 export const roundAdviceTacticSchema = cornerTacticSchema.extend({
+    /** The coach picked it as a focus for the next round (T-037). */
+    focus: z.boolean().default(false),
+    /** The round whose break added it, or null for a tactic from the pre-bout analysis. */
+    addedRound: z.number().nullable().default(null),
     score: z.number(),
     dropped: z.boolean(),
     note: z.literal("OPPONENT_MAY_HAVE_CHANGED").optional(),
@@ -129,6 +183,11 @@ export const roundAdviceSafetySchema = z
 export type RoundAdviceSafety = z.infer<typeof roundAdviceSafetySchema>;
 
 export const roundAdviceSchema = z.object({
+    nextRound: z.object({
+        roundNo: z.number(),
+        suggested: z.array(instructionSchema).max(5),
+        plan: nextRoundPlanSchema.nullable(),
+    }),
     tactics: z.array(roundAdviceTacticSchema),
     standing: roundAdviceStandingSchema,
     safety: roundAdviceSafetySchema,
@@ -147,6 +206,7 @@ export const roundResponseSchema = z.object({
     bleeding: z.boolean(),
     fatigued: z.boolean(),
     note: z.string().nullable(),
+    nextRoundPlan: nextRoundPlanSchema.nullable().optional(),
     recordedById: z.string(),
     createdAt: z.string(),
     updatedAt: z.string(),
@@ -217,63 +277,79 @@ function unseenStreak(rounds: readonly AnalysisRound[], id: string): number {
     return count;
 }
 
+/**
+ * For the corner card (T-037 B), whose API doesn't carry the breaks: the latest round's focus tactics and every tactic
+ * added at a break, with the round whose break added it.
+ */
+export function breakChanges(rounds: readonly AnalysisRound[]): { focusIds: string[]; added: { id: string; text: string; addedRound: number }[] } {
+    const sorted = [...rounds].sort((a, b) => a.roundNo - b.roundNo);
+    return {
+        focusIds: nextRoundPlanSchema.parse(sorted.at(-1)?.nextRoundPlan ?? {}).focusTacticIds,
+        added: sorted.flatMap((r) =>
+            nextRoundPlanSchema.parse(r.nextRoundPlan ?? {}).addedTactics.map((t) => ({ id: t.id, text: t.text, addedRound: r.roundNo })),
+        ),
+    };
+}
+
+/**
+ * R21–R24 plus T-037, mirrored from `buildRoundAdvice` in nestjs-api `bout-analysis.model.ts` so demo mode advises
+ * exactly what the API does: tactics added at a break join the list, the latest round's plan puts its focus tactics
+ * first, and `nextRound.suggested` lists safety, newly dropped, up to two to use, recheck and must-win, at most five.
+ */
 export function buildRoundAdvice(
     analysis: OpponentAnalysis,
     inputRounds: readonly AnalysisRound[],
     scheduledRounds: number,
 ): RoundAdvice {
     const rounds = [...inputRounds].sort((a, b) => a.roundNo - b.roundNo);
-    const tactics = analysis.tactics ?? [];
+    const addedTactics = rounds.flatMap((r) =>
+        nextRoundPlanSchema.parse(r.nextRoundPlan ?? {}).addedTactics.map((t) => ({
+            ...t,
+            sessionIds: [] as string[],
+            round: null,
+            partnerBrief: null,
+            addedRound: r.roundNo,
+        })),
+    );
+    const tactics = [...(analysis.tactics ?? []), ...addedTactics];
+    const latest = rounds.at(-1);
+    const latestPlan = nextRoundPlanSchema.parse(latest?.nextRoundPlan ?? {});
+    const hasPlan = latestPlan.focusTacticIds.length + latestPlan.addedTactics.length + latestPlan.instructions.length > 0;
+    const focusIds = latestPlan.focusTacticIds;
     const used = new Set(
-        tactics
-            .filter((t) =>
-                rounds.some((r) =>
-                    ["EFFECTIVE", "INEFFECTIVE"].includes(r.tacticMarks?.[t.id] ?? ""),
-                ),
-            )
-            .map((t) => t.id),
+        tactics.filter((t) => rounds.some((r) => ["EFFECTIVE", "INEFFECTIVE"].includes(r.tacticMarks?.[t.id] ?? ""))).map((t) => t.id),
     );
-    const usedBasis = new Set(
-        tactics.filter((t) => used.has(t.id)).flatMap((t) => t.observationIds),
-    );
+    const usedBasis = new Set(tactics.filter((t) => used.has(t.id)).flatMap((t) => t.observationIds));
     const demoted = new Set(
-        (analysis.observations ?? [])
-            .filter((o) => unseenStreak(rounds, o.id) >= NOT_SEEN_STREAK_TO_DEMOTE)
-            .map((o) => o.id),
+        (analysis.observations ?? []).filter((o) => unseenStreak(rounds, o.id) >= NOT_SEEN_STREAK_TO_DEMOTE).map((o) => o.id),
     );
-    const ranked = buildCornerCard(analysis, rounds)
+    // An unused tactic sharing evidence with one that was used moves up; only the sort needs it.
+    const promoted = new Set(
+        tactics.filter((t) => !used.has(t.id) && t.observationIds.some((id) => usedBasis.has(id))).map((t) => t.id),
+    );
+    const ranked = buildCornerCard({ ...analysis, tactics }, rounds)
         .tactics.map((t) => {
             const source = tactics.find((x) => x.id === t.id)!;
-            const changed =
-                source.observationIds.length > 0 &&
-                source.observationIds.every((id) => demoted.has(id));
+            const changed = source.observationIds.length > 0 && source.observationIds.every((id) => demoted.has(id));
             return {
-                item: {
-                    ...t,
-                    score: rounds.reduce(
-                        (sum, r) =>
-                            sum +
-                            (r.tacticMarks?.[t.id] === "EFFECTIVE"
-                                ? 1
-                                : r.tacticMarks?.[t.id] === "INEFFECTIVE"
-                                  ? -1
-                                  : 0),
-                        0,
-                    ),
-                    dropped: ineffectiveStreak(rounds, t.id) >= INEFFECTIVE_STREAK_TO_DROP,
-                    ...(changed ? { note: "OPPONENT_MAY_HAVE_CHANGED" as const } : {}),
-                },
-                promote:
-                    !used.has(t.id) &&
-                    source.observationIds.some((id) => usedBasis.has(id)),
+                ...t,
+                focus: focusIds.includes(t.id),
+                addedRound: addedTactics.find((added) => added.id === t.id)?.addedRound ?? null,
+                score: rounds.reduce(
+                    (sum, r) => sum + (r.tacticMarks?.[t.id] === "EFFECTIVE" ? 1 : r.tacticMarks?.[t.id] === "INEFFECTIVE" ? -1 : 0),
+                    0,
+                ),
+                dropped: ineffectiveStreak(rounds, t.id) >= INEFFECTIVE_STREAK_TO_DROP,
+                ...(changed ? { note: "OPPONENT_MAY_HAVE_CHANGED" as const } : {}),
             };
         })
         .sort(
             (a, b) =>
-                Number(a.item.dropped || Boolean(a.item.note)) -
-                    Number(b.item.dropped || Boolean(b.item.note)) ||
-                b.item.score - a.item.score ||
-                Number(b.promote) - Number(a.promote),
+                (focusIds.includes(a.id) ? focusIds.indexOf(a.id) : focusIds.length) -
+                    (focusIds.includes(b.id) ? focusIds.indexOf(b.id) : focusIds.length) ||
+                Number(a.dropped || Boolean(a.note)) - Number(b.dropped || Boolean(b.note)) ||
+                b.score - a.score ||
+                Number(promoted.has(b.id)) - Number(promoted.has(a.id)),
         );
     const w = rounds.filter((r) => r.selfScore === "WIN").length;
     const l = rounds.filter((r) => r.selfScore === "LOSS").length;
@@ -286,26 +362,25 @@ export function buildRoundAdvice(
               ? { kind: "HARD_TO_WIN_ON_POINTS", selfScored: true }
               : { kind: "NEED_WINS", needed, remaining, selfScored: true };
     const reasons: ("KNOCKDOWNS" | "STUNNED_STREAK")[] = [];
-    if (
-        rounds.reduce((sum, r) => sum + (r.knockdownsAgainst ?? 0), 0) >=
-        KNOCKDOWN_WARN_TOTAL
-    ) {
-        reasons.push("KNOCKDOWNS");
-    }
+    if (rounds.reduce((sum, r) => sum + (r.knockdownsAgainst ?? 0), 0) >= KNOCKDOWN_WARN_TOTAL) reasons.push("KNOCKDOWNS");
     let stunned = 0;
     for (let i = rounds.length - 1; i >= 0; i--) {
-        if (
-            !rounds[i]!.stunned ||
-            (i < rounds.length - 1 &&
-                rounds[i + 1]!.roundNo !== rounds[i]!.roundNo + 1)
-        ) {
-            break;
-        }
+        if (!rounds[i]!.stunned || (i < rounds.length - 1 && rounds[i + 1]!.roundNo !== rounds[i]!.roundNo + 1)) break;
         stunned++;
     }
     if (stunned >= STUNNED_STREAK_WARN) reasons.push("STUNNED_STREAK");
+    const suggested: Instruction[] = [];
+    if (reasons.length) suggested.push({ code: "SAFETY_CHECK" });
+    for (const t of ranked) {
+        if (t.dropped && ineffectiveStreak(rounds.slice(0, -1), t.id) < INEFFECTIVE_STREAK_TO_DROP) suggested.push({ code: "STOP_TACTIC", tacticId: t.id });
+    }
+    for (const t of ranked.filter((t) => !t.dropped && !t.note).slice(0, 2)) suggested.push({ code: "USE_TACTIC", tacticId: t.id });
+    for (const t of ranked.filter((t) => t.note)) suggested.push({ code: "RECHECK_OPPONENT", tacticId: t.id });
+    if (standing.kind === "NEED_WINS") suggested.push({ code: "MUST_WIN_ROUND" });
+    if (standing.kind === "HARD_TO_WIN_ON_POINTS") suggested.push({ code: "HARD_TO_WIN_ON_POINTS" });
     return {
-        tactics: ranked.map((entry) => entry.item),
+        nextRound: { roundNo: (latest?.roundNo ?? 0) + 1, suggested: suggested.slice(0, 5), plan: hasPlan ? latestPlan : null },
+        tactics: ranked,
         standing,
         safety: reasons.length ? { level: "RED", reasons } : null,
     };
