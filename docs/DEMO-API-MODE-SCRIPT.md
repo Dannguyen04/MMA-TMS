@@ -1,6 +1,6 @@
 # Kịch bản demo API mode: trước, trong và sau trận
 
-Hai cửa sổ PowerShell, chạy backend trước.
+Chạy trên nhánh `release/final-review` (cập nhật 9/11 cho buổi review cuối 10/11). Hai cửa sổ PowerShell, chạy backend trước.
 
 ### 1. Backend — cổng 3001
 
@@ -11,7 +11,7 @@ corepack pnpm start:dev
 
 Cần `nestjs-api/.env` sẵn (của team). Không sửa file này, không chạy migration. Đợi log báo Nest đang listen ở `http://localhost:3001`.
 
-Nếu backend vừa mở đã tắt vì Swagger / `z.date()`: máy này đã có một dòng sửa local trong `nestjs-api/src/suspensions/suspensions.model.ts`. Khởi động lại lệnh trên. Ken chưa đưa sửa này lên `main`.
+Lỗi Swagger / `z.date()` làm backend tắt ngay khi mở đã được sửa trên `fight-camp`, nên không cần dòng sửa local nào nữa. Dòng sửa cũ ngày 30/10 được cất trong `git stash` của máy chủ dự án.
 
 ### 2. Frontend API mode — cổng 3100
 
@@ -121,14 +121,14 @@ Trên trang trận, khung “Bắt đầu trại tập”:
 
 Giáo án phải cùng võ sĩ và phase `fight_camp`. Võ sĩ đang có trận active khác thì backend từ chối.
 
-### A3. Kế hoạch ăn *(mock, mất khi restart server)*
+### A3. Kế hoạch ăn
 
 Ba ô chữ trên trang trận: trại tập / tuần thi đấu / sau cân. Gõ ví dụ:
 
 - Trại tập: `Cơm, thịt nạc, rau. Cắt tinh bột sau 18h.`
 - Tuần thi đấu: `Giảm nước từ D−2. Không sauna nếu chóng mặt.`
 
-Bấm lưu. Phần này **không** đi backend.
+Bấm lưu. Từ 9/11 phần này lưu qua backend (`PUT /bouts/:id/nutrition-plan`, T-009) nên không mất khi khởi động lại. Giai đoạn đang chạy được tô nổi. Phần võ sĩ trả lời "ăn theo kế hoạch?" vẫn là dữ liệu giả.
 
 ### A4. Vào tuần thi đấu (Cổng 1)
 
@@ -203,6 +203,17 @@ Bấm lưu. Trận **Đã xong**. Đình chỉ KO tự tạo: chặn **đấu t�
 - Thua TKO: phải trả lời “có bị dừng vì đòn vào đầu không”. Chỉ khi **Có** mới được nhập số ngày đình chỉ. Khi **Không** thì **không** được điền ô đó.
 - KO thì **không** có ô đòn vào đầu.
 
+### C1b. Báo cáo sau trận (mới, nghiệp vụ 14)
+
+Trên trang trận (hoặc màn ghi hiệp), bấm **Báo cáo sau trận**. Nút chỉ hiện khi trận đã **Đã xong**.
+
+1. Khối **Điểm cần luyện cho camp sau** đứng đầu: chiến thuật không hiệu quả, giảm cân cấp tốc vượt ngưỡng, đuối sức từ hiệp nào (cần 2 hiệp liền có **Mệt**).
+2. Khối **Chiến thuật**: mỗi chiến thuật có số hiệp hiệu quả / không hiệu quả. Nhãn **App điền sẵn** nghĩa là kết luận do app tính từ phần ghi hiệp lúc ghi kết quả.
+3. Đổi kết luận một chiến thuật, ghi chú (≤ 300 ký tự), **Lưu đánh giá**. Chiến thuật đó mất nhãn **App điền sẵn**. Mỗi lần lưu, mọi chiến thuật đang hiện được tính là HLV đã đánh giá.
+4. Khối **Quan sát về đối thủ**: quan sát mà mọi hiệp đều đánh "không thấy" có nhãn "Không thấy lại ở trận ngày …".
+
+Trận không ghi hiệp nào: báo cáo chỉ có kết quả, kèm câu nhắc ghi hiệp. Phần đánh giá chiến thuật bị ẩn.
+
 ### C2. Xem đình chỉ
 
 Menu **Trận đấu** → **Đình chỉ**. Dòng Minh Trần: `KO · hôm nay – +29 ngày (30 ngày)` · **Đang đình chỉ**.
@@ -234,6 +245,6 @@ Lưu. Phải thấy “Rafael Costa xác nhận được tập lại, …”. Mi
 
 ## Thứ tự không được đảo
 
-`Tạo giáo án fight_camp` → `Tạo trận (hôm nay, 3 hiệp)` → `Gắn camp` → `Tuần thi đấu` → `Cân chính thức` → `Ghi hiệp / thẻ góc đài` → `Ghi kết quả` → `Đình chỉ / Cổng 2` → `Cho tập lại`.
+`Tạo giáo án fight_camp` → `Tạo trận (hôm nay, 3 hiệp)` → `Gắn camp` → `Tuần thi đấu` → `Cân chính thức` → `Ghi hiệp / thẻ góc đài` → `Ghi kết quả` → `Báo cáo sau trận` → `Đình chỉ / Cổng 2` → `Cho tập lại`.
 
 Mobile **không** có màn trận. Phần trong trận chiếu trên web.

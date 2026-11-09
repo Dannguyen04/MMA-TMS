@@ -55,7 +55,9 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
     // Reads that depend on another result chain onto it, so nothing waits for the whole first batch. The plans and the
     // video library are read once, for the cards and for the fighter's journey.
     const plansRead = listPlans({ fighterIds: ids });
-    const libraryRead = listVideoLibrary({ fighterIds: ids });
+    // The video service is optional here: when it's down the profile loses its video card, not the whole page
+    // (as on the fighter dashboard).
+    const libraryRead = nullIfServiceFails(listVideoLibrary({ fighterIds: ids })).then((library) => library ?? []);
     const [entry, planDetail, { latest, analysis }, journey, feedback, goals, coaches, doctors, health, settings, reviewRequests, { eligibility }] = await Promise.all([
         loadRosterEntry(user, fighter.id),
         plansRead.then((plans) => {
