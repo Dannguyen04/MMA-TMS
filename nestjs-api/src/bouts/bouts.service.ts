@@ -372,6 +372,7 @@ export class BoutsService {
       statuses: query.status,
       cursor: query.cursor,
       limit: query.limit,
+      order: query.order,
     });
     const hasNextPage = rows.length > query.limit;
     const page = hasNextPage ? rows.slice(0, query.limit) : rows;

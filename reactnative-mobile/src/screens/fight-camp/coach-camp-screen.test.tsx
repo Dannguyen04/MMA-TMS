@@ -5,10 +5,11 @@ import { previewBout } from "./camp-preview";
 import { CoachCampBout } from "./coach-camp-screen";
 
 const listeners: Record<string, (e: { preventDefault: () => void }) => void> = {};
+const mockTabs = { setOptions: jest.fn() };
 jest.mock("expo-router", () => ({
   useLocalSearchParams: () => ({ id: "b1", preview: "0" }),
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
-  useNavigation: () => ({ addListener: (name: string, fn: (e: { preventDefault: () => void }) => void) => { listeners[name] = fn; return () => undefined; } }),
+  useNavigation: () => ({ addListener: (name: string, fn: (e: { preventDefault: () => void }) => void) => { listeners[name] = fn; return () => undefined; }, getParent: () => mockTabs }),
 }));
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ isDemo: false, user: { id: "coach" } }) }));
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light }) }));
@@ -75,5 +76,16 @@ describe("Coach bout: weigh-in flow", () => {
     expect(ui.getByText(/Trận vẫn ở Tuần thi đấu/)).toBeTruthy();
     expect(ui.getByLabelText("Thoả thuận hạng cân")).toBeTruthy();
     expect(ui.getByLabelText("Huỷ trận")).toBeTruthy();
+  });
+});
+describe("Coach bout: tab bar during the bout", () => {
+  it("hides the coach tab bar on the corner card and shows it again back on the detail", async () => {
+    api.detail.mockResolvedValue(bout({ status: "WEIGHED_IN" }));
+    api.suspensions.mockResolvedValue({ data: [], hasNextPage: false, nextCursor: null });
+    const ui = await render(<CoachCampBout/>);
+    await fireEvent.press(await ui.findByLabelText("Mở thẻ góc đài"));
+    expect(mockTabs.setOptions).toHaveBeenLastCalledWith({ tabBarStyle: { display: "none" } });
+    await act(async () => listeners.beforeRemove({ preventDefault: jest.fn() }));
+    expect(mockTabs.setOptions).toHaveBeenLastCalledWith({ tabBarStyle: undefined });
   });
 });

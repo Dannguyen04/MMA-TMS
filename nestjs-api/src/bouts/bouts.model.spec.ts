@@ -571,6 +571,10 @@ describe('cursor and request schemas', () => {
     ).toEqual(['CAMP', 'FIGHT_WEEK']);
     expect(listBoutsQuerySchema.safeParse({ status: 'NOPE' }).success).toBe(false);
     expect(listBoutsQuerySchema.parse({}).limit).toBe(20);
+    // Oldest weigh-in first unless the caller asks for newest first (mobile Fight Camp list).
+    expect(listBoutsQuerySchema.parse({}).order).toBeUndefined();
+    expect(listBoutsQuerySchema.parse({ order: 'desc' }).order).toBe('desc');
+    expect(listBoutsQuerySchema.safeParse({ order: 'newest' }).success).toBe(false);
   });
 
   it('requires a limit within 30-200 kg when given on create', () => {

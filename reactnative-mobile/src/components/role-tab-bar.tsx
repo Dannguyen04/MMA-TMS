@@ -29,6 +29,9 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
   const p = useFighterPalette();
   const insets = useSafeAreaInsets();
   const kind = useNavKind(); const rail = kind !== "bar"; const sidebar = kind === "sidebar";
+  // A screen can hide the bar while it is focused (in-bout Fight Camp screens) with `tabBarStyle: { display: "none" }`.
+  const focusedRoute = state.routes[state.index];
+  if (focusedRoute && isHiddenTab(descriptors[focusedRoute.key]?.options.tabBarStyle as StyleProp<ViewStyle>)) return null;
   return (
     <View
       accessibilityRole="tablist"

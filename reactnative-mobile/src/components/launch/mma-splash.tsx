@@ -1751,6 +1751,21 @@ export function MmaSplash({
       ) : (
         <SplashFallback />
       )}
+          {/* Wide views only: the watermark crop's strip is on screen, so cover it with the black stage. */}
+          {shatterBox.video.watermarkMask.width > 0 ? (
+            <View
+              pointerEvents="none"
+              collapsable={false}
+              style={{
+                position: "absolute",
+                top: 0,
+                bottom: 0,
+                left: shatterBox.video.watermarkMask.left,
+                width: shatterBox.video.watermarkMask.width + 1,
+                backgroundColor: splash.canvas,
+              }}
+            />
+          ) : null}
         </View>
       ) : null}
       {showFloor ? (

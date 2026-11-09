@@ -16,15 +16,17 @@ const page = (columns: boolean) => <CampShell columns={columns} title="Báo cáo
 const maxWidth = (ui: Awaited<ReturnType<typeof render>>) => StyleSheet.flatten(ui.getByTestId("camp-column").props.style).maxWidth;
 
 describe("Coach two columns (Phase 5 E)", () => {
-  it("needs the opt-in and at least 900 of shell width", () => {
-    expect(campTwoColumns(true, 899)).toBe(false);
-    expect(campTwoColumns(true, 900)).toBe(true);
+  it("needs the opt-in and at least 744 of shell width", () => {
+    expect(campTwoColumns(true, 743)).toBe(false);
+    expect(campTwoColumns(true, 744)).toBe(true);
     expect(campTwoColumns(false, 1200)).toBe(false);
     expect(CAMP_TWO_COLUMN_MAX).toBe(1040);
   });
   it.each([
     { width: 390, height: 844, two: false },
-    { width: 820, height: 1180, two: false },
+    { width: 430, height: 932, two: false },
+    { width: 744, height: 1133, two: true },
+    { width: 820, height: 1180, two: true },
     { width: 1024, height: 768, two: true },
     { width: 1180, height: 820, two: true },
     { width: 1280, height: 800, two: true },
@@ -45,12 +47,12 @@ describe("Coach two columns (Phase 5 E)", () => {
     const ui = await render(page(true));
     expect(ui.queryByTestId("camp-two-columns")).toBeTruthy();
     const root = ui.getByTestId("camp-shell");
-    await act(async () => { fireEvent(root, "layout", { persist: () => undefined, nativeEvent: { layout: { x: 0, y: 0, width: 760, height: 820 } } }); });
+    await act(async () => { fireEvent(root, "layout", { persist: () => undefined, nativeEvent: { layout: { x: 0, y: 0, width: 700, height: 820 } } }); });
     expect(ui.queryByTestId("camp-two-columns")).toBeNull();
     expect(maxWidth(ui)).toBe(READABLE_MAX_WIDTH);
   });
   it.each([
-    { width: 1024, height: 768, two: false },
+    { width: 1024, height: 768, two: true },
     { width: 1180, height: 820, two: true },
     { width: 1366, height: 1024, two: true },
   ])("iPad sidebar (240): $width×$height two columns: $two (window minus the sidebar before layout)", async ({ width, height, two }) => {

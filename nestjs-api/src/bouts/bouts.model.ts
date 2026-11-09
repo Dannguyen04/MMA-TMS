@@ -904,6 +904,8 @@ export const listBoutsQuerySchema = z.strictObject({
     .refine((value) => decodeBoutCursor(value) !== null, 'Invalid cursor')
     .optional(),
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  /** Weigh-in order. Omitted means `asc` (existing callers); `desc` lists the newest bout first. */
+  order: z.enum(['asc', 'desc']).optional(),
 });
 export type ListBoutsQuery = z.infer<typeof listBoutsQuerySchema>;
 

@@ -102,7 +102,8 @@ export type AiDecision = { decision: "ACCEPTED" | "PARTIAL" | "REJECTED"; accept
 export type AiHistoryItem = AiSuggestion & { decision: AiDecision["decision"] | null; acceptedItemIds: string[]; decidedAt: string | null };
 const json = (method: string, body: unknown) => ({ method, body: JSON.stringify(body) });
 export const campApi = {
-  list: (query?: { fighterId?: string; status?: CampStatus; cursor?: string; limit?: number }) =>
+  /** `order: "desc"` lists the newest weigh-in first; the cursor continues in that order. */
+  list: (query?: { fighterId?: string; status?: CampStatus; cursor?: string; limit?: number; order?: "asc" | "desc" }) =>
     apiFetch<CursorPage<CampBout>>(withQuery("/bouts", query)),
   detail: (id: string) => apiFetch<CampDetail>(`/bouts/${id}`),
   weightTrack: (id: string) => apiFetch<WeightTrack>(`/bouts/${id}/weight-track`),

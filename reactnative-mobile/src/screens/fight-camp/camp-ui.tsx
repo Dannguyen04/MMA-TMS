@@ -177,7 +177,7 @@ export function CampFooter({ children }: { children: ReactNode }) {
 }
 /** Below this window height (phone landscape, split screen) CampShell uses a compact header and footer. */
 export const CAMP_SHORT_HEIGHT = 500;
-export function CampShell({ title, subtitle, children, onBack, preview, compactTitle = false, footer: ownFooter, columns = false }: { title: string; subtitle?: string; children: ReactNode; onBack?: () => void; preview?: boolean; compactTitle?: boolean; footer?: ReactNode; /** Phase 5 E: allow two columns when the shell gets at least 900 wide. */ columns?: boolean }) {
+export function CampShell({ title, subtitle, children, onBack, preview, compactTitle = false, footer: ownFooter, columns = false }: { title: string; subtitle?: string; children: ReactNode; onBack?: () => void; preview?: boolean; compactTitle?: boolean; footer?: ReactNode; /** Phase 5 E: allow two columns when the shell gets at least CAMP_TWO_COLUMN_MIN (744) wide. */ columns?: boolean }) {
   const { colors: c } = useThemePreference(); const insets = useSafeAreaInsets(); const router = useRouter();
   const [slot, setSlot] = useState<ReactNode>(null); const footer = ownFooter ?? slot;
   const scroll = useRef<ScrollView>(null);

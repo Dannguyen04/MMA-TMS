@@ -26,13 +26,12 @@ export function CoachCampList() {
   const load = useCallback(async (more = false) => {
     setBusy(true); setError("");
     try {
-      const next = isDemo ? { data: [previewBout], hasNextPage: false, nextCursor: null } : await campApi.list({ limit: 20, cursor: more && page?.nextCursor ? page.nextCursor : undefined });
+      const next = isDemo ? { data: [previewBout], hasNextPage: false, nextCursor: null } : await campApi.list({ limit: 20, cursor: more && page?.nextCursor ? page.nextCursor : undefined, order: "desc" });
       if (alive.current) setPage(p => ({ ...next, data: more ? [...(p?.data ?? []), ...next.data] : next.data }));
     } catch (e) { if (alive.current) setError(campError(e)); } finally { if (alive.current) setBusy(false); }
   }, [isDemo, page?.nextCursor]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, [isDemo]);
   return <CampShell title={campText.coachCampScreen.tranThiDau} subtitle={campText.coachCampScreen.canChinhThucChuanBi} preview={isDemo}>
-    <Action label={campText.coachCampScreen.xemBanMauGiaoDien} secondary onPress={() => router.push({ pathname: "/(coach)/fight-camp/bout", params: { id: "preview", preview: "1" } } as never)}/>
     {error ? <Notice title={campText.coachCampScreen.khongTaiDuocDanhSach} danger>{error}</Notice> : null}
     {busy && !page ? <Busy/> : null}
     {!busy && !error && page?.data.length === 0 ? <Notice title={campText.coachCampScreen.chuaCoTranThiDau}>{campText.coachCampScreen.cacTranCuaVoSi}</Notice> : null}
@@ -81,6 +80,14 @@ export function CoachCampBout() {
     if (history.length) { setView(history[history.length - 1]); setHistory(h => h.slice(0, -1)); setError(""); setSuccess(""); }
     else router.back();
   }, [history, router]);
+  // In-bout screens (corner card, round entry, between-round advice) hide the coach tab bar: more room for the round
+  // and no accidental tab taps at ringside. The back chevron still leaves.
+  const inBout = view === "corner" || view === "rounds" || view === "advice";
+  useEffect(() => {
+    const tabs = navigation.getParent();
+    tabs?.setOptions({ tabBarStyle: inBout ? { display: "none" } : undefined });
+    return () => { tabs?.setOptions({ tabBarStyle: undefined }); };
+  }, [inBout, navigation]);
   useEffect(() => { if (Platform.OS === "web") return; const sub = BackHandler.addEventListener("hardwareBackPress", () => { back(); return true; }); return () => sub.remove(); }, [back]);
   // iOS edge-swipe (and any other pop) steps back one sub-view instead of leaving the bout and dropping the draft.
   const historyRef = useRef(history); historyRef.current = history;
@@ -147,7 +154,7 @@ export function CoachCampBout() {
       {bout.requirements.length ? bout.requirements.map(r => <Fact key={r.code} label={r.label} danger={gateDecides(bout.status) && blocking.has(r.code)} value={requirementLabel[r.status] ?? UNKNOWN_VALUE}/>) : <Copy muted>{campText.coachCampScreen.chuaCoMucHoSo}</Copy>}
     </>,
   } : null;
-  return <CampShell columns={view === "detail" || view === "rounds" || view === "report"} title={titles[view]} compactTitle={view === "rounds"} subtitle={bout ? `${name || campText.coachCampScreen.voSi2} · ${bout.eventName}` : undefined} onBack={back} preview={preview} footer={footer}>
+  return <CampShell columns={view === "detail" || view === "rounds" || view === "report" || view === "opponent"} title={titles[view]} compactTitle={view === "rounds"} subtitle={bout ? `${name || campText.coachCampScreen.voSi2} · ${bout.eventName}` : undefined} onBack={back} preview={preview} footer={footer}>
     {loading ? <Busy/> : null}
     {error ? <><Notice title={campText.coachCampScreen.chuaThucHienDuoc} danger>{error}</Notice>{!bout ? <Action label={campText.coachCampScreen.thuTaiLai} onPress={() => void load()}/> : null}</> : null}
     {success ? <Notice title={success} success/> : null}

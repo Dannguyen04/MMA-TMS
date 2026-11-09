@@ -29,7 +29,7 @@ beforeEach(() => { jest.clearAllMocks(); resetPreviewRounds(bout.id); });
 const extra = (previewBout.opponentAnalysis.tactics?.length ?? 0) + (previewBout.opponentAnalysis.observations?.length ?? 0) > 3;
 
 describe("Round entry two columns (Phase 5 E, 2b)", () => {
-  it("below 900: health fields stay behind 'Ghi thêm' as before", async () => {
+  it("below 744: health fields stay behind 'Ghi thêm' as before", async () => {
     const ui = await render(<RoundScreen bout={bout} preview onAdvice={() => undefined}/>);
     await ui.findByText("Chốt hiệp 1");
     expect(ui.queryByText(t.knockdowns)).toBeNull();

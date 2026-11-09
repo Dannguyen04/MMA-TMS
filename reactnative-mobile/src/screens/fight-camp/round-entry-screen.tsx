@@ -98,7 +98,7 @@ export function RoundScreen({ bout, preview, onAdvice, onReport, draftState, onD
   function markObservation(o: typeof observations[number]) { return <View key={o.id} style={{ gap: 4 }}>
     <Choices<"SEEN" | "NOT_SEEN" | null> label={o.text} value={draft.observationMarks?.[o.id] ?? null} options={[{ value: "SEEN", label: t.seen }, { value: "NOT_SEEN", label: t.unseen }]} disabled={disabled} onChange={v => { if (v) change({ observationMarks: { ...draft.observationMarks, [o.id]: v } }); }}/>
   </View>; }
-  // Phase 5 E: round entry in two columns from 900 (tactics | health and next-round instructions); phone order below.
+  // Phase 5 E: round entry in two columns from 744 (tactics | health and next-round instructions); phone order below.
   // Two columns (2b): health fields always open on the right; "Ghi thêm" only opens the remaining tactics on the left,
   // and is hidden when there are none.
   const extraMarks = tactics.filter(a => !quick.some(b => b.id === a.id)).length + observations.filter(o => o.id !== mainObservation?.id).length;

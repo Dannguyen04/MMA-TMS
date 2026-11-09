@@ -1,4 +1,4 @@
-import { splash, splashFlyClockMs } from "@/theme/splash";
+import { splash, splashFlyClockMs, splashVideoLayout } from "@/theme/splash";
 
 describe("splash intro ×2 timing constants", () => {
   it("sets playback rates to 2", () => {
@@ -61,5 +61,30 @@ describe("splash intro ×2 timing constants", () => {
     expect(splash.lockLeaveTimeoutMs).toBeGreaterThan(
       splashFlyClockMs + splash.leaveAfterBreakMs,
     );
+  });
+});
+
+describe("splash video layout across screen shapes", () => {
+  it("keeps the phone layout unchanged", () => {
+    const box = splashVideoLayout(390, 844);
+    expect(box.width).toBeCloseTo(390 * splash.videoLayoutScale);
+    expect(box.height).toBeCloseTo(844 * splash.videoLayoutScale);
+    expect(box.watermarkMask.width).toBe(0);
+  });
+
+  it.each([
+    ["iPad portrait", 820, 1180],
+    ["iPad landscape", 1180, 820],
+    ["desktop browser", 1440, 900],
+  ])("keeps the 9:16 clip shape and centres it on %s", (_label, w, h) => {
+    const box = splashVideoLayout(w, h);
+    expect(box.width / box.height).toBeCloseTo(splash.videoWidth / splash.videoHeight);
+    // The un-cropped part of the clip is centred on screen.
+    const visibleLeft = box.watermarkMask.left + box.watermarkMask.width;
+    const visibleWidth = (h * splash.videoWidth) / splash.videoHeight;
+    expect(Math.abs(visibleLeft + visibleWidth / 2 - w / 2)).toBeLessThan(1);
+    // The watermark strip is masked.
+    expect(box.watermarkMask.width).toBeGreaterThan(0);
+    expect(box.watermarkMask.left).toBeCloseTo(box.left);
   });
 });

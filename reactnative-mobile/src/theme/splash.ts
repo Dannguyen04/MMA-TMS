@@ -266,13 +266,43 @@ export const splashCinematicMs =
   splash.shardBreakMs +
   splash.leaveAfterBreakMs;
 
-export function splashVideoLayout(viewW: number, viewH: number): {
+/**
+ * Widest view (width / height) that still gets the phone layout below. Phones sit around 0.45–0.56; anything wider
+ * (iPad portrait ≈ 0.75, landscape, desktop browser) would stretch the 9:16 clip because the player uses FILL.
+ */
+export const SPLASH_PHONE_MAX_ASPECT = 0.6;
+
+export type SplashVideoBox = {
   width: number;
   height: number;
   left: number;
   top: number;
-} {
+  /**
+   * Strip of the clip that the watermark crop pushes off-screen on a phone but leaves visible on a wide view, in
+   * screen coordinates. Paint it black so the "AI" mark stays hidden. Zero-width on phones.
+   */
+  watermarkMask: { left: number; width: number };
+};
+
+export function splashVideoLayout(viewW: number, viewH: number): SplashVideoBox {
   const scale = splash.videoLayoutScale;
+  if (viewH > 0 && viewW / viewH > SPLASH_PHONE_MAX_ASPECT) {
+    // Wide view: keep the clip's own 9:16 shape, fitted to the height and centred. The canvas is black, so the sides
+    // read as part of the stage instead of a stretched fighter.
+    const baseH = viewH;
+    const baseW = (viewH * splash.videoWidth) / splash.videoHeight;
+    const baseLeft = (viewW - baseW) / 2;
+    const width = baseW * scale;
+    const height = baseH * scale;
+    const cropW = (width - baseW) * splash.videoLeftCrop;
+    return {
+      width,
+      height,
+      left: baseLeft - cropW,
+      top: -(height - baseH) * splash.videoTopCrop,
+      watermarkMask: { left: baseLeft - cropW, width: cropW },
+    };
+  }
   const width = viewW * scale;
   const height = viewH * scale;
   return {
@@ -280,6 +310,7 @@ export function splashVideoLayout(viewW: number, viewH: number): {
     height,
     left: -(width - viewW) * splash.videoLeftCrop,
     top: -(height - viewH) * splash.videoTopCrop,
+    watermarkMask: { left: 0, width: 0 },
   };
 }
 
