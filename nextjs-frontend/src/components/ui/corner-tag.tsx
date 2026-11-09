@@ -11,7 +11,7 @@ const TONE_CLASS: Record<CornerTagTone, string> = {
     gold: "bg-belt-gold text-warning-solid-fg",
     neutral: "bg-surface-hover text-fg",
     // For tags sitting on a saturated or dark hero ground.
-    stage: "bg-nav-fg-active/15 text-nav-fg-active",
+    stage: "bg-white/15 text-white",
 };
 
 /**

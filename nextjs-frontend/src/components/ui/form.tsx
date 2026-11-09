@@ -1,7 +1,6 @@
 import { FieldOptional } from "./field-optional";
+import { ChevronDown } from "lucide-react";
 import { Children, Fragment, cloneElement, isValidElement, type ComponentProps, type ReactElement, type ReactNode } from "react";
-
-import "./select-frame.css";
 
 import { cn } from "@/lib/utils";
 import { Button, ButtonLink } from "./button";
@@ -141,22 +140,16 @@ export function Textarea({ className, rows = 4, ...props }: ComponentProps<"text
     return <textarea rows={rows} className={cn(CONTROL, "min-h-20 px-3 py-2 leading-relaxed", className)} {...props} />;
 }
 
-/**
- * Ô chọn dùng chung. `<select>` gốc giữ nhãn, bàn phím và aria.
- * Khung SVG tám cạnh lấy từ dáng lồng đấu.
- * Xem `select-frame.css` và `public/ui/select/`.
- */
 export function Select({ className, children, ...props }: ComponentProps<"select">) {
     return (
-        <div className={cn("mma-select", className)}>
-            <span className="mma-select-shape" aria-hidden="true" />
-            <select className="mma-select-control" {...props}>
+        <div className={cn("relative", className)}>
+            <select className={cn(CONTROL, "h-9 appearance-none pr-9 pl-3")} {...props}>
                 {children}
             </select>
-            <svg className="mma-select-chevron" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-                <path d="M3.5,6 L8,10.5 L12.5,6" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="square" strokeLinejoin="miter" />
-                <path d="M5.5,12.75 H10.5" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.45" />
-            </svg>
+            <ChevronDown
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-fg-subtle"
+            />
         </div>
     );
 }

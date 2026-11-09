@@ -2,7 +2,6 @@ import { LogOut } from "lucide-react";
 
 import { Logo } from "@/components/brand/logo";
 import { LanguageSwitcher } from "@/components/i18n/language-switcher";
-import { WorkspaceSidebar } from "@/components/layout/sidebar-nav";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/lib/actions/auth";
@@ -17,20 +16,13 @@ export default async function ApplicantLayout({ children }: { children: React.Re
     const bell = await getNotificationBell({ id: applicant.id, role: "applicant" });
 
     return (
-        <div className="workspace-frame">
-            <a
-                href="#main"
-                className="fixed top-2 left-2 z-[70] -translate-y-20 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg focus:translate-y-0"
-            >
-                {t("shell.skipToContent")}
-            </a>
-            <WorkspaceSidebar role="applicant" />
-            <header className="workspace-topbar sticky top-0 z-20 border-b border-border bg-surface">
+        <div className="min-h-dvh bg-bg">
+            <header className="border-b border-border bg-surface">
                 <div className="mx-auto flex max-w-3xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-                    <span className="hidden rounded-xl bg-nav-bg px-3 py-2 sm:inline-flex lg:invisible">
+                    <span className="inline-flex rounded-xl bg-nav-bg px-3 py-2">
                         <Logo />
                     </span>
-                    <div className="ml-auto flex min-w-0 items-center gap-2">
+                    <div className="flex min-w-0 items-center gap-2">
                         <span className="hidden truncate text-sm text-fg-muted sm:inline">{applicant.email}</span>
                         <LanguageSwitcher className="w-36" />
                         {bell && <NotificationBell bell={bell} now={new Date().toISOString()} />}
@@ -43,7 +35,7 @@ export default async function ApplicantLayout({ children }: { children: React.Re
                     </div>
                 </div>
             </header>
-            <main id="main" tabIndex={-1} className="mx-auto max-w-3xl px-4 py-8 focus:outline-none sm:px-6">{children}</main>
+            <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6">{children}</main>
         </div>
     );
 }

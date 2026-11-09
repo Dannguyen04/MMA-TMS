@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 
-import { DoctorFrame } from "@/components/doctor/doctor-frame";
 import { AppShell } from "@/components/layout/app-shell";
 import { THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
 import { requireUser } from "@/lib/auth/session";
@@ -17,15 +16,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         getNotificationBell({ id: user.id, role: user.role }),
     ]);
     const theme = parseTheme(store.get(THEME_COOKIE)?.value);
-
-    // Bác sĩ dùng khung riêng (thanh bên dọc, tiếng Việt); mọi vai trò khác giữ AppShell như cũ.
-    if (user.role === "doctor") {
-        return (
-            <DoctorFrame user={user} theme={theme} notifications={notifications}>
-                {children}
-            </DoctorFrame>
-        );
-    }
 
     return (
         <AppShell

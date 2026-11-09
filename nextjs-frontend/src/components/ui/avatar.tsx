@@ -28,7 +28,7 @@ export function Avatar({
     if (shape === "octagon") {
         return (
             <span aria-hidden className={cn("octagon relative inline-flex shrink-0 bg-nav-accent/70 p-[1.5px]", SIZES[size], className)}>
-                <span className="octagon flex size-full items-center justify-center bg-nav-bg font-semibold tracking-tight text-nav-fg-active">
+                <span className="octagon flex size-full items-center justify-center bg-nav-bg font-semibold tracking-tight text-white">
                     {initials(name)}
                 </span>
             </span>

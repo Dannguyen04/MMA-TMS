@@ -16,10 +16,9 @@ export interface StateProps {
 export function EmptyState({ title, description, icon, action, compact, className }: StateProps) {
     return (
         <div
-            data-ui="empty-state"
             className={cn(
-                "min-w-0 flex flex-col items-center justify-center text-center",
-                compact ? "gap-2 px-4 py-8" : "gap-3 rounded-xl border border-border bg-surface px-4 py-8 sm:px-6 sm:py-10",
+                "flex flex-col items-center justify-center text-center",
+                compact ? "gap-2 px-4 py-8" : "gap-3 rounded-xl border border-dashed border-border-strong px-6 py-14",
                 className,
             )}
         >
@@ -45,10 +44,9 @@ export function ErrorState({ title, description, icon, action, compact, classNam
     return (
         <div
             role="alert"
-            data-ui="error-state"
             className={cn(
-                "min-w-0 flex flex-col items-center justify-center text-center",
-                compact ? "gap-2 px-4 py-8" : "gap-3 rounded-xl border border-danger-border bg-danger-soft/40 px-4 py-8 sm:px-6 sm:py-10",
+                "flex flex-col items-center justify-center text-center",
+                compact ? "gap-2 px-4 py-8" : "gap-3 rounded-xl border border-danger-border bg-danger-soft/40 px-6 py-14",
                 className,
             )}
         >

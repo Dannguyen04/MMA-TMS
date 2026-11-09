@@ -1,14 +1,84 @@
 "use client";
 
+import { Menu, X } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
+import { Logo } from "@/components/brand/logo";
 import { useT } from "@/components/i18n/locale-provider";
 import { navLabel } from "@/lib/i18n/translate";
 import type { Role } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { BADGE_LABELS, isNavItemActive, mobilePrimaryItems } from "./navigation";
-import type { NavCounts } from "./sidebar-nav";
+import { SidebarNav, type NavCounts } from "./sidebar-nav";
+
+/** Hamburger + slide-in navigation drawer for small and medium screens. */
+export function MobileNavDrawer({ role, counts }: { role: Role; counts: NavCounts }) {
+    const [open, setOpen] = useState(false);
+    const t = useT();
+    const dialogRef = useRef<HTMLDialogElement>(null);
+    const pathname = usePathname();
+    const [lastPath, setLastPath] = useState(pathname);
+
+    if (pathname !== lastPath) {
+        setLastPath(pathname);
+        setOpen(false);
+    }
+
+    useEffect(() => {
+        const dialog = dialogRef.current;
+        if (!dialog) return;
+        if (open && !dialog.open) dialog.showModal();
+        if (!open && dialog.open) dialog.close();
+    }, [open]);
+
+    return (
+        <>
+            <button
+                type="button"
+                onClick={() => setOpen(true)}
+                className="inline-flex size-9 items-center justify-center rounded-lg text-fg-muted hover:bg-surface-hover hover:text-fg lg:hidden"
+                aria-label={t("shell.openNav")}
+                aria-expanded={open}
+            >
+                <Menu aria-hidden className="size-5" />
+            </button>
+            <dialog
+                ref={dialogRef}
+                aria-label={t("shell.navigation")}
+                onCancel={(event) => {
+                    event.preventDefault();
+                    setOpen(false);
+                }}
+                onClick={(event) => {
+                    if (event.target === event.currentTarget) setOpen(false);
+                }}
+                className="m-0 h-dvh max-h-dvh w-[min(20rem,86vw)] max-w-none border-0 bg-rail-bg p-0 text-rail-fg shadow-dialog lg:hidden"
+            >
+                {open && (
+                    <div className="flex h-full flex-col px-3 py-4">
+                        <div className="mb-5 flex items-center justify-between px-2">
+                            <Logo ground="rail" />
+                            <button
+                                type="button"
+                                onClick={() => setOpen(false)}
+                                className="inline-flex size-9 items-center justify-center rounded-lg text-rail-fg hover:bg-rail-active-bg hover:text-rail-fg-strong"
+                                aria-label={t("shell.closeNav")}
+                            >
+                                <X aria-hidden className="size-5" />
+                            </button>
+                        </div>
+                        <p className="mb-4 px-3 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{t("shell.workspace", { role: t(`role.${role}`) })}</p>
+                        <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto py-1 pr-1 pl-3">
+                            <SidebarNav role={role} counts={counts} onNavigate={() => setOpen(false)} />
+                        </div>
+                    </div>
+                )}
+            </dialog>
+        </>
+    );
+}
 
 const GRID_COLS: Record<number, string> = { 4: "grid-cols-4", 5: "grid-cols-5", 6: "grid-cols-6" };
 

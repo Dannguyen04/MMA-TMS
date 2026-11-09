@@ -2,7 +2,6 @@ import type { LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 import { cn } from "@/lib/utils";
-import { SegmentMotion } from "./segment-motion";
 
 export interface SegmentedLinkItem {
     href: string;
@@ -26,8 +25,8 @@ export interface SegmentedLinksProps {
  */
 export function SegmentedLinks({ label, items, className }: SegmentedLinksProps) {
     return (
-        <SegmentMotion aria-label={label} className={cn("scrollbar-thin w-fit overflow-x-auto", className)}>
-            <ul className="flex min-w-max gap-1">
+        <nav aria-label={label} className={cn("scrollbar-thin -mx-1 max-w-full overflow-x-auto px-1 pb-1", className)}>
+            <ul className="inline-flex min-w-max gap-1 rounded-xl border border-border bg-surface p-1 shadow-card">
                 {items.map((item) => {
                     const Icon = item.icon;
                     return (
@@ -36,14 +35,19 @@ export function SegmentedLinks({ label, items, className }: SegmentedLinksProps)
                                 href={item.href}
                                 scroll={false}
                                 aria-current={item.active ? "page" : undefined}
-                                data-selected={item.active ? "true" : "false"}
-                                className="segmented-link inline-flex items-center gap-1.5"
+                                className={cn(
+                                    "inline-flex h-8 items-center gap-1.5 rounded-lg px-3 text-[13px] font-medium whitespace-nowrap transition-colors",
+                                    item.active ? "bg-fg text-fg-inverse" : "text-fg-muted hover:bg-surface-hover hover:text-fg",
+                                )}
                             >
-                                {Icon && <Icon aria-hidden className="size-3.5" style={{ color: "currentColor" }} />}
+                                {Icon && <Icon aria-hidden className="size-3.5" />}
                                 {item.label}
                                 {item.count !== undefined && (
                                     <span
-                                        className="segmented-count px-1.5 text-[11px] leading-5 tabular-nums"
+                                        className={cn(
+                                            "rounded-full px-1.5 text-[11px] leading-5 tabular-nums",
+                                            item.active ? "bg-fg-inverse/20 text-fg-inverse" : "bg-surface-hover text-fg-muted",
+                                        )}
                                     >
                                         {item.count}
                                     </span>
@@ -53,6 +57,6 @@ export function SegmentedLinks({ label, items, className }: SegmentedLinksProps)
                     );
                 })}
             </ul>
-        </SegmentMotion>
+        </nav>
     );
 }

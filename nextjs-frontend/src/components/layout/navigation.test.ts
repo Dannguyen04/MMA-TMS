@@ -65,8 +65,11 @@ describe("hubTabsFor", () => {
         expect(hubTabsFor("doctor", routes.doctor.injuries)).toEqual({
             label: "Clinical",
             tabs: [
+                { label: "Examinations", href: routes.doctor.examinations },
                 { label: "Injuries", href: routes.doctor.injuries },
+                { label: "Recovery", href: routes.doctor.recovery },
                 { label: "Clearance", href: routes.doctor.clearance },
+                { label: "History", href: routes.doctor.history },
             ],
         });
     });
@@ -102,7 +105,7 @@ describe("mobilePrimaryItems", () => {
     it("lists every hub for roles built on hubs", () => {
         expect(labels("fighter")).toEqual(["Today", "Bout", "Training", "Film", "Health"]);
         expect(labels("coach")).toEqual(["Today", "Bouts", "Roster", "Training", "Film room", "Clearance"]);
-        expect(labels("doctor")).toEqual(["Triage", "Patients", "Clinical"]);
+        expect(labels("doctor")).toEqual(["Today", "Roster", "Review requests", "Clinical"]);
     });
 
     it("keeps the four admin hubs that stay open (admissions is frozen, T-001)", () => {
@@ -156,9 +159,6 @@ describe("acceptance criteria: frozen navigation removal", () => {
         routes.coach.goals,
         routes.coach.admissions,
         routes.doctor.records,
-        routes.doctor.examinations,
-        routes.doctor.recovery,
-        routes.doctor.aiAlerts,
         routes.admin.admissions,
         routes.admin.aiModels,
     ];
@@ -202,8 +202,9 @@ describe("acceptance criteria: frozen navigation removal", () => {
         ]);
 
         expect(NAVIGATION.doctor.flatMap((s) => s.items).map((i) => i.label)).toEqual([
-            "Triage",
-            "Patients",
+            "Today",
+            "Roster",
+            "Review requests",
             "Clinical",
         ]);
 
@@ -220,10 +221,13 @@ describe("acceptance criteria: frozen navigation removal", () => {
         const clinical = NAVIGATION.doctor
             .flatMap((s) => s.items)
             .find((i) => i.label === "Clinical")!;
-        expect(clinical.href).toBe(routes.doctor.injuries);
-        expect(clinical.tabs).toEqual([
-            { label: "Injuries", href: routes.doctor.injuries },
-            { label: "Clearance", href: routes.doctor.clearance },
+        expect(clinical.href).toBe(routes.doctor.examinations);
+        expect(clinical.tabs?.map((tab) => tab.href)).toEqual([
+            routes.doctor.examinations,
+            routes.doctor.injuries,
+            routes.doctor.recovery,
+            routes.doctor.clearance,
+            routes.doctor.history,
         ]);
     });
 
