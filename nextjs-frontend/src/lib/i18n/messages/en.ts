@@ -26,8 +26,6 @@ import { enScreensApp } from "./screens-app.en";
 import { enScreensVideo } from "./screens-video.en";
 import { enScreensAdmin } from "./screens-admin.en";
 import { enScreensMisc } from "./screens-misc.en";
-import { enAdminBody } from "./admin-body.en";
-import { enAdminForms } from "./admin-forms.en";
 
 export const en = {
     ...enDemoFlow,
@@ -53,8 +51,6 @@ export const en = {
     ...enScreensVideo,
     ...enScreensAdmin,
     ...enScreensMisc,
-    ...enAdminBody,
-    ...enAdminForms,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
@@ -160,15 +156,7 @@ export const en = {
     "shell.logoSubtitle": "Training and health",
     "shell.meta.title": "MMA-TMS — Fighter training and health",
     "shell.meta.description": "MMA fighter training, AI-assisted video analysis, performance tracking and sports medicine in one platform.",
-    "shell.notFound.title": "This page isn't in the octagon",
-    "shell.notFound.body": "The page may have moved, or you may not have access to it. Records you aren't assigned to are hidden.",
-    "shell.notFound.back": "Back to my dashboard",
-    "shell.missing.title": "We couldn't find that",
-    "shell.missing.body": "It may have been removed, or it belongs to a fighter you aren't assigned to.",
-    "shell.missing.back": "Back to dashboard",
-    "shell.error.title": "This page didn't load",
     "shell.error.body": "Something went wrong while loading this data. Try again — if it keeps happening, contact your administrator.",
-    "shell.error.retry": "Try again",
     "shell.error.reference": "Reference",
     "theme.light": "Light",
     "theme.dark": "Dark",

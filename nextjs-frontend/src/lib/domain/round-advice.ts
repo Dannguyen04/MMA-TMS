@@ -332,6 +332,21 @@ export function evaluateTactics(analysis: OpponentAnalysis, rounds: readonly Ana
     };
 }
 
+/**
+ * What `BoutsService.recordResult` saves with the result: every tactic the coach hasn't reviewed gets its R29
+ * outcome as an `auto` review, so later edits to the rounds no longer move the verdict. Unchanged without rounds.
+ */
+export function withAutoReviews(analysis: OpponentAnalysis, rounds: readonly AnalysisRound[]): OpponentAnalysis {
+    if (!rounds.length || !analysis.tactics?.length) return analysis;
+    const evaluation = evaluateTactics(analysis, rounds);
+    return {
+        ...analysis,
+        tactics: analysis.tactics.map((t) =>
+            t.review ? t : { ...t, review: { outcome: evaluation.tactics.find((e) => e.id === t.id)!.outcome, note: null, auto: true } },
+        ),
+    };
+}
+
 export const improvementPointSchema = z.union([
     z.object({ code: z.literal("TACTIC_INEFFECTIVE"), tacticId: analysisIdSchema, text: z.string() }),
     z.object({ code: z.literal("ACUTE_LOSS_EXCEEDED") }),

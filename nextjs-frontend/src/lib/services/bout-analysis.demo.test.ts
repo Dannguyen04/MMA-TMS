@@ -43,7 +43,12 @@ describe("demo post-bout report (T-041)", () => {
 
         expect(report.report.result).toEqual({ result: "LOSS", method: "KO", resultRound: 2, knockedDown: true });
         expect(report.report.roundsRecorded).toBe(2);
-        expect(report.report.tactics.find((t) => t.id === "tac-1")).toMatchObject({ effectiveRounds: 2, outcome: "EFFECTIVE", review: null });
+        // Like BoutsService.recordResult, the result freezes R29 as `auto` reviews ("filled in by the app").
+        expect(report.report.tactics.find((t) => t.id === "tac-1")).toMatchObject({
+            effectiveRounds: 2,
+            outcome: "EFFECTIVE",
+            review: { outcome: "EFFECTIVE", note: null, auto: true },
+        });
         expect(report.report.tactics.find((t) => t.id === "tac-2")).toMatchObject({ ineffectiveRounds: 2, outcome: "INEFFECTIVE" });
         expect(report.report.improvementPoints).toEqual(
             expect.arrayContaining([
@@ -51,6 +56,17 @@ describe("demo post-bout report (T-041)", () => {
                 { code: "FATIGUE_FROM_ROUND_1", fromRound: 1 },
             ]),
         );
+    });
+
+    it("keeps the verdict frozen at the result when a round is edited afterwards, as the API does", async () => {
+        resetDemoCampStore(TODAY);
+        await finishBout();
+        await upsertBoutRound(BOUT, 2, { tacticMarks: { "tac-1": "INEFFECTIVE", "tac-2": "EFFECTIVE" } }, coach);
+        const report = await getBoutReport(BOUT);
+        if (!report.ok) throw new Error(report.error);
+
+        expect(report.report.tactics.find((t) => t.id === "tac-2")).toMatchObject({ outcome: "EFFECTIVE", review: { outcome: "INEFFECTIVE", auto: true } });
+        expect(report.report.improvementPoints).toEqual(expect.arrayContaining([expect.objectContaining({ code: "TACTIC_INEFFECTIVE", tacticId: "tac-2" })]));
     });
 
     it("saves the coach's verdict, which then wins over R29 and drops out of the points", async () => {

@@ -1,7 +1,4 @@
-import type {
-    OpponentAnalysis,
-    RoundRecord,
-} from "@/lib/domain/round-advice";
+import { withAutoReviews, type OpponentAnalysis, type RoundRecord } from "@/lib/domain/round-advice";
 import type { CoachTodo, WeightFeasibility } from "@/lib/domain/types";
 import { buildDemoCoachTodo, buildSuspensionTodoItems } from "@/lib/domain/coach-todo";
 import { boutGate1, calculateWeightFeasibility, feasibilityWarnings, computeWeighInReminder, requirementsDueOn } from "@/lib/domain/bout-rules";
@@ -970,6 +967,10 @@ export function recordDemoResult(boutId: string, outcome: BoutOutcome, actor: Ac
         };
     }
     bout.outcome = outcome;
+    if (bout.opponentAnalysis) {
+        const reviewed = withAutoReviews(bout.opponentAnalysis, bout.boutRounds ?? []);
+        if (reviewed !== bout.opponentAnalysis) bout.opponentAnalysis = { ...reviewed, updatedAt: now.toISOString() };
+    }
     move(bout, "COMPLETED", actor, now);
     const rules = camp.rulesets.find((item) => item.id === bout.rulesetId);
     if (rules && rules.restDaysAfterBout > 0) {

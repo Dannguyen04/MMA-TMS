@@ -269,6 +269,7 @@ export const enBoutAnalysis = {
     "boutAnalysis.report.tacticsTitle": "Tactics",
     "boutAnalysis.report.tacticsDescription": "Counted from the round records. Change the verdict where you saw it differently.",
     "boutAnalysis.report.tacticsEmpty": "No tactics were planned for this bout.",
+    "boutAnalysis.report.tacticsNeedRounds": "Tactics are judged from the round records. Record the rounds, then review them here.",
     "boutAnalysis.report.tacticRounds": "Worked in {effective} · failed in {ineffective} rounds",
     "boutAnalysis.report.prefilled": "Filled in by the app",
     "boutAnalysis.report.noOutcome": "No rounds",

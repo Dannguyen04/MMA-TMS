@@ -1038,8 +1038,10 @@ dialog[open]::backdrop {
         display: none !important;
     }
 
+    /* The workspace frame paints --bg; with print-color-adjust: exact that would come out on paper. */
     .workspace-frame {
         padding-inline-start: 0 !important;
+        background: white !important;
     }
 
     .shadow-card {

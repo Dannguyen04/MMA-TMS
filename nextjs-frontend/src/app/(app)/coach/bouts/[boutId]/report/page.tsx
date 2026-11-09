@@ -178,6 +178,9 @@ function ReportBody({
                     <CardContent>
                         {report.tactics.length === 0 ? (
                             <p className="text-sm text-fg-muted">{t("boutAnalysis.report.tacticsEmpty")}</p>
+                        ) : roundsRecorded === 0 ? (
+                            // Without rounds there is nothing to judge; a saved verdict would also outrank the rounds recorded later.
+                            <p className="text-sm text-fg-muted">{t("boutAnalysis.report.tacticsNeedRounds")}</p>
                         ) : (
                             <ReportReviewForm boutId={boutId} tactics={report.tactics} />
                         )}

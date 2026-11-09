@@ -224,7 +224,7 @@ export async function expectNotFound(page: Page) {
         page
             .getByText("Không tìm thấy trang này")
             .or(page.getByText("Không tìm thấy võ sĩ"))
-            .or(page.getByRole("heading", { name: "Trang này không có trong sàn đấu" })),
+            .or(page.getByRole("heading", { name: "Trang này không có trên sàn đấu" })),
     ).toBeVisible();
 }
 

@@ -271,6 +271,7 @@ export const viBoutAnalysis = {
     "boutAnalysis.report.tacticsTitle": "Chiến thuật",
     "boutAnalysis.report.tacticsDescription": "Đếm từ phần ghi theo hiệp. Đổi kết luận ở chỗ bạn thấy khác.",
     "boutAnalysis.report.tacticsEmpty": "Trận này chưa soạn chiến thuật.",
+    "boutAnalysis.report.tacticsNeedRounds": "Chiến thuật được đánh giá theo phần ghi hiệp. Ghi các hiệp xong thì đánh giá ở đây.",
     "boutAnalysis.report.tacticRounds": "Hiệu quả {effective} hiệp · không hiệu quả {ineffective} hiệp",
     "boutAnalysis.report.prefilled": "App điền sẵn",
     "boutAnalysis.report.noOutcome": "Chưa có hiệp",

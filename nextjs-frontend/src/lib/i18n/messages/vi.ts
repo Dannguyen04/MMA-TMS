@@ -21,8 +21,6 @@ import { viScreensApp } from "./screens-app.vi";
 import { viScreensVideo } from "./screens-video.vi";
 import { viScreensAdmin } from "./screens-admin.vi";
 import { viScreensMisc } from "./screens-misc.vi";
-import { viAdminBody } from "./admin-body.vi";
-import { viAdminForms } from "./admin-forms.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
@@ -50,8 +48,6 @@ export const vi = {
     ...viScreensVideo,
     ...viScreensAdmin,
     ...viScreensMisc,
-    ...viAdminBody,
-    ...viAdminForms,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
@@ -155,15 +151,7 @@ export const vi = {
     "shell.logoSubtitle": "Huấn luyện và sức khỏe",
     "shell.meta.title": "MMA-TMS — Huấn luyện và sức khỏe võ sĩ",
     "shell.meta.description": "Huấn luyện võ sĩ MMA, phân tích video có AI, theo dõi hiệu suất và y học thể thao trên một nền tảng.",
-    "shell.notFound.title": "Trang này không có trong sàn đấu",
-    "shell.notFound.body": "Trang có thể đã chuyển chỗ, hoặc bạn không có quyền xem. Hồ sơ không được phân cho bạn sẽ được ẩn.",
-    "shell.notFound.back": "Về trang của tôi",
-    "shell.missing.title": "Không tìm thấy trang này",
-    "shell.missing.body": "Trang có thể đã bị gỡ, hoặc thuộc về võ sĩ không được phân cho bạn.",
-    "shell.missing.back": "Về trang chủ",
-    "shell.error.title": "Trang này chưa tải được",
     "shell.error.body": "Đã có lỗi khi tải dữ liệu. Hãy thử lại. Nếu vẫn lỗi, hãy báo quản trị viên.",
-    "shell.error.retry": "Thử lại",
     "shell.error.reference": "Mã tham chiếu",
     "theme.light": "Sáng",
     "theme.dark": "Tối",
