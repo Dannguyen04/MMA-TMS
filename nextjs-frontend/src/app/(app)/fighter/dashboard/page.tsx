@@ -1,4 +1,4 @@
-import { CalendarDays, CircleCheck, ShieldAlert, Upload } from "lucide-react";
+import { CalendarDays, CalendarSync, CircleCheck, ShieldAlert, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -23,6 +23,7 @@ import { ProgressBar } from "@/components/ui/progress";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { reviewCounts } from "@/lib/domain/ai-review";
+import { weekSessionTally, type WeekSessionTally } from "@/lib/domain/fighter-suspension-view";
 import { journeyOwnerLabel, journeyStep, localizeJourney, type FighterJourney as Journey, type JourneyCode, type JourneyStep, type JourneyStepId } from "@/lib/domain/journey";
 import { savedWeightMessage } from "@/lib/domain/nutrition";
 import { WEIGHT_CLASS_LIMIT_KG, weightClassLabel } from "@/lib/domain/labels";
@@ -41,9 +42,11 @@ import { listGoals } from "@/lib/services/goals";
 import { getFighterHealthSummary } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
+import { listLiveSuspensions } from "@/lib/services/suspensions";
 import { getPlanWithSessions, getUpcomingSessions, listCoachFeedback, listPlans, listSessions } from "@/lib/services/training";
 import { getVideoDetail, listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
+import { FighterSuspensionCard } from "../fighter-suspension-card";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
@@ -75,7 +78,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     // separate service: when it doesn't answer, the day's training still shows and the journey marks that step unknown.
     const plansRead = listPlans({ fighterIds: ids });
     const videosRead = nullIfServiceFails(listVideoLibrary({ fighterIds: ids }));
-    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journeyRead, feedback, goals, coaches, doctors, camp] = await Promise.all([
+    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journeyRead, feedback, goals, coaches, doctors, camp, suspensions] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
@@ -92,6 +95,8 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         listDoctors(),
         // The running bout's camp weight (T-005): a card above the fight hero, only while a bout is running.
         getCurrentBout(fighter.id).then(async (current) => ({ bout: current, track: current ? await getWeightTrack(current.id) : null })),
+        // T-048: the suspension card leads the page while one limits training; null shows that it couldn't be read.
+        nullIfServiceFails(listLiveSuspensions(fighter.id, user)),
     ]);
     if (!health) notFound();
     const journey = localizeJourney(journeyRead, t);
@@ -124,11 +129,10 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     // and any steps left (a plan, a first analysis) sit in a strip underneath.
     const journeyInHero = !journey.complete && (journey.cleared !== true || (!bout && !analysis));
 
-    // This week, counted from the same academy week the agenda shows.
-    const weekPlanned = weekSessions.filter((session) => session.status !== "cancelled");
-    const weekCompleted = weekPlanned.filter((session) => session.status === "completed").length;
-    const weekMissed = weekPlanned.filter((session) => session.status === "missed").length;
-    const weekToGo = weekPlanned.filter((session) => session.status === "scheduled" || session.status === "in_progress").length;
+    // This week, counted from the same academy week the agenda shows. Sessions waiting to be rescheduled after a
+    // suspension count on their own, outside planned and to go (T-048 F2).
+    const week = weekSessionTally(weekSessions);
+    const weekSessionsText = paused && week.planned === 0 && week.pending === 0 ? t("fighterToday.trainingPaused") : plural(t, "fighterToday.weekSessions", week.planned);
 
     const weightClass = bout?.weightClass ?? fighter.weightClass;
     const weight = fighter.weightKg === null ? null : weightCheck(fighter.weightKg, weightClass, bout ? Math.max(0, daysBetween(now, bout.date)) : null);
@@ -161,6 +165,8 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     </Callout>
                 )}
                 {savedWeight && <Callout tone="success" icon={CircleCheck} role="status" title={savedWeight} />}
+
+                <FighterSuspensionCard suspensions={suspensions} today={dayKey(now)} locale={locale} href={routes.fighter.health} />
 
                 {camp.bout && <FighterWeightCard event={camp.bout.event} track={camp.track} locale={locale} />}
 
@@ -216,20 +222,30 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                     />
                     <ReadinessCell
                         label={t("fighterToday.thisWeek")}
-                        value={<ReadinessNumber value={weekCompleted} unit={t("fighterToday.sessionsDone", { total: weekPlanned.length })} />}
-                        hint={weekHint(t, { planned: weekPlanned.length, toGo: weekToGo, missed: weekMissed, paused })}
+                        value={<ReadinessNumber value={week.completed} unit={t("fighterToday.sessionsDone", { total: week.planned })} />}
+                        hint={weekHint(t, { ...week, paused })}
                         href={routes.fighter.schedule}
                         className="sm:col-span-3 lg:col-span-1"
                     >
-                        {weekPlanned.length > 0 && (
-                            <ProgressBar
-                                value={weekCompleted}
-                                max={weekPlanned.length}
-                                size="sm"
-                                hideValue
-                                label={t("fighterToday.sessionsDoneLabel")}
-                                valueText={t("fighterToday.sessionsDoneValue", { done: weekCompleted, total: weekPlanned.length })}
-                            />
+                        {(week.planned > 0 || week.pending > 0) && (
+                            <span className="flex flex-col gap-2">
+                                {week.planned > 0 && (
+                                    <ProgressBar
+                                        value={week.completed}
+                                        max={week.planned}
+                                        size="sm"
+                                        hideValue
+                                        label={t("fighterToday.sessionsDoneLabel")}
+                                        valueText={t("fighterToday.sessionsDoneValue", { done: week.completed, total: week.planned })}
+                                    />
+                                )}
+                                {week.pending > 0 && (
+                                    <span data-week-pending={week.pending} className="inline-flex items-center gap-1.5 text-[13px] font-medium text-warning-fg">
+                                        <CalendarSync aria-hidden className="size-3.5 shrink-0" />
+                                        {plural(t, "training.weekSummary.pendingCount", week.pending)}
+                                    </span>
+                                )}
+                            </span>
                         )}
                     </ReadinessCell>
                     <ReadinessCell
@@ -269,7 +285,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                         description={t("fighterToday.weekDescription", {
                             start: formatShortDate(weekStart, locale),
                             end: formatShortDate(addDaysToKey(weekKey, 6), locale),
-                            sessions: paused && weekPlanned.length === 0 ? t("fighterToday.trainingPaused") : plural(t, "fighterToday.weekSessions", weekPlanned.length),
+                            sessions: week.pending > 0 ? `${weekSessionsText} · ${plural(t, "training.weekSummary.pendingCount", week.pending)}` : weekSessionsText,
                         })}
                         icon={<CalendarDays />}
                         action={<CardLink href={routes.fighter.schedule}>{t("fighterToday.fullSchedule")}</CardLink>}
@@ -435,8 +451,9 @@ function clearanceHint(t: Translator, locale: Locale, state: ClearanceState, cle
     }
 }
 
-function weekHint(t: Translator, { planned, toGo, missed, paused }: { planned: number; toGo: number; missed: number; paused: boolean }): string {
-    if (planned === 0) return t(paused ? "weekHint.paused" : "weekHint.nothing");
+function weekHint(t: Translator, { planned, toGo, missed, pending, paused }: WeekSessionTally & { paused: boolean }): string | undefined {
+    // The pending line under the cell already says what the week holds.
+    if (planned === 0) return pending > 0 ? undefined : t(paused ? "weekHint.paused" : "weekHint.nothing");
     const parts = [toGo > 0 ? t("weekHint.toGo", { n: toGo }) : null, missed > 0 ? t("weekHint.missed", { n: missed }) : null].filter(Boolean);
     return parts.length > 0 ? parts.join(" · ") : t("weekHint.allDone");
 }

@@ -28,15 +28,18 @@ import { TabLabel, Tabs } from "@/components/ui/tabs";
 import { requireFighterAccess, requireFighterId } from "@/lib/auth/access";
 import { hasPermission, requireRole } from "@/lib/auth/session";
 import { examinationTitle } from "@/lib/domain/labels";
-import { formatDate, formatWeekdayDate } from "@/lib/format";
+import { dayKey, formatDate, formatWeekdayDate } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
 import { parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getClearanceStatus, getFighterHealthSummary, listClearances, listExaminations, listInjuries, listReviewRequests } from "@/lib/services/medical";
 import { listDoctors } from "@/lib/services/people";
+import { listLiveSuspensions } from "@/lib/services/suspensions";
 import { cn, param } from "@/lib/utils";
+import { FighterSuspensionCard } from "../fighter-suspension-card";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
@@ -59,7 +62,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
     const now = new Date().toISOString();
     const tab = parseEnum(param((await searchParams).tab), TABS) ?? "status";
 
-    const [fighter, health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }, { t, locale }] = await Promise.all([
+    const [fighter, health, clearances, injuries, examinations, doctors, careTeam, settings, reviewRequests, { eligibility }, { t, locale }, suspensions] = await Promise.all([
         fighterRead,
         getFighterHealthSummary(fighterId, now),
         listClearances({ fighterIds: ids }),
@@ -71,6 +74,8 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
         listReviewRequests(fighterId),
         getClearanceStatus(fighterId, now),
         getTranslator(),
+        // T-048: the suspension section; null shows that it couldn't be read.
+        nullIfServiceFails(listLiveSuspensions(fighterId, user)),
     ]);
     if (!health) notFound();
 
@@ -113,6 +118,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                             className="min-w-0"
                         />
                     )}
+                    <FighterSuspensionCard suspensions={suspensions} today={dayKey(now)} locale={locale} />
                     <ReviewRequestCard
                         fighterId={fighter.id}
                         fighterName={fighter.name}

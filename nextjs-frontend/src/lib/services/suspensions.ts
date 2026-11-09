@@ -8,6 +8,7 @@ import {
     authenticatedMutableApiRequest,
 } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { liveSuspensions } from "@/lib/domain/fighter-suspension-view";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import type {
     ConflictAction,
@@ -260,6 +261,14 @@ export async function listSuspensions(
     }
 
     return items;
+}
+
+/**
+ * T-048: one fighter's suspensions that limit training now or soon (UPCOMING, ACTIVE, AWAITING_CLEARANCE, and ENDED
+ * while graded return runs). Reads every page without `active`, which would drop graded return and UPCOMING.
+ */
+export async function listLiveSuspensions(fighterId: string, actor: User): Promise<Suspension[]> {
+    return liveSuspensions(await listSuspensions({ fighterId }, actor));
 }
 
 export async function createSuspension(input: CreateSuspensionInput, actor: User): Promise<SuspensionCreation> {

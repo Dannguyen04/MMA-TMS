@@ -1,4 +1,4 @@
-import { CalendarClock, ClipboardList } from "lucide-react";
+import { CalendarClock, CalendarSync, ClipboardList } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -15,6 +15,7 @@ import { getCoachNames } from "@/components/training/training-data";
 import { planAdherence, planAdherencePct, planAdherenceWeeks, recentAdherenceWeeks } from "@/components/training/training-utils";
 import { requireFighterId } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { upcomingSessions } from "@/lib/domain/fighter-suspension-view";
 import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listPlans, listSessions } from "@/lib/services/training";
@@ -45,11 +46,8 @@ export default async function FighterTrainingPage() {
     const activePlan = visiblePlans.find((plan) => plan.status === "active");
     const otherPlans = visiblePlans.filter((plan) => plan.id !== activePlan?.id);
     const sessionsFor = (planId: string) => sessions.filter((s) => s.planId === planId);
-    const nextSessions = activePlan
-        ? sessionsFor(activePlan.id)
-              .filter((s) => (s.status === "scheduled" || s.status === "in_progress") && s.scheduledAt >= now)
-              .slice(0, NEXT_SESSIONS)
-        : [];
+    // Sessions a suspension moved to pending stay on the list, marked "Chờ xếp lại", until the coach moves them (T-048).
+    const nextSessions = activePlan ? upcomingSessions(sessionsFor(activePlan.id), now, NEXT_SESSIONS) : [];
     // With an active plan the chart covers that plan, so it reports the same adherence as the plan overview.
     const adherenceWeeks = activePlan ? planAdherenceWeeks(activePlan, sessionsFor(activePlan.id), now) : recentAdherenceWeeks(sessions, now, ADHERENCE_WEEKS);
 
@@ -120,6 +118,12 @@ export default async function FighterTrainingPage() {
                                 {nextSessions.map((session) => (
                                     <li key={session.id}>
                                         <SessionListItem locale={locale} session={session} href={routes.fighter.session(session.id)} coachName={session.coachId ? coachNames[session.coachId] : undefined} />
+                                        {session.status === "pending" && (
+                                            <p className="-mt-1 flex items-center gap-1.5 pr-4 pb-3 pl-20 text-[13px] text-warning-fg">
+                                                <CalendarSync aria-hidden className="size-3.5 shrink-0" />
+                                                {t("fighterSuspension.pendingNote")}
+                                            </p>
+                                        )}
                                     </li>
                                 ))}
                             </ul>
