@@ -35,8 +35,11 @@ const { values: args } = parseArgs({
         shots: { type: "string" },
         "run-label": { type: "string" },
         headed: { type: "boolean", default: false },
+        // API mode: sign the coach in with this email and the password in UAT_PASSWORD (never on the command line).
+        email: { type: "string" },
     },
 });
+const apiMode = Boolean(args.email);
 
 const COACH = "Rafael Costa";
 const RULESET = "MMA – VMMAF 2021";
@@ -152,6 +155,16 @@ async function newPage(viewport) {
 
 async function signIn(page, name) {
     await page.goto(`${base}/login`, { waitUntil: "load" });
+    if (apiMode) {
+        if (name !== COACH) return false;
+        const password = process.env.UAT_PASSWORD;
+        if (!password) throw new Error("API mode needs the coach's password in the UAT_PASSWORD environment variable.");
+        await page.locator('input[name="email"]').fill(args.email);
+        await page.locator('input[name="password"]').fill(password);
+        await page.getByRole("button", { name: t("auth.submit"), exact: true }).click();
+        await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 60_000 });
+        return true;
+    }
     const button = page.getByRole("button").filter({ hasText: name }).first();
     if ((await button.count()) === 0) return false;
     await button.click();
@@ -699,6 +712,11 @@ const steps = [
                 .first();
             if ((await waiting.count()) === 0) {
                 observe(`no suspension awaiting clearance left on this server (an earlier run cleared the seeded one); only the T-049 rule was checked`);
+                return;
+            }
+            if (apiMode) {
+                // Real data: clearing someone's suspension is the coach's call, not the script's.
+                observe(`a suspension awaits clearance (${(await waiting.innerText()).replace(/\s+/g, " ").slice(0, 80)}); not cleared in API mode`);
                 return;
             }
             const who = (await waiting.innerText()).replace(/\s+/g, " ").slice(0, 80);
