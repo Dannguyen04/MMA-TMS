@@ -2,7 +2,7 @@
 
 import { Activity, RefreshCw } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { AINotice } from "@/components/domain/ai-notice";
 import { RegionModel } from "@/components/doctor/region-model";
@@ -21,7 +21,7 @@ import { BODY_REGION_GROUPS, INJURY_SEVERITY_DESCRIPTIONS, OPEN_INJURY_STATUS_DE
 import { ObservationSummary, type ObservationSource } from "./observation-summary";
 import type { ProgressStep } from "@/components/medical/exam-progress";
 import { ExamProgressRail } from "@/components/medical/exam-progress-rail";
-import { DemoFillBar, DoctorsOnly, FormPart } from "@/components/medical/form-parts";
+import { DemoFillBar, DoctorsOnly, FormPart, useWideLayout } from "@/components/medical/form-parts";
 
 export interface InjuryFighterOption extends FighterIdentityData {
     id: string;
@@ -372,15 +372,3 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
     );
 }
 
-/** Whether the two-column layout (form and side column, from 1280px) is showing. */
-function useWideLayout() {
-    const [wide, setWide] = useState(false);
-    useEffect(() => {
-        const media = window.matchMedia("(min-width: 1280px)");
-        const sync = () => setWide(media.matches);
-        sync();
-        media.addEventListener("change", sync);
-        return () => media.removeEventListener("change", sync);
-    }, []);
-    return wide;
-}

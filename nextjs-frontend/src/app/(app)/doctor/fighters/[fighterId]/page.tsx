@@ -21,6 +21,7 @@ import { getClearanceHistory, listExaminations, listInjuries, listRecoveryPlans,
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter } from "@/lib/services/people";
 import { listSuspensions } from "@/lib/services/suspensions";
+import { ClearSuspensionButton } from "@/app/(app)/coach/bouts/suspensions/clear-suspension-button";
 import { EarlyEndSuspensionButton } from "@/app/(app)/coach/bouts/suspensions/early-end-suspension-button";
 import { param } from "@/lib/utils";
 
@@ -264,6 +265,12 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                     doctorId={user.profileId ?? undefined}
                                                     label="Ban tổ chức đã gỡ"
                                                 />
+                                            </span>
+                                        )}
+                                        {/* Hết hạn nhưng cần xác nhận: bác sĩ phụ trách xác nhận cho tập lại (POST /suspensions/:id/clear). */}
+                                        {s.status === "AWAITING_CLEARANCE" && !s.clearedAt && (
+                                            <span style={{ gridColumn: "1 / -1", marginTop: "4px" }}>
+                                                <ClearSuspensionButton suspension={s} fighterName={fighter.name} />
                                             </span>
                                         )}
                                     </li>

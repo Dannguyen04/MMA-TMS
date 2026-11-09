@@ -16,7 +16,8 @@ import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
 
-import { EXAMINATION_SCOPE_LABELS } from "./medical-contract";
+import { EXAMINATION_SCOPE_LABELS, type SessionType } from "./medical-contract";
+import { TRAINING_TYPE_FOR } from "./training-contract";
 import type { PlanAdherence, WeightStatus } from "./weight-chart";
 import type {
     AIJobStatus,
@@ -472,6 +473,34 @@ export const EXAMINATION_TYPE_LABELS: Record<ExaminationType, string> = {
     return_to_play: "Đánh giá trở lại tập",
 };
 
+/**
+ * Examination areas the mobile app stores under English names (reactnative-mobile baseline-payload BASELINE_AREAS),
+ * plus common clinical areas, shown in Vietnamese. Any other area is a doctor's own wording and shown as written.
+ */
+const ASSESSMENT_AREA_VI: Record<string, string> = {
+    cardiovascular: "Tim mạch",
+    respiratory: "Hô hấp",
+    neurological: "Thần kinh",
+    "neurological screen": "Sàng lọc thần kinh",
+    musculoskeletal: "Cơ xương khớp",
+    "musculoskeletal screen": "Sàng lọc cơ xương khớp",
+    vision: "Thị lực",
+    "eye screen": "Sàng lọc mắt",
+    "range of motion": "Biên độ vận động",
+    strength: "Sức mạnh",
+    "special tests": "Nghiệm pháp đặc hiệu",
+    "weight & hydration": "Cân nặng & mức nước",
+    "weight check": "Kiểm tra cân nặng",
+    "infectious disease screen": "Sàng lọc bệnh truyền nhiễm",
+    head: "Đầu",
+    neck: "Cổ",
+    skin: "Da",
+};
+
+export function assessmentAreaLabel(area: string): string {
+    return ASSESSMENT_AREA_VI[area.trim().toLowerCase()] ?? area;
+}
+
 export const EXAMINATION_OUTCOME_LABELS: Record<ExaminationOutcome, string> = {
     fit: "Đủ điều kiện tập",
     fit_with_restrictions: "Đủ điều kiện có hạn chế",
@@ -790,6 +819,16 @@ export function treatmentTitle(treatment: Pick<Treatment, "type" | "typeLabel">)
 
 export function trainingTypeLabel(t: Translator, type: TrainingType): string {
     return t(`trainingType.${type}` as MessageKey);
+}
+
+/**
+ * Label for one of the training service's session types. Recovery and physical therapy share an interface training
+ * type, so they get their own labels; the rest read as their training type.
+ */
+export function sessionTypeLabel(t: Translator, type: SessionType): string {
+    if (type === "RECOVERY") return t("sessionType.RECOVERY");
+    if (type === "PHYSICAL_THERAPY") return t("sessionType.PHYSICAL_THERAPY");
+    return trainingTypeLabel(t, TRAINING_TYPE_FOR[type]);
 }
 
 export function techniqueLabel(t: Translator, technique: Technique | StrikeType): string {

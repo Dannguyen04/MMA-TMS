@@ -1,4 +1,4 @@
-import { ShieldCheck } from "lucide-react";
+import { Ban, CircleCheck, History, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_STATE, CLEARANCE_TYPE, dayDiff, fmtDate } from "@/components/doctor/labels";
@@ -36,6 +36,19 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
     const missing = overview.filter((r) => r.state === "none" || r.state === "expired" || r.state === "not_cleared");
     const issueHref = scopedId ? routes.doctor.fighterGrantClearance(scopedId) : `${routes.doctor.grantClearance}${fighterId ? `?fighter=${fighterId}` : ""}`;
 
+    /**
+     * A clearance's status in words with a glyph, coloured by meaning only (DESIGN.md: words-first status, no colour
+     * alone, no filled title cards).
+     */
+    const statusOf = (c: MedicalClearance): { tone: "ok" | "warn" | "bad" | "off"; Icon: LucideIcon; text: string } => {
+        if (c.status === "revoked") return { tone: "bad", Icon: Ban, text: `Đã thu hồi${c.revokedAt ? ` ${fmtDate(c.revokedAt)}` : ""}` };
+        if (c.status === "superseded") return { tone: "off", Icon: History, text: "Đã thay thế" };
+        if (!isLive(c)) return { tone: "off", Icon: History, text: "Hết hạn" };
+        if (!c.validUntil) return { tone: "ok", Icon: CircleCheck, text: "Đang hiệu lực · không thời hạn" };
+        const days = dayDiff(c.validUntil, now);
+        return days <= warn ? { tone: "warn", Icon: TriangleAlert, text: `Sắp hết hạn · còn ${days} ngày` } : { tone: "ok", Icon: CircleCheck, text: `Đang hiệu lực · còn ${days} ngày` };
+    };
+
     const col = (title: string, tag: string, rows: MedicalClearance[], note: string) => (
         <section className="gp-col" data-tag={tag} data-shot={`col-${tag}`}>
             <h2>
@@ -49,15 +62,17 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
                     {rows.map((c, i) => {
                         const live = isLive(c);
                         const total = c.validUntil ? Date.parse(c.validUntil) - Date.parse(c.issuedAt) : 0;
-                        const p = total ? Math.min(1, Math.max(0, (Date.parse(now) - Date.parse(c.issuedAt)) / total)) : 0.15;
+                        const p = total ? Math.min(1, Math.max(0, (Date.parse(now) - Date.parse(c.issuedAt)) / total)) : 0;
                         const regions = c.restrictions.flatMap((r) => r.blockedRegions);
+                        const status = statusOf(c);
                         return (
-                            <li key={c.id} className="gp-card" data-tag={live ? tag : "none"} style={{ ["--i" as string]: i }}>
+                            <li key={c.id} className="gp-card" data-tone={status.tone} style={{ ["--i" as string]: i }}>
                                 <header>
                                     <b>{c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]}</b>
-                                    <small>
-                                        {c.status === "revoked" ? "Đã thu hồi" : c.status === "superseded" ? "Đã thay thế" : !live ? "Hết hạn" : c.validUntil ? `Còn ${dayDiff(c.validUntil, now)} ngày` : "Không thời hạn"}
-                                    </small>
+                                    <span className="gp-status">
+                                        <status.Icon aria-hidden />
+                                        {status.text}
+                                    </span>
                                 </header>
                                 <div className="gp-body">
                                     {!scopedId && (
@@ -75,7 +90,8 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
                                             {c.validUntil ? fmtDate(c.validUntil) : "Không giới hạn"}
                                         </span>
                                     </div>
-                                    {live && (
+                                    {/* Time used of the validity window; a clearance with no end date has none to show. */}
+                                    {live && c.validUntil && (
                                         <div className="gp-meter" style={{ ["--p" as string]: p }} aria-hidden>
                                             <i />
                                         </div>

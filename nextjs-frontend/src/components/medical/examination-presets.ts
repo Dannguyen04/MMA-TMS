@@ -76,7 +76,7 @@ const parse = (value: string): number | null => {
 };
 
 const toCheck = (assessment: VitalAssessment | null): VitalCheck =>
-    assessment && { status: assessment.status, text: vitalAssessmentMessage(createTranslator("en"), assessment) };
+    assessment && { status: assessment.status, text: vitalAssessmentMessage(createTranslator("vi"), assessment) };
 
 const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
 

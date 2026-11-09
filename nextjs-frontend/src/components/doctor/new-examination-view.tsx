@@ -137,6 +137,8 @@ async function NewExaminationDecision({ query, fighterId: scopedId }: NewExamina
                 nowInput={toDateTimeInputValue(now)}
                 now={now}
                 cancelHref={routes.doctor.fighter(fighter.id)}
+                // Outside production builds: the same one-click sample fill the demo form offers.
+                demoFill={process.env.NODE_ENV !== "production"}
             />
         ) : (
             <FighterChooser

@@ -2,6 +2,7 @@ import { dayKey, toDateTimeInputValue } from "@/lib/format";
 import { InjuryForm, type InjuryAlertOption } from "@/components/clinical/injury-form";
 import { InjuryRecordForm } from "@/components/clinical/injury-record-form";
 import { FormSection } from "@/components/doctor/form-section";
+import { FighterChooser } from "@/components/medical/fighter-chooser";
 import { PageHeader } from "@/components/ui/page-header";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
@@ -13,6 +14,18 @@ import { listFighters } from "@/lib/services/people";
 import { listVideos } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
+const CHOOSER_DESCRIPTION = "Chọn võ sĩ bị chấn thương. Form mở ngay trong hồ sơ của võ sĩ đó.";
+
+/** Without a fighter, the page asks who first (like a new examination), then opens the form in that fighter's profile. */
+function ChooseFighter({ fighters }: { fighters: Parameters<typeof FighterChooser>[0]["fighters"] }) {
+    return (
+        <>
+            <PageHeader back={{ href: routes.doctor.injuries, label: "Chấn thương" }} title="Ghi nhận chấn thương" description={CHOOSER_DESCRIPTION} />
+            <FighterChooser fighters={fighters} hrefFor={(fighterId) => routes.doctor.fighterNewInjury(fighterId)} title="Võ sĩ nào bị chấn thương?" />
+        </>
+    );
+}
+
 /** The injury form, on its own page or inside the fighter's profile (where `fighter` is that fighter). */
 export async function NewInjuryView({ query: params, scoped = false }: { query: Record<string, string | string[] | undefined>; scoped?: boolean }) {
     const user = await requireRole("doctor");
@@ -23,13 +36,17 @@ export async function NewInjuryView({ query: params, scoped = false }: { query: 
         const fighters = await listFighters(user);
         const requested = param(params.fighter) ?? "";
         const preselected = canAccessFighter(user, requested) ? fighters.find((fighter) => fighter.id === requested) : undefined;
+        if (!scoped && !preselected) return <ChooseFighter fighters={fighters} />;
         const cancelHref = preselected ? routes.doctor.fighter(preselected.id) : routes.doctor.injuries;
         const recordForm = (
                 <InjuryRecordForm
                     fighters={fighters.map((fighter) => ({ id: fighter.id, name: fighter.name })).sort((a, b) => a.name.localeCompare(b.name))}
                     defaultFighterId={preselected?.id ?? ""}
                     nowInput={toDateTimeInputValue(now)}
-                    cancelHref={cancelHref}
+                    cancelHref={scoped && preselected ? routes.doctor.fighterInjuries(preselected.id) : cancelHref}
+                    fighterLocked={scoped && Boolean(preselected)}
+                    // Outside production builds: the same one-click sample fill the demo form offers.
+                    demoFill={process.env.NODE_ENV !== "production"}
                 />
         );
         const recordDescription = "Ghi nhận chấn thương đã xác định sau khi đánh giá. Điều trị và kế hoạch phục hồi đi kèm hồ sơ chấn thương.";
@@ -73,6 +90,8 @@ export async function NewInjuryView({ query: params, scoped = false }: { query: 
     const linkedAlert = alertOptions.find((option) => option.alert.id === requestedAlertId)?.alert;
     const defaultFighterId = linkedAlert?.fighterId ?? (requestedFighterId && canAccessFighter(user, requestedFighterId) ? requestedFighterId : "");
     const preselected = fighters.find((fighter) => fighter.id === defaultFighterId);
+    // An AI observation names its fighter, so only a bare "new injury" asks who it is for.
+    if (!scoped && !preselected && !linkedAlert) return <ChooseFighter fighters={fighters} />;
 
     const back = linkedAlert
         ? { href: routes.doctor.aiAlert(linkedAlert.id), label: "Quan sát AI" }

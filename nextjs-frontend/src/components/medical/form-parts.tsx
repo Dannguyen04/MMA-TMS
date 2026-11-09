@@ -1,7 +1,7 @@
 "use client";
 
 import { Eraser, Lock, WandSparkles } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -39,7 +39,19 @@ export function FormPart({
 }
 
 /** Demo mode only: fills the form with plausible sample values for presenting the flow, or empties it again. */
-export function DemoFillBar({ description, onFill, onClear, className = "" }: { description: string; onFill: () => void; onClear: () => void; className?: string }) {
+export function DemoFillBar({
+    title = "Chế độ demo",
+    description,
+    onFill,
+    onClear,
+    className = "",
+}: {
+    title?: string;
+    description: string;
+    onFill: () => void;
+    onClear: () => void;
+    className?: string;
+}) {
     return (
         <div
             role="region"
@@ -48,7 +60,7 @@ export function DemoFillBar({ description, onFill, onClear, className = "" }: { 
         >
             <WandSparkles aria-hidden className="size-5 text-primary-soft-fg" />
             <div>
-                <p className="text-sm font-semibold text-fg">Chế độ demo</p>
+                <p className="text-sm font-semibold text-fg">{title}</p>
                 <p className="mt-0.5 max-w-[80ch] text-[13px] text-fg-muted">{description}</p>
             </div>
             <div className="col-span-2 flex gap-2 md:col-span-1">
@@ -73,4 +85,17 @@ export function DoctorsOnly({ children = "Chỉ bác sĩ xem" }: { children?: Re
             {children}
         </span>
     );
+}
+
+/** Whether the two-column form layout (form and side column, from 1280px) is showing. */
+export function useWideLayout() {
+    const [wide, setWide] = useState(false);
+    useEffect(() => {
+        const media = window.matchMedia("(min-width: 1280px)");
+        const sync = () => setWide(media.matches);
+        sync();
+        media.addEventListener("change", sync);
+        return () => media.removeEventListener("change", sync);
+    }, []);
+    return wide;
 }

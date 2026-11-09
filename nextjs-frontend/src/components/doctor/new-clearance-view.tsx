@@ -174,6 +174,7 @@ async function IssueClearance({ query, fighterId: scopedId }: NewClearanceViewPr
                     today={dayKey(now)}
                     cancelHref={routes.doctor.fighter(fighter.id)}
                     clearancesHref={hrefWith(routes.doctor.fighter(fighter.id), {}, { tab: "clearance" })}
+                    demoFill={process.env.NODE_ENV !== "production"}
                 />
             )}
         </div>

@@ -28,7 +28,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { CLEARANCE_LEVEL_LABELS, examinationTitle } from "@/lib/domain/labels";
+import { assessmentAreaLabel, CLEARANCE_LEVEL_LABELS, examinationTitle } from "@/lib/domain/labels";
 import { clearanceState, currentClearance, type ClearanceState } from "@/lib/domain/rules";
 import { daysBetween, formatDate, formatDateTime, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
@@ -198,7 +198,7 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
                                         <TBody>
                                             {exam.assessments.map((assessment, index) => (
                                                 <TR key={`${assessment.area}-${index}`} className={cn(assessment.result === "abnormal" && "bg-warning-soft/30")}>
-                                                    <TD className="min-w-44 font-medium">{assessment.area}</TD>
+                                                    <TD className="min-w-44 font-medium">{assessmentAreaLabel(assessment.area)}</TD>
                                                     <TD className="whitespace-nowrap">
                                                         <AssessmentResultBadge result={assessment.result} size="sm" />
                                                     </TD>

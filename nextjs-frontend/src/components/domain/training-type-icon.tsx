@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 
 import { TRAINING_TYPE_LABELS, trainingTypeLabel } from "@/lib/domain/labels";
+import type { SessionType } from "@/lib/domain/medical-contract";
+import { TRAINING_TYPE_FOR } from "@/lib/domain/training-contract";
 import type { TrainingType } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
@@ -27,6 +29,17 @@ export const TRAINING_TYPE_ICONS: Record<TrainingType, LucideIcon> = {
     strength_conditioning: Dumbbell,
     recovery_mobility: BatteryCharging,
 };
+
+/**
+ * The interface training type for a session type from any source: the training service's upper-case types
+ * (`RECOVERY`, `PHYSICAL_THERAPY`…, which don't match by lower-casing) or the interface's own. Unknown values read as
+ * recovery, so an icon is always found.
+ */
+export function trainingTypeOf(value: string): TrainingType {
+    if (value in TRAINING_TYPE_FOR) return TRAINING_TYPE_FOR[value as SessionType];
+    if (value in TRAINING_TYPE_ICONS) return value as TrainingType;
+    return "recovery_mobility";
+}
 
 export interface TrainingTypeIconProps {
     type: TrainingType;

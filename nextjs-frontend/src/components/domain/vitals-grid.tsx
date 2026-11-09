@@ -7,7 +7,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
-interface VitalReading {
+export interface VitalReading {
     key: VitalKey;
     label: string;
     icon: LucideIcon;
@@ -30,7 +30,7 @@ export function VitalsGrid({ vitals, weightLimitKg, locale = "vi", className }: 
 
     return (
         <dl className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", className)}>
-            {readings(vitals, t).map((reading) => {
+            {vitalReadings(vitals, t).map((reading) => {
                 const Icon = reading.icon;
                 const assessment = assessments[reading.key];
                 return (
@@ -73,7 +73,8 @@ function Assessment({ assessment, t }: { assessment: VitalAssessment | null; t: 
     );
 }
 
-function readings(vitals: Vitals, t: Translator): VitalReading[] {
+/** The six readings in display order, with their labels and units. */
+export function vitalReadings(vitals: Vitals, t: Translator): VitalReading[] {
     return [
         { key: "weightKg", label: t("vitals.weight"), icon: Scale, value: formatNumber(vitals.weightKg, 1), unit: "kg" },
         { key: "restingHeartRate", label: t("vitals.restingHeartRate"), icon: HeartPulse, value: formatNumber(vitals.restingHeartRate), unit: "bpm" },

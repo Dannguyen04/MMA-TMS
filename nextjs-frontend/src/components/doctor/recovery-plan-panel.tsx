@@ -21,6 +21,8 @@ export function RecoveryPlanPanel({ plan, injury, doctorName, now }: { plan: Rec
     // The day counter needs a target date; plans without one show their start only.
     const totalDays = plan.targetReturnDate ? Math.max(1, dayDiff(plan.targetReturnDate, plan.startDate)) : null;
     const dayNow = totalDays ? Math.min(totalDays, Math.max(1, -dayDiff(plan.startDate, now) + 1)) : null;
+    // An active plan past its return date says so, rather than sitting on its last day.
+    const overdue = plan.status === "active" && plan.targetReturnDate ? Math.max(0, -dayDiff(plan.targetReturnDate, now)) : 0;
     const daysToNext = next?.date ? dayDiff(next.date, now) : null;
 
     return (
@@ -38,16 +40,25 @@ export function RecoveryPlanPanel({ plan, injury, doctorName, now }: { plan: Rec
                             <span>
                                 {fmtDate(plan.startDate)} → {fmtDate(plan.targetReturnDate)}
                             </span>
-                            {plan.status === "active" && totalDays && (
-                                <span>
-                                    Ngày <b>{dayNow}</b>/{totalDays}
-                                </span>
+                            {overdue > 0 ? (
+                                <span className="rp-late">Quá hạn {overdue} ngày</span>
+                            ) : (
+                                plan.status === "active" &&
+                                totalDays && (
+                                    <span>
+                                        Ngày <b>{dayNow}</b>/{totalDays}
+                                    </span>
+                                )
                             )}
                         </p>
                     </div>
                     <Pill tone={PLAN_STATUS[plan.status].tone}>{PLAN_STATUS[plan.status].label}</Pill>
                 </header>
 
+                {steps.length === 0 ? (
+                    <p className="rp-none">Chưa có mốc nào. Mở kế hoạch để thêm các mốc trở lại tập.</p>
+                ) : (
+                    <>
                 <div className="rp-progress">
                     <p>
                         <span>
@@ -80,6 +91,8 @@ export function RecoveryPlanPanel({ plan, injury, doctorName, now }: { plan: Rec
                         );
                     })}
                 </ol>
+                    </>
+                )}
             </div>
 
             <aside className="rp-side" aria-label="Tóm tắt kế hoạch">

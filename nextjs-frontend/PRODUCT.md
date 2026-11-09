@@ -11,6 +11,9 @@ web
 - **Huấn luyện viên (HLV), người dùng chính.** Làm việc trên máy tính ở câu lạc bộ, ngay sau trận hoặc đầu tuần: tạo trận, theo dõi cân và hồ sơ, ghi kết quả, tạo đình chỉ, xếp lịch tập, xem ai sẵn sàng nhận trận mới.
 - **Võ sĩ.** Ghi cân hằng ngày, xem lịch, trận và trạng thái đình chỉ của mình trên điện thoại (màn điện thoại do nhóm mobile làm riêng).
 - **Bác sĩ (không bắt buộc).** Xác nhận hồ sơ, chấn thương, cho phép tập lại sau đình chỉ. Khi CLB không có bác sĩ, HLV làm thay và app ghi rõ "không có xác nhận y tế".
+  - Cấp giấy phép (khu vực bác sĩ, trên máy tính): có lúc ngay sau khi khám, võ sĩ còn ở đó; có lúc để dồn, xem lại nhiều phiếu khám rồi cấp một lượt.
+  - Trước khi cấp, điều bác sĩ cần chắc nhất là kết quả của phiếu khám làm căn cứ (quyết định, lập luận, sinh hiệu, các vùng đánh giá).
+  - Giấy phép đã cấp được cả HLV (để xếp lịch) và võ sĩ (trên app điện thoại) đọc, nên phải nói rõ võ sĩ được làm gì.
 - **Admin.** Quản lý người dùng, bộ luật giải, chế độ có hoặc không có bác sĩ.
 
 ## Product Purpose
