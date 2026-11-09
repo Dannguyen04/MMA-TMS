@@ -37,11 +37,18 @@ const { values: args } = parseArgs({
         headed: { type: "boolean", default: false },
         // API mode: sign the coach in with this email and the password in UAT_PASSWORD (never on the command line).
         email: { type: "string" },
+        // API mode, optional: the fighter's and the doctor's accounts for steps F and D (passwords asked on the terminal).
+        "fighter-email": { type: "string" },
+        "doctor-email": { type: "string" },
+        "admin-email": { type: "string" },
     },
 });
 const apiMode = Boolean(args.email);
 
 const COACH = "Rafael Costa";
+// The demo sports doctor (the sign-in button reads "BS. Thu Lê").
+const DOCTOR = "Thu Lê";
+const ADMIN = "Nora Whitfield";
 const RULESET = "MMA – VMMAF 2021";
 const OPPONENT = "Arman Petrosyan";
 const WEIGH_IN_KG = "69,5";
@@ -153,29 +160,42 @@ async function newPage(viewport) {
     return page;
 }
 
-let typedPassword;
+const typedPasswords = new Map();
 
-/** UAT_PASSWORD, or asked once on the terminal with the typing masked; it stays in this process only. */
-async function coachPassword() {
-    if (process.env.UAT_PASSWORD) return process.env.UAT_PASSWORD;
-    if (typedPassword !== undefined) return typedPassword;
+/**
+ * The password for an API-mode account: UAT_PASSWORD for the coach, otherwise asked once per email on the terminal with
+ * the typing masked. It stays in this process only.
+ */
+async function passwordFor(email) {
+    if (email === args.email && process.env.UAT_PASSWORD) return process.env.UAT_PASSWORD;
+    if (typedPasswords.has(email)) return typedPasswords.get(email);
     const { createInterface } = await import("node:readline");
-    const question = `Password for ${args.email}: `;
+    const question = `Password for ${email}: `;
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
     rl._writeToOutput = (text) => process.stdout.write(text.startsWith(question) ? question : text.replace(/[^\r\n]/g, "*"));
-    typedPassword = await new Promise((resolve) => rl.question(question, resolve));
+    const password = await new Promise((resolve) => rl.question(question, resolve));
     rl.close();
     process.stdout.write("\n");
-    return typedPassword;
+    typedPasswords.set(email, password);
+    return password;
+}
+
+/** API-mode email per demo name: the coach, the fighter (--fighter-email) and the doctor (--doctor-email). */
+function apiEmailFor(name) {
+    if (name === COACH) return args.email;
+    if (name === DOCTOR) return args["doctor-email"];
+    if (name === ADMIN) return args["admin-email"];
+    return args["fighter-email"];
 }
 
 async function signIn(page, name) {
     await page.goto(`${base}/login`, { waitUntil: "load" });
     if (apiMode) {
-        if (name !== COACH) return false;
-        const password = await coachPassword();
-        if (!password) throw new Error("API mode needs the coach's password (UAT_PASSWORD, or typed at the prompt).");
-        await page.locator('input[name="email"]').fill(args.email);
+        const email = apiEmailFor(name);
+        if (!email) return false;
+        const password = await passwordFor(email);
+        if (!password) throw new Error(`API mode needs the password for ${email}.`);
+        await page.locator('input[name="email"]').fill(email);
         await page.locator('input[name="password"]').fill(password);
         await page.getByRole("button", { name: t("auth.submit"), exact: true }).click();
         await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 60_000 });
@@ -800,36 +820,92 @@ const steps = [
             observe(`cleared the suspension awaiting clearance: "${who}"`);
         },
     },
-    {
-        id: "F",
-        title: "Fighter view at 390 px",
+    roleStep("F", "Fighter screens", fighterName, "fighter", [
+        "/fighter/dashboard",
+        "/fighter/bout",
+        "/fighter/bout/weigh-in",
+        "/fighter/training",
+        "/fighter/schedule",
+        "/fighter/health",
+        "/fighter/health/history",
+        "/fighter/performance",
+        "/fighter/videos",
+    ], [390, 1440]),
+    roleStep("D", "Doctor screens", DOCTOR, "doctor", [
+        "/doctor/dashboard",
+        "/doctor/fighters",
+        "/doctor/examinations",
+        "/doctor/injuries",
+        "/doctor/medical-clearance",
+        "/doctor/recovery",
+        "/doctor/review-requests",
+        "/doctor/history",
+        "/doctor/ai-alerts",
+        { from: "/doctor/fighters", link: /^\/doctor\/fighters\/[^/]+$/ },
+    ], [1440, 390]),
+    roleStep("AD", "Admin screens", ADMIN, "admin", [
+        "/admin/dashboard",
+        "/admin/users",
+        "/admin/roles",
+        "/admin/admissions",
+        "/admin/exercises",
+        "/admin/notifications",
+        "/admin/audit-logs",
+        "/admin/settings",
+        "/admin/ai-jobs",
+        "/admin/ai-models",
+        "/admin/videos",
+        { from: "/admin/users", link: /^\/admin\/users\/[^/]+$/ },
+    ], [1440, 390]),
+];
+
+/**
+ * A role's own screens, read only: each page must answer 200, stream its h1, show no error screen and, at 390 px,
+ * not be wider than the phone. `{ from, link }` opens the first detail link found on a list page. Skipped when the
+ * role has no sign-in (no demo button, or no --fighter-email / --doctor-email / --admin-email in API mode).
+ */
+function roleStep(id, title, name, role, paths, widths) {
+    return {
+        id,
+        title,
         needs: [],
         async run() {
-            const phone = await newPage({ width: 390, height: 844 });
-            try {
-                if (!(await signIn(phone, fighterName))) {
-                    observe(`no demo sign-in for ${fighterName}; fighter view skipped`);
-                    return "SKIP";
-                }
-                for (const path of ["/fighter/dashboard", "/fighter/bout"]) {
-                    // The step's url and screenshot are the phone's, not the coach's.
-                    ctx.stepUrl = base + path;
-                    ctx.stepShot = shotsDir ? join(shotsDir, `F-${path.split("/").pop()}.png`) : null;
-                    try {
-                        await open(phone, path);
-                        const info = await phone.evaluate(() => ({ h1: Boolean(document.querySelector("h1")), overflow: document.documentElement.scrollWidth > window.innerWidth + 1 }));
-                        if (!info.h1) throw new AppProblem(`${path} has no h1`);
-                        if (info.overflow) throw new AppProblem(`${path} is wider than the 390 px screen`);
-                    } finally {
-                        if (ctx.stepShot) await shoot(phone, ctx.stepShot).catch(() => (ctx.stepShot = null));
+            for (const width of widths) {
+                const tab = await newPage({ width, height: width < 768 ? 844 : 900 });
+                try {
+                    if (!(await signIn(tab, name))) {
+                        observe(`no sign-in for the ${role} (${name}); ${title.toLowerCase()} skipped`);
+                        return "SKIP";
                     }
+                    for (const entry of paths) {
+                        let path = entry;
+                        if (typeof entry === "object") {
+                            await open(tab, entry.from);
+                            const hrefs = await tab.locator("main a[href]").evaluateAll((links) => links.map((a) => a.getAttribute("href")));
+                            path = hrefs.find((href) => entry.link.test(href ?? ""));
+                            if (!path) {
+                                observe(`${role}: no detail link on ${entry.from} at ${width} px`);
+                                continue;
+                            }
+                        }
+                        ctx.stepUrl = base + path;
+                        ctx.stepShot = shotsDir ? join(shotsDir, `${id}-${width}-${path.replace(/^\//, "").replaceAll("/", "_")}.png`) : null;
+                        try {
+                            await open(tab, path);
+                            const info = await tab.evaluate(() => ({ h1: Boolean(document.querySelector("h1")), overflow: document.documentElement.scrollWidth > window.innerWidth + 1 }));
+                            if (!info.h1) throw new AppProblem(`${path} has no h1 at ${width} px`);
+                            if (width < 768 && info.overflow) throw new AppProblem(`${path} is wider than the ${width} px screen`);
+                        } finally {
+                            if (ctx.stepShot) await shoot(tab, ctx.stepShot).catch(() => (ctx.stepShot = null));
+                        }
+                    }
+                } finally {
+                    await tab.context().close();
                 }
-            } finally {
-                await phone.context().close();
             }
         },
-    },
-];
+    };
+}
 
 /** The fighter's KO row for this run's bout on the suspensions page. */
 function suspensionRow() {
