@@ -703,7 +703,10 @@ const steps = [
         async run() {
             const result = await trySparring("C3");
             if (result.saved) throw new AppProblem(`Gate 2 did not stop a sparring session for ${fighterName}: it was saved (${result.url})`);
-            if (!result.message.includes(gate2Lead())) throw new AppProblem(`refused, but with "${result.message}" instead of "${gate2Lead()}: …"`);
+            // Demo words it "<name> đang bị đình chỉ: …"; the API's refusal reads "Võ sĩ đang bị đình chỉ (KO): …". Both are Gate 2.
+            if (!result.message.includes(gate2Lead()) && !/đang bị đình chỉ/.test(result.message)) {
+                throw new AppProblem(`refused, but with "${result.message}" instead of a suspension refusal`);
+            }
             observe(`${result.refusedUpFront ? "refused before saving (button disabled by the live check)" : "refused on save"}: "${result.message.slice(0, 200)}"`);
         },
     },
