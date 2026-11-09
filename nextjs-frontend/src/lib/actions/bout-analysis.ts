@@ -33,6 +33,22 @@ async function authorizeCoach(
     return { ok: true, user: auth.user, coachId: auth.user.profileId };
 }
 
+/** The coach, and the form's `boutId` bout when that fighter is on their roster; otherwise the error to return. */
+async function authorizeBoutForm(
+    formData: FormData,
+    t: Translator,
+): Promise<{ ok: true; user: User; boutId: string; fighterId: string } | { ok: false; state: ActionState<never> }> {
+    const auth = await authorizeCoach(t);
+    if (!auth.ok) return auth;
+    const boutId = String(formData.get("boutId") ?? "").trim();
+    if (!boutId) return { ok: false, state: actionError(t("boutAnalysis.action.boutIdRequired")) };
+    const bout = await getCampBout(boutId);
+    if (!bout || !canAccessFighter(auth.user, bout.fighterId)) {
+        return { ok: false, state: actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster")) };
+    }
+    return { ok: true, user: auth.user, boutId, fighterId: bout.fighterId };
+}
+
 function revalidateBoutAnalysisPaths(boutId: string, fighterId?: string) {
     const boutPath = routes.coach.bout(boutId);
     revalidatePath(routes.coach.bouts);
@@ -49,18 +65,13 @@ function revalidateBoutAnalysisPaths(boutId: string, fighterId?: string) {
 
 export async function recordBoutRoundAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const { t } = await getTranslator();
-    const auth = await authorizeCoach(t);
+    const auth = await authorizeBoutForm(formData, t);
     if (!auth.ok) return auth.state;
+    const { boutId, fighterId } = auth;
 
-    const boutId = String(formData.get("boutId") ?? "").trim();
     const roundNoRaw = Number(formData.get("roundNo"));
-    if (!boutId || !Number.isInteger(roundNoRaw) || roundNoRaw < 1) {
+    if (!Number.isInteger(roundNoRaw) || roundNoRaw < 1) {
         return actionError(t("boutAnalysis.action.boutIdRequired"));
-    }
-
-    const existing = await getCampBout(boutId);
-    if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
-        return actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster"));
     }
 
     const tacticMarks: Record<string, TacticOutcome> = {};
@@ -130,7 +141,7 @@ export async function recordBoutRoundAction(_prev: ActionState, formData: FormDa
             return actionError(t("boutAnalysis.action.saveFailed"));
         }
 
-        revalidateBoutAnalysisPaths(boutId, existing.fighterId);
+        revalidateBoutAnalysisPaths(boutId, fighterId);
         return actionSuccess(t("boutAnalysis.action.roundSaved", { roundNo: roundNoRaw }));
     } catch (error: unknown) {
         return actionError(error instanceof Error ? error.message : t("boutAnalysis.action.saveFailed"));
@@ -172,16 +183,9 @@ export async function suggestObservationsFromVideoAction(
 /** T-041: the coach confirms or corrects every tactic's outcome on the report; each `tacticId` posts `outcome_<id>` and `note_<id>`. */
 export async function saveTacticReviewsAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const { t } = await getTranslator();
-    const auth = await authorizeCoach(t);
+    const auth = await authorizeBoutForm(formData, t);
     if (!auth.ok) return auth.state;
-
-    const boutId = String(formData.get("boutId") ?? "").trim();
-    if (!boutId) return actionError(t("boutAnalysis.action.boutIdRequired"));
-
-    const existing = await getCampBout(boutId);
-    if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
-        return actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster"));
-    }
+    const { boutId, fighterId } = auth;
 
     const fieldErrors: Record<string, string> = {};
     const reviews = formData.getAll("tacticId").map((raw) => {
@@ -204,7 +208,7 @@ export async function saveTacticReviewsAction(_prev: ActionState, formData: Form
             if (result.error === "OPPONENT_TACTIC_UNKNOWN") return actionError(t("boutAnalysis.report.review.tacticGone"));
             return actionError(t("boutAnalysis.report.review.saveFailed"));
         }
-        revalidateBoutAnalysisPaths(boutId, existing.fighterId);
+        revalidateBoutAnalysisPaths(boutId, fighterId);
         return actionSuccess(t("boutAnalysis.report.review.saved"));
     } catch (error: unknown) {
         return actionError(error instanceof Error ? error.message : t("boutAnalysis.report.review.saveFailed"));
@@ -213,16 +217,9 @@ export async function saveTacticReviewsAction(_prev: ActionState, formData: Form
 
 export async function saveOpponentAnalysisAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
     const { t } = await getTranslator();
-    const auth = await authorizeCoach(t);
+    const auth = await authorizeBoutForm(formData, t);
     if (!auth.ok) return auth.state;
-
-    const boutId = String(formData.get("boutId") ?? "").trim();
-    if (!boutId) return actionError(t("boutAnalysis.action.boutIdRequired"));
-
-    const existing = await getCampBout(boutId);
-    if (!existing || !canAccessFighter(auth.user, existing.fighterId)) {
-        return actionError(t("boutAnalysis.action.boutNotFoundOrNotOnRoster"));
-    }
+    const { boutId, fighterId } = auth;
 
     let raw: unknown;
     try {
@@ -250,7 +247,7 @@ export async function saveOpponentAnalysisAction(_prev: ActionState, formData: F
             return actionError(t("boutAnalysis.analysis.action.saveFailed"));
         }
 
-        revalidateBoutAnalysisPaths(boutId, existing.fighterId);
+        revalidateBoutAnalysisPaths(boutId, fighterId);
         return actionSuccess(t("boutAnalysis.analysis.action.saved"));
     } catch (error: unknown) {
         return actionError(error instanceof Error ? error.message : t("boutAnalysis.analysis.action.saveFailed"));

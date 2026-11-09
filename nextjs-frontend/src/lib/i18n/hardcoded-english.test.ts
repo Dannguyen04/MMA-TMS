@@ -88,7 +88,8 @@ describe("hard-coded English (T-025 ratchet)", () => {
         expect(found).toEqual(['aria-label="Close dialog"', "Hello world"]);
     });
 
-    it("adds no English to any file beyond the baseline", () => {
+    // Reads every .tsx under src: 2–8 s on a busy machine, so the 5 s default made it fail at random (T-040 C).
+    it("adds no English to any file beyond the baseline", { timeout: 30_000 }, () => {
         const current = scan();
         const counts = Object.fromEntries(Object.entries(current).map(([file, strings]) => [file, strings.length]));
         if (process.env.UPDATE_I18N_BASELINE) {
