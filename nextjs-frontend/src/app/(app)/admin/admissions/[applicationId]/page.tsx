@@ -21,6 +21,7 @@ import { getTranslator } from "@/lib/i18n/server";
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getApplication } from "@/lib/services/admissions";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { getCareTeam, listStaffAccounts } from "@/lib/services/care-team";
 import { getUser } from "@/lib/services/people";
 
@@ -52,12 +53,15 @@ async function loadFighterCareTeam(userId: string): Promise<FighterCareTeam | nu
 export default async function AdminAdmissionPage({ params }: PageProps<"/admin/admissions/[applicationId]">) {
     await requireRole("admin");
     const { t, locale } = await getTranslator();
-    const [application, coaches] = await Promise.all([loadApplication((await params).applicationId), listStaffAccounts("coach")]);
+    // The application is the page: when it can't be read, the route's error screen shows. The coach list (names and the
+    // evaluator choices) and the new fighter's care team come from other services: when one doesn't answer, the
+    // application still shows and the card says what's missing.
+    const [application, coaches] = await Promise.all([loadApplication((await params).applicationId), nullIfServiceFails(listStaffAccounts("coach"))]);
     if (!application) notFound();
     const name = applicantName(application.applicant);
-    const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? t("role.coach");
+    const coachName = (coachId: string) => coaches?.find((coach) => coach.staffId === coachId)?.name ?? t("role.coach");
     // Activation isn't the end of admission: the new fighter can't train until they have a sports doctor.
-    const careTeam = application.status === "activated" ? await loadFighterCareTeam(application.applicantId) : null;
+    const careTeam = application.status === "activated" ? await nullIfServiceFails(loadFighterCareTeam(application.applicantId)) : null;
     const nextStep = careTeam ? careTeamNextStep(careTeam.missing, t) : null;
 
     return (
@@ -164,7 +168,12 @@ function EvaluatorCard({
     coachName,
     t,
     locale,
-}: { application: Application; coaches: StaffOption[]; coachName: (coachId: string) => string } & LocalisedProps) {
+}: {
+    application: Application;
+    /** Null when the coach list couldn't be read: no form then, since it would offer no coach to choose. */
+    coaches: StaffOption[] | null;
+    coachName: (coachId: string) => string;
+} & LocalisedProps) {
     const { evaluator } = application;
     const canAssign = application.status === "submitted" && !application.assessment;
     return (
@@ -180,7 +189,12 @@ function EvaluatorCard({
                     <p className="text-sm text-fg-muted">{t("screens.admin.application.noCoach")}</p>
                 )}
                 {/* Keyed by the coach so the form starts empty again once one is assigned. */}
-                {canAssign && <EvaluatorForm key={evaluator?.coachId ?? "none"} applicationId={application.id} coaches={coaches} currentCoachId={evaluator?.coachId ?? null} />}
+                {canAssign &&
+                    (coaches ? (
+                        <EvaluatorForm key={evaluator?.coachId ?? "none"} applicationId={application.id} coaches={coaches} currentCoachId={evaluator?.coachId ?? null} />
+                    ) : (
+                        <p className="text-sm text-fg-muted">{t("screens.admin.application.coachesUnavailable")}</p>
+                    ))}
             </CardContent>
         </Card>
     );

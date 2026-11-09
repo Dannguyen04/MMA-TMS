@@ -410,6 +410,7 @@ export const enHealth = {
     "fighterHistory.desc": "Examinations, injuries, treatments and clearance decisions recorded by your sports doctor.",
     "fighterHistory.timelineTitle": "Timeline",
     "fighterHistory.timelineEmpty": "Nothing recorded yet. Your first entry will be your baseline exam.",
+    "fighterHistory.timelineIncomplete": "Some treatments or clearance decisions couldn't be loaded, so the timeline may be incomplete. Reload the page to try again.",
     "fighterHistory.examinationsTitle": "Examinations",
     "fighterHistory.noExaminationsTitle": "No examinations yet",
     "fighterHistory.noExaminationsDesc": "Your sports doctor records each check-up here.",

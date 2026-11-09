@@ -25,6 +25,7 @@ import { getTranslator } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/translate";
 import { paginate, parseEnum, parseSortDirection, sortItems } from "@/lib/query";
 import { routes } from "@/lib/routes";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listFighters } from "@/lib/services/people";
 import { listPlans, listSessions } from "@/lib/services/training";
 import { groupBy, param } from "@/lib/utils";
@@ -54,12 +55,17 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
     const sort = parseEnum(param(params.sort), SORT_KEYS);
     const dir = parseSortDirection(param(params.dir));
 
-    const [plans, fighters, sessions, coachNames] = await Promise.all([
+    // The plans are the page: when they can't be read, the route's error screen shows rather than "no plans yet".
+    // Fighter identities and adherence only decorate them. Adherence reads every session of every assigned fighter,
+    // the heaviest read here: when either service fails the plans still list, without fighter names or adherence ("—").
+    const [plans, fighterList, sessionList, coachNames] = await Promise.all([
         listPlans({ fighterIds: scope, status, search }),
-        listFighters(user),
-        listSessions({ fighterIds: scope }),
+        nullIfServiceFails(listFighters(user)),
+        nullIfServiceFails(listSessions({ fighterIds: scope })),
         getCoachNames(),
     ]);
+    const fighters = fighterList ?? [];
+    const sessions = sessionList ?? [];
 
     const fightersById = identitiesById(fighters);
     const sessionsByPlan = groupBy(

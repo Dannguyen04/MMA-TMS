@@ -59,6 +59,8 @@ export const enTraining = {
     "training.clearanceBanner.expiredDesc": "A sports doctor needs to renew it before training continues. Ask your coach to book the check.",
     "training.clearanceBanner.noneTitle": "No Medical Clearance on file yet",
     "training.clearanceBanner.noneDesc": "Your sports doctor issues one after your baseline examination. Until then, tell your coach straight away if anything hurts.",
+    "training.clearanceBanner.unavailableTitle": "Your Medical Clearance couldn't be checked right now",
+    "training.clearanceBanner.unavailableDesc": "Your sessions are below. Check Health & Clearance before you train, or reload the page to try again.",
 
     /* Clearance Check Panel */
     "training.clearanceCheck.title": "Clearance check",

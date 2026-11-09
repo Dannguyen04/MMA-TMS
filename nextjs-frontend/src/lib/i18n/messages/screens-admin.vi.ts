@@ -412,6 +412,7 @@ export const viScreensAdmin = {
     "screens.admin.application.assessingCoach": "HLV đánh giá",
     "screens.admin.application.since": " · từ {date}",
     "screens.admin.application.noCoach": "Chưa phân công HLV.",
+    "screens.admin.application.coachesUnavailable": "Chưa tải được danh sách HLV nên chưa thể phân công lúc này. Tải lại trang để thử lại.",
     "screens.admin.application.activation": "Kích hoạt",
     "screens.admin.application.emailAttempts": "Số lần gửi email kích hoạt",
     "screens.admin.application.lastAttempt": "Lần gửi gần nhất",

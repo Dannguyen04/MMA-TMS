@@ -412,6 +412,7 @@ export const enScreensAdmin = {
     "screens.admin.application.assessingCoach": "Assessing coach",
     "screens.admin.application.since": " · since {date}",
     "screens.admin.application.noCoach": "No coach assigned yet.",
+    "screens.admin.application.coachesUnavailable": "The coach list couldn't be loaded, so a coach can't be assigned right now. Reload the page to try again.",
     "screens.admin.application.activation": "Activation",
     "screens.admin.application.emailAttempts": "Activation email attempts",
     "screens.admin.application.lastAttempt": "Last attempt",

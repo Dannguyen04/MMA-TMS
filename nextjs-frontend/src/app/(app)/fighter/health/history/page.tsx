@@ -1,10 +1,11 @@
-import { Bandage, History, Stethoscope } from "lucide-react";
+import { Bandage, CircleAlert, History, Stethoscope } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { injuryTitle } from "@/components/clinical/clinical-copy";
 import { medicalHistoryItems } from "@/components/dashboard/health-data";
+import { InlineNote } from "@/components/dashboard/inline-note";
 import { ActivityTimeline } from "@/components/domain/activity-timeline";
 import { describeDaysUntil } from "@/components/domain/domain-format";
 import { InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
@@ -22,6 +23,7 @@ import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
 import { createTranslator, plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { getInjuryDetail, listClearances, listExaminations, listInjuries } from "@/lib/services/medical";
 import { listDoctors } from "@/lib/services/people";
 
@@ -38,14 +40,24 @@ export default async function FighterMedicalHistoryPage() {
     const now = new Date().toISOString();
     const { t, locale } = await getTranslator();
 
-    const [examinations, injuries, clearances, doctors] = await Promise.all([
+    // Examinations and injuries are the page: when they can't be read, the route's error screen shows. Treatments and
+    // clearance decisions only add entries to the timeline, so when their history can't be read the rest still shows
+    // and the timeline says it is incomplete. Doctor names are a lookup: `listDoctors` already leaves out a list the
+    // service fails to give, and a missing name reads "Sports doctor".
+    const injuriesRead = listInjuries({ fighterIds: ids });
+    const treatmentsRead = nullIfServiceFails(
+        injuriesRead.then(async (list) => (await Promise.all(list.map((injury) => getInjuryDetail(injury.id)))).flatMap((detail) => detail?.treatments ?? [])),
+    );
+    const [examinations, injuries, clearancesRead, treatmentsResult, doctors] = await Promise.all([
         listExaminations({ fighterIds: ids }),
-        listInjuries({ fighterIds: ids }),
-        listClearances({ fighterIds: ids }),
+        injuriesRead,
+        nullIfServiceFails(listClearances({ fighterIds: ids })),
+        treatmentsRead,
         listDoctors(),
     ]);
-    const details = await Promise.all(injuries.map((injury) => getInjuryDetail(injury.id)));
-    const treatments = details.flatMap((detail) => detail?.treatments ?? []);
+    const timelineIncomplete = clearancesRead === null || treatmentsResult === null;
+    const clearances = clearancesRead ?? [];
+    const treatments = treatmentsResult ?? [];
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
     const timeline = medicalHistoryItems({ examinations, injuries, treatments, clearances, doctorNames }, locale);
 
@@ -65,14 +77,18 @@ export default async function FighterMedicalHistoryPage() {
                         description={plural(t, "fighterHistory.eventCount", timeline.length)}
                         icon={<History />}
                     />
-                    <CardContent>
+                    <CardContent className="flex flex-col gap-4">
+                        {timelineIncomplete && (
+                            <InlineNote icon={CircleAlert} tone="warning">
+                                {t("fighterHistory.timelineIncomplete")}
+                            </InlineNote>
+                        )}
                         <ActivityTimeline
                             items={timeline}
                             now={now}
                             emptyText={t("fighterHistory.timelineEmpty")}
                             locale={locale}
                         />
-
                     </CardContent>
                 </Card>
 

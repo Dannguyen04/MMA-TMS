@@ -412,6 +412,7 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "fighterHistory.desc": "Các lần khám, chấn thương, phác đồ điều trị và quyết định cấp phép do bác sĩ thể thao ghi nhận.",
     "fighterHistory.timelineTitle": "Dòng thời gian",
     "fighterHistory.timelineEmpty": "Chưa có dữ liệu nào. Mục đầu tiên sẽ là buổi khám thể lực ban đầu của bạn.",
+    "fighterHistory.timelineIncomplete": "Chưa tải được một số phác đồ điều trị hoặc quyết định cấp phép, nên dòng thời gian có thể còn thiếu. Tải lại trang để thử lại.",
     "fighterHistory.examinationsTitle": "Các lần khám",
     "fighterHistory.noExaminationsTitle": "Chưa có lần khám nào",
     "fighterHistory.noExaminationsDesc": "Bác sĩ thể thao sẽ ghi nhận từng lần khám tại đây.",

@@ -59,6 +59,8 @@ export const viTraining = {
     "training.clearanceBanner.expiredDesc": "Cần bác sĩ thể thao gia hạn trước khi tiếp tục tập luyện. Hãy nhờ HLV đặt lịch kiểm tra.",
     "training.clearanceBanner.noneTitle": "Chưa có cấp phép y tế trong hồ sơ",
     "training.clearanceBanner.noneDesc": "Bác sĩ thể thao sẽ cấp sau khi kiểm tra ban đầu. Trong thời gian này, báo ngay cho HLV nếu thấy đau hoặc bất thường.",
+    "training.clearanceBanner.unavailableTitle": "Chưa kiểm tra được cấp phép y tế của bạn lúc này",
+    "training.clearanceBanner.unavailableDesc": "Các buổi tập vẫn hiển thị bên dưới. Hãy xem Sức khỏe & Cấp phép trước khi tập, hoặc tải lại trang để thử lại.",
 
     /* Clearance Check Panel */
     "training.clearanceCheck.title": "Kiểm tra cấp phép",

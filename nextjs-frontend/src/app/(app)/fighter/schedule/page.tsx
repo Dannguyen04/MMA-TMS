@@ -1,13 +1,15 @@
-import { CalendarClock, CalendarDays, ClipboardList } from "lucide-react";
+import { CalendarClock, CalendarDays, ClipboardList, ShieldQuestion } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { PlanTimelineBar } from "@/components/domain/plan-schedule";
 import { WeekAgenda } from "@/components/domain/week-agenda";
+import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
+import { Callout } from "@/components/training/callout";
 import { ClearanceBanner } from "@/components/training/clearance-banner";
 import { getClearanceSummary, getCoachNames } from "@/components/training/training-data";
 import { describeWeekOffset, parseWeekOffset, plannedEndMs, weekStartKey } from "@/components/training/training-utils";
@@ -20,6 +22,7 @@ import { academyDayStartIso, addDaysToKey } from "@/lib/format";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { getWeekAgenda, listPlans, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 
@@ -49,6 +52,9 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
     const afterWeekIso = academyDayStartIso(addDaysToKey(startKey, 7));
     const upcomingStartMs = showsPastWeek ? nowMs : Date.parse(afterWeekIso);
 
+    // The sessions are the page: when they can't be read, the route's error screen shows rather than an empty week.
+    // The clearance banner, the current plan card and coach names lean on other services: when one doesn't answer, the
+    // schedule still shows (the banner says the clearance couldn't be checked; the plan card is left out).
     const [agenda, later, coachNames, clearance, activePlans] = await Promise.all([
         getWeekAgenda([fighterId], weekStartIso, 7),
         listSessions({
@@ -59,13 +65,13 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
             to: new Date(upcomingStartMs + UPCOMING_DAYS * DAY_MS).toISOString(),
         }),
         getCoachNames(),
-        getClearanceSummary(fighterId, now),
-        listPlans({ fighterIds: [fighterId], status: "active" }),
+        nullIfServiceFails(getClearanceSummary(fighterId, now)),
+        nullIfServiceFails(listPlans({ fighterIds: [fighterId], status: "active" })),
     ]);
 
     const weekSessions = agenda.flatMap((day) => day.sessions);
     const upcoming = later.filter((s) => plannedEndMs(s) >= nowMs);
-    const activePlan = activePlans[0];
+    const activePlan = activePlans?.[0];
     const scheduledCount = weekSessions.filter((s) => s.status !== "cancelled").length;
     const upcomingDescription =
         offset === 0
@@ -82,7 +88,22 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
             />
 
             <div className="flex flex-col gap-6">
-                <ClearanceBanner locale={locale} summary={clearance} href={routes.fighter.health} />
+                {clearance ? (
+                    <ClearanceBanner locale={locale} summary={clearance} href={routes.fighter.health} />
+                ) : (
+                    <Callout
+                        tone="warning"
+                        icon={ShieldQuestion}
+                        title={t("training.clearanceBanner.unavailableTitle")}
+                        action={
+                            <ButtonLink href={routes.fighter.health} variant="secondary" size="sm">
+                                {t("training.clearanceBanner.viewAction")}
+                            </ButtonLink>
+                        }
+                    >
+                        {t("training.clearanceBanner.unavailableDesc")}
+                    </Callout>
+                )}
 
                 <Card>
                     <CardHeader
