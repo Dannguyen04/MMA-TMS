@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Filled top-left chamfer tile 16x16 (rotate 180deg for bottom-right). Decorative mask only. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+  <path d="M6,0 H16 V16 H0 V6 Z" fill="currentColor"/>
+</svg>

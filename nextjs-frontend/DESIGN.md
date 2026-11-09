@@ -176,6 +176,8 @@ Components feel firm and compact: 8 px controls, 12 px cards, a near-invisible c
 - 3D and motion only where they show recorded data, with a 2D or static fallback that states the same facts.
 - A `lite` graphics tier for weak machines that keeps all content and drops only cost.
 
+**Signed-in workspace (9/11):** the shell inside `.workspace-frame` (sidebar, the four dashboards, the applicant page) overrides these tokens with fogit-hd's variant B (paper, ink, mist green, Cambria titles). Its tokens and reasons are in [docs/design-workspace-b.md](./docs/design-workspace-b.md). Until the two are reconciled, the `.workspace-frame` block in `globals.css` wins inside the app shell, and this file describes everything outside it (landing, sign-in, the 3D stage).
+
 ## Colors
 
 A cool, low-chroma neutral field with two saturated corner colours and a full set of soft/ink/solid status tones.

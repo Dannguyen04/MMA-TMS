@@ -430,5 +430,17 @@ export const viDemoFlow = {
     "demoFlow.Uploading": "Đang tải lên",
     "demoFlow.Queued": "Đang chờ",
     "demoFlow.Processing": "Đang xử lý",
-    "demoFlow.Failed": "Thất bại"
+    "demoFlow.Failed": "Thất bại",
+    "demoFlow.Film": "Video",
+    "demoFlow.Your training footage and what the AI saw in it — strikes, guard, footwork — plus your coach's review.": "Video tập của bạn và những gì AI nhận ra — đòn đánh, thế thủ, di chuyển — cùng nhận xét của HLV.",
+    "demoFlow.Upload a video for AI analysis": "Tải video để AI phân tích",
+    "demoFlow.Live form check": "Kiểm tra kỹ thuật trực tiếp",
+    "demoFlow.Beta": "Thử nghiệm",
+    "demoFlow.Throw roundhouse kicks in front of your camera and get instant feedback on knee chamber, extension and speed. It runs on this device: nothing is recorded or uploaded.": "Đá vòng cầu trước camera để nhận phản hồi ngay về gối, duỗi chân và tốc độ. Chạy trên máy này: không ghi hình và không tải lên.",
+    "demoFlow.Start a live check": "Bắt đầu kiểm tra",
+    "demoFlow.Upload training video": "Tải video tập luyện",
+    "demoFlow.The AI detects your strikes, guard drops and footwork. Your coach then reviews the findings with you.": "AI nhận diện đòn đánh, lúc hạ thế thủ và di chuyển. HLV sau đó xem lại các nhận xét cùng bạn.",
+    "demoFlow.Practise your roundhouse kick in front of the camera and get instant feedback on knee chamber, extension and speed.": "Tập đá vòng cầu trước camera và nhận phản hồi ngay về gối, duỗi chân và tốc độ.",
+    "demoFlow.Fighter videos": "Video của võ sĩ",
+    "demoFlow.Add footage for a fighter on your roster. The AI analyses it and the findings land in your review queue.": "Thêm video cho võ sĩ trong danh sách của bạn. AI phân tích và đưa nhận xét vào hàng chờ duyệt."
 } satisfies Record<keyof typeof enDemoFlow, string>;

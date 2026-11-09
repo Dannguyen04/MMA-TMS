@@ -201,8 +201,8 @@ export function CampTimeline() {
                                 />
                             );
                         })}
-                        <div data-today className="absolute -top-[4.75rem] bottom-0 w-0.5 -translate-x-1/2 bg-corner-red" style={{ left: pct(TODAY + 0.5) }}>
-                            <span className="absolute -top-0.5 left-1.5 -translate-y-full rounded bg-corner-red px-1.5 text-[11px] leading-5 font-semibold whitespace-nowrap text-white">Hôm nay</span>
+                        <div data-today className="absolute -top-[4.75rem] bottom-0 w-0.5 -translate-x-1/2 bg-primary" style={{ left: pct(TODAY + 0.5) }}>
+                            <span className="absolute -top-0.5 left-1.5 -translate-y-full rounded bg-primary px-1.5 text-[11px] leading-5 font-semibold whitespace-nowrap text-primary-fg">Hôm nay</span>
                         </div>
                     </div>
 

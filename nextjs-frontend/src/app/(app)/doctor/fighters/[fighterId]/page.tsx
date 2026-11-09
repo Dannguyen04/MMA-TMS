@@ -148,7 +148,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
             </Panel>
 
             <div className="hs-grid">
-                <Panel title="Bản đồ cơ thể" id="body3d" tone="plate" aside={<span className="yt-drag-hint">Kéo để xoay</span>}>
+                <Panel title="Bản đồ cơ thể" id="body3d" aside={<span className="yt-drag-hint">Kéo để xoay</span>}>
                     <BodyPanel injuries={shownInjuries} excluded={excluded} height={500} abnormalHead={abnormalHead} />
                 </Panel>
                 <div className="hs-col">

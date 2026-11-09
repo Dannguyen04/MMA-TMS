@@ -19,7 +19,7 @@ import type { ExaminationOutcome, ExaminationType, Vitals } from "@/lib/domain/t
 import { formatDate, formatNumber } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { CLEARANCE_LEVEL_FOR_OUTCOME, EXAMINATION_OUTCOME_DESCRIPTIONS, EXAMINATION_OUTCOME_META, ExaminationOutcomeBadge } from "./clinical-badges";
-import { AssessmentsField, EMPTY_VITALS, ExaminationTypeField, FollowUpField, useAssessmentRows, VitalsFields } from "./examination-details-fields";
+import { AssessmentsField, ExaminationTypeField, FollowUpField, useAssessmentRows, VitalsFields, type VitalsDraft } from "./examination-details-fields";
 import { Scat6BalanceFields, Scat6HistoryFields, Scat6MemoryFields, Scat6RecordInput, useScat6Draft } from "./scat6-fields";
 
 export interface ExamFighterOption extends FighterIdentityData {
@@ -46,9 +46,29 @@ const OUTCOME_OPTIONS: ChoiceOption<ExaminationOutcome>[] = (Object.keys(EXAMINA
     icon: EXAMINATION_OUTCOME_META[value].icon,
     tone: EXAMINATION_OUTCOME_META[value].tone,
 }));
+// This form is only mounted in demo mode. Sample findings are editable.
+const DEMO_EXAMINATION_DEFAULTS = {
+    type: "routine",
+    vitals: {
+        weightKg: "68",
+        restingHeartRate: "62",
+        bloodPressureSystolic: "118",
+        bloodPressureDiastolic: "76",
+        temperatureC: "36.7",
+        spo2Pct: "98",
+        hydration: "good",
+    },
+    assessmentResult: "normal",
+    outcome: "fit",
+    summary: "Mẫu demo: Sinh hiệu ổn định, chưa ghi nhận bất thường khi khám.",
+    recommendations: "Tiếp tục tập theo kế hoạch, duy trì đủ nước và báo bác sĩ nếu có triệu chứng mới.",
+    scat6NotAdministeredReason: "Mẫu demo: Chưa thực hiện bài đánh giá SCAT6.",
+} as const;
+
 /** Records a medical examination: patient and visit, vitals with live reference ranges, assessments and outcome. */
 export function ExaminationForm({ fighters, defaultFighterId, defaultType, defaultDateTime }: ExaminationFormProps) {
-    const [type, setType] = useState<ExaminationType | "">(defaultType);
+    const initialType = defaultType || DEMO_EXAMINATION_DEFAULTS.type;
+    const [type, setType] = useState<ExaminationType | "">(initialType);
     const form = useActionForm(createExaminationAction, {
         id: "exam",
         hiddenFields: ["scat6"],
@@ -61,17 +81,18 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
     const id = (name: string) => `exam-${name}`;
     const { error } = form;
 
-    const [fighterId, setFighterId] = useState(defaultFighterId);
+    const [selectedFighterId, setSelectedFighterId] = useState("");
+    const fighterId = defaultFighterId || selectedFighterId;
     const [date, setDate] = useState(defaultDateTime);
-    const [vitals, setVitals] = useState(EMPTY_VITALS);
-    const rows = useAssessmentRows(form, defaultType);
-    const [outcome, setOutcome] = useState<ExaminationOutcome | "">("");
-    const [summary, setSummary] = useState("");
-    const [recommendations, setRecommendations] = useState("");
+    const [vitals, setVitals] = useState<VitalsDraft>(DEMO_EXAMINATION_DEFAULTS.vitals);
+    const rows = useAssessmentRows(form, initialType, DEMO_EXAMINATION_DEFAULTS.assessmentResult);
+    const [outcome, setOutcome] = useState<ExaminationOutcome | "">(DEMO_EXAMINATION_DEFAULTS.outcome);
+    const [summary, setSummary] = useState<string>(DEMO_EXAMINATION_DEFAULTS.summary);
+    const [recommendations, setRecommendations] = useState<string>(DEMO_EXAMINATION_DEFAULTS.recommendations);
     const [followUpDate, setFollowUpDate] = useState("");
 
     const fighter = fighters.find((candidate) => candidate.id === fighterId) ?? null;
-    const scat6 = useScat6Draft({ form, nowInput: defaultDateTime, dateOfBirth: fighter?.dateOfBirth ?? null });
+    const scat6 = useScat6Draft({ form, nowInput: defaultDateTime, dateOfBirth: fighter?.dateOfBirth ?? null, initialNotAdministeredReason: DEMO_EXAMINATION_DEFAULTS.scat6NotAdministeredReason });
     const examDay = date.slice(0, 10);
 
     const changeType = (next: ExaminationType | "") => {
@@ -88,7 +109,13 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                 <FormSection title="Bệnh nhân & lần khám" description="Khám ai, loại khám gì và khi nào.">
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         <Field label="Võ sĩ" htmlFor={id("fighterId")} error={error("fighterId")} required>
-                            <Select {...form.control("fighterId", { required: true })} value={fighterId} onChange={(event) => setFighterId(event.target.value)}>
+                            <Select
+                                {...form.control("fighterId", { required: true })}
+                                name={fighterId ? undefined : "fighterId"}
+                                value={fighterId}
+                                disabled={Boolean(fighterId)}
+                                onChange={(event) => setSelectedFighterId(event.target.value)}
+                            >
                                 <option value="">Chọn võ sĩ…</option>
                                 {fighters.map((option) => (
                                     <option key={option.id} value={option.id}>
@@ -96,6 +123,7 @@ export function ExaminationForm({ fighters, defaultFighterId, defaultType, defau
                                     </option>
                                 ))}
                             </Select>
+                            {fighterId && <input type="hidden" name="fighterId" value={fighterId} />}
                         </Field>
                         <Field label="Ngày giờ" htmlFor={id("date")} error={error("date")} required hint="Giờ học viện (TP. Hồ Chí Minh)">
                             <Input
@@ -207,7 +235,7 @@ function PatientContext({ fighter }: { fighter: ExamFighterOption | null }) {
                 </div>
                 {fighter.clearanceValidUntil && fighter.clearanceState !== "none" && (
                     <p className="text-xs text-fg-muted">
-                        Giấy phép {fighter.clearanceState === "expired" ? "expired" : "hiệu lực đến"} {formatDate(fighter.clearanceValidUntil)}
+                        Giấy phép {fighter.clearanceState === "expired" ? "hết hạn ngày" : "hiệu lực đến"} {formatDate(fighter.clearanceValidUntil, "vi")}
                     </p>
                 )}
             </div>
@@ -216,7 +244,7 @@ function PatientContext({ fighter }: { fighter: ExamFighterOption | null }) {
                     <>
                         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-fg-muted">
                             Lần khám gần nhất: <span className="font-medium text-fg">{examinationTitle(last)}</span>
-                            <span>{formatDate(last.date)}</span>
+                            <span>{formatDate(last.date, "vi")}</span>
                             <ExaminationOutcomeBadge outcome={last.outcome} size="sm" />
                         </p>
                         {last.vitals && (
@@ -227,7 +255,7 @@ function PatientContext({ fighter }: { fighter: ExamFighterOption | null }) {
                                 </div>
                                 <div className="flex gap-1">
                                     <dt>Mạch nghỉ</dt>
-                                    <dd className="font-medium text-fg">{last.vitals.restingHeartRate} bpm</dd>
+                                    <dd className="font-medium text-fg">{last.vitals.restingHeartRate} nhịp/phút</dd>
                                 </div>
                                 <div className="flex gap-1">
                                     <dt>Huyết áp</dt>

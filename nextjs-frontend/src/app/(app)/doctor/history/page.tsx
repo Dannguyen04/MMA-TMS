@@ -1,16 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SegmentMotion } from "@/components/ui/segment-motion";
 
 import { CLEARANCE_LEVEL, CLEARANCE_TYPE, EXAM_TYPE, INJURY_STATUS, OUTCOME, PLAN_STATUS, REQUESTER_ROLE, dayKey, fmtDate, injuryName, injuryPlace, type Tone } from "@/components/doctor/labels";
 import { Empty, FighterFilter, PageHead, Pill } from "@/components/doctor/ui";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listClearances, listExaminations, listInjuries, listRecoveryPlans, listReviewRequests } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Lịch sử y tế" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctor.history.title") };
+}
 
 type Kind = "exam" | "injury" | "plan" | "clearance" | "request";
 interface Ev {
@@ -27,6 +32,7 @@ const KIND: Record<Kind, string> = { exam: "Phiếu khám", injury: "Chấn thư
 
 /** Lịch sử y tế: dòng thời gian dựng lại từ các danh sách đã có (khám, chấn thương, kế hoạch, giấy phép, yêu cầu xem xét). */
 export default async function DoctorHistoryPage({ searchParams }: PageProps<"/doctor/history">) {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const query = await searchParams;
     const requested = param(query.fighter);
@@ -66,9 +72,9 @@ export default async function DoctorHistoryPage({ searchParams }: PageProps<"/do
 
     return (
         <div className="yt-page">
-            <PageHead title="Lịch sử y tế" sub={`${events.length} sự kiện`} />
+            <PageHead title={t("doctor.history.title")} sub={`${events.length} sự kiện`} />
             <div className="yt-filters">
-                <nav className="yt-segs" aria-label="Loại sự kiện">
+                <SegmentMotion className="yt-segs" aria-label="Loại sự kiện">
                     <Link href={href()} aria-current={!kind ? "page" : undefined}>
                         Tất cả
                     </Link>
@@ -77,7 +83,7 @@ export default async function DoctorHistoryPage({ searchParams }: PageProps<"/do
                             {KIND[k]}
                         </Link>
                     ))}
-                </nav>
+                </SegmentMotion>
             </div>
             <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ kind }} />
             {events.length ? (

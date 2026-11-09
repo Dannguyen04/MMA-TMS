@@ -4,20 +4,21 @@ import type { ThemePreference } from "@/lib/auth/constants";
 import type { User } from "@/lib/domain/types";
 import { doctorShellCounts } from "@/lib/services/doctor-board";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
-import type { NotificationBellData } from "@/lib/services/notifications";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
-import { publicSans, shoulders } from "./fonts";
-import { initials } from "./labels";
+import type { NotificationBellData } from "@/lib/services/notifications";
+import { initials } from "@/lib/utils";
 import { DoctorShell } from "./shell";
 
-/** Khung riêng của vai trò Bác sĩ: thanh bên dọc, chữ tiếng Việt. Các vai trò khác vẫn dùng AppShell. */
+/** Khung bác sĩ: thanh bên dọc hai nhóm. Font trang vẫn là font của app. */
 export async function DoctorFrame({ user, theme, notifications, children }: { user: User; theme: ThemePreference; notifications: NotificationBellData | null; children: React.ReactNode }) {
     const counts = await doctorShellCounts(user);
+    const { t } = await getTranslator();
     const name = `BS. ${user.name.replace(/^(BS|Dr)\.?\s+/i, "")}`;
     return (
-        <div lang="vi" className={`yt ${shoulders.variable} ${publicSans.variable}`}>
+        <div lang="vi" className="yt">
             <DoctorShell
-                doctor={{ name, role: "Bác sĩ y học thể thao", initials: initials(user.name) }}
+                doctor={{ name, role: t("doctor.nav.role"), initials: initials(user.name) }}
                 theme={theme}
                 counts={counts}
                 showRecords={medicalFeatureAvailable("medicalRecord")}

@@ -281,10 +281,10 @@ export function ExaminationDecisionForm({
                             {current && (
                                 <div className="flex flex-col gap-2 rounded-lg bg-surface-muted px-3.5 py-3 text-[13px]">
                                     <p className="text-fg-muted">
-                                        Hiện hành {EXAMINATION_SCOPE_LABELS[scope].toLowerCase()} examination:{" "}
+                                        Phiếu khám {EXAMINATION_SCOPE_LABELS[scope].toLowerCase()} hiện hành:{" "}
                                         <span className="font-medium text-fg">{EXAMINATION_DECISION_LABELS[current.decision]}</span> ngày{" "}
-                                        <time dateTime={current.examinedAt}>{formatDateTime(current.examinedAt)}</time>
-                                        {current.validUntil && <>, hiệu lực đến {formatDate(current.validUntil)}</>}
+                                        <time dateTime={current.examinedAt}>{formatDateTime(current.examinedAt, "vi")}</time>
+                                        {current.validUntil && <>, hiệu lực đến {formatDate(current.validUntil, "vi")}</>}
                                     </p>
                                     <input type="hidden" name="supersedesId" value={current.id} />
                                     <Checkbox

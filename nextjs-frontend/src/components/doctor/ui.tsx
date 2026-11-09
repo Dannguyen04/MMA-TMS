@@ -1,5 +1,6 @@
 import { AlertTriangle, ArrowRight, Check, Inbox, X } from "lucide-react";
 import Link from "next/link";
+import { SegmentMotion } from "@/components/ui/segment-motion";
 import type { ReactNode } from "react";
 
 import type { ClinicalRestrictions, MedicalEligibility } from "@/lib/domain/medical-contract";
@@ -170,7 +171,7 @@ export function FighterFilter({ base, fighters, current, extra = {}, param = "fi
         return s ? `${base}?${s}` : base;
     };
     return (
-        <nav className="yt-segs yt-fseg" aria-label="Lọc theo võ sĩ" data-shot="filters">
+        <SegmentMotion className="yt-segs yt-fseg" aria-label="Lọc theo võ sĩ" data-shot="filters">
             <Link href={q()} aria-current={!current ? "page" : undefined}>
                 Tất cả võ sĩ
             </Link>
@@ -179,7 +180,7 @@ export function FighterFilter({ base, fighters, current, extra = {}, param = "fi
                     {f.name}
                 </Link>
             ))}
-        </nav>
+        </SegmentMotion>
     );
 }
 

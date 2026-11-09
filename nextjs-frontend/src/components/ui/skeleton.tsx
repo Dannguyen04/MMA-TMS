@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
  */
 
 export function Skeleton({ className }: { className?: string }) {
-    return <div aria-hidden className={cn("animate-pulse rounded-md bg-surface-hover", className)} />;
+    return <div aria-hidden className={cn("motion-safe:animate-pulse rounded-md bg-surface-hover", className)} />;
 }
 
 /** Announces a loading state once and marks the region busy until the real content replaces it. */

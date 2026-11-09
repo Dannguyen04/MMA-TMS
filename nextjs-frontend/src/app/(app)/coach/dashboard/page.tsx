@@ -113,7 +113,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const scheduleFighters = Object.fromEntries(roster.map((entry) => [entry.fighter.id, { name: entry.fighter.name, clearanceState: entry.clearanceState }]));
 
     return (
-        <>
+        <div className="workspace-editorial coach-editorial">
             <PageHeader
                 eyebrow={formatWeekdayDate(now, locale)}
                 title={t("greeting.named", { greeting: t(greetingKey(now)), name: firstName(user.name) })}
@@ -136,7 +136,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
             />
 
             {(weightAlerts.length > 0 || documentsDue.length > 0) && (
-                <div className="mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+                <div className="coach-editorial-alerts mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     {weightAlerts.length > 0 && (
                         <Card className="min-w-0">
                             <CardHeader
@@ -194,7 +194,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                 </div>
             )}
 
-            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+            <div className="coach-editorial-body grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <QueueCard
                     title={t("coachToday.queueTitle")}
                     filterLabel={t("coachToday.queueFilter")}
@@ -214,6 +214,6 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                     <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
                 </div>
             </div>
-        </>
+        </div>
     );
 }

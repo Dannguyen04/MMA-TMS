@@ -6,7 +6,6 @@ import { FighterJourney } from "@/components/domain/fighter-journey";
 import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
 import { plannedEndMs, rpeTextFor } from "@/components/training/training-utils";
 import { ButtonLink } from "@/components/ui/button";
-import { CornerTag } from "@/components/ui/corner-tag";
 import type { FighterJourney as Journey } from "@/lib/domain/journey";
 import { weightClassLabel } from "@/lib/domain/labels";
 import { isLowConfidence } from "@/lib/domain/rules";
@@ -71,16 +70,15 @@ interface Lang {
 }
 
 /**
- * The fighter's Today hero on the blue-corner ground: their journey to training while it's incomplete, otherwise the
+ * The fighter's Today briefing: their journey to training while it's incomplete, otherwise the
  * fight-camp countdown or the latest AI analysis; and the one thing to do next beside it. Server Component.
  */
 export function FightHero({ bout, campStart, plan, journey, analysis, next, now, t, locale, className }: FightHeroProps) {
     return (
-        <section aria-label={t("hero.section")} className={cn("grid min-w-0 grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]", className)}>
-            <div className="relative isolate flex min-w-0 flex-col gap-4 px-6 py-6 text-white sm:px-7">
-                <div aria-hidden className="absolute inset-0 -z-10 chamfer-tl cage-hatch bg-hero-bg" />
+        <section aria-label={t("hero.section")} className={cn("fighter-brief grid min-w-0 grid-cols-1 divide-y divide-border border-y border-border bg-surface lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:divide-x lg:divide-y-0", className)}>
+            <div className="flex min-w-0 flex-col gap-5 bg-surface-muted p-5 text-fg sm:p-7">
                 {journey ? (
-                    <FighterJourney journey={journey} variant="full" ground="hero" hideNextAction locale={locale} />
+                    <FighterJourney journey={journey} variant="full" ground="surface" hideNextAction locale={locale} />
                 ) : bout ? (
                     <>
                         <Camp bout={bout} campStart={campStart} now={now} t={t} locale={locale} />
@@ -93,11 +91,18 @@ export function FightHero({ bout, campStart, plan, journey, analysis, next, now,
                 )}
                 {plan && <PlanLine plan={plan} t={t} />}
             </div>
-            <div className="relative isolate flex min-w-0 flex-col gap-3.5 px-6 py-6 sm:px-7">
-                <div aria-hidden className="absolute inset-0 -z-10 chamfer-br bg-surface" />
+            <div className="flex min-w-0 flex-col items-start gap-3.5 p-5 sm:p-7">
                 <NextUpPanel next={next} now={now} t={t} locale={locale} />
             </div>
         </section>
+    );
+}
+
+function BriefLabel({ children, warning = false }: { children: ReactNode; warning?: boolean }) {
+    return (
+        <span className={cn("inline-flex w-fit items-center gap-1.5 rounded-sm px-2 py-1 text-xs font-semibold [&_svg]:size-3.5", warning ? "bg-danger-soft text-danger-fg" : "bg-primary-soft text-primary-soft-fg")}>
+            {children}
+        </span>
     );
 }
 
@@ -112,22 +117,23 @@ function Camp({ bout, campStart, now, t, locale }: { bout: UpcomingBout; campSta
 
     return (
         <>
-            <CornerTag tone="stage">{label}</CornerTag>
-            <div>
-                <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">{bout.event}</h2>
-                <p className="mt-1 text-[15px] text-white/85">
-                    {t("bout.versus", { opponent: bout.opponent })} · <time dateTime={bout.date}>{formatWeekdayDate(bout.date, locale)}</time> ·{" "}
-                    {weightClassLabel(bout.weightClass, locale)}
+            <BriefLabel>{label}</BriefLabel>
+            <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+                <div className="min-w-0">
+                    <h2 className="text-3xl leading-tight font-bold text-balance">{bout.event}</h2>
+                    <p className="mt-1 text-sm text-fg-muted">
+                        {t("bout.versus", { opponent: bout.opponent })} · <time dateTime={bout.date}>{formatWeekdayDate(bout.date, locale)}</time> ·{" "}
+                        {weightClassLabel(bout.weightClass, locale)}
+                    </p>
+                </div>
+                <p className="flex items-center gap-2.5">
+                    <span className="text-4xl leading-none font-semibold tracking-tight tabular-nums">{timeline.daysToGo}</span>
+                    <span className="text-xs leading-tight font-medium text-fg-muted">
+                        {plural(t, "hero.daysTo", timeline.daysToGo)}<br />
+                        {t("hero.fightNightLine")}
+                    </span>
                 </p>
             </div>
-            <p className="flex items-end gap-3">
-                <span className="font-display text-[76px] leading-[0.8] font-extrabold tracking-tight tabular-nums italic sm:text-[88px]">{timeline.daysToGo}</span>
-                <span className="pb-1 font-display text-[15px] leading-tight font-bold tracking-[0.1em] uppercase">
-                    {plural(t, "hero.daysTo", timeline.daysToGo)}
-                    <br />
-                    {t("hero.fightNightLine")}
-                </span>
-            </p>
             <div>
                 <div
                     role="progressbar"
@@ -136,12 +142,12 @@ function Camp({ bout, campStart, now, t, locale }: { bout: UpcomingBout; campSta
                     aria-valuemax={timeline.campDays}
                     aria-valuenow={timeline.campDay}
                     aria-valuetext={label}
-                    className="relative h-1.5 bg-white/25"
+                    className="relative h-1.5 bg-border"
                 >
-                    <div className="absolute inset-y-0 left-0 bg-white" style={{ width: `${timeline.progressPct}%` }} />
-                    <span aria-hidden className="absolute -top-1 h-3.5 w-1 -skew-x-12 bg-belt-gold" style={{ left: `${timeline.fightWeekPct}%` }} />
+                    <div className="absolute inset-y-0 left-0 bg-primary" style={{ width: `${timeline.progressPct}%` }} />
+                    <span aria-hidden className="absolute -top-1 h-3.5 w-0.5 bg-fg" style={{ left: `${timeline.fightWeekPct}%` }} />
                 </div>
-                <ol className="mt-2 grid grid-cols-3 gap-2 text-[12px] leading-tight text-white/85">
+                <ol className="mt-2 grid grid-cols-3 gap-2 text-[12px] leading-tight text-fg-muted">
                     <Milestone label={t(timeline.estimatedStart ? "hero.campStartEstimated" : "hero.campStart")} date={timeline.start} locale={locale} />
                     <Milestone label={t("hero.fightWeek")} date={timeline.fightWeek} locale={locale} className="text-center" />
                     <Milestone label={t("hero.fightNight")} date={bout.date} locale={locale} className="text-right" />
@@ -155,7 +161,7 @@ function Milestone({ label, date, locale, className }: { label: string; date: st
     return (
         <li className={cn("min-w-0", className)}>
             {label}
-            <time dateTime={date} className="mt-0.5 block font-display text-[15px] font-bold text-white">
+            <time dateTime={date} className="mt-0.5 block text-sm font-semibold tabular-nums text-fg">
                 {formatShortDate(date, locale)}
             </time>
         </li>
@@ -165,10 +171,10 @@ function Milestone({ label, date, locale, className }: { label: string; date: st
 function OffCamp({ plan, t }: { plan: HeroPlan | null; t: Translator }) {
     return (
         <>
-            <CornerTag tone="stage">{plan ? t("hero.phase", { phase: t(`phase.${plan.phase}`) }) : t("hero.offCamp")}</CornerTag>
+            <BriefLabel>{plan ? t("hero.phase", { phase: t(`phase.${plan.phase}`) }) : t("hero.offCamp")}</BriefLabel>
             <div>
-                <h2 className="font-display text-[30px] leading-[1.05] font-extrabold italic sm:text-[34px]">{t("hero.noBout")}</h2>
-                <p className="mt-1 max-w-md text-[15px] text-pretty text-white/85">{t("hero.noBoutText")}</p>
+                <h2 className="text-3xl leading-tight font-bold text-balance">{t("hero.noBout")}</h2>
+                <p className="mt-1 max-w-md text-[15px] text-pretty text-fg-muted">{t("hero.noBoutText")}</p>
             </div>
         </>
     );
@@ -197,12 +203,12 @@ function AnalysisLead({ analysis, now, t, locale }: { analysis: HeroAnalysis; no
     const state = reviewState(analysis, t);
     return (
         <>
-            <CornerTag tone="stage">
+            <BriefLabel>
                 <Sparkles aria-hidden />
                 {t("hero.analysis.tag")}
-            </CornerTag>
+            </BriefLabel>
             <div>
-                <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">
+                <h2 className="text-3xl leading-tight font-bold text-balance">
                     {headline ? (
                         <>
                             <span className="sr-only">{t("hero.analysis.findingSr")}</span>
@@ -212,14 +218,14 @@ function AnalysisLead({ analysis, now, t, locale }: { analysis: HeroAnalysis; no
                         t("hero.analysis.ready")
                     )}
                 </h2>
-                <p className="mt-1 text-[15px] text-pretty text-white/85">
+                <p className="mt-1 text-[15px] text-pretty text-fg-muted">
                     {t("hero.analysis.analysed", { video: analysis.videoTitle })}{" "}
                     <time dateTime={analysis.processedAt} title={formatDateTime(analysis.processedAt, locale)}>
                         {formatRelative(analysis.processedAt, now, locale)}
                     </time>
                 </p>
             </div>
-            <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-white">
+            <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-[13px] text-fg">
                 <li className="inline-flex items-center gap-1.5">
                     <Sparkles aria-hidden className="size-3.5 shrink-0" />
                     {headline ? t("hero.analysis.aiGeneratedWith", { confidence: confidenceText(headline, t) }) : t("hero.analysis.aiGenerated")}
@@ -229,8 +235,8 @@ function AnalysisLead({ analysis, now, t, locale }: { analysis: HeroAnalysis; no
                     {state.label}
                 </li>
             </ul>
-            <p className="text-[13px] text-pretty text-white/85">{t("hero.analysis.estimates")}</p>
-            <Link href={analysis.href} className="inline-flex w-fit items-center gap-1 rounded-sm text-[14px] font-semibold text-white underline-offset-2 hover:underline">
+            <p className="text-[13px] text-pretty text-fg-muted">{t("hero.analysis.estimates")}</p>
+            <Link href={analysis.href} className="inline-flex w-fit items-center gap-1 rounded-sm text-[14px] font-semibold text-fg underline-offset-2 hover:underline">
                 {t("hero.analysis.open")}
                 <ArrowRight aria-hidden className="size-4" />
             </Link>
@@ -242,10 +248,10 @@ function AnalysisLead({ analysis, now, t, locale }: { analysis: HeroAnalysis; no
 function AnalysisLine({ analysis, t }: { analysis: HeroAnalysis; t: Translator }) {
     const state = reviewState(analysis, t);
     return (
-        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-white/20 pt-3 text-[13px] text-white/85">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border pt-3 text-[13px] text-fg-muted">
             <Sparkles aria-hidden className="size-3.5 shrink-0" />
             <span className="sr-only">{t("hero.analysis.lineSr")}</span>
-            <Link href={analysis.href} className="min-w-0 rounded-sm font-medium text-white underline-offset-2 hover:underline">
+            <Link href={analysis.href} className="min-w-0 rounded-sm font-medium text-fg underline-offset-2 hover:underline">
                 {analysis.headline?.title ?? analysis.videoTitle}
             </Link>
             <span>· {state.label}</span>
@@ -255,10 +261,10 @@ function AnalysisLine({ analysis, t }: { analysis: HeroAnalysis; t: Translator }
 
 function PlanLine({ plan, t }: { plan: HeroPlan; t: Translator }) {
     return (
-        <p className="mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-white/20 pt-3 text-[13px] text-white/85">
+        <p className="mt-auto flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 border-t border-border pt-3 text-[13px] text-fg-muted">
             <ClipboardList aria-hidden className="size-3.5 shrink-0" />
             <span className="sr-only">{t("hero.planLabel")}</span>
-            <Link href={plan.href} className="min-w-0 rounded-sm font-medium text-white underline-offset-2 hover:underline">
+            <Link href={plan.href} className="min-w-0 rounded-sm font-medium text-fg underline-offset-2 hover:underline">
                 {plan.title}
             </Link>
             {plan.adherencePct !== null && <span>{t("hero.adherence", { pct: formatPercent(plan.adherencePct) })}</span>}
@@ -275,16 +281,16 @@ function NextUpPanel({ next, now, t, locale }: { next: NextUp; now: string } & L
         case "blocked":
             return (
                 <>
-                    <CornerTag tone={next.attention ? "red" : "neutral"}>
+                    <BriefLabel warning={next.attention}>
                         {next.attention ? <ShieldX aria-hidden /> : <ShieldQuestion aria-hidden />}
                         {t(next.attention ? "hero.pausedTag" : "hero.beforeYouTrain")}
-                    </CornerTag>
+                    </BriefLabel>
                     <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{next.title}</h2>
                     <p className="text-sm text-pretty text-fg-muted">{next.body}</p>
                     <p className="text-[13px] text-fg-muted">
                         {t("hero.with")} <span className="font-medium text-fg">{next.owner}</span>
                     </p>
-                    <ButtonLink href={next.healthHref} variant="secondary" className="mt-auto w-fit">
+                    <ButtonLink href={next.healthHref} variant="secondary" className="w-fit">
                         <HeartPulse aria-hidden />
                         {t("hero.viewCareTeam")}
                     </ButtonLink>
@@ -293,13 +299,13 @@ function NextUpPanel({ next, now, t, locale }: { next: NextUp; now: string } & L
         case "analyse":
             return (
                 <>
-                    <CornerTag tone="blue">
+                    <BriefLabel>
                         <Sparkles aria-hidden />
                         {t("hero.analyse.tag")}
-                    </CornerTag>
+                    </BriefLabel>
                     <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{t(`hero.analyse.${next.reason}.title`)}</h2>
                     <p className="text-sm text-pretty text-fg-muted">{t(`hero.analyse.${next.reason}.body`)}</p>
-                    <div className="mt-auto flex flex-wrap items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                         {/* The label wraps in the narrow half of the hero rather than overflowing it. */}
                         <ButtonLink href={next.uploadHref} className="h-auto! min-h-9 py-2 text-left whitespace-normal!">
                             <Upload aria-hidden />
@@ -315,10 +321,10 @@ function NextUpPanel({ next, now, t, locale }: { next: NextUp; now: string } & L
         case "processing":
             return (
                 <>
-                    <CornerTag tone="blue">
+                    <BriefLabel>
                         <Sparkles aria-hidden />
                         {t("hero.analyse.tag")}
-                    </CornerTag>
+                    </BriefLabel>
                     <h2 className="text-[17px] leading-snug font-semibold text-pretty text-fg">{t("hero.processing.title")}</h2>
                     <p className="text-sm text-pretty text-fg-muted">
                         {t("hero.processing.uploaded", { video: next.videoTitle })}{" "}
@@ -327,7 +333,7 @@ function NextUpPanel({ next, now, t, locale }: { next: NextUp; now: string } & L
                         </time>
                         {t("hero.processing.after")}
                     </p>
-                    <ButtonLink href={next.href} variant="secondary" className="mt-auto w-fit">
+                    <ButtonLink href={next.href} variant="secondary" className="w-fit">
                         {t("hero.processing.viewProgress")}
                     </ButtonLink>
                 </>
@@ -340,10 +346,10 @@ function NextUpPanel({ next, now, t, locale }: { next: NextUp; now: string } & L
 function PausedPanel({ next, t, locale }: { next: Extract<NextUp, { kind: "paused" }> } & Lang) {
     return (
         <>
-            <CornerTag tone="red">
+            <BriefLabel warning>
                 <ShieldX aria-hidden />
                 {t("hero.pausedTag")}
-            </CornerTag>
+            </BriefLabel>
             <h2 className="text-[17px] leading-snug font-semibold text-fg">{t(`hero.paused.${next.reason}.title`)}</h2>
             <p className="text-sm text-pretty text-fg-muted">{t(`hero.paused.${next.reason}.body`)}</p>
             <p className="text-[13px] text-fg-muted">
@@ -357,7 +363,7 @@ function PausedPanel({ next, t, locale }: { next: Extract<NextUp, { kind: "pause
                     t("hero.doctorWillArrange")
                 )}
             </p>
-            <ButtonLink href={next.healthHref} className="mt-auto w-fit">
+            <ButtonLink href={next.healthHref} className="w-fit">
                 <HeartPulse aria-hidden />
                 {t("hero.viewHealth")}
             </ButtonLink>
@@ -373,12 +379,12 @@ function SessionPanel({ next, now, t, locale }: { next: Extract<NextUp, { kind: 
 
     return (
         <>
-            <CornerTag tone="blue">
+            <BriefLabel>
                 <span>
                     {inProgress ? t("hero.happeningNow") : t("hero.nextUp", { when: relativeDayText(t, session.scheduledAt, now) })} ·{" "}
                     <time dateTime={session.scheduledAt}>{formatTime(session.scheduledAt)}</time>
                 </span>
-            </CornerTag>
+            </BriefLabel>
             <div className="flex items-start gap-3">
                 <span aria-hidden className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary-soft text-primary-soft-fg">
                     <TrainingTypeIcon type={session.type} className="size-5" />
@@ -401,7 +407,7 @@ function SessionPanel({ next, now, t, locale }: { next: Extract<NextUp, { kind: 
                 {intensity && <Fact label={t("hero.intensity")} value={intensity} />}
             </dl>
             {note}
-            <ButtonLink href={href} className="mt-auto w-fit">
+            <ButtonLink href={href} className="w-fit">
                 {t("hero.openPlan")}
             </ButtonLink>
         </>
@@ -411,7 +417,7 @@ function SessionPanel({ next, now, t, locale }: { next: Extract<NextUp, { kind: 
 function Fact({ label, value }: { label: string; value: string }) {
     return (
         <div className="min-w-0">
-            <dt className="font-display text-[12px] font-bold tracking-[0.08em] text-fg-subtle uppercase">{label}</dt>
+            <dt className="text-xs font-semibold text-fg-subtle uppercase">{label}</dt>
             <dd className="mt-0.5 leading-snug font-medium break-words text-fg">{value}</dd>
         </div>
     );

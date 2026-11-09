@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
+import { SegmentMotion } from "./segment-motion";
 
 export interface SegmentedControlOption<T extends string> {
     value: T;
@@ -19,34 +20,26 @@ export interface SegmentedControlProps<T extends string> {
     className?: string;
 }
 
-const SIZES = {
-    sm: "h-7 min-w-9 px-2 text-xs",
-    md: "h-8 min-w-9 px-3 text-[13px]",
-};
-
 /** A small set of mutually exclusive options shown side by side; each segment is a toggle button with aria-pressed. */
 export function SegmentedControl<T extends string>({ label, options, value, onChange, size = "sm", className }: SegmentedControlProps<T>) {
     return (
-        <div role="group" aria-label={label} className={cn("inline-flex rounded-lg bg-surface-muted p-0.5", className)}>
+        <SegmentMotion as="div" role="group" aria-label={label} className={cn("inline-flex overflow-x-auto", size === "sm" && "segment-motion-compact", className)}>
             {options.map((option) => {
                 const selected = option.value === value;
                 return (
                     <button
                         key={option.value}
                         type="button"
+                        data-segment={option.value}
                         aria-pressed={selected}
                         aria-label={option.ariaLabel}
                         onClick={() => onChange(option.value)}
-                        className={cn(
-                            "rounded-md font-medium tabular-nums transition-colors",
-                            SIZES[size],
-                            selected ? "bg-surface text-fg shadow-card" : "text-fg-muted hover:text-fg",
-                        )}
+                        className="min-w-9 tabular-nums"
                     >
                         {option.label}
                     </button>
                 );
             })}
-        </div>
+        </SegmentMotion>
     );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Select } from "@/components/ui/form";
 import { ArrowRight, Check, ClipboardCheck, Plus, Target } from "lucide-react";
 import { DEMO_TODAY, conflicts, evaluationLabel, focusLabels, resultPercent, restrictions, sessionMinutes, templates, underTarget, type Focus, type Session, type TemplateId } from "./camp-state";
 import { Effect, Empty, Hint, Panel, Pill, dateLabel, type WorkspaceProps } from "./camp-ui";
@@ -41,7 +42,7 @@ export default function TrainingWorkspace({ state, dispatch, role, initialMode =
             <div className={d.stack}><Panel eyebrow="01 · XÁC ĐỊNH VẤN ĐỀ" title="Tập để sửa điều gì?" action={<Target size={21} />}>
                 <div className={d.callout}><strong>Bằng chứng gần nhất cho mục tiêu hiện tại</strong>{latestSkill ? <>{dateLabel(latestSkill.date)}: đạt {latestSkill.result!.successes}/{latestSkill.result!.attempts} tình huống; hoàn thành {latestSkill.result!.completedRounds}/{latestSkill.rounds} hiệp.<p>{latestSkill.result!.note || "Không có ghi chú bổ sung."}</p></> : "Chưa có kết quả cùng mục tiêu. HLV cần đánh giá ban đầu trước khi lựa chọn bài."}</div>
                 <form className={d.form} onSubmit={(event) => { event.preventDefault(); dispatch({ type: "goal", actor: role, focus, target: Number(target) }); }}>
-                    <label className={s.field}>Ưu tiên chuyên môn<select value={focus} onChange={(event) => setFocus(event.target.value as Focus)}>{Object.entries(focusLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+                    <label className={s.field}>Ưu tiên chuyên môn<Select value={focus} onChange={(event) => setFocus(event.target.value as Focus)}>{Object.entries(focusLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</Select></label>
                     <label className={s.field}>Tiêu chí đạt do HLV đặt (%)<input type="number" min="10" max="100" step="5" required value={target} onChange={(event) => setTarget(event.target.value)} /></label>
                     <Hint>Tiêu chí đánh giá kỹ thuật do HLV lựa chọn. Mục tiêu mới áp dụng cho buổi được tạo sau khi xác nhận; kết quả cũ vẫn đối chiếu với mục tiêu tại thời điểm tập.</Hint>
                     <button className={s.outlineButton} disabled={role !== "coach"}><Check size={16} />Xác nhận mục tiêu</button>
@@ -138,7 +139,7 @@ function AdjustmentForm({ session, state, dispatch, role }: WorkspaceProps & { s
     const [reason, setReason] = useState("");
     return <form className={d.form} onSubmit={(event) => { event.preventDefault(); dispatch({ type: "adjust", actor: role, id: session.id, templateId: replacement, rounds: Number(rounds), reason }); }}>
         <Hint>{conflicts(session.templateId, state.clinical) ? `Thông tin từ bác sĩ: ${restrictions[state.clinical.restriction]}. ${state.clinical.sharedNote}` : "HLV có thể giữ mục tiêu, chọn bài ít phức tạp hơn hoặc giảm khối lượng để kiểm tra lại chất lượng."}</Hint>
-        <label className={s.field}>Phương án cho buổi này<select value={replacement} onChange={(event) => setReplacement(event.target.value as TemplateId)}>{Object.entries(templates).map(([id, template]) => <option key={id} value={id} disabled={conflicts(id as TemplateId, state.clinical)}>{template.name}{conflicts(id as TemplateId, state.clinical) ? " · Không phù hợp hạn chế" : ""}</option>)}</select></label>
+        <label className={s.field}>Phương án cho buổi này<Select value={replacement} onChange={(event) => setReplacement(event.target.value as TemplateId)}>{Object.entries(templates).map(([id, template]) => <option key={id} value={id} disabled={conflicts(id as TemplateId, state.clinical)}>{template.name}{conflicts(id as TemplateId, state.clinical) ? " · Không phù hợp hạn chế" : ""}</option>)}</Select></label>
         <label className={s.field}>Số hiệp sau điều chỉnh<input type="number" min="1" max={session.rounds} required value={rounds} onChange={(event) => setRounds(event.target.value)} /></label>
         <div className={d.comparison}><div><small>TRƯỚC</small><strong>{templates[session.templateId].name}<br />{session.rounds} hiệp</strong></div><ArrowRight size={20} /><div><small>SAU</small><strong>{templates[replacement].name}<br />{rounds} hiệp</strong></div></div>
         <label className={s.field}>Lý do và điểm cần kiểm tra ở buổi sau<textarea rows={3} required minLength={5} maxLength={600} value={reason} onChange={(event) => setReason(event.target.value)} placeholder="Ví dụ: quay lại bài trên đích vì 2 buổi chưa thoát góc ổn định. Giữ tiêu chí 80% để đánh giá lại." /></label>

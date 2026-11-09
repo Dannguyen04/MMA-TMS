@@ -16,8 +16,8 @@ export default async function NotFound() {
     return (
         <main className="flex min-h-dvh flex-col items-center justify-center px-6 text-center">
             <LogoMark className="size-12" />
-            <p className="mt-8 text-sm font-semibold tracking-[0.12em] text-fg-subtle uppercase">404</p>
-            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-fg">{t("ux.notFound.rootTitle")}</h1>
+            <p className="mt-8 text-sm font-semibold tracking-[0.12em] text-fg-subtle">404</p>
+            <h1 className="mt-2 font-display text-[32px] leading-none font-extrabold text-fg italic">{t("ux.notFound.rootTitle")}</h1>
             <p className="mt-2 max-w-md text-[15px] text-fg-muted">{t("ux.notFound.rootDescription")}</p>
             <Link href="/" className={buttonClasses({ className: "mt-8" })}>
                 <ArrowLeft aria-hidden />

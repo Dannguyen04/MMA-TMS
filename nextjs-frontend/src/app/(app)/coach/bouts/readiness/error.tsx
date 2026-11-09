@@ -9,10 +9,10 @@ import { ErrorState } from "@/components/ui/states";
 
 export default function ReadinessError({
     error,
-    reset,
+    retry,
 }: {
     error: Error & { digest?: string };
-    reset: () => void;
+    retry: () => void;
 }) {
     const t = useT();
 
@@ -26,16 +26,16 @@ export default function ReadinessError({
             title={t("readiness.errorTitle")}
             description={
                 <>
-                    {error.message || "An unexpected error occurred while loading readiness."}
+                    {t("shell.error.body")}
                     {error.digest && (
                         <span className="mt-2 block text-xs text-fg-subtle">
-                            Reference <code className="font-mono">{error.digest}</code>
+                            {t("shell.error.reference")} <code className="font-mono">{error.digest}</code>
                         </span>
                     )}
                 </>
             }
             action={
-                <Button onClick={() => reset()}>
+                <Button type="button" onClick={() => retry()}>
                     <RotateCcw aria-hidden className="size-4" />
                     {t("readiness.errorRetry")}
                 </Button>

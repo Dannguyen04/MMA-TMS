@@ -127,8 +127,8 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
 
     /* ─── Vitals assessment ─── */
     "vitalReference.weight_within_limit": "Trong giới hạn hạng cân {limit} kg",
-    "vitalReference.weight_above_limit": "Vượt giới hạn {limit} kg {diffKg} kg ({abovePct}%)",
-    "vitalReference.heart_rate_range": "Mức vận động viên {min}–{max} bpm",
+    "vitalReference.weight_above_limit": "Vượt {diffKg} kg ({abovePct}%) so với giới hạn {limit} kg",
+    "vitalReference.heart_rate_range": "Ngưỡng tham chiếu cho vận động viên: {min}–{max} nhịp/phút",
     "vitalReference.blood_pressure_target": "Mục tiêu {sysMin}–{sysMax} / {diaMin}–{diaMax} mmHg",
     "vitalReference.temperature_range": "Bình thường {min}–{max} °C",
     "vitalReference.spo2_min": "Bình thường từ {min}% trở lên",

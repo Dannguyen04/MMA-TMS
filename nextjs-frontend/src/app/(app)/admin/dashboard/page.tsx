@@ -167,7 +167,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
     const dayLabel = (date: string) => formatShortDate(`${date}T12:00:00+07:00`, locale);
 
     return (
-        <>
+        <div className="workspace-editorial">
             <PageHeader
                 eyebrow={formatWeekdayDate(now, locale)}
                 title={greeting}
@@ -398,7 +398,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                     </div>
                 )}
             </div>
-        </>
+        </div>
     );
 }
 

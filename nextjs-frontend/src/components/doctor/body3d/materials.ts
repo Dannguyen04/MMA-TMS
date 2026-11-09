@@ -22,7 +22,7 @@ export function makeBody(face: readonly number[], light: boolean): THREE.ShaderM
     uniforms: {
       uF: { value: new THREE.Vector4(face[0], face[1], face[2], face[3]) },
       uZc: { value: face[4] },
-      uTint: { value: light ? new THREE.Color(0.2, 0.3, 0.45) : new THREE.Color(0.55, 0.7, 0.88) },
+      uTint: { value: light ? new THREE.Color(0.16, 0.34, 0.72) : new THREE.Color(0.55, 0.7, 0.88) },
       uBase: { value: PAINT.bodyOpacity },
     },
     vertexShader: `varying vec3 vN;varying vec3 vV;varying vec3 vW;

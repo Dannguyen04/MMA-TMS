@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 import type { BodyJoint, ClearanceType, EligibilityReason, ExaminationDecision, ExaminationScope, MedicalReviewRequest, SessionType, TechniqueType } from "@/lib/domain/medical-contract";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type {
@@ -92,6 +94,34 @@ export const ASSESSMENT: Record<"normal" | "abnormal" | "inconclusive", Labelled
 
 export const CLEARANCE_TYPE: Record<ClearanceType, string> = { TRAINING: "Tập luyện", COMPETITION: "Thi đấu", RETURN_FROM_INJURY: "Trở lại sau chấn thương" };
 export const CLEARANCE_LEVEL: Record<ClearanceLevel, string> = { full: "Được tập", restricted: "Tập có hạn chế", not_cleared: "Chưa được tập" };
+
+/** Màu thẻ theo mức lâm sàng, không theo nhóm hiệu lực. "Chưa được tập" không được xanh chỉ vì giấy còn hạn. */
+export function clearanceCardTone(level: ClearanceLevel): "red" | "amber" | "green" {
+    if (level === "not_cleared") return "red";
+    if (level === "restricted") return "amber";
+    return "green";
+}
+
+const STATUS_RAIL = {
+    red: ["--danger-solid", "--danger-fg"],
+    amber: ["--warning-solid", "--warning-fg"],
+    green: ["--success-solid", "--success-fg"],
+    blue: ["--primary", "--primary-soft-fg"],
+    neutral: ["--fg-muted", "--fg-muted"],
+} as const;
+
+/** Inline custom properties so the rail and header paint even if an attribute selector loses the cascade. */
+export function statusCardVars(tone: keyof typeof STATUS_RAIL): CSSProperties {
+    const [rail, fg] = STATUS_RAIL[tone];
+    return { "--rail": `var(${rail})`, "--status-fg": `var(${fg})` } as CSSProperties;
+}
+
+export function recoveryCardTone(status: RecoveryPlanStatus): "blue" | "green" | "amber" | "neutral" {
+    if (status === "active") return "blue";
+    if (status === "completed") return "green";
+    if (status === "paused") return "amber";
+    return "neutral";
+}
 export const CLEARANCE_STATE: Record<ClearanceState, Labelled> = {
     full: { label: "Được tập", tone: "green" },
     restricted: { label: "Tập có hạn chế", tone: "amber" },

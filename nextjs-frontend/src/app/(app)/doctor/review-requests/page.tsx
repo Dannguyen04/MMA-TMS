@@ -1,20 +1,26 @@
 import { Stethoscope } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { SegmentMotion } from "@/components/ui/segment-motion";
 
 import { REQUESTER_ROLE, fmtDateTime, rel } from "@/components/doctor/labels";
 import { Empty, FighterFilter, PageHead, Pill } from "@/components/doctor/ui";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listReviewRequests } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Yêu cầu xem xét" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctor.reviews.title") };
+}
 
 /** Yêu cầu xem xét: gộp `listReviewRequests` của từng võ sĩ được phân công (cùng nguồn với hồ sơ võ sĩ). */
 export default async function DoctorReviewRequestsPage({ searchParams }: PageProps<"/doctor/review-requests">) {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const query = await searchParams;
     const requested = param(query.fighter);
@@ -32,16 +38,16 @@ export default async function DoctorReviewRequestsPage({ searchParams }: PagePro
 
     return (
         <div className="yt-page">
-            <PageHead title="Yêu cầu xem xét" sub={`${open.length} yêu cầu đang mở · trả lời bằng một phiếu khám mới`} />
+            <PageHead title={t("doctor.reviews.title")} sub={`${open.length} yêu cầu đang mở · trả lời bằng một phiếu khám mới`} />
             <div className="yt-filters">
-                <nav className="yt-segs" aria-label="Trạng thái">
+                <SegmentMotion className="yt-segs" aria-label="Trạng thái">
                     <Link href={q()} aria-current={!showResolved ? "page" : undefined}>
                         Đang mở · {open.length}
                     </Link>
                     <Link href={q("resolved")} aria-current={showResolved ? "page" : undefined}>
                         Đã xử lý · {all.length - open.length}
                     </Link>
-                </nav>
+                </SegmentMotion>
             </div>
             <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ status: showResolved ? "resolved" : undefined }} />
             {rows.length ? (

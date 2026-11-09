@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Filled silhouette (48x48, slice 16) for clipping the control background to the same shape. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+  <path d="M6,0 H40 A8,8 0 0 1 48,8 V42 L42,48 H8 A8,8 0 0 1 0,40 V6 Z" fill="currentColor"/>
+</svg>

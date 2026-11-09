@@ -7,20 +7,21 @@ import { GraphicsTierMark } from "@/components/layout/graphics-tier-mark";
 import { ToastProvider } from "@/components/ui/toast";
 import { THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
 import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
 import "./globals.css";
 
-// Only Latin is preloaded; the Vietnamese subset is still self-hosted and loads when a page needs it.
+// Latin is the preload subset. Vietnamese is included so dấu tiếng Việt dùng đúng Be Vietnam Pro và Barlow Condensed.
 const beVietnam = Be_Vietnam_Pro({
     variable: "--font-be-vietnam",
     weight: ["400", "500", "600", "700"],
-    subsets: ["latin"],
+    subsets: ["latin", "vietnamese"],
 });
 
 const barlow = Barlow_Condensed({
     variable: "--font-barlow",
     weight: ["600", "700", "800"],
     style: ["normal", "italic"],
-    subsets: ["latin"],
+    subsets: ["latin", "vietnamese"],
 });
 
 const geistMono = Geist_Mono({
@@ -28,14 +29,16 @@ const geistMono = Geist_Mono({
     subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-    title: {
-        default: "MMA-TMS — Fighter Training & Health Management",
-        template: "%s · MMA-TMS",
-    },
-    description:
-        "MMA fighter training, AI-assisted video analysis, performance tracking and sports medicine in one platform. Hệ thống Quản lý Huấn luyện và Theo dõi Sức khỏe Võ sĩ.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return {
+        title: {
+            default: t("shell.meta.title"),
+            template: "%s · MMA-TMS",
+        },
+        description: t("shell.meta.description"),
+    };
+}
 
 export const viewport: Viewport = {
     themeColor: [

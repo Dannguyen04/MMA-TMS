@@ -6,19 +6,24 @@ import { INJURY_STATUS, SEVERITY, fmtDate, injuryName, injuryPlace, rel } from "
 import { Empty, FighterFilter, PageHead, Panel, Pill } from "@/components/doctor/ui";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import type { Injury } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { getInjuryDetail, listInjuries } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Chấn thương" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctor.injuries.title") };
+}
 
 /**
  * Chấn thương: đang mở lấy từ hồ sơ (`activeInjuries`), đã khỏi dựng lại từ lịch sử (`/medical/history?recordType=INJURY`),
  * điều trị từ lịch sử TREATMENT. Backend chưa có `GET /doctors/:id/injuries` hay `GET /injuries/:id/treatments`.
  */
 export default async function DoctorInjuriesPage({ searchParams }: PageProps<"/doctor/injuries">) {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const query = await searchParams;
     const requested = param(query.fighter);
@@ -91,7 +96,7 @@ export default async function DoctorInjuriesPage({ searchParams }: PageProps<"/d
     return (
         <div className="yt-page">
             <PageHead
-                title="Chấn thương"
+                title={t("doctor.injuries.title")}
                 sub={`${open.length} đang mở · ${closed.length} đã khỏi`}
                 actions={
                     <Link href={newHref} className="yt-btn" data-v="primary">

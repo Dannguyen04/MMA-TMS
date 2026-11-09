@@ -1,0 +1,131 @@
+/* Fixed-size bevels inspired by an MMA cage. The native select owns the field value. */
+.mma-select {
+    --mma-cut: 7px;
+    --mma-frame: url("/ui/select/mma-octagon-frame.svg");
+    --mma-shape: polygon(var(--mma-cut) 0, calc(100% - var(--mma-cut)) 0, 100% var(--mma-cut), 100% calc(100% - var(--mma-cut)), calc(100% - var(--mma-cut)) 100%, var(--mma-cut) 100%, 0 calc(100% - var(--mma-cut)), 0 var(--mma-cut));
+    position: relative;
+    min-width: 0;
+    max-width: 100%;
+    color: var(--fg);
+}
+
+.mma-select-shape {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border: 8px solid transparent;
+    border-image: var(--mma-frame) 8 stretch;
+    background: var(--surface);
+    clip-path: var(--mma-shape);
+}
+
+.mma-select-control {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+    min-height: 40px;
+    appearance: none;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    padding: 0 36px 0 13px;
+    color: inherit;
+    color-scheme: inherit;
+    font: inherit;
+    font-size: .875rem;
+    line-height: 1.25rem;
+    text-align: start;
+    text-overflow: ellipsis;
+    box-shadow: none;
+}
+
+.mma-select-control :is(option, optgroup) {
+    background: var(--surface);
+    color: var(--fg);
+}
+
+.mma-select-control option:disabled { color: var(--fg-muted); }
+.mma-select-control:focus { outline: none; }
+
+.mma-select:has(.mma-select-control:focus-visible) {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+}
+
+.mma-select:has(.mma-select-control[aria-invalid="true"]) {
+    outline: 1px solid var(--danger-fg);
+    outline-offset: 1px;
+}
+
+.mma-select:has(.mma-select-control[aria-invalid="true"]:focus-visible) { outline-width: 2px; }
+.mma-select-control:disabled { cursor: not-allowed; color: var(--fg-subtle); }
+.mma-select:has(.mma-select-control:disabled) .mma-select-shape { background: var(--surface-muted); opacity: .65; }
+
+@media (hover: hover) {
+    .mma-select:hover:has(.mma-select-control:enabled) .mma-select-shape { background: var(--surface-hover); }
+}
+
+.mma-select-chevron {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    color: var(--fg-muted);
+    pointer-events: none;
+}
+
+/* An in-page picker on supporting browsers; other engines keep their platform menu. */
+@supports (appearance: base-select) and selector(::picker(select)) {
+    .mma-select-control:not([multiple]):not([size]),
+    .mma-select-control:not([multiple]):not([size])::picker(select) {
+        appearance: base-select;
+    }
+
+    .mma-select-control::picker-icon { display: none; }
+    .mma-select-control:not([multiple]):not([size]) {
+        display: flex;
+        align-items: center;
+    }
+    .mma-select-control::picker(select) {
+        border: 8px solid transparent;
+        border-image: var(--mma-frame) 8 stretch;
+        background: var(--surface);
+        clip-path: var(--mma-shape);
+        margin-block: 4px;
+        padding: 0;
+        max-height: min(19rem, 50dvh);
+        color: var(--fg);
+        color-scheme: inherit;
+        overscroll-behavior: contain;
+    }
+
+    .mma-select-control option {
+        min-height: 36px;
+        padding: 5px 9px;
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .mma-select-control option:checked {
+        background: var(--primary-soft);
+        color: var(--primary-soft-fg);
+        font-weight: 650;
+    }
+
+    .mma-select-control option:focus-visible {
+        outline: 2px solid var(--ring);
+        outline-offset: -2px;
+    }
+
+    .mma-select-control option:not(:disabled):hover {
+        background: var(--surface-hover);
+        color: var(--fg);
+    }
+}
+
+@media (forced-colors: active) {
+    .mma-select-shape { border: 1px solid ButtonText; border-image: none; }
+    .mma-select-control::picker(select) { border: 1px solid ButtonText; border-image: none; }
+}
