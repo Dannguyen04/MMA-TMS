@@ -5,13 +5,15 @@ import Link from "next/link";
 import { PLAN_STATUS, fmtDate } from "@/components/doctor/labels";
 import { planSteps } from "@/components/doctor/plan-steps";
 import { Empty, FighterFilter, GoLink, PageHead, Pill } from "@/components/doctor/ui";
+import { ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 import { listRecoveryPlans } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
-import { param } from "@/lib/utils";
+import { cn, param } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
@@ -31,15 +33,15 @@ export default async function DoctorRecoveryPage({ searchParams }: PageProps<"/d
     const newHref = `${routes.doctor.recovery}/new${fighterId ? `?fighter=${fighterId}` : ""}`;
 
     return (
-        <div className="yt-page pl-page">
+        <div className="flex flex-col gap-6">
             <PageHead
                 title={t("doctor.recovery.title")}
                 sub={`${plans.filter((p) => p.status === "active").length} đang thực hiện · ${plans.length} tổng`}
                 actions={
-                    <Link href={newHref} className="yt-btn" data-v="primary">
+                    <ButtonLink href={newHref}>
                         <Plus aria-hidden />
                         Lập kế hoạch
-                    </Link>
+                    </ButtonLink>
                 }
             />
             <FighterFilter base={routes.doctor.recovery} fighters={fighters} current={fighterId} />
@@ -47,46 +49,49 @@ export default async function DoctorRecoveryPage({ searchParams }: PageProps<"/d
                 <Empty
                     title="Chưa có kế hoạch phục hồi"
                     action={
-                        <Link href={routes.doctor.injuries} className="yt-btn">
+                        <ButtonLink href={routes.doctor.injuries} variant="secondary">
                             Xem chấn thương
-                        </Link>
+                        </ButtonLink>
                     }
                 >
                     Kế hoạch được lập từ một chấn thương đang mở.
                 </Empty>
             ) : (
-                <div className="pl-cards" data-shot="cards">
+                <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,270px),1fr))] gap-4">
                     {sorted.map((p) => {
                         const steps = planSteps(p);
                         const done = steps.filter((m) => m.done).length;
                         const nextIdx = steps.findIndex((m) => !m.done);
                         const nx = steps[nextIdx];
                         return (
-                            <section key={p.id} className="yt-panel pl-card">
-                                <div className="pl-card-head">
-                                    <h2>{p.title}</h2>
-                                </div>
-                                <p className="yt-muted">
-                                    <Link href={routes.doctor.fighter(p.fighterId)}>{nameOf.get(p.fighterId) ?? "Võ sĩ"}</Link> · {fmtDate(p.startDate)} → {fmtDate(p.targetReturnDate)}
+                            <Card key={p.id} role="region" aria-labelledby={`plan-${p.id}`} className="flex min-w-0 flex-col gap-2 p-4">
+                                <h2 id={`plan-${p.id}`} className="text-[15px] leading-snug font-semibold text-fg">
+                                    {p.title}
+                                </h2>
+                                <p className="text-[13px] text-fg-muted">
+                                    <Link href={routes.doctor.fighter(p.fighterId)} className="font-medium text-fg hover:underline">
+                                        {nameOf.get(p.fighterId) ?? "Võ sĩ"}
+                                    </Link>{" "}
+                                    · {fmtDate(p.startDate)} → {fmtDate(p.targetReturnDate)}
                                 </p>
                                 {steps.length > 0 && (
-                                    <div className="pl-track" style={{ ["--n" as string]: steps.length }} aria-label={`${done}/${steps.length} mốc hoàn thành`} role="img">
+                                    <div className="grid gap-1" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }} aria-label={`${done}/${steps.length} mốc hoàn thành`} role="img">
                                         {steps.map((m, i) => (
-                                            <i key={m.key} data-done={m.done} data-next={i === nextIdx} style={{ ["--i" as string]: i }} />
+                                            <i key={m.key} className={cn("h-1 rounded-full", m.done ? "bg-success-solid" : i === nextIdx ? "bg-warning-solid" : "bg-surface-hover")} />
                                         ))}
                                     </div>
                                 )}
-                                <p>
-                                    <b>
+                                <p className="text-[13px] text-fg">
+                                    <b className="font-semibold">
                                         {done}/{steps.length} mốc
                                     </b>
                                     {nx ? ` · tiếp theo: ${nx.title}${nx.date ? ` (${fmtDate(nx.date)})` : ""}` : " · đã xong mọi mốc"}
                                 </p>
-                                <div className="pl-card-footer">
+                                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
                                     <Pill tone={PLAN_STATUS[p.status].tone}>{PLAN_STATUS[p.status].label}</Pill>
                                     <GoLink href={routes.doctor.recoveryPlan(p.id)}>Mở kế hoạch</GoLink>
                                 </div>
-                            </section>
+                            </Card>
                         );
                     })}
                 </div>

@@ -1,10 +1,9 @@
-import fs from "fs";
-import path from "path";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Fighter, Injury, MedicalExamination, User } from "@/lib/domain/types";
 import type { MedicalReviewRequest } from "@/lib/domain/medical-contract";
+import { ROW, ROW_LINK, SUB_LINK } from "@/components/doctor/ui";
 import { routes } from "@/lib/routes";
 import type { BoardRow, DoctorBoard } from "@/lib/services/doctor-board";
 import * as doctorBoardService from "@/lib/services/doctor-board";
@@ -140,18 +139,13 @@ describe("T-055 Ca kiểm thử L1–L4", () => {
     });
 
     // ─── L1 ─────────────────────────────────────────────────────────────────
-    it("L1: doctor.css -> có .yt-table tbody tr với position: relative; có a.yt-rowlink::after với position: absolute và inset: 0; có quy tắc :has( … :focus-visible cho hàng", () => {
-        const cssPath = path.resolve(__dirname, "../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-
-        // có .yt-table tbody tr với position: relative
-        expect(css).toMatch(/\.yt-table\s+tbody\s+tr[^{]*\{[^}]*position:\s*relative/);
-
-        // có a.yt-rowlink::after với position: absolute và inset: 0
-        expect(css).toMatch(/a\.yt-rowlink::after[^{]*\{[^}]*position:\s*absolute[^}]*inset:\s*0/);
-
-        // có quy tắc :has( … :focus-visible cho hàng
-        expect(css).toMatch(/tr:has\([^)]*focus-visible\)/);
+    it("L1: hàng bảng là liên kết kéo giãn (Tailwind dùng chung): hàng relative, a.yt-rowlink có after:absolute after:inset-0, hàng có viền focus qua :has(… :focus-visible)", () => {
+        expect(ROW).toContain("relative");
+        expect(ROW).toMatch(/has-\[a\.yt-rowlink:focus-visible\]:outline/);
+        expect(ROW_LINK).toContain("yt-rowlink");
+        expect(ROW_LINK).toContain("after:absolute");
+        expect(ROW_LINK).toContain("after:inset-0");
+        expect(SUB_LINK).toMatch(/relative z-10/);
     });
 
     // ─── L2 ─────────────────────────────────────────────────────────────────

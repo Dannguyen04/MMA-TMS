@@ -19,24 +19,17 @@ describe("medical status card tones", () => {
         expect(recoveryCardTone("cancelled")).toBe("neutral");
     });
 
-    it("uses a thin semantic rail instead of a saturated header bar", () => {
-        expect(css).toContain(".yt-status-card[data-tone=\"red\"] { --rail: var(--danger-solid)");
-        expect(css).toContain(".yt-status-card[data-tone=\"blue\"] { --rail: var(--primary)");
-        expect(css).toContain(".yt-status-card::before");
-        expect(css).toContain("width: 4px");
-        expect(css).toContain("background-color: var(--rail)");
-        expect(css).toContain(".yt-status-card > header::before");
-        expect(css).toContain("opacity: 0.42");
-        expect(css).not.toContain("color-mix(in oklab, var(--block-soft)");
+    it("paints status with tone, icon and words, never a coloured side stripe (9/11)", () => {
+        expect(css).not.toContain(".yt-status-card");
+        expect(css).not.toMatch(/border-(?:left|right|inline-start|inline-end)\s*:/);
+        expect(css).not.toMatch(/::before\s*\{[^}]*width:\s*4px/);
     });
 });
 
 describe("body map light surface and legend", () => {
-    it("grounds the body card on the theme surface, not the fixed navy plate", () => {
-        expect(css).toContain(".hs-body { --b3-bg: var(--s2); color: var(--ink); }");
-        expect(css).not.toContain(".hs-body { --b3-bg: var(--plate-2);");
-        expect(css).toContain(".hs-joints li {");
-        expect(css).toMatch(/\.hs-joints li \{[^}]*background: var\(--s2\)/);
+    it("grounds the body map on the theme surface, not the fixed navy plate", () => {
+        expect(css).toMatch(/\.b3-frame \{[^}]*background: var\(--b3-bg, var\(--surface-muted\)\)/);
+        expect(css).not.toContain("--plate");
     });
 
     it("centers the legend on one line without a horizontal scrollbar", () => {

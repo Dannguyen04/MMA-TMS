@@ -34,7 +34,7 @@ export function DoctorShell({ doctor, theme, counts, showRecords, bell, children
 
     return (
         <div className="workspace-frame">
-            <a href="#main" className="yt-skip">{t("doctor.nav.skip")}</a>
+            <a href="#main" className="fixed top-2 left-2 z-[70] -translate-y-20 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-fg focus:translate-y-0">{t("doctor.nav.skip")}</a>
             <WorkspaceSidebar role="doctor" showRecords={showRecords} counts={{
                 doctorBlocked: counts.blocked,
                 doctorReviews: counts.reviews,
@@ -42,7 +42,7 @@ export function DoctorShell({ doctor, theme, counts, showRecords, bell, children
             }} footer={
                 <div className="workspace-rail-tools">
                     <Link href={routes.profile} className="workspace-rail-profile" title={t("doctor.nav.profile")}>
-                        <span className="yt-avatar" aria-hidden>{doctor.initials}</span>
+                        <span aria-hidden className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-semibold tracking-tight text-fg-muted ring-1 ring-border">{doctor.initials}</span>
                         <span className="workspace-rail-profile-copy">
                             <strong>{doctor.name}</strong>
                             <small>{doctor.role}</small>
@@ -79,9 +79,9 @@ export function DoctorShell({ doctor, theme, counts, showRecords, bell, children
                     <LogoMark className="size-7" />
                     <span className="font-display font-bold">MMA-TMS</span>
                 </Link>
-                <span className="yt-avatar" aria-hidden>{doctor.initials}</span>
+                <span aria-hidden className="inline-flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-hover text-xs font-semibold tracking-tight text-fg-muted ring-1 ring-border">{doctor.initials}</span>
             </header>
-            <main id="main" tabIndex={-1} className="yt-main mx-auto">
+            <main id="main" tabIndex={-1} className="mx-auto w-full min-w-0 max-w-[1440px] px-4 pt-6 pb-24 focus:outline-none sm:px-6 md:pb-12 lg:px-8 lg:pt-8 print:max-w-none print:p-0">
                 {children}
             </main>
         </div>

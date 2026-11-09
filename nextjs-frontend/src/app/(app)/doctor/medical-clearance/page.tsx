@@ -1,9 +1,14 @@
-import { Archive, Clock, ShieldCheck } from "lucide-react";
+import { Archive, CircleX, Clock, ShieldCheck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_STATE, CLEARANCE_TYPE, clearanceCardTone, dayDiff, fmtDate } from "@/components/doctor/labels";
-import { Empty, FighterFilter, PageHead, Panel, Pill, Restrictions } from "@/components/doctor/ui";
+import { AvoidList, Empty, FighterFilter, PageHead, Panel, Pill, Restrictions, UI_TONE } from "@/components/doctor/ui";
+import { CardLink } from "@/components/dashboard/card-link";
+import { Callout } from "@/components/training/callout";
+import { ButtonLink } from "@/components/ui/button";
+import { Card, CardHeader } from "@/components/ui/card";
+import { TONE_FILL, TONE_TEXT } from "@/components/ui/tone";
 import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-button";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -14,12 +19,14 @@ import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceOverview, listClearances } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
-import { param } from "@/lib/utils";
+import { cn, param } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
     return { title: t("doctor.clearance.title") };
 }
+
+const COL_TONE = { green: "success", amber: "warning", red: "neutral" } as const;
 
 const isLive = (c: MedicalClearance) => c.status === "active" && c.isCurrentlyValid !== false;
 
@@ -45,14 +52,15 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
     const issueHref = `${routes.doctor.grantClearance}${fighterId ? `?fighter=${fighterId}` : ""}`;
 
     const col = (title: string, tag: "green" | "amber" | "red", rows: MedicalClearance[], note: string, Icon: typeof ShieldCheck) => (
-        <section className="gp-col" data-tag={tag} data-shot={`col-${tag}`}>
-            <h2>
-                <Icon aria-hidden />
-                <span>{title}<small>{note}</small></span>
-                <span className="gp-count">{rows.length}</span>
-            </h2>
+        <Card role="region" aria-labelledby={`col-${tag}-h`} className="min-w-0 overflow-hidden" data-tag={tag}>
+            <CardHeader
+                title={<span id={`col-${tag}-h`}>{title}</span>}
+                description={note}
+                icon={<Icon className={TONE_TEXT[COL_TONE[tag]]} />}
+                action={<span className="rounded-md bg-surface-muted px-2 py-0.5 text-[13px] font-semibold text-fg tabular-nums">{rows.length}</span>}
+            />
             {rows.length ? (
-                <ol>
+                <ol className="divide-y divide-border border-t border-border">
                     {rows.map((c) => {
                         const live = isLive(c);
                         const total = c.validUntil ? Date.parse(c.validUntil) - Date.parse(c.issuedAt) : 0;
@@ -60,109 +68,98 @@ export default async function DoctorClearancePage({ searchParams }: PageProps<"/
                         const regions = c.restrictions.flatMap((r) => r.blockedRegions);
                         const tone = live ? clearanceCardTone(c.level) : "neutral";
                         return (
-                            <li key={c.id} className="gp-card" data-tone={tone}>
-                                <header>
-                                    <Link href={routes.doctor.fighter(c.fighterId)} className="yt-rowlink">
-                                        <b>{nameOf.get(c.fighterId) ?? t("screens.doctor.fighterFallback")}</b>
+                            <li key={c.id} className="grid min-w-0 gap-2 px-5 py-4 text-[13px] break-words" data-tone={tone}>
+                                <header className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+                                    <Link href={routes.doctor.fighter(c.fighterId)} className="text-[15px] font-semibold text-fg hover:underline">
+                                        {nameOf.get(c.fighterId) ?? t("screens.doctor.fighterFallback")}
                                     </Link>
                                     <Pill tone={tone}>{CLEARANCE_LEVEL[c.level]}</Pill>
                                 </header>
-                                <div className="gp-body">
-                                    <div className="gp-meta">
-                                        <p className="gp-status">
-                                            {c.status === "revoked"
-                                                ? t("screens.doctor.clearance.revoked")
-                                                : c.status === "superseded"
-                                                  ? t("screens.doctor.clearance.superseded")
-                                                  : !live
-                                                    ? t("screens.doctor.clearance.expired")
-                                                    : c.validUntil
-                                                      ? plural(t, "screens.doctor.clearance.daysLeft", dayDiff(c.validUntil, now))
-                                                      : t("screens.doctor.noEndDate")}
-                                        </p>
-                                        {c.clearanceType && <p>{CLEARANCE_TYPE[c.clearanceType]}</p>}
-                                    </div>
-                                    <dl className="gp-dates">
-                                        <div>
-                                            <dt>{t("screens.doctor.clearance.from")}</dt>
-                                            <dd>{fmtDate(c.issuedAt)}</dd>
-                                        </div>
-                                        <div>
-                                            <dt>{t("screens.doctor.clearance.until")}</dt>
-                                            <dd>{c.validUntil ? fmtDate(c.validUntil) : t("screens.doctor.clearance.noLimit")}</dd>
-                                        </div>
-                                    </dl>
-                                    {live && total > 0 && (
-                                        <div className="gp-meter" style={{ ["--p" as string]: p }} aria-hidden>
-                                            <i />
-                                        </div>
-                                    )}
-                                    {c.revokedReason && (
-                                        <p className="gp-revoked">
-                                            <strong>{t("screens.doctor.clearance.revokedOn", { date: fmtDate(c.revokedAt) })}</strong>
-                                            {c.revokedReason}
-                                        </p>
-                                    )}
-                                    {c.reason && <p className="gp-reason">{c.reason}</p>}
-                                    <Restrictions r={c.allowLists ? { ...c.allowLists, notes: null } : null} />
-                                    {!c.allowLists && regions.length > 0 && (
-                                        <ul className="yt-chips">
-                                            {regions.map((r) => (
-                                                <li key={r} data-tone="block">
-                                                    {t("screens.doctor.avoid", { region: BODY_REGION[r].toLowerCase() })}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
-                                    {live && c.level !== "not_cleared" && (
-                                        <div>
-                                            <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? t("screens.doctor.fighterFallbackLower")} emphasis="quiet" className="gp-revoke-action" />
-                                        </div>
-                                    )}
+                                <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5 text-xs text-fg-muted">
+                                    <p className={cn("font-semibold", tag === "amber" ? "text-warning-fg" : "text-fg")}>
+                                        {c.status === "revoked"
+                                            ? t("screens.doctor.clearance.revoked")
+                                            : c.status === "superseded"
+                                              ? t("screens.doctor.clearance.superseded")
+                                              : !live
+                                                ? t("screens.doctor.clearance.expired")
+                                                : c.validUntil
+                                                  ? plural(t, "screens.doctor.clearance.daysLeft", dayDiff(c.validUntil, now))
+                                                  : t("screens.doctor.noEndDate")}
+                                    </p>
+                                    {c.clearanceType && <p>{CLEARANCE_TYPE[c.clearanceType]}</p>}
                                 </div>
+                                <dl className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <dt className="text-xs text-fg-muted">{t("screens.doctor.clearance.from")}</dt>
+                                        <dd className="font-semibold text-fg tabular-nums">{fmtDate(c.issuedAt)}</dd>
+                                    </div>
+                                    <div className="text-end">
+                                        <dt className="text-xs text-fg-muted">{t("screens.doctor.clearance.until")}</dt>
+                                        <dd className="font-semibold text-fg tabular-nums">{c.validUntil ? fmtDate(c.validUntil) : t("screens.doctor.clearance.noLimit")}</dd>
+                                    </div>
+                                </dl>
+                                {live && total > 0 && (
+                                    <div className="h-1 overflow-hidden rounded-full bg-surface-hover" aria-hidden>
+                                        <div className={cn("h-full rounded-full", TONE_FILL[UI_TONE[tone]])} style={{ width: `${p * 100}%` }} />
+                                    </div>
+                                )}
+                                {c.revokedReason && (
+                                    <Callout tone="danger" icon={CircleX} title={t("screens.doctor.clearance.revokedOn", { date: fmtDate(c.revokedAt) })} className="px-3 py-2.5">
+                                        {c.revokedReason}
+                                    </Callout>
+                                )}
+                                {c.reason && <p className="text-fg-muted">{c.reason}</p>}
+                                <Restrictions r={c.allowLists ? { ...c.allowLists, notes: null } : null} />
+                                {!c.allowLists && regions.length > 0 && <AvoidList items={regions.map((r) => ({ key: r, label: t("screens.doctor.avoid", { region: BODY_REGION[r].toLowerCase() }) }))} />}
+                                {live && c.level !== "not_cleared" && (
+                                    <div>
+                                        <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? t("screens.doctor.fighterFallbackLower")} emphasis="quiet" className="-ml-3 [@media(pointer:coarse)]:min-h-11" />
+                                    </div>
+                                )}
                             </li>
                         );
                     })}
                 </ol>
             ) : (
-                <Empty title={t("screens.doctor.clearance.none")} />
+                <div className="border-t border-border">
+                    <Empty compact title={t("screens.doctor.clearance.none")} />
+                </div>
             )}
-        </section>
+        </Card>
     );
 
     return (
-        <div className="yt-page gp-page">
+        <div className="flex flex-col gap-6">
             <PageHead
                 title={t("doctor.clearance.title")}
                 sub={t("screens.doctor.clearance.sub", { n: warn })}
                 actions={
-                    <Link href={issueHref} className="yt-btn" data-v="primary">
+                    <ButtonLink href={issueHref}>
                         <ShieldCheck aria-hidden />
                         {t("screens.doctor.issueClearance")}
-                    </Link>
+                    </ButtonLink>
                 }
             />
             <FighterFilter base={routes.doctor.clearance} fighters={fighters} current={fighterId} />
             {missing.length > 0 && (
                 <Panel title={t("screens.doctor.clearance.missing", { n: missing.length })} id="thieu">
-                    <ul className="hs-clr">
+                    <ul className="divide-y divide-border">
                         {missing.map((r) => (
-                            <li key={r.fighter.id}>
-                                <Link href={routes.doctor.fighter(r.fighter.id)} className="yt-rowlink">
-                                    <b>{r.fighter.name}</b>
-                                </Link>
-                                <small>
-                                    <Link className="yt-go" href={`${routes.doctor.grantClearance}?fighter=${r.fighter.id}`}>
-                                        {t("screens.doctor.issueClearance")}
+                            <li key={r.fighter.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 py-2.5 first:pt-0 last:pb-0">
+                                <span className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+                                    <Link href={routes.doctor.fighter(r.fighter.id)} className="font-semibold text-fg hover:underline">
+                                        {r.fighter.name}
                                     </Link>
-                                </small>
-                                <Pill tone={CLEARANCE_STATE[r.state].tone}>{CLEARANCE_STATE[r.state].label}</Pill>
+                                    <Pill tone={CLEARANCE_STATE[r.state].tone}>{CLEARANCE_STATE[r.state].label}</Pill>
+                                </span>
+                                <CardLink href={`${routes.doctor.grantClearance}?fighter=${r.fighter.id}`}>{t("screens.doctor.issueClearance")}</CardLink>
                             </li>
                         ))}
                     </ul>
                 </Panel>
             )}
-            <div className="gp-cols">
+            <div className="grid grid-cols-1 items-start gap-6 min-[1101px]:grid-cols-3">
                 {col(t("screens.doctor.clearance.col.valid"), "green", valid, t("screens.doctor.clearance.col.validNote"), ShieldCheck)}
                 {col(t("screens.doctor.clearance.col.soon"), "amber", soon, t("screens.doctor.clearance.col.soonNote", { n: warn }), Clock)}
                 {col(t("screens.doctor.clearance.col.off"), "red", off, t("screens.doctor.clearance.col.offNote"), Archive)}

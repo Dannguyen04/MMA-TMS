@@ -73,6 +73,8 @@ vi.mock("next/cache", () => ({
 
 vi.mock("next/navigation", () => ({
     useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
+    // The doctor fighter page renders TabNav, which reads the current path.
+    usePathname: () => "/doctor/fighters/F",
     redirect: vi.fn((url: string) => {
         throw new Error(`REDIRECT:${url}`);
     }),

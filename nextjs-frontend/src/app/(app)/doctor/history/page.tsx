@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SegmentMotion } from "@/components/ui/segment-motion";
 
 import { CLEARANCE_LEVEL, CLEARANCE_TYPE, EXAM_TYPE, INJURY_STATUS, OUTCOME, PLAN_STATUS, REQUESTER_ROLE, dayKey, fmtDate, injuryName, injuryPlace, type Tone } from "@/components/doctor/labels";
-import { Empty, FighterFilter, PageHead, Pill } from "@/components/doctor/ui";
+import { Empty, FighterFilter, PageHead, Panel, Pill, ROW, ROW_LINK, SUB_LINK } from "@/components/doctor/ui";
+import { SegmentedLinks } from "@/components/ui/segmented-links";
+import { Table, TBody, TD, TR } from "@/components/ui/table";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
@@ -71,61 +72,54 @@ export default async function DoctorHistoryPage({ searchParams }: PageProps<"/do
     const href = (k?: Kind) => `${base}?${new URLSearchParams({ ...(fighterId ? { fighter: fighterId } : {}), ...(k ? { kind: k } : {}) })}`;
 
     return (
-        <div className="yt-page">
+        <div className="flex flex-col gap-6">
             <PageHead title={t("doctor.history.title")} sub={`${events.length} sự kiện`} />
-            <div className="yt-filters">
-                <SegmentMotion className="yt-segs" aria-label="Loại sự kiện">
-                    <Link href={href()} aria-current={!kind ? "page" : undefined}>
-                        Tất cả
-                    </Link>
-                    {(Object.keys(KIND) as Kind[]).map((k) => (
-                        <Link key={k} href={href(k)} aria-current={kind === k ? "page" : undefined}>
-                            {KIND[k]}
-                        </Link>
-                    ))}
-                </SegmentMotion>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <SegmentedLinks
+                    label="Loại sự kiện"
+                    className="max-w-full"
+                    items={[
+                        { href: href(), label: "Tất cả", active: !kind },
+                        ...(Object.keys(KIND) as Kind[]).map((k) => ({ href: href(k), label: KIND[k], active: kind === k })),
+                    ]}
+                />
+                <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ kind }} />
             </div>
-            <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ kind }} />
             {events.length ? (
                 [...days].map(([day, list]) => (
-                    <section key={day} className="yt-panel" data-shot={`day-${day}`}>
-                        <header className="yt-panel-head">
-                            <h2>{fmtDate(`${day}T12:00:00+07:00`)}</h2>
-                        </header>
-                        <div className="yt-tablewrap">
-                            <table className="yt-table hx-table">
-                                <tbody>
+                    <Panel key={day} title={fmtDate(`${day}T12:00:00+07:00`)} id={`day-${day}`} className="overflow-hidden" contentClassName="px-0 pb-0">
+                        <Table className="table-fixed border-t border-border">
+                            <TBody>
                                     {list.map((e) => (
-                                        <tr key={`${e.kind}-${e.id}`}>
-                                            <td className="hx-kind">
+                                        <TR key={`${e.kind}-${e.id}`} className={ROW}>
+                                            <TD className="w-[108px] pr-1 md:w-[120px]">
                                                 <Pill>{KIND[e.kind]}</Pill>
-                                            </td>
-                                            <td>
+                                            </TD>
+                                            <TD className="break-words">
                                                 {e.href ? (
-                                                    <Link className="yt-rowlink" href={e.href}>
-                                                        <b>{e.title}</b>
+                                                    <Link className={ROW_LINK} href={e.href}>
+                                                        <b className="font-semibold">{e.title}</b>
                                                     </Link>
                                                 ) : (
-                                                    <b>{e.title}</b>
+                                                    <b className="font-semibold">{e.title}</b>
                                                 )}
                                                 {/* Dưới 768 px cột Võ sĩ và cột trạng thái ẩn đi, hiện gộp dưới tiêu đề. */}
-                                                <small className="yt-only-sm">
+                                                <small className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg-muted md:hidden">
                                                     {nameOf.get(e.fighterId) ?? "Võ sĩ"}
                                                     {e.detail && <Pill tone={e.tone}>{e.detail}</Pill>}
                                                 </small>
-                                            </td>
-                                            <td className="yt-hide-sm hx-who">
-                                                <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>
+                                            </TD>
+                                            <TD className="w-[22%] max-md:hidden">
+                                                <Link className={SUB_LINK} href={routes.doctor.fighter(e.fighterId)}>
                                                     {nameOf.get(e.fighterId) ?? "Võ sĩ"}
                                                 </Link>
-                                            </td>
-                                            <td className="hx-detail">{e.detail && <Pill tone={e.tone}>{e.detail}</Pill>}</td>
-                                        </tr>
+                                            </TD>
+                                            <TD className="w-[22%] max-md:hidden">{e.detail && <Pill tone={e.tone}>{e.detail}</Pill>}</TD>
+                                        </TR>
                                     ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
+                            </TBody>
+                        </Table>
+                    </Panel>
                 ))
             ) : (
                 <Empty title="Chưa có sự kiện y tế" />

@@ -11,7 +11,7 @@ export default function DoctorError({ error, retry }: { error: Error & { digest?
         console.error(error);
     }, [error]);
     return (
-        <div className="yt-page">
+        <div className="flex flex-col gap-6">
             <ErrorState
                 title="Không tải được dữ liệu"
                 description={

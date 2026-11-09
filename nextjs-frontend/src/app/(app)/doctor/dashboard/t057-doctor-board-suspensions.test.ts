@@ -489,7 +489,7 @@ describe("T-057: Bảng phân loại của bác sĩ phải tính đình chỉ", 
         const pageElement = await DoctorDashboardPage();
         const html = renderToStaticMarkup(pageElement);
 
-        const weekMatch = html.match(/<ol class="td-week">([\s\S]*?)<\/ol>/);
+        const weekMatch = html.match(/<ol class="td-week[^"]*">([\s\S]*?)<\/ol>/);
         expect(weekMatch).toBeTruthy();
         const days = weekMatch![1].match(/<li[^>]*class="[^"]*td-day[^"]*"[\s\S]*?<\/li>/g) ?? [];
         expect(days).toHaveLength(7);
@@ -538,7 +538,7 @@ describe("T-057: Bảng phân loại của bác sĩ phải tính đình chỉ", 
         const pageElement = await DoctorDashboardPage();
         const html = renderToStaticMarkup(pageElement);
 
-        const weekMatch = html.match(/<ol class="td-week">([\s\S]*?)<\/ol>/);
+        const weekMatch = html.match(/<ol class="td-week[^"]*">([\s\S]*?)<\/ol>/);
         expect(weekMatch).toBeTruthy();
         const days = weekMatch![1].match(/<li[^>]*class="[^"]*td-day[^"]*"[\s\S]*?<\/li>/g) ?? [];
         expect(days).toHaveLength(7);

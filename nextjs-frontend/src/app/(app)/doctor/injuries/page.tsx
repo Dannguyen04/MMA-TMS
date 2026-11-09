@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { INJURY_STATUS, SEVERITY, fmtDate, injuryName, injuryPlace, rel } from "@/components/doctor/labels";
-import { Empty, FighterFilter, PageHead, Panel, Pill } from "@/components/doctor/ui";
+import { CELL_SUB, Empty, FighterFilter, PageHead, Panel, Pill, ROW, ROW_LINK, SUB_LINK } from "@/components/doctor/ui";
+import { ButtonLink } from "@/components/ui/button";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
@@ -34,83 +36,81 @@ export default async function DoctorInjuriesPage({ searchParams }: PageProps<"/d
     const nameOf = new Map(fighters.map((f) => [f.id, f.name]));
     const open = list.filter((i) => i.status !== "resolved");
     const closed = list.filter((i) => i.status === "resolved");
-    const now = Date.now();
+    const now = new Date().getTime();
     const newHref = `${routes.doctor.newInjury}${fighterId ? `?fighter=${fighterId}` : ""}`;
 
     const table = (rows: Injury[]) => (
-        <div className="yt-tablewrap">
-            <table className="yt-table">
-                <thead>
-                    <tr>
-                        <th>Chấn thương</th>
-                        <th>Võ sĩ</th>
-                        <th>Vị trí</th>
-                        <th className="yt-hide-sm">Mức độ</th>
-                        <th>Tình trạng</th>
-                        <th className="yt-hide-sm">Điều trị</th>
-                        <th className="yt-hide-sm">Hẹn đánh giá lại</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {rows.map((i, n) => {
+        <Table>
+            <THead>
+                <tr>
+                    <TH>Chấn thương</TH>
+                    <TH>Võ sĩ</TH>
+                    <TH>Vị trí</TH>
+                    <TH className="max-md:hidden">Mức độ</TH>
+                    <TH>Tình trạng</TH>
+                    <TH className="max-md:hidden">Điều trị</TH>
+                    <TH className="max-md:hidden">Hẹn đánh giá lại</TH>
+                </tr>
+            </THead>
+            <TBody>
+                    {rows.map((i) => {
                         const ts = treatmentsOf.get(i.id) ?? [];
                         const next = ts.map((t) => t.nextReviewAt).filter((d): d is string => !!d && Date.parse(d) > now).sort()[0];
                         return (
-                            <tr key={i.id} style={{ ["--i" as string]: n }}>
-                                <td>
-                                    <Link className="yt-rowlink" href={routes.doctor.injury(i.id)}>
+                            <TR key={i.id} className={ROW}>
+                                <TD>
+                                    <Link className={ROW_LINK} href={routes.doctor.injury(i.id)}>
                                         {injuryName(i)}
                                     </Link>
-                                    <small>Xảy ra {fmtDate(i.occurredAt)}</small>
-                                </td>
-                                <td>
-                                    <Link className="yt-sublink" href={routes.doctor.fighter(i.fighterId)}>{nameOf.get(i.fighterId) ?? "Võ sĩ"}</Link>
-                                </td>
-                                <td>{injuryPlace(i)}</td>
-                                <td className="yt-hide-sm">
+                                    <small className={CELL_SUB}>Xảy ra {fmtDate(i.occurredAt)}</small>
+                                </TD>
+                                <TD>
+                                    <Link className={SUB_LINK} href={routes.doctor.fighter(i.fighterId)}>{nameOf.get(i.fighterId) ?? "Võ sĩ"}</Link>
+                                </TD>
+                                <TD>{injuryPlace(i)}</TD>
+                                <TD className="max-md:hidden">
                                     <Pill tone={SEVERITY[i.severity].tone}>{SEVERITY[i.severity].label}</Pill>
-                                </td>
-                                <td>
+                                </TD>
+                                <TD>
                                     <Pill tone={INJURY_STATUS[i.status].tone}>{INJURY_STATUS[i.status].label}</Pill>
-                                    {i.resolvedAt && <small>Khỏi {fmtDate(i.resolvedAt)}</small>}
-                                </td>
-                                <td className="yt-hide-sm">{ts.length} lần</td>
-                                <td className="yt-hide-sm">
+                                    {i.resolvedAt && <small className={CELL_SUB}>Khỏi {fmtDate(i.resolvedAt)}</small>}
+                                </TD>
+                                <TD className="max-md:hidden">{ts.length} lần</TD>
+                                <TD className="max-md:hidden">
                                     {next ? (
                                         <>
                                             {fmtDate(next)}
-                                            <small>{rel(next)}</small>
+                                            <small className={CELL_SUB}>{rel(next)}</small>
                                         </>
                                     ) : (
-                                        <span className="yt-muted">Không</span>
+                                        <span className="text-fg-muted">Không</span>
                                     )}
-                                </td>
-                            </tr>
+                                </TD>
+                            </TR>
                         );
                     })}
-                </tbody>
-            </table>
-        </div>
+            </TBody>
+        </Table>
     );
 
     return (
-        <div className="yt-page">
+        <div className="flex flex-col gap-6">
             <PageHead
                 title={t("doctor.injuries.title")}
                 sub={`${open.length} đang mở · ${closed.length} đã khỏi`}
                 actions={
-                    <Link href={newHref} className="yt-btn" data-v="primary">
+                    <ButtonLink href={newHref}>
                         <Plus aria-hidden />
                         Ghi nhận chấn thương
-                    </Link>
+                    </ButtonLink>
                 }
             />
             <FighterFilter base={routes.doctor.injuries} fighters={fighters} current={fighterId} />
-            <Panel title={`Đang mở · ${open.length}`} id="dang-mo">
-                {open.length ? table(open) : <Empty title="Không có chấn thương đang mở">Mọi chấn thương của nhóm này đã khỏi.</Empty>}
+            <Panel title={`Đang mở · ${open.length}`} id="dang-mo" className="overflow-hidden" contentClassName="px-0 pb-0">
+                {open.length ? table(open) : <Empty compact title="Không có chấn thương đang mở">Mọi chấn thương của nhóm này đã khỏi.</Empty>}
             </Panel>
-            <Panel title={`Đã khỏi · ${closed.length}`} id="da-khoi">
-                {closed.length ? table(closed) : <Empty title="Chưa có chấn thương đã khỏi" />}
+            <Panel title={`Đã khỏi · ${closed.length}`} id="da-khoi" className="overflow-hidden" contentClassName="px-0 pb-0">
+                {closed.length ? table(closed) : <Empty compact title="Chưa có chấn thương đã khỏi" />}
             </Panel>
         </div>
     );

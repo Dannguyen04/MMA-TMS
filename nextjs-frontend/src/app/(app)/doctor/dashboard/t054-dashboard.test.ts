@@ -123,66 +123,6 @@ function buildBoard(rows: BoardRow[], reviews = 0, now = "2026-11-03T08:00:00Z")
     };
 }
 
-function extractMediaBlocks(cssText: string, queryPattern: RegExp): string[] {
-    const blocks: string[] = [];
-    const re = new RegExp(queryPattern.source, "g");
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(cssText)) !== null) {
-        const braceOpen = cssText.indexOf("{", match.index);
-        if (braceOpen === -1) break;
-        let depth = 1;
-        let i = braceOpen + 1;
-        while (i < cssText.length && depth > 0) {
-            if (cssText[i] === "{") depth++;
-            else if (cssText[i] === "}") depth--;
-            i++;
-        }
-        blocks.push(cssText.slice(match.index, i));
-    }
-    return blocks;
-}
-
-function extractCssBlock(cssText: string, selector: string): string {
-    const idx = cssText.indexOf(selector);
-    if (idx === -1) return "";
-    const braceOpen = cssText.indexOf("{", idx);
-    if (braceOpen === -1) return "";
-    let depth = 1;
-    let i = braceOpen + 1;
-    while (i < cssText.length && depth > 0) {
-        if (cssText[i] === "{") depth++;
-        else if (cssText[i] === "}") depth--;
-        i++;
-    }
-    return cssText.slice(idx, i);
-}
-
-function extractAllMatchingRules(cssText: string, selectorPattern: RegExp): { selector: string; body: string }[] {
-    const rules: { selector: string; body: string }[] = [];
-    const re = new RegExp(selectorPattern.source, "g");
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(cssText)) !== null) {
-        const braceOpen = cssText.indexOf("{", match.index);
-        if (braceOpen === -1) break;
-        let start = match.index;
-        while (start > 0 && cssText[start - 1] !== "}" && cssText[start - 1] !== "{" && cssText[start - 1] !== ";") {
-            start--;
-        }
-        const selector = cssText.slice(start, braceOpen).trim();
-        let depth = 1;
-        let i = braceOpen + 1;
-        while (i < cssText.length && depth > 0) {
-            if (cssText[i] === "{") depth++;
-            else if (cssText[i] === "}") depth--;
-            i++;
-        }
-        const body = cssText.slice(braceOpen + 1, i - 1).trim();
-        rules.push({ selector, body });
-        re.lastIndex = i;
-    }
-    return rules;
-}
-
 describe("T-054 Ca kiểm thử D1–D7, C1, C2", () => {
     beforeEach(() => {
         vi.clearAllMocks();
@@ -294,7 +234,7 @@ describe("T-054 Ca kiểm thử D1–D7, C1, C2", () => {
         const pageElement = await DoctorDashboardPage();
         const html = renderToStaticMarkup(pageElement);
 
-        const weekMatch = html.match(/<ol class="td-week">([\s\S]*?)<\/ol>/);
+        const weekMatch = html.match(/<ol class="td-week[^"]*">([\s\S]*?)<\/ol>/);
         expect(weekMatch).toBeTruthy();
         const weekHtml = weekMatch![1];
 
@@ -357,128 +297,24 @@ describe("T-054 Ca kiểm thử D1–D7, C1, C2", () => {
     });
 
     // ─── C1 ─────────────────────────────────────────────────────────────────
-    it("C1: doctor.css -> .td-field của làn amber/green không dùng nền var(--t) đặc; có quy tắc @media (max-width: 767px) cho .td-week không còn overflow-x: auto; có prefers-reduced-motion tắt td-drop", () => {
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-
-        // Tìm MỌI quy tắc [data-tag=...] .td-field trong CSS
-        const tagFieldRules = extractAllMatchingRules(css, /\[data-tag=[^\]]+\][^{}]*\.td-field(?:\s*,\s*|\s*\{)/);
-        expect(tagFieldRules.length).toBeGreaterThanOrEqual(3);
-
-        // Không quy tắc nào dùng nền var(--t) đặc và không có fallback color-mix thừa
-        for (const rule of tagFieldRules) {
-            expect(rule.body).not.toMatch(/background:\s*var\(--t\)/);
-            expect(rule.body).not.toContain("color-mix");
-        }
-
-        // Nền vàng là var(--amb-soft), xanh là var(--ok-soft)
-        const amberRule = tagFieldRules.find((r) => r.selector.includes('[data-tag="amber"]'));
-        expect(amberRule).toBeTruthy();
-        expect(amberRule!.body).toMatch(/background:\s*var\(--amb-soft\)/);
-
-        const greenRule = tagFieldRules.find((r) => r.selector.includes('[data-tag="green"]') && !r.selector.includes('[data-compact="true"]'));
-        expect(greenRule).toBeTruthy();
-        expect(greenRule!.body).toMatch(/background:\s*var\(--ok-soft\)/);
-
-        // có quy tắc @media (max-width: 767px) cho .td-week không còn overflow-x: auto
-        const mediaBlocks = extractMediaBlocks(css, /@media\s*\(\s*max-width\s*:\s*767px\s*\)/);
-        const weekBlock = mediaBlocks.find((b) => b.includes(".td-week"));
-        expect(weekBlock).toBeTruthy();
-        expect(weekBlock).not.toContain("overflow-x: auto");
-
-        // có prefers-reduced-motion tắt td-drop
-        expect(css).toMatch(/@media\s*\(\s*prefers-reduced-motion\s*:\s*reduce\s*\)[\s\S]*?\.td-tag\s*\{[^}]*animation\s*:\s*none/);
+    it("C1 (9/11): làn và thẻ dùng tone của app, không vạch màu một cạnh; doctor.css không còn lớp td-*", () => {
+        const css = fs.readFileSync(path.resolve(__dirname, "../../../../components/doctor/doctor.css"), "utf8");
+        expect(css).not.toMatch(/border-(?:left|right|inline-start|inline-end)\s*:/);
+        expect(css).not.toMatch(/\.td-[a-z]/);
     });
 
     // ─── C2 ─────────────────────────────────────────────────────────────────
-    it("C2: markup trang dashboard không chứa lớp yt-hole; CSS có white-space: nowrap cho chip cổng trong thẻ gọn", async () => {
-        // 1. Markup trang dashboard không chứa lớp yt-hole
+    it("C2: markup trang dashboard không chứa yt-hole hay lớp viền một cạnh; trạng thái làn có chữ đi kèm", async () => {
         const redRow = buildRow({ fighterId: "f-red", tag: "red" });
         const greenRow = buildRow({ fighterId: "f-green", tag: "green" });
         currentBoard = buildBoard([redRow, greenRow], 0);
 
-        const pageElement = await DoctorDashboardPage();
-        const html = renderToStaticMarkup(pageElement);
+        const html = renderToStaticMarkup(await DoctorDashboardPage());
         expect(html).not.toContain("yt-hole");
-
-        // 2. CSS có white-space: nowrap cho chip cổng trong thẻ gọn
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-        expect(css).toMatch(/(?:\.td-(?:tag\[data-compact="true"\]|field)|\[data-compact="true"\])[^{}]*\.yt-gate[^{}]*\{[^}]*white-space:\s*nowrap/);
-    });
-
-    // ─── Q1 ─────────────────────────────────────────────────────────────────
-    it("Q1: doctor.css -> .td-tally li không có background: var(--t)", () => {
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-        const tallyLiBlock = extractCssBlock(css, ".td-tally li");
-        expect(tallyLiBlock).toBeTruthy();
-        expect(tallyLiBlock).not.toMatch(/background:\s*var\(--t\)/);
-    });
-
-    // ─── Q2 ─────────────────────────────────────────────────────────────────
-    it("Q2: doctor.css -> .td-urgent không dùng background: var(--ink)", () => {
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-        const urgentBlock = extractCssBlock(css, ".td-urgent");
-        expect(urgentBlock).toBeTruthy();
-        expect(urgentBlock).not.toMatch(/background:\s*var\(--ink\)/);
-    });
-
-    // ─── Q3 ─────────────────────────────────────────────────────────────────
-    it("Q3: doctor.css -> không quy tắc .td-tag nào dùng nền var(--t) đặc cho .td-field; thẻ đỏ dùng --block-soft", () => {
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-        const tdFieldBaseBlock = extractCssBlock(css, ".td-field");
-        expect(tdFieldBaseBlock).toBeTruthy();
-        expect(tdFieldBaseBlock).not.toMatch(/background:\s*var\(--t\)\s*;/);
-
-        // Tìm MỌI quy tắc [data-tag=...] .td-field trong CSS
-        const tagFieldRules = extractAllMatchingRules(css, /\[data-tag=[^\]]+\][^{}]*\.td-field(?:\s*,\s*|\s*\{)/);
-        expect(tagFieldRules.length).toBeGreaterThanOrEqual(3);
-
-        for (const rule of tagFieldRules) {
-            expect(rule.body).not.toMatch(/background:\s*var\(--t\)/);
-            expect(rule.body).not.toContain("color-mix");
-        }
-
-        // Thẻ đỏ dùng --block-soft
-        const redRule = tagFieldRules.find((r) => r.selector.includes('[data-tag="red"]'));
-        expect(redRule).toBeTruthy();
-        expect(redRule!.body).toMatch(/background:\s*var\(--block-soft\)/);
-    });
-
-    // ─── Q4 ─────────────────────────────────────────────────────────────────
-    it("Q4: doctor.css -> @keyframes td-drop không chứa rotate; .td-tag > a:hover không chứa rotate", () => {
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-        const keyframesBlock = extractCssBlock(css, "@keyframes td-drop");
-        expect(keyframesBlock).toBeTruthy();
-        expect(keyframesBlock).not.toContain("rotate");
-
-        const hoverBlock = extractCssBlock(css, ".td-tag > a:hover");
-        expect(hoverBlock).toBeTruthy();
-        expect(hoverBlock).not.toContain("rotate");
-    });
-
-    // ─── Q5 ─────────────────────────────────────────────────────────────────
-    it("Q5: doctor.css -> .td-day[data-today=\"true\"] không có border 2 px màu --ink và không có nền --ink", () => {
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-        const todayBlock = extractCssBlock(css, '.td-day[data-today="true"]');
-        expect(todayBlock).toBeTruthy();
-        expect(todayBlock).not.toMatch(/border:[^;]*2px[^;]*var\(--ink\)/);
-        expect(todayBlock).not.toMatch(/background:\s*var\(--ink\)/);
-    });
-
-    // ─── Q6 ─────────────────────────────────────────────────────────────────
-    it("Q6: doctor.css -> .td-tag[data-tag=\"red\"] .td-field small dùng màu var(--block-ink) đặc, không color-mix hay trong suốt", () => {
-        const cssPath = path.resolve(__dirname, "../../../../components/doctor/doctor.css");
-        const css = fs.readFileSync(cssPath, "utf8");
-        const redSmallBlock = extractCssBlock(css, '.td-tag[data-tag="red"] .td-field small');
-        expect(redSmallBlock).toBeTruthy();
-        expect(redSmallBlock).toMatch(/color:\s*var\(--block-ink\)/);
-        expect(redSmallBlock).not.toContain("color-mix");
-        expect(redSmallBlock).not.toContain("transparent");
+        expect(html).not.toMatch(/[\s"]border-[lrse](?:-\S*)?(?=[\s"])/);
+        expect(html).toContain("workspace-editorial");
+        // Thẻ đỏ mang chữ của làn ("Chặn"), không chỉ màu.
+        const redLane = html.match(/<section[^>]*data-tag="red"[^>]*>([\s\S]*?)<\/section>/);
+        expect(redLane![1]).toContain("Chặn");
     });
 });

@@ -1,5 +1,5 @@
-import { ListSkeleton } from "@/components/doctor/ui";
+import { QueueSkeleton } from "@/components/ui/skeleton";
 
 export default function Loading() {
-    return <ListSkeleton label="Đang tải phân loại hôm nay" rows={5} />;
+    return <QueueSkeleton label="Đang tải phân loại hôm nay" />;
 }

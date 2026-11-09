@@ -1,10 +1,13 @@
 import { Stethoscope } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SegmentMotion } from "@/components/ui/segment-motion";
 
 import { REQUESTER_ROLE, fmtDateTime, rel } from "@/components/doctor/labels";
-import { Empty, FighterFilter, PageHead, Pill } from "@/components/doctor/ui";
+import { Empty, FighterFilter, PageHead, Pill, ROW, ROW_LINK } from "@/components/doctor/ui";
+import { ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SegmentedLinks } from "@/components/ui/segmented-links";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
@@ -37,59 +40,58 @@ export default async function DoctorReviewRequestsPage({ searchParams }: PagePro
     const q = (s?: string) => `${base}?${new URLSearchParams({ ...(fighterId ? { fighter: fighterId } : {}), ...(s ? { status: s } : {}) })}`;
 
     return (
-        <div className="yt-page">
+        <div className="flex flex-col gap-6">
             <PageHead title={t("doctor.reviews.title")} sub={`${open.length} yêu cầu đang mở · trả lời bằng một phiếu khám mới`} />
-            <div className="yt-filters">
-                <SegmentMotion className="yt-segs" aria-label="Trạng thái">
-                    <Link href={q()} aria-current={!showResolved ? "page" : undefined}>
-                        Đang mở · {open.length}
-                    </Link>
-                    <Link href={q("resolved")} aria-current={showResolved ? "page" : undefined}>
-                        Đã xử lý · {all.length - open.length}
-                    </Link>
-                </SegmentMotion>
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
+                <SegmentedLinks
+                    label="Trạng thái"
+                    items={[
+                        { href: q(), label: "Đang mở", count: open.length, active: !showResolved },
+                        { href: q("resolved"), label: "Đã xử lý", count: all.length - open.length, active: showResolved },
+                    ]}
+                />
+                <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ status: showResolved ? "resolved" : undefined }} />
             </div>
-            <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ status: showResolved ? "resolved" : undefined }} />
             {rows.length ? (
-                <div className="yt-tablewrap">
-                    <table className="yt-table">
-                        <thead>
+                <Card className="overflow-hidden">
+                    <Table>
+                        <THead>
                             <tr>
-                                <th>Võ sĩ</th>
-                                <th>Lý do</th>
-                                <th className="yt-hide-sm">Người gửi</th>
-                                <th className="yt-hide-sm">Thời điểm</th>
-                                <th>Trạng thái</th>
+                                <TH>Võ sĩ</TH>
+                                <TH>Lý do</TH>
+                                <TH className="max-md:hidden">Người gửi</TH>
+                                <TH className="max-md:hidden">Thời điểm</TH>
+                                <TH>Trạng thái</TH>
                             </tr>
-                        </thead>
-                        <tbody>
+                        </THead>
+                        <TBody>
                             {rows.map((r) => (
-                                <tr key={r.id}>
-                                    <td>
-                                        <Link className="yt-rowlink" href={routes.doctor.fighter(r.fighterId)}>
-                                            <b>{nameOf.get(r.fighterId) ?? "Võ sĩ"}</b>
+                                <TR key={r.id} className={ROW}>
+                                    <TD>
+                                        <Link className={ROW_LINK} href={routes.doctor.fighter(r.fighterId)}>
+                                            <b className="font-semibold">{nameOf.get(r.fighterId) ?? "Võ sĩ"}</b>
                                         </Link>
-                                    </td>
-                                    <td>{r.reason}</td>
-                                    <td className="yt-hide-sm">{REQUESTER_ROLE[r.requesterRole]}</td>
-                                    <td className="yt-hide-sm">
-                                        {fmtDateTime(r.requestedAt)} <span className="yt-muted">· {rel(r.requestedAt)}</span>
-                                    </td>
-                                    <td>
+                                    </TD>
+                                    <TD>{r.reason}</TD>
+                                    <TD className="max-md:hidden">{REQUESTER_ROLE[r.requesterRole]}</TD>
+                                    <TD className="max-md:hidden">
+                                        {fmtDateTime(r.requestedAt)} <span className="text-fg-muted">· {rel(r.requestedAt)}</span>
+                                    </TD>
+                                    <TD>
                                         {r.status === "OPEN" ? (
-                                            <Link className="yt-btn" data-v="primary" href={`${routes.doctor.newExamination}?fighter=${r.fighterId}`}>
+                                            <ButtonLink size="sm" className="relative z-10" href={`${routes.doctor.newExamination}?fighter=${r.fighterId}`}>
                                                 <Stethoscope aria-hidden />
                                                 Khám
-                                            </Link>
+                                            </ButtonLink>
                                         ) : (
                                             <Pill tone="green">Đã xử lý {r.resolvedAt ? fmtDateTime(r.resolvedAt) : ""}</Pill>
                                         )}
-                                    </td>
-                                </tr>
+                                    </TD>
+                                </TR>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
+                        </TBody>
+                    </Table>
+                </Card>
             ) : (
                 <Empty title={showResolved ? "Chưa có yêu cầu đã xử lý" : "Không có yêu cầu đang mở"}>Khi võ sĩ hoặc HLV yêu cầu khám lại, yêu cầu sẽ hiện ở đây.</Empty>
             )}

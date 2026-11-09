@@ -1,4 +1,4 @@
-import { ArrowRight, CircleCheck, CircleX, FilePlus2, ShieldCheck, Stethoscope, TriangleAlert } from "lucide-react";
+import { CircleCheck, CircleDashed, CircleX, Clock, FilePlus2, ShieldCheck, Stethoscope, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,7 +7,11 @@ import { BodyPanel } from "@/components/doctor/body-panel";
 import { DECISION_OF, examLabel } from "@/components/doctor/exam-meta";
 import { FighterHead } from "@/components/doctor/fighter-head";
 import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_TYPE, DECISION, INJURY_STATUS, REQUESTER_ROLE, clearanceBadge, dayDiff, fmtDate, fmtDateTime, injuryName, injuryPlace, jointOf } from "@/components/doctor/labels";
-import { Panel, Pill, Restrictions, Vitals } from "@/components/doctor/ui";
+import { AvoidList, Panel, Pill, Restrictions, Vitals } from "@/components/doctor/ui";
+import { CardLink } from "@/components/dashboard/card-link";
+import { ButtonLink } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/states";
+import { TONE_TEXT } from "@/components/ui/tone";
 import { FlashToast } from "@/components/medical/flash-toast";
 import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-button";
 import type { ToastInput } from "@/components/ui/toast";
@@ -26,7 +30,25 @@ import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter } from "@/lib/services/people";
 import { listSuspensions } from "@/lib/services/suspensions";
 import { EarlyEndSuspensionButton } from "@/app/(app)/coach/bouts/suspensions/early-end-suspension-button";
-import { param } from "@/lib/utils";
+import { cn, param } from "@/lib/utils";
+
+/** Return-to-fight steps: tone, icon and the note's words carry the state. */
+const STEP = {
+    done: { tone: "success", icon: CircleCheck },
+    skip: { tone: "neutral", icon: CircleDashed },
+    current: { tone: "warning", icon: Clock },
+    blocked: { tone: "danger", icon: CircleX },
+} as const;
+const DECISION_LOOK = {
+    ELIGIBLE: { tone: "success", icon: CircleCheck },
+    ELIGIBLE_WITH_RESTRICTIONS: { tone: "warning", icon: TriangleAlert },
+    NOT_ELIGIBLE: { tone: "danger", icon: CircleX },
+} as const;
+/** Card lists: title and sub line on the left, the status badge on the right. */
+const LIST = "divide-y divide-border";
+const ITEM = "grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 py-3 text-sm first:pt-0 last:pb-0";
+const ITEM_SUB = "col-start-1 text-[13px] text-fg-muted";
+const ITEM_BADGE = "col-start-2 row-span-2 row-start-1 self-center";
 
 type Kind = "injury" | "review" | "expiry" | "followup" | "milestone" | "exam";
 const MAG: Record<Kind, number> = { injury: 8, review: 8, expiry: 7, followup: 6, milestone: 5, exam: 5 };
@@ -153,7 +175,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const decision = basis ? (basis.scope ? (dossier?.currentExaminations.TRAINING?.decision ?? DECISION_OF[basis.outcome]) : DECISION_OF[basis.outcome]) : null;
 
     return (
-        <div className="yt-page">
+        <div className="flex flex-col gap-6">
             <FlashToast notice={notice} cleanHref={hrefWith(pathname, query, { notice: null })} />
             <FighterHead
                 fighter={fighter}
@@ -162,107 +184,111 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                 tag={tag}
                 actions={
                     <>
-                        <Link href={`${routes.doctor.newExamination}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
-                            <FilePlus2 aria-hidden />
-                            {t("screens.doctor.newExamination")}
-                        </Link>
-                        <Link href={`${routes.doctor.grantClearance}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
+                        <ButtonLink href={`${routes.doctor.grantClearance}?fighter=${fighter.id}`} variant="secondary">
                             <ShieldCheck aria-hidden />
                             {t("screens.doctor.issueClearance")}
-                        </Link>
+                        </ButtonLink>
+                        <ButtonLink href={`${routes.doctor.newExamination}?fighter=${fighter.id}`}>
+                            <FilePlus2 aria-hidden />
+                            {t("screens.doctor.newExamination")}
+                        </ButtonLink>
                     </>
                 }
             />
 
             <Panel title={t("screens.doctor.fighter.ladder")} id="ladder" aside={t("screens.doctor.fighter.ladderAside")}>
-                <ol className="hs-ladder" style={{ ["--n" as string]: steps.length }}>
-                    {steps.map((s, i) => (
-                        <li key={s.key} className="hs-step" data-state={s.state} style={{ ["--i" as string]: i }}>
-                            <i aria-hidden />
-                            <b>{s.label}</b>
-                            <small>{s.note}</small>
-                        </li>
-                    ))}
+                <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:[grid-template-columns:repeat(var(--n),minmax(0,1fr))]" style={{ ["--n" as string]: steps.length }}>
+                    {steps.map((s) => {
+                        const look = STEP[s.state as keyof typeof STEP];
+                        const Icon = look.icon;
+                        return (
+                            <li key={s.key} data-state={s.state} className="flex min-w-0 items-start gap-2.5 rounded-lg bg-surface-muted px-3 py-2.5">
+                                <Icon aria-hidden className={cn("mt-0.5 size-[18px] shrink-0", TONE_TEXT[look.tone])} strokeWidth={2.25} />
+                                <span className="min-w-0">
+                                    <b className="block text-sm font-semibold text-fg">{s.label}</b>
+                                    <small className={cn("block text-[13px]", s.state === "blocked" || s.state === "current" ? cn("font-medium", TONE_TEXT[look.tone]) : "text-fg-muted")}>{s.note}</small>
+                                </span>
+                            </li>
+                        );
+                    })}
                 </ol>
             </Panel>
 
-            <div className="hs-grid">
+            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(300px,380px)_minmax(0,1fr)] min-[1361px]:grid-cols-[minmax(320px,400px)_minmax(0,1fr)_minmax(0,1fr)]">
                 <Panel title={t("screens.doctor.fighter.bodyMap")} id="body3d" aside={<span className="yt-drag-hint">{t("screens.doctor.fighter.dragToRotate")}</span>}>
                     <BodyPanel injuries={shownInjuries} excluded={excluded} height={500} abnormalHead={abnormalHead} />
                 </Panel>
-                <div className="hs-col">
+                <div className="flex min-w-0 flex-col gap-6">
                     <Panel
                         title={t("screens.doctor.fighter.injuries", { n: summary.activeInjuries.length })}
                         id="chan-thuong"
-                        aside={
-                            <Link className="yt-go" href={`${routes.doctor.injuries}?fighter=${fighter.id}`}>
-                                {t("screens.doctor.all")} <ArrowRight aria-hidden />
-                            </Link>
-                        }
+                        aside={<CardLink href={`${routes.doctor.injuries}?fighter=${fighter.id}`}>{t("screens.doctor.all")}</CardLink>}
                     >
                         {shownInjuries.length ? (
-                            <ul className="hs-inj">
+                            <ul className={LIST}>
                                 {shownInjuries.map((i) => (
-                                    <li key={i.id}>
-                                        <Link href={routes.doctor.injury(i.id)}>{injuryName(i)}</Link>
-                                        <small>
+                                    <li key={i.id} className={ITEM}>
+                                        <Link href={routes.doctor.injury(i.id)} className="font-semibold text-fg hover:underline">
+                                            {injuryName(i)}
+                                        </Link>
+                                        <small className={ITEM_SUB}>
                                             {injuryPlace(i)} · {fmtDate(i.occurredAt)}
                                         </small>
-                                        <Pill tone={INJURY_STATUS[i.status].tone}>{INJURY_STATUS[i.status].label}</Pill>
+                                        <span className={ITEM_BADGE}>
+                                            <Pill tone={INJURY_STATUS[i.status].tone}>{INJURY_STATUS[i.status].label}</Pill>
+                                        </span>
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <p className="yt-muted">{t("screens.doctor.fighter.noInjuries")}</p>
+                            <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.noInjuries")}</p>
                         )}
-                        <p style={{ marginTop: 12 }}>
-                            <Link className="yt-go" href={`${routes.doctor.newInjury}?fighter=${fighter.id}`}>
-                                {t("screens.doctor.fighter.recordInjury")} <ArrowRight aria-hidden />
-                            </Link>
+                        <p className="mt-3">
+                            <CardLink href={`${routes.doctor.newInjury}?fighter=${fighter.id}`} className="-ml-2">
+                                {t("screens.doctor.fighter.recordInjury")}
+                            </CardLink>
                         </p>
                     </Panel>
                     <Panel
                         title={t("screens.doctor.fighter.basis")}
                         id="can-cu"
-                        aside={
-                            basis ? (
-                                <Link className="yt-go" href={routes.doctor.examination(basis.id)}>
-                                    {t("screens.doctor.fighter.basisExam")} <ArrowRight aria-hidden />
-                                </Link>
-                            ) : undefined
-                        }
+                        aside={basis ? <CardLink href={routes.doctor.examination(basis.id)}>{t("screens.doctor.fighter.basisExam")}</CardLink> : undefined}
                     >
                         {basis && decision ? (
                             <>
-                                <p className="hs-decision" data-d={decision}>
-                                    {decision === "NOT_ELIGIBLE" ? <CircleX aria-hidden /> : decision === "ELIGIBLE" ? <CircleCheck aria-hidden /> : <TriangleAlert aria-hidden />}
+                                <p className={cn("flex items-center gap-2 text-base font-semibold", TONE_TEXT[DECISION_LOOK[decision].tone])} data-d={decision}>
+                                    {(() => {
+                                        const DIcon = DECISION_LOOK[decision].icon;
+                                        return <DIcon aria-hidden className="size-[18px] shrink-0" strokeWidth={2.25} />;
+                                    })()}
                                     {DECISION[decision].label}
                                 </p>
-                                <p className="hs-basis-meta">
+                                <p className="mt-0.5 mb-2 text-[13px] text-fg-muted">
                                     {examLabel(basis)}
                                     {basis.validUntil ? t("screens.doctor.fighter.validUntil", { date: fmtDate(basis.validUntil) }) : ""}
                                 </p>
-                                <p>{basis.summary}</p>
+                                <p className="text-sm text-fg">{basis.summary}</p>
                                 <Restrictions r={basis.decisionRestrictions} />
                                 {!basis.decisionRestrictions && summary.clearance?.restrictions.length ? (
-                                    <ul className="yt-chips" style={{ marginTop: 10 }}>
-                                        {summary.clearance.restrictions.flatMap((r) => r.blockedRegions).map((b) => (
-                                            <li key={b} data-tone="block">
-                                                {t("screens.doctor.avoid", { region: BODY_REGION[b].toLowerCase() })}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <AvoidList
+                                        items={summary.clearance.restrictions
+                                            .flatMap((r) => r.blockedRegions)
+                                            .map((b) => ({ key: b, label: t("screens.doctor.avoid", { region: BODY_REGION[b].toLowerCase() }) }))}
+                                    />
                                 ) : null}
                             </>
                         ) : (
-                            <div className="yt-empty" style={{ padding: 24 }}>
-                                <Stethoscope aria-hidden />
-                                <p className="yt-empty-t">{t("screens.doctor.fighter.noBasis")}</p>
-                                <p className="yt-empty-d">{t("screens.doctor.fighter.noBasisHint")}</p>
-                                <Link href={`${routes.doctor.newExamination}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
-                                    {t("screens.doctor.fighter.createBaseline")}
-                                </Link>
-                            </div>
+                            <EmptyState
+                                compact
+                                icon={<Stethoscope />}
+                                title={t("screens.doctor.fighter.noBasis")}
+                                description={t("screens.doctor.fighter.noBasisHint")}
+                                action={
+                                    <ButtonLink href={`${routes.doctor.newExamination}?fighter=${fighter.id}`} size="sm">
+                                        {t("screens.doctor.fighter.createBaseline")}
+                                    </ButtonLink>
+                                }
+                            />
                         )}
                     </Panel>
                     <Panel title={t("screens.doctor.fighter.vitals")} id="sinh-hieu" aside={withVitals ? fmtDate(withVitals.date) : undefined}>
@@ -270,12 +296,12 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                     </Panel>
                     <Panel title={suspensions ? t("screens.doctor.fighter.suspensionsCount", { n: suspensions.length }) : t("screens.doctor.fighter.suspensions")} id="dinh-chi">
                         {suspensions === null ? (
-                            <p className="yt-muted">{t("screens.doctor.fighter.suspensionsUnavailable")}</p>
+                            <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.suspensionsUnavailable")}</p>
                         ) : suspensions.length ? (
-                            <ul className="hs-clr">
+                            <ul className={LIST}>
                                 {suspensions.map((s) => (
-                                    <li key={s.id}>
-                                        <b>
+                                    <li key={s.id} className={ITEM}>
+                                        <b className="font-semibold text-fg">
                                             {t(
                                                 s.reason === "MEDICAL"
                                                     ? s.issuedBy === "ORGANIZER"
@@ -292,51 +318,45 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                             : "screens.doctor.fighter.suspension.other",
                                             )}
                                         </b>
-                                        <small>
+                                        <small className={ITEM_SUB}>
                                             {fmtDate(s.startsOn)} – {fmtDate(s.endsOn)}
                                             {s.issuedBy === "ORGANIZER" && s.issuerReference ? t("screens.doctor.fighter.suspension.organizerRef", { ref: s.issuerReference }) : ""}
                                         </small>
-                                        <Pill
-                                            tone={
-                                                s.status === "ACTIVE"
-                                                    ? "red"
-                                                    : s.status === "AWAITING_CLEARANCE"
-                                                      ? "amber"
-                                                      : s.status === "ENDED"
-                                                        ? "green"
-                                                        : "neutral"
-                                            }
-                                        >
-                                            {t(
-                                                s.status === "ACTIVE"
-                                                    ? "screens.doctor.fighter.suspension.active"
-                                                    : s.status === "AWAITING_CLEARANCE"
-                                                      ? "screens.doctor.fighter.suspension.awaitingClearance"
-                                                      : s.status === "ENDED"
-                                                        ? "screens.doctor.fighter.suspension.ended"
-                                                        : "screens.doctor.fighter.suspension.notStarted",
-                                            )}
-                                        </Pill>
+                                        <span className={ITEM_BADGE}>
+                                            <Pill
+                                                tone={
+                                                    s.status === "ACTIVE"
+                                                        ? "red"
+                                                        : s.status === "AWAITING_CLEARANCE"
+                                                          ? "amber"
+                                                          : s.status === "ENDED"
+                                                            ? "green"
+                                                            : "neutral"
+                                                }
+                                            >
+                                                {t(
+                                                    s.status === "ACTIVE"
+                                                        ? "screens.doctor.fighter.suspension.active"
+                                                        : s.status === "AWAITING_CLEARANCE"
+                                                          ? "screens.doctor.fighter.suspension.awaitingClearance"
+                                                          : s.status === "ENDED"
+                                                            ? "screens.doctor.fighter.suspension.ended"
+                                                            : "screens.doctor.fighter.suspension.notStarted",
+                                                )}
+                                            </Pill>
+                                        </span>
                                         {s.earlyEndExaminationId && (
-                                            <span style={{ gridColumn: "1 / -1", fontSize: "12px" }}>
-                                                <Link
-                                                    href={routes.doctor.examination(s.earlyEndExaminationId)}
-                                                    className="yt-go"
-                                                >
+                                            <span className="col-span-full">
+                                                <CardLink href={routes.doctor.examination(s.earlyEndExaminationId)} className="-ml-2">
                                                     {s.clearedAt
                                                         ? t("screens.doctor.fighter.suspension.endedEarlyOn", { date: fmtDate(s.clearedAt) })
-                                                        : t("screens.doctor.fighter.suspension.endedEarly")}{" "}
-                                                    <ArrowRight aria-hidden />
-                                                </Link>
+                                                        : t("screens.doctor.fighter.suspension.endedEarly")}
+                                                </CardLink>
                                             </span>
                                         )}
-                                        {s.liftReference && (
-                                            <span className="yt-muted" style={{ gridColumn: "1 / -1", fontSize: "12px" }}>
-                                                {t("screens.doctor.fighter.suspension.liftedBy", { ref: s.liftReference })}
-                                            </span>
-                                        )}
+                                        {s.liftReference && <span className="col-span-full text-xs text-fg-muted">{t("screens.doctor.fighter.suspension.liftedBy", { ref: s.liftReference })}</span>}
                                         {s.status === "ACTIVE" && s.reason === "MEDICAL" && s.issuedBy === "CLUB" && (
-                                            <span style={{ gridColumn: "1 / -1", marginTop: "4px" }}>
+                                            <span className="col-span-full mt-1">
                                                 <EarlyEndSuspensionButton
                                                     suspension={s}
                                                     fighterName={fighter.name}
@@ -347,7 +367,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                             </span>
                                         )}
                                         {s.status === "ACTIVE" && s.issuedBy === "ORGANIZER" && (
-                                            <span style={{ gridColumn: "1 / -1", marginTop: "4px" }}>
+                                            <span className="col-span-full mt-1">
                                                 <EarlyEndSuspensionButton
                                                     suspension={s}
                                                     fighterName={fighter.name}
@@ -361,11 +381,11 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                 ))}
                             </ul>
                         ) : (
-                            <p className="yt-muted">{t("screens.doctor.fighter.noSuspensions")}</p>
+                            <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.noSuspensions")}</p>
                         )}
                     </Panel>
                 </div>
-                <div className="hs-col hs-col3">
+                <div className="grid min-w-0 grid-cols-1 gap-6 lg:col-span-full lg:grid-cols-2 min-[1361px]:col-span-1 min-[1361px]:grid-cols-1">
                     <Panel title={t("screens.doctor.fighter.trajectory")} id="quy-dao" aside={t("screens.doctor.fighter.trajectoryAside")}>
                         <div className="tj" aria-hidden>
                             <span className="tj-axis" />
@@ -403,32 +423,26 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                 ))}
                             </ol>
                         ) : (
-                            <p className="yt-muted">{t("screens.doctor.fighter.noEvents")}</p>
+                            <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.noEvents")}</p>
                         )}
                     </Panel>
-                    <Panel
-                        title={t("screens.doctor.fighter.clearances")}
-                        id="giay-phep"
-                        aside={
-                            <Link className="yt-go" href={`${routes.doctor.clearance}?fighter=${fighter.id}`}>
-                                {t("screens.doctor.all")} <ArrowRight aria-hidden />
-                            </Link>
-                        }
-                    >
+                    <Panel title={t("screens.doctor.fighter.clearances")} id="giay-phep" aside={<CardLink href={`${routes.doctor.clearance}?fighter=${fighter.id}`}>{t("screens.doctor.all")}</CardLink>}>
                         {clearances.length ? (
-                            <ul className="hs-clr">
+                            <ul className={LIST}>
                                 {clearances.slice(0, 4).map((c) => {
                                     const s = clearanceBadge(c);
                                     const canRevoke = c.status === "active" && c.isCurrentlyValid !== false && c.level !== "not_cleared";
                                     return (
-                                        <li key={c.id} data-off={s.label !== "Hiệu lực"}>
-                                            <b>{c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]}</b>
-                                            <small>
+                                        <li key={c.id} className={ITEM} data-off={s.label !== "Hiệu lực"}>
+                                            <b className={s.label !== "Hiệu lực" ? "font-medium text-fg-muted" : "font-semibold text-fg"}>{c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]}</b>
+                                            <small className={ITEM_SUB}>
                                                 {fmtDate(c.issuedAt)} – {c.validUntil ? fmtDate(c.validUntil) : t("screens.doctor.fighter.noEnd")}
                                             </small>
-                                            <Pill tone={s.tone}>{s.label}</Pill>
+                                            <span className={ITEM_BADGE}>
+                                                <Pill tone={s.tone}>{s.label}</Pill>
+                                            </span>
                                             {canRevoke && (
-                                                <span style={{ gridColumn: "1 / -1" }}>
+                                                <span className="col-span-full">
                                                     <RevokeClearanceButton clearanceId={c.id} fighterId={fighter.id} fighterName={fighter.name} />
                                                 </span>
                                             )}
@@ -437,54 +451,44 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                 })}
                             </ul>
                         ) : (
-                            <p className="yt-muted">{t("screens.doctor.fighter.noClearances")}</p>
+                            <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.noClearances")}</p>
                         )}
                     </Panel>
                     <Panel
                         title={t("screens.doctor.fighter.reviews", { n: openReviews.length })}
                         id="yeu-cau"
-                        aside={
-                            <Link className="yt-go" href={`${routes.doctor.reviewRequests}?fighter=${fighter.id}`}>
-                                {t("screens.doctor.all")} <ArrowRight aria-hidden />
-                            </Link>
-                        }
+                        aside={<CardLink href={`${routes.doctor.reviewRequests}?fighter=${fighter.id}`}>{t("screens.doctor.all")}</CardLink>}
                     >
                         {openReviews.length ? (
-                            <ul className="hs-clr">
+                            <ul className={LIST}>
                                 {openReviews.map((r) => (
-                                    <li key={r.id}>
-                                        <b>{r.reason}</b>
-                                        <small>
+                                    <li key={r.id} className={ITEM}>
+                                        <b className="font-semibold text-fg">{r.reason}</b>
+                                        <small className={ITEM_SUB}>
                                             {REQUESTER_ROLE[r.requesterRole]} · {fmtDateTime(r.requestedAt)}
                                         </small>
-                                        <Pill tone="amber">{t("screens.doctor.fighter.reviewOpen")}</Pill>
+                                        <span className={ITEM_BADGE}>
+                                            <Pill tone="amber">{t("screens.doctor.fighter.reviewOpen")}</Pill>
+                                        </span>
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <p className="yt-muted">{t("screens.doctor.fighter.noReviews")}</p>
+                            <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.noReviews")}</p>
                         )}
                     </Panel>
                     {medicalFeatureAvailable("aiObservations") && (
-                        <Panel
-                            title={t("screens.doctor.fighter.observations")}
-                            id="quan-sat"
-                            aside={
-                                <Link className="yt-go" href={routes.doctor.aiAlerts}>
-                                    {t("screens.doctor.all")} <ArrowRight aria-hidden />
-                                </Link>
-                            }
-                        >
+                        <Panel title={t("screens.doctor.fighter.observations")} id="quan-sat" aside={<CardLink href={routes.doctor.aiAlerts}>{t("screens.doctor.all")}</CardLink>}>
                             {observations === null ? (
-                                <p className="yt-muted">{t("screens.doctor.fighter.observationsUnavailable")}</p>
+                                <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.observationsUnavailable")}</p>
                             ) : observations.length ? (
-                                <ul className="hs-clr">
+                                <ul className={LIST}>
                                     {observations.slice(0, 3).map((a) => (
-                                        <li key={a.id}>
-                                            <Link href={routes.doctor.aiAlert(a.id)}>
-                                                <b>{BODY_REGION[a.bodyRegion]}</b>
+                                        <li key={a.id} className={ITEM}>
+                                            <Link href={routes.doctor.aiAlert(a.id)} className="font-semibold text-fg hover:underline">
+                                                {BODY_REGION[a.bodyRegion]}
                                             </Link>
-                                            <small>
+                                            <small className={ITEM_SUB}>
                                                 {t("screens.doctor.fighter.observationRange", {
                                                     observed: a.metric.observed,
                                                     baseline: a.metric.baseline,
@@ -492,12 +496,14 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                     date: fmtDate(a.detectedAt),
                                                 })}
                                             </small>
-                                            <Pill tone={a.status === "new" ? "blue" : "neutral"}>{t(a.status === "new" ? "screens.doctor.fighter.observationNew" : "screens.doctor.fighter.observationSeen")}</Pill>
+                                            <span className={ITEM_BADGE}>
+                                                <Pill tone={a.status === "new" ? "blue" : "neutral"}>{t(a.status === "new" ? "screens.doctor.fighter.observationNew" : "screens.doctor.fighter.observationSeen")}</Pill>
+                                            </span>
                                         </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="yt-muted">{t("screens.doctor.fighter.noObservations")}</p>
+                                <p className="text-sm text-fg-muted">{t("screens.doctor.fighter.noObservations")}</p>
                             )}
                         </Panel>
                     )}

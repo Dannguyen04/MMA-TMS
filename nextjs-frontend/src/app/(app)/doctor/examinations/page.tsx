@@ -1,11 +1,14 @@
 import { FilePlus2 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { SegmentMotion } from "@/components/ui/segment-motion";
 
 import { examKind } from "@/components/doctor/exam-meta";
 import { OUTCOME, SCOPE, fmtDate } from "@/components/doctor/labels";
-import { Empty, ErrorBox, FighterFilter, Flash, PageHead, Panel, Pill } from "@/components/doctor/ui";
+import { CELL_SUB, Empty, ErrorBox, FighterFilter, Flash, PageHead, Pill, ROW, ROW_LINK, SUB_LINK } from "@/components/doctor/ui";
+import { ButtonLink } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { SegmentedLinks } from "@/components/ui/segmented-links";
+import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
@@ -16,7 +19,7 @@ import { routes } from "@/lib/routes";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listExaminations } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
-import { param } from "@/lib/utils";
+import { cn, param } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
@@ -60,103 +63,103 @@ export default async function DoctorExaminationsPage({ searchParams }: PageProps
         }
     }
     const hasScopes = all.some((e) => e.scope);
-    const seg = (k: string | undefined, l: string) => (
-        <Link href={`${routes.doctor.examinations}?${new URLSearchParams({ ...(fighterId && { fighter: fighterId }), ...(k && { scope: k }) })}`} aria-current={scope === k ? "page" : undefined}>
-            {l}
-        </Link>
-    );
+    const segHref = (k: string | undefined) => `${routes.doctor.examinations}?${new URLSearchParams({ ...(fighterId && { fighter: fighterId }), ...(k && { scope: k }) })}`;
     const newHref = `${routes.doctor.newExamination}${fighterId ? `?fighter=${fighterId}` : ""}`;
 
     return (
-        <div className="yt-page">
+        <div className="flex flex-col gap-6">
             <PageHead
                 title={t("doctor.examinations.title")}
                 sub={`${list.length} phiếu · mới nhất trước`}
                 actions={
-                    <Link href={newHref} className="yt-btn" data-v="primary">
+                    <ButtonLink href={newHref}>
                         <FilePlus2 aria-hidden />
                         Tạo phiếu khám
-                    </Link>
+                    </ButtonLink>
                 }
             />
             {failed > 0 && all.length > 0 && <Flash tone="amber" text={plural(t, "screens.doctor.examinations.partial", failed)} />}
             {roster === null && <Flash tone="amber" text={t("screens.doctor.examinations.namesUnavailable")} />}
-            <div className="yt-filters">
+            <div className="flex min-w-0 flex-wrap items-center gap-3">
                 {roster && <FighterFilter base={routes.doctor.examinations} fighters={fighters} current={fighterId} extra={{ scope }} />}
                 {hasScopes && (
-                    <SegmentMotion className="yt-segs" aria-label="Phạm vi">
-                        {seg(undefined, "Mọi phạm vi")}
-                        {seg("TRAINING", "Tập luyện")}
-                        {seg("COMPETITION", "Thi đấu")}
-                    </SegmentMotion>
+                    <SegmentedLinks
+                        label="Phạm vi"
+                        className="max-w-full"
+                        items={[
+                            { k: undefined, l: "Mọi phạm vi" },
+                            { k: "TRAINING", l: "Tập luyện" },
+                            { k: "COMPETITION", l: "Thi đấu" },
+                        ].map(({ k, l }) => ({ href: segHref(k), label: l, active: scope === k }))}
+                    />
                 )}
             </div>
-            <Panel id="bang">
-                {failed > 0 && all.length === 0 ? (
-                    <ErrorBox
-                        title={t("screens.doctor.examinations.failedTitle")}
-                        action={
-                            <Link href={`${routes.doctor.examinations}?${new URLSearchParams({ ...(fighterId && { fighter: fighterId }), ...(scope && { scope }) })}`} className="yt-btn">
-                                {t("screens.doctor.examinations.reload")}
-                            </Link>
-                        }
-                    >
-                        {t("screens.doctor.examinations.failedBody")}
-                    </ErrorBox>
-                ) : list.length === 0 ? (
-                    <Empty
-                        title="Chưa có phiếu khám"
-                        action={
-                            <Link href={newHref} className="yt-btn" data-v="primary">
-                                Tạo phiếu khám đầu tiên
-                            </Link>
-                        }
-                    >
-                        Không có phiếu khám nào khớp bộ lọc này.
-                    </Empty>
-                ) : (
-                    <div className="yt-tablewrap">
-                        <table className="yt-table xm-table">
-                            <thead>
-                                <tr>
-                                    <th>Ngày khám</th>
-                                    <th className="yt-hide-sm">Võ sĩ</th>
-                                    <th className="yt-hide-sm">Loại khám</th>
-                                    {hasScopes && <th className="yt-hide-sm">Phạm vi</th>}
-                                    <th>Kết luận</th>
-                                    <th className="yt-hide-sm">Hiệu lực đến</th>
-                                    <th className="yt-hide-sm">Tái khám</th>
-                                    <th className="yt-hide-sm">Tình trạng</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {list.map((e, i) => (
-                                    <tr key={e.id} style={{ ["--i" as string]: i }}>
-                                        <td>
-                                            <Link className="yt-rowlink" href={routes.doctor.examination(e.id)}>
-                                                {fmtDate(e.date)}
-                                            </Link>
-                                            {/* Dưới 768 px hai cột Võ sĩ và Loại khám ẩn đi, gộp thành một dòng ở đây để bảng vừa màn hình. */}
-                                            <small className="yt-only-sm">{`${nameOf.get(e.fighterId) ?? "Võ sĩ"} · ${e.type ? examKind(e) : "Không có chi tiết"}`}</small>
-                                        </td>
-                                        <td className="yt-hide-sm">
-                                            <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>{nameOf.get(e.fighterId) ?? "Võ sĩ"}</Link>
-                                        </td>
-                                        <td className="yt-hide-sm">{e.type ? examKind(e) : "Không có chi tiết"}</td>
-                                        {hasScopes && <td className="yt-hide-sm">{e.scope ? SCOPE[e.scope] : "—"}</td>}
-                                        <td>
-                                            <Pill tone={OUTCOME[e.outcome].tone}>{OUTCOME[e.outcome].label}</Pill>
-                                        </td>
-                                        <td className="yt-hide-sm">{e.validUntil ? fmtDate(e.validUntil) : <span className="yt-muted">Không giới hạn</span>}</td>
-                                        <td className="yt-hide-sm">{e.followUpDate ? fmtDate(e.followUpDate) : <span className="yt-muted">Không</span>}</td>
-                                        <td className="yt-hide-sm">{current.has(e.id) ? "Hiện hành" : <span className="yt-muted">Đã có phiếu mới hơn</span>}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
-            </Panel>
+            {failed > 0 && all.length === 0 ? (
+                <ErrorBox
+                    title={t("screens.doctor.examinations.failedTitle")}
+                    action={
+                        <ButtonLink href={`${routes.doctor.examinations}?${new URLSearchParams({ ...(fighterId && { fighter: fighterId }), ...(scope && { scope }) })}`} variant="secondary">
+                            {t("screens.doctor.examinations.reload")}
+                        </ButtonLink>
+                    }
+                >
+                    {t("screens.doctor.examinations.failedBody")}
+                </ErrorBox>
+            ) : list.length === 0 ? (
+                <Empty
+                    title="Chưa có phiếu khám"
+                    action={
+                        <ButtonLink href={newHref}>
+                            Tạo phiếu khám đầu tiên
+                        </ButtonLink>
+                    }
+                >
+                    Không có phiếu khám nào khớp bộ lọc này.
+                </Empty>
+            ) : (
+                <Card className="overflow-hidden">
+                    <Table>
+                        <THead>
+                            <tr>
+                                <TH>Ngày khám</TH>
+                                <TH className="max-md:hidden">Võ sĩ</TH>
+                                <TH className="max-md:hidden">Loại khám</TH>
+                                {hasScopes && <TH className="max-md:hidden">Phạm vi</TH>}
+                                <TH>Kết luận</TH>
+                                <TH className="max-md:hidden">Hiệu lực đến</TH>
+                                <TH className="max-md:hidden">Tái khám</TH>
+                                <TH className="max-md:hidden">Tình trạng</TH>
+                            </tr>
+                        </THead>
+                        <TBody>
+                            {list.map((e) => (
+                                <TR key={e.id} className={ROW}>
+                                    <TD>
+                                        <Link className={ROW_LINK} href={routes.doctor.examination(e.id)}>
+                                            {fmtDate(e.date)}
+                                        </Link>
+                                        {/* Dưới 768 px hai cột Võ sĩ và Loại khám ẩn đi, gộp thành một dòng ở đây để bảng vừa màn hình. */}
+                                        <small className={cn(CELL_SUB, "md:hidden")}>{`${nameOf.get(e.fighterId) ?? "Võ sĩ"} · ${e.type ? examKind(e) : "Không có chi tiết"}`}</small>
+                                    </TD>
+                                    <TD className="max-md:hidden">
+                                        <Link className={SUB_LINK} href={routes.doctor.fighter(e.fighterId)}>
+                                            {nameOf.get(e.fighterId) ?? "Võ sĩ"}
+                                        </Link>
+                                    </TD>
+                                    <TD className="max-md:hidden">{e.type ? examKind(e) : "Không có chi tiết"}</TD>
+                                    {hasScopes && <TD className="max-md:hidden">{e.scope ? SCOPE[e.scope] : "—"}</TD>}
+                                    <TD>
+                                        <Pill tone={OUTCOME[e.outcome].tone}>{OUTCOME[e.outcome].label}</Pill>
+                                    </TD>
+                                    <TD className="max-md:hidden">{e.validUntil ? fmtDate(e.validUntil) : <span className="text-fg-muted">Không giới hạn</span>}</TD>
+                                    <TD className="max-md:hidden">{e.followUpDate ? fmtDate(e.followUpDate) : <span className="text-fg-muted">Không</span>}</TD>
+                                    <TD className="max-md:hidden">{current.has(e.id) ? "Hiện hành" : <span className="text-fg-muted">Đã có phiếu mới hơn</span>}</TD>
+                                </TR>
+                            ))}
+                        </TBody>
+                    </Table>
+                </Card>
+            )}
         </div>
     );
 }

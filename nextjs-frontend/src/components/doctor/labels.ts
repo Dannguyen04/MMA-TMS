@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react";
-
 import type { BodyJoint, ClearanceType, EligibilityReason, ExaminationDecision, ExaminationScope, MedicalReviewRequest, SessionType, TechniqueType } from "@/lib/domain/medical-contract";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type {
@@ -100,20 +98,6 @@ export function clearanceCardTone(level: ClearanceLevel): "red" | "amber" | "gre
     if (level === "not_cleared") return "red";
     if (level === "restricted") return "amber";
     return "green";
-}
-
-const STATUS_RAIL = {
-    red: ["--danger-solid", "--danger-fg"],
-    amber: ["--warning-solid", "--warning-fg"],
-    green: ["--success-solid", "--success-fg"],
-    blue: ["--primary", "--primary-soft-fg"],
-    neutral: ["--fg-muted", "--fg-muted"],
-} as const;
-
-/** Inline custom properties so the rail and header paint even if an attribute selector loses the cascade. */
-export function statusCardVars(tone: keyof typeof STATUS_RAIL): CSSProperties {
-    const [rail, fg] = STATUS_RAIL[tone];
-    return { "--rail": `var(${rail})`, "--status-fg": `var(${fg})` } as CSSProperties;
 }
 
 export function recoveryCardTone(status: RecoveryPlanStatus): "blue" | "green" | "amber" | "neutral" {
