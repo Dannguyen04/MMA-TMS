@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { BodyMap, type BodyMapHighlight } from "@/components/domain/body-map";
-import { useT } from "@/components/i18n/locale-provider";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import type { BodyRegion } from "@/lib/domain/types";
 import { BODY_MODEL_CREDIT } from "./model";
 import { EXCLUDED_COLOR, STATUS_COLOR, STATUS_TEXT, buildJointRows, paintExcluded, paintRegions, type PaintStatus } from "./regions";
@@ -33,6 +33,7 @@ export type BodyInjury = { affectedJoint: string; status: string; injuryType: st
 
 export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { injuries: readonly BodyInjury[]; excludedJoints?: readonly string[]; height?: number }) {
   const t = useT();
+  const locale = useLocale();
   const rows = useMemo(() => buildJointRows(t, injuries, [], (s) => s, (s) => s), [t, injuries]);
   const paint = useMemo(() => paintExcluded(paintRegions(rows), excludedJoints), [rows, excludedJoints]);
   const [mode, setMode] = useState<"pending" | "3d" | "fallback">("pending");
@@ -86,7 +87,7 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
       ...rows.filter((r) => r.mapped && r.status).map((r) => ({ region: TO_2D(r.joint)!, tone: TONE[r.status!], label: `${r.label} · ${r.statusText}${r.detail ? ` · ${r.detail}` : ""}` })),
       ...excludedJoints.filter((j) => !rows.some((r) => r.joint === j)).map((j) => ({ region: TO_2D(j)!, tone: "warning" as const, label: t("doctorUi.body.excluded") })),
     ];
-    return <div className="b3-fallback" data-mode="fallback"><BodyMap highlights={hl} size="md" /></div>;
+    return <div className="b3-fallback" data-mode="fallback"><BodyMap highlights={hl} size="md" locale={locale} /></div>;
   }
 
   return (

@@ -89,7 +89,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
     const recoveryInjury = recovery ? injuries.find((injury) => injury.id === recovery.plan.injuryId) : undefined;
     const resolvedCount = injuries.filter((injury) => injury.status === "resolved").length;
     const followUp = health.nextFollowUp;
-    const highlights = injuryHighlights(injuries, now);
+    const highlights = injuryHighlights(injuries, now, locale);
 
     const status = (
         <TwoColumns
