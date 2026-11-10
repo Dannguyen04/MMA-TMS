@@ -1,12 +1,13 @@
 import { CalendarPlus, CalendarRange } from "lucide-react";
 import Link from "next/link";
 
-import { ClearanceBadge, SessionStatusBadge } from "@/components/domain/status-badges";
+import { ClearanceBadge, SessionStatusBadge, SuspensionStateBadge } from "@/components/domain/status-badges";
 import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
 import { Avatar } from "@/components/ui/avatar";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
+import type { SuspensionState } from "@/lib/domain/bout-suspension-rules";
 import type { ClearanceState } from "@/lib/domain/rules";
 import type { TrainingSession } from "@/lib/domain/types";
 import { formatMinutes, formatTime } from "@/lib/format";
@@ -19,7 +20,7 @@ import { CardLink } from "./card-link";
 export interface TodayScheduleProps {
     /** Today's roster sessions, earliest first. */
     sessions: TrainingSession[];
-    fighters: Record<string, { name: string; clearanceState: ClearanceState }>;
+    fighters: Record<string, { name: string; clearanceState: ClearanceState; suspensionState?: SuspensionState }>;
     /** The viewer's language; English when omitted. */
     t?: Translator;
     locale?: Locale;
@@ -40,7 +41,7 @@ export function TodaySchedule({ sessions, fighters, t = createTranslator("en"), 
                         : [t("schedule.planned", { n: active }), active === sessions.length ? null : t("schedule.cancelled", { n: sessions.length - active })].filter(Boolean).join(" · ")
                 }
                 icon={<CalendarRange />}
-                action={<CardLink href={routes.coach.sessions}>{t("schedule.week")}</CardLink>}
+                action={<CardLink href={routes.coach.sessions} className="min-h-11">{t("schedule.week")}</CardLink>}
             />
             {sessions.length === 0 ? (
                 <EmptyState
@@ -92,6 +93,7 @@ export function TodaySchedule({ sessions, fighters, t = createTranslator("en"), 
                                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                                         <SessionStatusBadge status={session.status} size="sm" locale={locale} />
                                         {fighter && <ClearanceBadge state={fighter.clearanceState} size="sm" locale={locale} />}
+                                        {fighter?.suspensionState === "ACTIVE" && <SuspensionStateBadge state="ACTIVE" size="sm" locale={locale} />}
                                     </div>
                                 </div>
                             </li>

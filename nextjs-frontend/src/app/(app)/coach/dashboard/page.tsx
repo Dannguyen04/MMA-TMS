@@ -1,42 +1,37 @@
-import { CalendarPlus, ClipboardPlus } from "lucide-react";
+import { CalendarDays, ShieldCheck, Swords } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 
 import { buildCoachAttention, coachQueueMeta, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
 import { firstName, greetingKey } from "@/components/dashboard/dashboard-utils";
 import { QueueCard } from "@/components/dashboard/queue-card";
 import { loadRoster } from "@/components/dashboard/roster-data";
 import { TodaySchedule } from "@/components/dashboard/today-schedule";
+import { WeekAgenda } from "@/components/domain/week-agenda";
 import { weekStartKey } from "@/components/training/training-utils";
-import { CardLink } from "@/components/dashboard/card-link";
-import { Gate1Badge, WeightStatusBadge } from "@/components/domain/status-badges";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { academyDateOf } from "@/lib/domain/suspension-rules";
 import { academyDayStartIso, addDaysToKey, DAY_MS, dayKey, formatShortDate, formatWeekdayDate } from "@/lib/format";
-
-import { hrefWith, parseEnum } from "@/lib/query";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural } from "@/lib/i18n/translate";
+import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
-import { requirementsDueOn, requirementsDueSoon, requirementsOverdue } from "@/lib/domain/bout-rules";
-import { adherenceAlertLine } from "@/lib/domain/nutrition";
 import { getSettings } from "@/lib/services/admin";
-import { listCampBouts, listWeightAlerts } from "@/lib/services/bouts";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
-import { getCoachTodo } from "@/lib/services/bouts";
-
+import { getCoachTodo, listCampBouts } from "@/lib/services/bouts";
 import { listGoals } from "@/lib/services/goals";
 import { listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getNavBadgeCounts } from "@/lib/services/shell";
+import { listSuspensions } from "@/lib/services/suspensions";
 import { listPlans, listSessions } from "@/lib/services/training";
 import { listReviewQueue } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
-import { CoachTodoCard } from "./coach-todo-card";
-
+import { CoachHero } from "./coach-hero";
+import { activeSuspensionLines, CoachTodoCard } from "./coach-todo-card";
 
 export async function generateMetadata(): Promise<Metadata> {
     const { t } = await getTranslator();
@@ -46,9 +41,8 @@ export async function generateMetadata(): Promise<Metadata> {
 const MISSED_WINDOW_DAYS = 7;
 
 /**
- * The coach's Today page answers one question: what needs me now? One corner queue, filterable by group, and
- * today's schedule beside it. The queue also carries the coach's hand-off of fighters cleared to train who still need
- * a plan; bouts that need a look sit above it. Roster trends, volume and feedback live in their own hubs.
+ * The coach's Today page answers one question: what needs me now? The camp hero (nearest weigh-in, camp figures) leads;
+ * bout tasks and active suspensions sit above the corner queue, today's schedule beside them, and the week below.
  */
 export default async function CoachDashboardPage({ searchParams }: PageProps<"/coach/dashboard">) {
     const user = await requireRole("coach");
@@ -64,8 +58,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans, weightAlerts, bouts, todo] = await Promise.all([
-
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans, suspensions, todo, bouts] = await Promise.all([
         fighterList,
         loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
@@ -76,18 +69,15 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         getSettings(),
         // Every status, so a fighter whose only plan is a draft is told to finish it rather than start another.
         listPlans({ fighterIds: scope }),
-        listWeightAlerts(scope, new Date(now)),
-        listCampBouts(scope),
-        // The to-do card (T-029). Without the bouts service it is left out.
+        nullIfServiceFails(listSuspensions(scope === "all" ? {} : { fighterIds: scope }, user)),
         nullIfServiceFails(getCoachTodo(scope)),
-
+        nullIfServiceFails(listCampBouts(scope)),
     ]);
-    // F4: from 14 days before the documents deadline, bouts with required documents still missing.
-    const documentsDue = bouts
-        .map((bout) => ({ bout, missing: requirementsDueSoon(bout, today) }))
-        .filter((row) => row.missing.length > 0)
-        .sort((a, b) => (requirementsDueOn(a.bout) < requirementsDueOn(b.bout) ? -1 : 1));
+
     const fighterNames = new Map(fighters.map((fighter) => [fighter.id, fighter.name]));
+    const suspensionLines = activeSuspensionLines(suspensions ?? [], academyDateOf(now));
+    const suspendedIds = new Set(suspensionLines.map((line) => line.fighterId));
+
     // Without a per-analysis queue (API mode), the navigation's review count still says how many are waiting.
     const reviewCount = reviewQueue.length === 0 ? ((await getNavBadgeCounts(user)).reviewQueue ?? 0) : 0;
 
@@ -110,7 +100,12 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
 
     const todaySessions = weekSessions.filter((session) => session.scheduledAt >= todayStart && session.scheduledAt < tomorrowStart);
     const todayActive = todaySessions.filter((session) => session.status !== "cancelled");
-    const scheduleFighters = Object.fromEntries(roster.map((entry) => [entry.fighter.id, { name: entry.fighter.name, clearanceState: entry.clearanceState }]));
+    const scheduleFighters = Object.fromEntries(
+        roster.map(({ fighter, clearanceState }) => [
+            fighter.id,
+            { name: fighter.name, clearanceState, ...(suspendedIds.has(fighter.id) ? { suspensionState: "ACTIVE" as const } : {}) },
+        ]),
+    );
 
     return (
         <>
@@ -123,96 +118,70 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                 })}
                 actions={
                     <>
-                        <ButtonLink href={routes.coach.newPlan} variant="secondary">
-                            <ClipboardPlus aria-hidden />
-                            {t("coachToday.newPlan")}
+                        <ButtonLink href={routes.coach.readiness} variant="secondary" className="min-h-11">
+                            <ShieldCheck aria-hidden />
+                            {t("coachToday.readiness")}
                         </ButtonLink>
-                        <ButtonLink href={routes.coach.newSession}>
-                            <CalendarPlus aria-hidden />
-                            {t("coachToday.scheduleSession")}
+                        <ButtonLink href={routes.coach.newBout} className="min-h-11">
+                            <Swords aria-hidden />
+                            {t("coachToday.newBout")}
                         </ButtonLink>
                     </>
                 }
             />
 
-            {(weightAlerts.length > 0 || documentsDue.length > 0) && (
-                <div className="mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
-                    {weightAlerts.length > 0 && (
-                        <Card className="min-w-0">
-                            <CardHeader
-                                title={t("coachBouts.dashboard.weightAlerts")}
-                                description={t("coachBouts.dashboard.weightAlertsHint")}
-                                action={<CardLink href={routes.coach.bouts}>{t("coachBouts.dashboard.allBouts")}</CardLink>}
-                            />
-                            <CardContent>
-                                <ul className="divide-y divide-border">
-                                    {weightAlerts.map((alert) => (
-                                        <li key={alert.bout.id}>
-                                            <Link href={routes.coach.bout(alert.bout.id)} className="flex min-h-11 items-center justify-between gap-3 py-3">
-                                                <span className="min-w-0">
-                                                    <span className="block font-medium text-fg">{alert.fighterName}</span>
-                                                    <span className="block truncate text-sm text-fg-muted">{alert.bout.event}</span>
-                                                    {alert.wayOff > 0 && (alert.track.status === "OVER_LIMIT" || alert.track.status === "ABOVE_TARGET") && (
-                                                        <span className="block text-sm text-fg-muted">{adherenceAlertLine(alert.wayOff, t)}</span>
-                                                    )}
-                                                </span>
-                                                <WeightStatusBadge status={alert.track.status} locale={locale} />
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    )}
-                    {documentsDue.length > 0 && (
-                        <Card className="min-w-0">
-                            <CardHeader
-                                title={t("coachBouts.dashboard.documentsDue")}
-                                description={t("coachBouts.dashboard.documentsDueHint")}
-                                action={weightAlerts.length === 0 ? <CardLink href={routes.coach.bouts}>{t("coachBouts.dashboard.allBouts")}</CardLink> : undefined}
-                            />
-                            <CardContent>
-                                <ul className="divide-y divide-border">
-                                    {documentsDue.map(({ bout, missing }) => (
-                                        <li key={bout.id}>
-                                            <Link href={routes.coach.bout(bout.id)} className="flex min-h-11 items-center justify-between gap-3 py-3">
-                                                <span className="min-w-0">
-                                                    <span className="block font-medium text-fg">{fighterNames.get(bout.fighterId) ?? t("coachBouts.common.fighterFallback")}</span>
-                                                    <span className="block truncate text-sm text-fg-muted">
-                                                        {bout.event} · {t("coachBouts.dashboard.due", { date: formatShortDate(academyDayStartIso(requirementsDueOn(bout)), locale) })}
-                                                    </span>
-                                                    <span className="block text-sm text-fg-muted">{missing.map((gap) => gap.requirement.label).join(", ")}</span>
-                                                </span>
-                                                <Gate1Badge missing={missing.length} overdue={requirementsOverdue(bout, today)} locale={locale} />
-                                            </Link>
-                                        </li>
-                                    ))}
-                                </ul>
-                            </CardContent>
-                        </Card>
-                    )}
-                </div>
-            )}
-
-            <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                <QueueCard
-                    title={t("coachToday.queueTitle")}
-                    filterLabel={t("coachToday.queueFilter")}
-                    items={attention}
-                    queues={queues}
-                    meta={coachQueueMeta(t)}
-                    active={queue}
-                    hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
-                    emptyAll={{ title: t("coachToday.emptyTitle"), description: t("coachToday.emptyText") }}
+            <div className="flex flex-col gap-6">
+                <CoachHero
+                    bouts={bouts}
+                    suspensions={suspensionLines}
+                    roster={roster}
+                    todaySessions={todaySessions}
+                    fighterNames={fighterNames}
+                    now={now}
                     t={t}
-                    className="lg:col-span-2"
+                    locale={locale}
                 />
 
-                <div className="flex min-w-0 flex-col gap-6">
-                    {todo && <CoachTodoCard todo={todo} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} t={t} locale={locale} />}
+                <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                    <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
+                        <CoachTodoCard todo={todo} suspensions={suspensionLines} fighterNames={fighterNames} t={t} locale={locale} />
+                        <QueueCard
+                            title={t("coachToday.queueTitle")}
+                            filterLabel={t("coachToday.queueFilter")}
+                            items={attention}
+                            queues={queues}
+                            meta={coachQueueMeta(t)}
+                            active={queue}
+                            hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
+                            emptyAll={{ title: t("coachToday.emptyTitle"), description: t("coachToday.emptyText") }}
+                            t={t}
+                        />
+                    </div>
 
                     <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
                 </div>
+
+                <Card className="min-w-0">
+                    <CardHeader
+                        title={t("fighterToday.weekTitle")}
+                        description={t("fighterToday.weekDescription", {
+                            start: formatShortDate(weekStart, locale),
+                            end: formatShortDate(addDaysToKey(weekKey, 6), locale),
+                            sessions: plural(t, "coachToday.sessions", weekSessions.filter((session) => session.status !== "cancelled").length),
+                        })}
+                        icon={<CalendarDays />}
+                    />
+                    <CardContent>
+                        <WeekAgenda
+                            sessions={weekSessions}
+                            startDate={weekStart}
+                            now={now}
+                            getHref={(session) => routes.coach.session(session.id)}
+                            fightersById={Object.fromEntries(roster.map(({ fighter }) => [fighter.id, fighter]))}
+                            locale={locale}
+                        />
+                    </CardContent>
+                </Card>
             </div>
         </>
     );

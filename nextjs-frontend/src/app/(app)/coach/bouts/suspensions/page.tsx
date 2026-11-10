@@ -126,7 +126,8 @@ export default async function CoachSuspensionsPage({
                         return (
                             <div
                                 key={suspension.id}
-                                className="flex flex-col gap-4 p-4 hover:bg-surface-muted/20 transition-colors sm:p-5"
+                                id={`suspension-${suspension.id}`}
+                                className="scroll-mt-20 flex flex-col gap-4 p-4 hover:bg-surface-muted/20 transition-colors sm:p-5"
                             >
                                 <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto_auto] items-start lg:items-center gap-4">
                                     {/* Col 1: Avatar, Name, Reason, Bout, Dates & Progress */}
