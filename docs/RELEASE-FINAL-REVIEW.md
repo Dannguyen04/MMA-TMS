@@ -106,5 +106,5 @@ Claude sửa sau khi gộp, chỉ trong `doctor.css`: 4 màn tràn ngang ở 390
 - Bảng nằm thẳng trên trang không còn lấn lề.
 
 Việc còn mở, báo Fon:
-- **T-059 mất:** `/doctor/examinations` đọc phiếu khám bằng `Promise.all`. Ở API mode, một võ sĩ đọc lỗi là cả trang hiện màn lỗi. Bản cũ chỉ để trống phần đó và báo.
+- **T-059:** đã đưa lại vào `components/doctor/views/examinations-view.tsx` cùng ngày: phiếu khám đọc riêng từng võ sĩ, một võ sĩ lỗi chỉ để trống phần đó và báo; tất cả lỗi thì hiện khung lỗi có nút Tải lại; danh sách võ sĩ lỗi thì ẩn bộ lọc. 6 test của T-059 chạy trên view mới.
 - Màn bác sĩ viết cứng tiếng Việt và đặt `lang="vi"`, nên không dịch theo ngôn ngữ người dùng.

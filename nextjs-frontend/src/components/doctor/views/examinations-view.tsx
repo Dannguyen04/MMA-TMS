@@ -3,25 +3,44 @@ import Link from "next/link";
 
 import { examKind } from "@/components/doctor/exam-meta";
 import { OUTCOME, SCOPE, fmtDate } from "@/components/doctor/labels";
-import { Empty, FighterFilter, Panel, Pill } from "@/components/doctor/ui";
+import { Empty, ErrorBox, FighterFilter, Flash, Panel, Pill } from "@/components/doctor/ui";
 
 import { ListHead } from "./list-head";
 import { accessibleFighterIds, canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import type { ExaminationScope } from "@/lib/domain/medical-contract";
+import type { MedicalExamination } from "@/lib/domain/types";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listExaminations } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { param } from "@/lib/utils";
 
+/**
+ * Phiếu khám của từng võ sĩ đọc riêng (T-059): dịch vụ y tế lỗi hoặc chậm với một võ sĩ thì chỉ thiếu phiếu của võ sĩ đó,
+ * không làm sập cả trang. Phạm vi vẫn là các võ sĩ được giao; phiên hết hạn vẫn ném lỗi như cũ.
+ */
+async function readExaminations(fighterIds: string[] | "all"): Promise<{ list: MedicalExamination[]; failed: number }> {
+    const reads = fighterIds === "all" ? [listExaminations({ fighterIds })] : fighterIds.map((id) => listExaminations({ fighterIds: [id] }));
+    const results = await Promise.all(reads.map((read) => nullIfServiceFails(read)));
+    // Mới nhất trước, như từng danh sách của dịch vụ; sort ổn định nên phiếu cùng ngày của một võ sĩ giữ thứ tự gốc.
+    const list = results.flatMap((result) => result ?? []).sort((a, b) => b.date.localeCompare(a.date));
+    return { list, failed: results.filter((result) => result === null).length };
+}
+
 /** Phiếu khám của mọi võ sĩ được giao: ghép `GET /fighters/:id/medical-examinations` từng võ sĩ (chưa có danh sách theo bác sĩ). */
 export async function ExaminationsView({ query, fighterId: scopedId }: { query: Record<string, string | string[] | undefined>; fighterId?: string }) {
+    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     const requested = scopedId ?? param(query.fighter);
     const fighterId = requested && canAccessFighter(user, requested) ? requested : undefined;
     const scopeParam = param(query.scope);
     const scope: ExaminationScope | undefined = scopeParam === "TRAINING" || scopeParam === "COMPETITION" ? scopeParam : undefined;
-    const [fighters, all] = await Promise.all([listFighters(user), listExaminations({ fighterIds: fighterId ? [fighterId] : accessibleFighterIds(user) })]);
+    // Danh sách võ sĩ chỉ để hiện tên và bộ lọc: đọc hỏng thì trang vẫn hiện phiếu khám.
+    const [roster, { list: all, failed }] = await Promise.all([nullIfServiceFails(listFighters(user)), readExaminations(fighterId ? [fighterId] : accessibleFighterIds(user))]);
+    const fighters = roster ?? [];
     const nameOf = new Map(fighters.map((f) => [f.id, f.name]));
     const list = all.filter((e) => !scope || e.scope === scope);
     // "Hiện hành": phiếu mới nhất của mỗi võ sĩ trong cùng phạm vi (như findCurrentExamination của backend).
@@ -57,8 +76,10 @@ export async function ExaminationsView({ query, fighterId: scopedId }: { query: 
                     </Link>
                 }
             />
+            {failed > 0 && all.length > 0 && <Flash text={plural(t, "screens.doctor.examinations.partial", failed)} />}
+            {roster === null && <Flash text={t("screens.doctor.examinations.namesUnavailable")} />}
             <div className="yt-filters">
-                {!scopedId && <FighterFilter base={routes.doctor.examinations} fighters={fighters} current={fighterId} extra={{ scope }} />}
+                {!scopedId && roster && <FighterFilter base={routes.doctor.examinations} fighters={fighters} current={fighterId} extra={{ scope }} />}
                 {hasScopes && (
                     <nav className="yt-segs" aria-label="Phạm vi">
                         {seg(undefined, "Mọi phạm vi")}
@@ -68,7 +89,18 @@ export async function ExaminationsView({ query, fighterId: scopedId }: { query: 
                 )}
             </div>
             <Panel id="bang">
-                {list.length === 0 ? (
+                {failed > 0 && all.length === 0 ? (
+                    <ErrorBox
+                        title={t("screens.doctor.examinations.failedTitle")}
+                        action={
+                            <Link href={`${base}?${new URLSearchParams({ ...(fighterId && !scopedId && { fighter: fighterId }), ...(scope && { scope }) })}`} className="yt-btn">
+                                {t("screens.doctor.examinations.reload")}
+                            </Link>
+                        }
+                    >
+                        {t("screens.doctor.examinations.failedBody")}
+                    </ErrorBox>
+                ) : list.length === 0 ? (
                     <Empty
                         title="Chưa có phiếu khám"
                         action={
