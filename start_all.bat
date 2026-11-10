@@ -83,6 +83,22 @@ if defined CHECK_ONLY (
     exit /b 0
 )
 
+rem Choose the frontend data mode. demo = port 3000, api = port 3100 (real backend data).
+echo Choose the frontend mode:
+echo   [1] Demo - http://localhost:3000 (demo data, no real login)
+echo   [2] API  - http://localhost:3100 (real backend data, real account login)
+choice /C 12 /N /M "Enter 1 or 2: "
+if errorlevel 2 goto :mode_api
+set "APP_MODE=demo"
+set "FRONT_PORT=3000"
+goto :mode_done
+:mode_api
+set "APP_MODE=api"
+set "FRONT_PORT=3100"
+:mode_done
+echo     Frontend mode: %APP_MODE% (port %FRONT_PORT%)
+echo.
+
 rem Redis: reuse an existing instance, find a native binary, or use Docker.
 echo [1/4] Checking Redis on port 6379...
 call :port_open 6379
@@ -177,16 +193,16 @@ echo     Python worker process launched.
 echo.
 
 rem Next.js frontend.
-echo [4/4] Checking Next.js frontend on port 3000...
-call :port_open 3000
+echo [4/4] Checking Next.js frontend on port %FRONT_PORT%...
+call :port_open %FRONT_PORT%
 if not errorlevel 1 (
     echo     Next.js frontend is already running.
 ) else (
-    echo     Starting Next.js frontend...
-    start "MMA-TMS: Next.js Frontend (Port 3000)" /D "%FRONTEND_DIR%" cmd /k "%PNPM_CMD% run dev"
-    call :wait_for_port 3000 30
+    echo     Starting Next.js frontend in %APP_MODE% mode...
+    start "MMA-TMS: Next.js Frontend (Port %FRONT_PORT%)" /D "%FRONTEND_DIR%" cmd /k "set APP_DATA_MODE=%APP_MODE%&& %PNPM_CMD% run dev --port %FRONT_PORT%"
+    call :wait_for_port %FRONT_PORT% 30
     if errorlevel 1 (
-        echo [ERROR] Next.js frontend did not become ready on port 3000 within 30 seconds.
+        echo [ERROR] Next.js frontend did not become ready on port %FRONT_PORT% within 30 seconds.
         echo Review the Next.js frontend window for the actual startup error.
         goto :failed
     )
@@ -196,7 +212,7 @@ if not errorlevel 1 (
 echo.
 echo ============================================================
 echo MMA-TMS services are ready.
-echo Frontend:       http://localhost:3000
+echo Frontend:       http://localhost:%FRONT_PORT% (%APP_MODE% mode)
 echo Backend API:    http://localhost:3001
 echo Swagger UI:     http://localhost:3001/docs
 echo OpenAPI JSON:   http://localhost:3001/docs-json

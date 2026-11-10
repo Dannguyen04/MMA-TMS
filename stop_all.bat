@@ -19,6 +19,7 @@ taskkill /F /FI "WINDOWTITLE eq MMA-TMS: Redis Server*" 2>nul
 echo [3/3] Giải phóng các cổng 3000, 3001 nếu còn tiến trình chiếm dụng...
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING') do taskkill /F /PID %%a 2>nul
 for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3000 ^| findstr LISTENING') do taskkill /F /PID %%a 2>nul
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3100 ^| findstr LISTENING') do taskkill /F /PID %%a 2>nul
 
 echo.
 echo ✅ Đã dừng toàn bộ dịch vụ MMA-TMS và giải phóng cổng mạng!
