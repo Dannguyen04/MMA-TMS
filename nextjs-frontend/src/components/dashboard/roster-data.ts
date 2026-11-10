@@ -3,10 +3,13 @@ import "server-only";
 import { cache } from "react";
 
 import { accessibleFighterIds, requireFighterAccess } from "@/lib/auth/access";
+import type { CampBout } from "@/lib/domain/bout";
 import type { MedicalEligibility } from "@/lib/domain/medical-contract";
 import { clearanceDaysRemaining, type ClearanceConflict, type ClearanceState } from "@/lib/domain/rules";
-import type { Fighter, MedicalClearance, TrainingSession, User } from "@/lib/domain/types";
+import type { Fighter, MedicalClearance, TrainingSession, UpcomingBout, User } from "@/lib/domain/types";
 import { DAY_MS } from "@/lib/format";
+import { nullIfServiceFails } from "@/lib/services/api-helpers";
+import { listCampBouts } from "@/lib/services/bouts";
 import { getClearanceStatus } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { getPerformanceHistory, getTeamPerformance, overallScore, type TeamPerformanceRow } from "@/lib/services/performance";
@@ -79,8 +82,20 @@ export const loadRosterEntry = cache(async (user: User, fighterId: string): Prom
     return entry;
 });
 
+/**
+ * The fighter's next bout from the bouts service, when the profile itself names none. In API mode the profile's
+ * upcoming-bout field stays empty, so roster cards and the profile header would say "no bout" for a fighter in camp.
+ */
+export function nextBoutFor(fighter: Fighter, bouts: CampBout[], now: string): UpcomingBout | null {
+    if (fighter.upcomingBout) return fighter.upcomingBout;
+    const next = bouts
+        .filter((bout) => bout.fighterId === fighter.id && bout.phase !== "COMPLETED" && bout.phase !== "CANCELLED" && bout.boutAt >= now)
+        .sort((a, b) => a.boutAt.localeCompare(b.boutAt))[0];
+    return next ? { date: next.boutAt, event: next.event, opponent: next.opponent ?? "—", weightClass: fighter.weightClass } : null;
+}
+
 async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInput: Promise<string[]>, now: string, withPerformance: boolean): Promise<RosterEntry[]> {
-    const [fighters, clearances, team, upcoming, histories] = await Promise.all([
+    const [fighters, clearances, team, upcoming, histories, bouts] = await Promise.all([
         fightersInput,
         idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getClearanceStatus(id, now)] as const)))),
         idsInput.then((ids) => (ids.length === 0 || !withPerformance ? [] : getTeamPerformance(ids))),
@@ -88,6 +103,8 @@ async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInp
         idsInput.then(async (ids) =>
             withPerformance ? new Map(await Promise.all(ids.map(async (id) => [id, await getPerformanceHistory(id, TREND_WEEKS + 1)] as const))) : new Map(),
         ),
+        // Without the bouts service the cards keep the profile's own field.
+        idsInput.then(async (ids) => (ids.length === 0 ? [] : ((await nullIfServiceFails(listCampBouts(ids))) ?? []))),
     ]);
     const horizon = Date.parse(now) + SESSION_HORIZON_DAYS * DAY_MS;
 
@@ -97,8 +114,9 @@ async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInp
         const revoked = clearance?.status === "revoked";
         const weeks = completeWeeks(histories.get(fighter.id) ?? [], now).slice(-TREND_WEEKS);
         const own = upcoming.filter((session) => session.fighterId === fighter.id);
+        const upcomingBout = nextBoutFor(fighter, bouts, now);
         return {
-            fighter,
+            fighter: upcomingBout === fighter.upcomingBout ? fighter : { ...fighter, upcomingBout },
             clearance,
             clearanceState: status?.state ?? "none",
             eligibility: status?.eligibility ?? null,
