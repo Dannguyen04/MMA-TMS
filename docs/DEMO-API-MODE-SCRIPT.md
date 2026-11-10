@@ -13,15 +13,19 @@ Cần `nestjs-api/.env` sẵn (của team). Không sửa file này, không chạ
 
 Lỗi Swagger / `z.date()` làm backend tắt ngay khi mở đã được sửa trên `fight-camp`, nên không cần dòng sửa local nào nữa. Dòng sửa cũ ngày 30/10 được cất trong `git stash` của máy chủ dự án.
 
-### 2. Frontend API mode — cổng 3100
+### 2. Frontend API mode — cổng 3100, **bản production**
 
-Cửa sổ PowerShell khác. Đặt biến **trước** khi chạy `dev`, vì Next không ghi đè biến đã có trong process bằng `.env.local`:
+Cửa sổ PowerShell khác. Đặt biến **trước** khi build, vì Next không ghi đè biến đã có trong process bằng `.env.local`. Dùng bản production, không dùng `dev`: ngày 10/11 cùng màn, cùng dữ liệu, mỗi lời gọi API mất khoảng 100 ms ở production và 1–2 giây ở `next dev`; trang tải trung vị 1,5 giây. `next dev` còn biên dịch từng trang lần đầu và từng tự crash (Turbopack panic).
 
 ```powershell
 cd nextjs-frontend
+Remove-Item -Recurse -Force .next
 $env:APP_DATA_MODE='api'
-corepack pnpm dev --port 3100
+corepack pnpm build
+corepack pnpm exec next start --port 3100
 ```
+
+Build mất vài phút, làm trước giờ trình bày. Sửa code sau khi build thì phải build lại.
 
 Mở `http://localhost:3100/login`.
 
@@ -46,8 +50,8 @@ Mở `http://localhost:3000`, đăng nhập bằng nút "Rafael Costa". Phải �
 3. **Đổi giữa demo mode và API mode thì xoá `nextjs-frontend/.next` trước khi bật lại** (`Remove-Item -Recurse -Force nextjs-frontend\.next`). `.next` cũ từng làm `/login` trả 404 ở API mode (9/11).
 4. **`DATABASE_URL` trong `nestjs-api/.env` phải dùng cổng `6543`** (pooler transaction mode), không dùng `5432`. Cổng 5432 là session mode, tối đa 15 kết nối cho cả team. Ngày 9/11 dashboard admin trả 500 với lỗi `max clients reached in session mode`. Máy chủ dự án đã đổi; máy nào khác dùng để demo cũng phải đổi.
 5. **Bật Redis** trước backend: `redis-server --port 6379` (máy chủ dự án đã cài). Thiếu Redis, thông báo và hàng đợi AI sẽ báo lỗi kết nối liên tục.
-6. Bật backend (mục 1), đợi `/health` trả 200, rồi bật frontend 3100 (mục 2). Lần đầu mở mỗi trang, Next dev phải biên dịch, có thể mất vài chục giây. Nên mở trước một lượt các màn sẽ chiếu.
-7. Đăng nhập Rafael Costa. Mở **Đình chỉ** để chắc trang tải được (migration 033 đã áp 9/11) và **Aigerim Sadykova** đang ở **Chờ xác nhận** (để chiếu C4).
+6. Bật backend (mục 1), đợi `/health` trả 200, rồi build và bật frontend 3100 (mục 2). Mở trước một lượt các màn sẽ chiếu. Màn tổng quan HLV vẫn mất khoảng 5 giây: nó đọc riêng từng võ sĩ (khoảng 40 request) qua pool 10 kết nối của backend.
+7. Đăng nhập Rafael Costa. Mở **Đình chỉ** để chắc trang tải được (migration 033 đã áp 9/11). Từ 10/11 **không còn võ sĩ nào "Chờ xác nhận"** trên Supabase: đình chỉ y tế của Aigerim đã được xác nhận tối 9/11, và cô đang có đình chỉ KO tới 9/12. C4 ở API mode chỉ nói quy tắc; muốn chiếu nút "Cho tập lại" thì dùng demo mode (Diego Alvarez).
 8. Võ sĩ cho phần chính: **Minh Trần**, đang "Sẵn sàng". Kenji đã dùng cho lượt thử ngày 9/11, đang bị đình chỉ KO.
 9. Đặt giờ thi **sau giờ hiện tại** (ví dụ 22:00), cân 08:00 cùng ngày.
 

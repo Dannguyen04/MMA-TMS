@@ -4,6 +4,7 @@ import { CheckCheck, Clock, Plus, SkipForward, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup } from "@/components/ui/choice-group";
 import { Checkbox, Field, FormSection, Input, Select, Textarea } from "@/components/ui/form";
@@ -42,7 +43,6 @@ import {
 
 type FormControls = Pick<ActionForm<unknown>, "error" | "control" | "markEdited">;
 
-const LIST_OPTIONS = SCAT6_LISTS.map((value) => ({ value, label: `Danh sách ${value}` }));
 const numbered = (count: number) => Array.from({ length: count }, (_, index) => index);
 
 /*
@@ -94,7 +94,8 @@ export function useScat6Draft({ form, nowInput, dateOfBirth, initialNotAdministe
     }));
     const [notes, setNotes] = useState<Record<string, string>>({});
     const [attempted, setAttempted] = useState<ReadonlySet<Scat6Step>>(() => new Set());
-    const problems = useMemo(() => scat6Problems(draft), [draft]);
+    const t = useT();
+    const problems = useMemo(() => scat6Problems(draft, t), [draft, t]);
     const byPath = useMemo(() => problemsByPath(problems), [problems]);
 
     const change: Scat6Controller["change"] = (edit, path) => {
@@ -125,7 +126,7 @@ export function useScat6Draft({ form, nowInput, dateOfBirth, initialNotAdministe
         setAttempted((current) => new Set(current).add(step));
         const found = problems.filter((problem) => problem.step === step);
         if (found.length === 0) return null;
-        return found.length === 1 ? problemSentence(found[0]) : `${found.length} câu trả lời ở bước này cần xem lại, bắt đầu từ ${problemSentence(found[0]).replace(/\.$/, "")}. Đã đánh dấu tại chỗ.`;
+        return found.length === 1 ? problemSentence(found[0], t) : t("doctorScat6.problem.step", { n: found.length, first: problemSentence(found[0], t).replace(/\.$/, "") });
     };
 
     const validateAll = () => {
@@ -147,38 +148,39 @@ export function Scat6RecordInput({ scat6 }: { scat6: Scat6Controller }) {
 /** Whether it was administered, the athlete's background, the immediate assessment and the symptoms. */
 export function Scat6HistoryFields({ scat6 }: { scat6: Scat6Controller }) {
     const { draft, change, tooYoung } = scat6;
+    const t = useT();
     return (
         <>
             <FormSection
-                title="SCAT6"
+                title={t("doctorScat6.part.scat6")}
                 info={<TermHint term="scat6" />}
-                description="Ghi theo số mục, đọc câu hỏi từ mẫu giấy chính thức. Dịch vụ y tế tự tính điểm."
+                description={t("doctorScat6.status.description")}
             >
                 <ChoiceGroup
                     id={scat6.id("status")}
                     name="scat6.status"
-                    legend="SCAT6 ở lần khám nền này"
+                    legend={t("doctorScat6.status.legend")}
                     columns={2}
                     variant="compact"
                     options={[
-                        { value: "ADMINISTERED", label: "Đã thực hiện", description: tooYoung ? "Không dùng trước 13 tuổi: vận động viên nhỏ tuổi hơn." : "Vận động viên từ 13 tuổi trở lên.", disabled: tooYoung },
-                        { value: "NOT_ADMINISTERED", label: "Không thực hiện", description: "Ví dụ dưới 13 tuổi, hoặc không phù hợp về lâm sàng." },
+                        { value: "ADMINISTERED", label: t("doctorScat6.common.performed"), description: tooYoung ? t("doctorScat6.status.tooYoung") : t("doctorScat6.status.ageOk"), disabled: tooYoung },
+                        { value: "NOT_ADMINISTERED", label: t("doctorScat6.common.notPerformed"), description: t("doctorScat6.status.notAdministeredHint") },
                     ]}
                     value={draft.status}
                     onChange={(status) => change((next) => { next.status = status; })}
                 />
                 {draft.status === "NOT_ADMINISTERED" ? (
-                    <TextArea scat6={scat6} path="reason" label="Lý do không thực hiện" value={draft.notAdministeredReason} max={2_000} onChange={(value) => change((next) => { next.notAdministeredReason = value; }, "reason")} />
+                    <TextArea scat6={scat6} path="reason" label={t("doctorScat6.common.notPerformedReason")} value={draft.notAdministeredReason} max={2_000} onChange={(value) => change((next) => { next.notAdministeredReason = value; }, "reason")} />
                 ) : (
                     <>
-                        <DateTime scat6={scat6} path="administeredAt" label="Bắt đầu" value={draft.administeredAt} onChange={(value) => change((next) => { next.administeredAt = value; }, "administeredAt")} />
-                        {scat6.underAgeOn(draft.administeredAt) && <ErrorText message="Vận động viên dưới 13 tuổi vào ngày đó. Hãy ghi SCAT6 là không thực hiện." />}
+                        <DateTime scat6={scat6} path="administeredAt" label={t("doctorScat6.common.start")} value={draft.administeredAt} onChange={(value) => change((next) => { next.administeredAt = value; }, "administeredAt")} />
+                        {scat6.underAgeOn(draft.administeredAt) && <ErrorText message={t("doctorScat6.status.underAgeOnDay")} />}
                         <Checkbox
                             id={scat6.id("examinerAttestation")}
                             name="scat6.examinerAttestation"
                             checked={draft.examinerAttestation}
                             onChange={(event) => change((next) => { next.examinerAttestation = event.target.checked; }, "examinerAttestation")}
-                            label="Tôi là nhân viên y tế và đã thực hiện hoặc giám sát lần SCAT6 này"
+                            label={t("doctorScat6.status.attestation")}
                             info={<TermHint term="examinerAttestation" />}
                             aria-invalid={scat6.error("examinerAttestation") ? true : undefined}
                         />
@@ -200,35 +202,36 @@ export function Scat6HistoryFields({ scat6 }: { scat6: Scat6Controller }) {
 
 function AthleteFields({ scat6 }: { scat6: Scat6Controller }) {
     const { draft, change } = scat6;
+    const t = useT();
     const history = draft.concussionHistory;
     return (
-        <FormSection title="Thông tin vận động viên" info={<TermHint term="athleteBackground" />} description="Thông tin mẫu yêu cầu trước khi kiểm tra.">
+        <FormSection title={t("doctorScat6.part.athlete")} info={<TermHint term="athleteBackground" />} description={t("doctorScat6.athlete.description")}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Field label="Tay thuận" htmlFor={scat6.id("athlete.dominantHand")} error={scat6.error("athlete.dominantHand")} required>
+                <Field label={t("doctorScat6.athlete.dominantHand")} htmlFor={scat6.id("athlete.dominantHand")} error={scat6.error("athlete.dominantHand")} required>
                     <Select
                         id={scat6.id("athlete.dominantHand")}
                         name="scat6.athlete.dominantHand"
                         value={draft.athlete.dominantHand}
                         onChange={(event) => change((next) => { next.athlete.dominantHand = event.target.value as Scat6Draft["athlete"]["dominantHand"]; }, "athlete.dominantHand")}
                     >
-                        <option value="">Chọn…</option>
-                        <option value="LEFT">Trái</option>
-                        <option value="RIGHT">Phải</option>
-                        <option value="AMBIDEXTROUS">Thuận hai tay</option>
+                        <option value="">{t("doctorScat6.common.choose")}</option>
+                        <option value="LEFT">{t("doctorScat6.common.left")}</option>
+                        <option value="RIGHT">{t("doctorScat6.common.right")}</option>
+                        <option value="AMBIDEXTROUS">{t("doctorScat6.common.ambidextrous")}</option>
                     </Select>
                 </Field>
-                <Text scat6={scat6} path="athlete.sportTeamSchool" label="Môn thể thao, đội hoặc trường" value={draft.athlete.sportTeamSchool} max={200} optional onChange={(value) => change((next) => { next.athlete.sportTeamSchool = value; })} />
-                <Text scat6={scat6} path="athlete.currentSchoolYear" label="Năm học hiện tại" value={draft.athlete.currentSchoolYear} max={50} optional onChange={(value) => change((next) => { next.athlete.currentSchoolYear = value; })} />
-                <NumberField scat6={scat6} path="athlete.yearsOfEducation" label="Số năm đi học" value={draft.athlete.yearsOfEducation} min={0} max={40} optional onChange={(value) => change((next) => { next.athlete.yearsOfEducation = value; })} />
-                <Text scat6={scat6} path="athlete.firstLanguage" label="Ngôn ngữ mẹ đẻ" value={draft.athlete.firstLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.firstLanguage = value; })} />
-                <Text scat6={scat6} path="athlete.preferredLanguage" label="Ngôn ngữ ưu tiên" value={draft.athlete.preferredLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.preferredLanguage = value; })} />
+                <Text scat6={scat6} path="athlete.sportTeamSchool" label={t("doctorScat6.athlete.sportTeamSchool")} value={draft.athlete.sportTeamSchool} max={200} optional onChange={(value) => change((next) => { next.athlete.sportTeamSchool = value; })} />
+                <Text scat6={scat6} path="athlete.currentSchoolYear" label={t("doctorScat6.athlete.currentSchoolYear")} value={draft.athlete.currentSchoolYear} max={50} optional onChange={(value) => change((next) => { next.athlete.currentSchoolYear = value; })} />
+                <NumberField scat6={scat6} path="athlete.yearsOfEducation" label={t("doctorScat6.athlete.yearsOfEducation")} value={draft.athlete.yearsOfEducation} min={0} max={40} optional onChange={(value) => change((next) => { next.athlete.yearsOfEducation = value; })} />
+                <Text scat6={scat6} path="athlete.firstLanguage" label={t("doctorScat6.athlete.firstLanguage")} value={draft.athlete.firstLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.firstLanguage = value; })} />
+                <Text scat6={scat6} path="athlete.preferredLanguage" label={t("doctorScat6.athlete.preferredLanguage")} value={draft.athlete.preferredLanguage} max={100} optional onChange={(value) => change((next) => { next.athlete.preferredLanguage = value; })} />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div className="flex flex-col gap-2">
                     <NumberField
                         scat6={scat6}
                         path="concussionHistory.priorDiagnosedConcussions"
-                        label="Số lần từng chẩn đoán chấn động não"
+                        label={t("doctorScat6.athlete.priorConcussions")}
                         value={history.priorDiagnosedConcussions}
                         min={0}
                         max={100}
@@ -236,8 +239,8 @@ function AthleteFields({ scat6 }: { scat6: Scat6Controller }) {
                     />
                     {history.priorDiagnosedConcussions.trim() === "" && (
                         <SuggestionChips
-                            label="Chọn nhanh"
-                            suggestions={[{ label: "Không", value: "0" }]}
+                            label={t("doctorScat6.common.quickPick")}
+                            suggestions={[{ label: t("doctorScat6.common.none"), value: "0" }]}
                             onPick={(value) => change((next) => { next.concussionHistory.priorDiagnosedConcussions = value; }, "concussionHistory.priorDiagnosedConcussions")}
                         />
                     )}
@@ -245,52 +248,53 @@ function AthleteFields({ scat6 }: { scat6: Scat6Controller }) {
                 <NumberField
                     scat6={scat6}
                     path="concussionHistory.mostRecentRecoveryDays"
-                    label="Số ngày hồi phục lần gần nhất"
+                    label={t("doctorScat6.athlete.recoveryDays")}
                     value={history.mostRecentRecoveryDays}
                     min={0}
                     max={3_650}
                     optional
                     onChange={(value) => change((next) => { next.concussionHistory.mostRecentRecoveryDays = value; })}
                 />
-                <Text scat6={scat6} path="concussionHistory.mostRecentConcussion" label="Lần chấn động não gần nhất" value={history.mostRecentConcussion} max={200} optional onChange={(value) => change((next) => { next.concussionHistory.mostRecentConcussion = value; })} />
+                <Text scat6={scat6} path="concussionHistory.mostRecentConcussion" label={t("doctorScat6.athlete.mostRecentConcussion")} value={history.mostRecentConcussion} max={200} optional onChange={(value) => change((next) => { next.concussionHistory.mostRecentConcussion = value; })} />
             </div>
-            <TextArea scat6={scat6} path="concussionHistory.primarySymptoms" label="Triệu chứng chính" value={history.primarySymptoms} max={1_000} optional onChange={(value) => change((next) => { next.concussionHistory.primarySymptoms = value; })} />
+            <TextArea scat6={scat6} path="concussionHistory.primarySymptoms" label={t("doctorScat6.athlete.primarySymptoms")} value={history.primarySymptoms} max={1_000} optional onChange={(value) => change((next) => { next.concussionHistory.primarySymptoms = value; })} />
         </FormSection>
     );
 }
 
 function ImmediateAssessmentFields({ scat6 }: { scat6: Scat6Controller }) {
     const { draft, change } = scat6;
+    const t = useT();
     const ia = draft.immediateAssessment;
     const yesNo = (path: string, label: string, value: YesNo, set: (next: Scat6Draft, value: boolean) => void) => (
         <YesNoField scat6={scat6} path={path} label={label} value={value} onChange={(answer) => change((next) => set(next, answer), path)} />
     );
     return (
-        <OptionalPart scat6={scat6} part="immediateAssessment" title="Đánh giá tức thời" term="immediateAssessment" description="Sàng lọc tại chỗ sau nghi chấn thương đầu." skipLabel="Not performed — baseline, no injury">
+        <OptionalPart scat6={scat6} part="immediateAssessment" title={t("doctorScat6.part.immediateAssessment")} term="immediateAssessment" description={t("doctorScat6.immediate.description")} skipLabel={t("doctorScat6.immediate.skip")}>
             <div className="grid gap-3 sm:grid-cols-2">
-                {yesNo("immediateAssessment.observableSigns.witnessed", "Có người chứng kiến dấu hiệu", ia.witnessed, (next, value) => { next.immediateAssessment.witnessed = value; })}
-                {yesNo("immediateAssessment.observableSigns.observedOnVideo", "Quan sát qua Video", ia.observedOnVideo, (next, value) => { next.immediateAssessment.observedOnVideo = value; })}
+                {yesNo("immediateAssessment.observableSigns.witnessed", t("doctorScat6.immediate.witnessed"), ia.witnessed, (next, value) => { next.immediateAssessment.witnessed = value; })}
+                {yesNo("immediateAssessment.observableSigns.observedOnVideo", t("doctorScat6.immediate.observedOnVideo"), ia.observedOnVideo, (next, value) => { next.immediateAssessment.observedOnVideo = value; })}
             </div>
-            <Toggles scat6={scat6} path="immediateAssessment.observableSigns.signs" legend="Có dấu hiệu quan sát được" term="observableSigns" values={ia.signs} />
+            <Toggles scat6={scat6} path="immediateAssessment.observableSigns.signs" legend={t("doctorScat6.immediate.signs")} term="observableSigns" values={ia.signs} />
             <GcsRows scat6={scat6} />
             <div className="flex items-center gap-1.5">
-                <p className="text-sm font-medium text-fg">Cột sống cổ</p>
+                <p className="text-sm font-medium text-fg">{t("doctorScat6.immediate.cervicalSpine")}</p>
                 <TermHint term="cervicalSpine" />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-                {yesNo("immediateAssessment.cervicalSpine.neckPainAtRest", "Đau cổ khi nghỉ", ia.neckPainAtRest, (next, value) => { next.immediateAssessment.neckPainAtRest = value; })}
-                {yesNo("immediateAssessment.cervicalSpine.tendernessToPalpation", "Đau khi sờ nắn", ia.tendernessToPalpation, (next, value) => { next.immediateAssessment.tendernessToPalpation = value; })}
+                {yesNo("immediateAssessment.cervicalSpine.neckPainAtRest", t("doctorScat6.immediate.neckPainAtRest"), ia.neckPainAtRest, (next, value) => { next.immediateAssessment.neckPainAtRest = value; })}
+                {yesNo("immediateAssessment.cervicalSpine.tendernessToPalpation", t("doctorScat6.immediate.tenderness"), ia.tendernessToPalpation, (next, value) => { next.immediateAssessment.tendernessToPalpation = value; })}
                 {ia.neckPainAtRest === false &&
                     ia.tendernessToPalpation === false &&
-                    yesNo("immediateAssessment.cervicalSpine.fullActiveRangeOfMotion", "Biên độ vận động chủ động đầy đủ", ia.fullActiveRangeOfMotion, (next, value) => { next.immediateAssessment.fullActiveRangeOfMotion = value; })}
-                {yesNo("immediateAssessment.cervicalSpine.limbStrengthAndSensationNormal", "Sức cơ và cảm giác chi bình thường", ia.limbStrengthAndSensationNormal, (next, value) => {
+                    yesNo("immediateAssessment.cervicalSpine.fullActiveRangeOfMotion", t("doctorScat6.immediate.fullRange"), ia.fullActiveRangeOfMotion, (next, value) => { next.immediateAssessment.fullActiveRangeOfMotion = value; })}
+                {yesNo("immediateAssessment.cervicalSpine.limbStrengthAndSensationNormal", t("doctorScat6.immediate.limbStrength"), ia.limbStrengthAndSensationNormal, (next, value) => {
                     next.immediateAssessment.limbStrengthAndSensationNormal = value;
                 })}
-                {yesNo("immediateAssessment.coordinationOcularMotor.fingerToNoseNormal", "Nghiệm pháp ngón tay – mũi bình thường", ia.fingerToNoseNormal, (next, value) => { next.immediateAssessment.fingerToNoseNormal = value; })}
-                {yesNo("immediateAssessment.coordinationOcularMotor.ocularMotorWithoutDoubleVision", "Không nhìn đôi", ia.ocularMotorWithoutDoubleVision, (next, value) => {
+                {yesNo("immediateAssessment.coordinationOcularMotor.fingerToNoseNormal", t("doctorScat6.immediate.fingerToNose"), ia.fingerToNoseNormal, (next, value) => { next.immediateAssessment.fingerToNoseNormal = value; })}
+                {yesNo("immediateAssessment.coordinationOcularMotor.ocularMotorWithoutDoubleVision", t("doctorScat6.immediate.noDoubleVision"), ia.ocularMotorWithoutDoubleVision, (next, value) => {
                     next.immediateAssessment.ocularMotorWithoutDoubleVision = value;
                 })}
-                {yesNo("immediateAssessment.coordinationOcularMotor.extraocularMovementsNormal", "Vận động nhãn cầu bình thường", ia.extraocularMovementsNormal, (next, value) => {
+                {yesNo("immediateAssessment.coordinationOcularMotor.extraocularMovementsNormal", t("doctorScat6.immediate.extraocularNormal"), ia.extraocularMovementsNormal, (next, value) => {
                     next.immediateAssessment.extraocularMovementsNormal = value;
                 })}
             </div>
@@ -298,48 +302,48 @@ function ImmediateAssessmentFields({ scat6 }: { scat6: Scat6Controller }) {
                 <TextArea
                     scat6={scat6}
                     path="immediateAssessment.coordinationOcularMotor.extraocularDescription"
-                    label="Mô tả vận động nhãn cầu"
+                    label={t("doctorScat6.immediate.extraocularDescription")}
                     value={ia.extraocularDescription}
                     max={1_000}
                     onChange={(value) => change((next) => { next.immediateAssessment.extraocularDescription = value; }, "immediateAssessment.coordinationOcularMotor.extraocularDescription")}
                 />
             )}
-            <Toggles scat6={scat6} path="immediateAssessment.maddocks" legend="Câu hỏi Maddocks trả lời đúng" term="maddocks" values={ia.maddocks} />
+            <Toggles scat6={scat6} path="immediateAssessment.maddocks" legend={t("doctorScat6.immediate.maddocks")} term="maddocks" values={ia.maddocks} />
         </OptionalPart>
     );
 }
 
 function BackgroundFields({ scat6 }: { scat6: Scat6Controller }) {
     const { draft, change } = scat6;
+    const t = useT();
     return (
-        <FormSection title="Tiền sử y khoa" info={<TermHint term="athleteBackground" />} description="Tình trạng có thể ảnh hưởng kết quả. Trả lời từng mục.">
-            <QuickFill label="Không có mục nào" icon={CheckCheck} available={canFillNoBackground(draft)} note={scat6.notes.background} onClick={() => scat6.quick("background", fillNoBackground, "background")} />
+        <FormSection title={t("doctorScat6.part.background")} info={<TermHint term="athleteBackground" />} description={t("doctorScat6.background.description")}>
+            <QuickFill label={t("doctorScat6.background.noneApply")} icon={CheckCheck} available={canFillNoBackground(draft)} note={scat6.notes.background} onClick={() => scat6.quick("background", (current) => fillNoBackground(current, t), "background")} />
             <div className="grid gap-3 sm:grid-cols-2">
                 {BACKGROUND_CONDITIONS.map(([key, label]) => (
-                    <YesNoField key={key} scat6={scat6} path={`background.${key}`} label={label} value={draft.background[key]} onChange={(value) => change((next) => { next.background[key] = value; }, `background.${key}`)} />
+                    <YesNoField key={key} scat6={scat6} path={`background.${key}`} label={t(label)} value={draft.background[key]} onChange={(value) => change((next) => { next.background[key] = value; }, `background.${key}`)} />
                 ))}
             </div>
-            <TextArea scat6={scat6} path="background.notes" label="Ghi chú" value={draft.background.notes} max={2_000} optional onChange={(value) => change((next) => { next.background.notes = value; })} />
-            <TextArea scat6={scat6} path="background.currentMedications" label="Thuốc đang dùng" value={draft.background.currentMedications} max={2_000} optional onChange={(value) => change((next) => { next.background.currentMedications = value; })} />
+            <TextArea scat6={scat6} path="background.notes" label={t("doctorScat6.background.notes")} value={draft.background.notes} max={2_000} optional onChange={(value) => change((next) => { next.background.notes = value; })} />
+            <TextArea scat6={scat6} path="background.currentMedications" label={t("doctorScat6.background.currentMedications")} value={draft.background.currentMedications} max={2_000} optional onChange={(value) => change((next) => { next.background.currentMedications = value; })} />
         </FormSection>
     );
 }
 
 function SymptomFields({ scat6 }: { scat6: Scat6Controller }) {
     const { draft, change } = scat6;
+    const t = useT();
     const symptoms = draft.symptoms;
     const rated = symptoms.ratings.filter((rating) => rating.trim() !== "").length;
     const percent = symptoms.percentOfNormal.trim();
     const ratingsError = symptoms.ratings.map((_, index) => scat6.error(`symptoms.ratings.${index}`)).find(Boolean);
     return (
-        <Part scat6={scat6} path="symptoms" title="Đánh giá triệu chứng" term="symptomEvaluation" description="Vận động viên chấm mỗi mục 0–6, theo thứ tự trên mẫu.">
-            <QuickFill label="Không triệu chứng" icon={CheckCheck} available={canFillNoSymptoms(draft)} note={scat6.notes.symptoms} onClick={() => scat6.quick("symptoms", fillNoSymptoms, "symptoms")} />
+        <Part scat6={scat6} path="symptoms" title={t("doctorScat6.part.symptoms")} term="symptomEvaluation" description={t("doctorScat6.symptoms.description")}>
+            <QuickFill label={t("doctorScat6.symptoms.noSymptoms")} icon={CheckCheck} available={canFillNoSymptoms(draft)} note={scat6.notes.symptoms} onClick={() => scat6.quick("symptoms", (current) => fillNoSymptoms(current, t), "symptoms")} />
             <fieldset className="flex flex-col gap-2" aria-invalid={ratingsError ? true : undefined}>
                 <legend className="mb-1 text-sm font-medium text-fg">
-                    Điểm theo mục{" "}
-                    <span className="font-normal text-fg-subtle">
-                        ({rated}/{symptoms.ratings.length} đã chấm)
-                    </span>
+                    {t("doctorScat6.symptoms.ratings")}{" "}
+                    <span className="font-normal text-fg-subtle">{t("doctorScat6.symptoms.rated", { rated, total: symptoms.ratings.length })}</span>
                 </legend>
                 <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 xl:grid-cols-8">
                     {symptoms.ratings.map((rating, index) => {
@@ -348,7 +352,7 @@ function SymptomFields({ scat6 }: { scat6: Scat6Controller }) {
                         return (
                             <div key={index} className="flex min-w-0 flex-col gap-1">
                                 <label htmlFor={id} className="text-xs text-fg-muted">
-                                    Mục {index + 1}
+                                    {t("doctorScat6.symptoms.item", { n: index + 1 })}
                                 </label>
                                 <Select
                                     id={id}
@@ -371,14 +375,14 @@ function SymptomFields({ scat6 }: { scat6: Scat6Controller }) {
                 <ErrorText message={ratingsError} />
             </fieldset>
             <div className="grid gap-3 sm:grid-cols-2">
-                <YesNoField scat6={scat6} path="symptoms.worseWithPhysicalActivity" label="Nặng hơn khi vận động thể chất" value={symptoms.worseWithPhysicalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithPhysicalActivity = value; }, "symptoms.worseWithPhysicalActivity")} />
-                <YesNoField scat6={scat6} path="symptoms.worseWithMentalActivity" label="Nặng hơn khi hoạt động trí óc" value={symptoms.worseWithMentalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithMentalActivity = value; }, "symptoms.worseWithMentalActivity")} />
+                <YesNoField scat6={scat6} path="symptoms.worseWithPhysicalActivity" label={t("doctorScat6.symptoms.worsePhysical")} value={symptoms.worseWithPhysicalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithPhysicalActivity = value; }, "symptoms.worseWithPhysicalActivity")} />
+                <YesNoField scat6={scat6} path="symptoms.worseWithMentalActivity" label={t("doctorScat6.symptoms.worseMental")} value={symptoms.worseWithMentalActivity} onChange={(value) => change((next) => { next.symptoms.worseWithMentalActivity = value; }, "symptoms.worseWithMentalActivity")} />
             </div>
             <div className="flex flex-col gap-2">
                 <NumberField
                     scat6={scat6}
                     path="symptoms.percentOfNormal"
-                    label="Phần trăm so với bình thường"
+                    label={t("doctorScat6.symptoms.percentOfNormal")}
                     info={<TermHint term="percentOfNormal" />}
                     value={symptoms.percentOfNormal}
                     min={0}
@@ -387,11 +391,11 @@ function SymptomFields({ scat6 }: { scat6: Scat6Controller }) {
                     onChange={(value) => change((next) => { next.symptoms.percentOfNormal = value; }, "symptoms.percentOfNormal")}
                 />
                 {percent === "" && (
-                    <SuggestionChips label="Vận động viên trả lời" suggestions={[{ label: "100%", value: "100" }]} onPick={(value) => change((next) => { next.symptoms.percentOfNormal = value; }, "symptoms.percentOfNormal")} />
+                    <SuggestionChips label={t("doctorScat6.symptoms.athleteAnswers")} suggestions={[{ label: "100%", value: "100" }]} onPick={(value) => change((next) => { next.symptoms.percentOfNormal = value; }, "symptoms.percentOfNormal")} />
                 )}
             </div>
             {percent !== "" && percent !== "100" && (
-                <TextArea scat6={scat6} path="symptoms.notNormalReason" label="Vì sao chưa 100%" value={symptoms.notNormalReason} max={1_000} optional onChange={(value) => change((next) => { next.symptoms.notNormalReason = value; })} />
+                <TextArea scat6={scat6} path="symptoms.notNormalReason" label={t("doctorScat6.symptoms.notNormalReason")} value={symptoms.notNormalReason} max={1_000} optional onChange={(value) => change((next) => { next.symptoms.notNormalReason = value; })} />
             )}
         </Part>
     );
@@ -402,41 +406,42 @@ function SymptomFields({ scat6 }: { scat6: Scat6Controller }) {
 /** Orientation, immediate memory, digits backward and months in reverse. */
 export function Scat6MemoryFields({ scat6 }: { scat6: Scat6Controller }) {
     const { draft, change } = scat6;
+    const t = useT();
     const memory = draft.immediateMemory;
     const months = draft.monthsReverse;
     return (
         <>
-            <Part scat6={scat6} path="orientation" title="Định hướng" term="orientation">
-                <Toggles scat6={scat6} path="orientation.answers" legend="Số câu trả lời đúng" values={draft.orientation.answers} />
+            <Part scat6={scat6} path="orientation" title={t("doctorScat6.part.orientation")} term="orientation">
+                <Toggles scat6={scat6} path="orientation.answers" legend={t("doctorScat6.orientation.answers")} values={draft.orientation.answers} />
             </Part>
 
-            <Part scat6={scat6} path="immediateMemory" title="Trí nhớ tức thời" term="immediateMemory" description="Ba lượt với cùng danh sách từ; đánh dấu từng từ nhớ được.">
+            <Part scat6={scat6} path="immediateMemory" title={t("doctorScat6.part.immediateMemory")} term="immediateMemory" description={t("doctorScat6.memory.description")}>
                 <ListChoice scat6={scat6} path="immediateMemory.wordList" value={memory.wordList} onChange={(value) => change((next) => { next.immediateMemory.wordList = value; }, "immediateMemory.wordList")} />
                 {memory.trials.map((trial, trialIndex) => (
-                    <Toggles key={trialIndex} scat6={scat6} path={`immediateMemory.trials.${trialIndex}`} legend={`Lượt ${trialIndex + 1}: từ nhớ được`} values={trial} itemLabel="Word" />
+                    <Toggles key={trialIndex} scat6={scat6} path={`immediateMemory.trials.${trialIndex}`} legend={t("doctorScat6.memory.trialWords", { n: trialIndex + 1 })} values={trial} itemLabel={t("doctorScat6.common.word")} />
                 ))}
-                <StampedTime scat6={scat6} field="immediateMemory.lastTrialCompletedAt" label="Thời điểm xong lượt cuối" value={memory.lastTrialCompletedAt} hint="Nhớ lại có trì hoãn bắt đầu ít nhất 5 phút sau thời điểm này." />
+                <StampedTime scat6={scat6} field="immediateMemory.lastTrialCompletedAt" label={t("doctorScat6.memory.lastTrial")} value={memory.lastTrialCompletedAt} hint={t("doctorScat6.memory.lastTrialHint")} />
             </Part>
 
             <Part
                 scat6={scat6}
                 path="digitsBackward"
-                title="Đọc ngược dãy số"
+                title={t("doctorScat6.part.digitsBackward")}
                 term="digitsBackward"
-                description="Các dãy theo độ dài, ngắn trước. Lượt 2 chỉ khi lượt 1 sai; dừng khi cả hai lượt của một độ dài đều sai."
+                description={t("doctorScat6.digits.description")}
             >
                 <ListChoice scat6={scat6} path="digitsBackward.digitList" value={draft.digitsBackward.digitList} onChange={(value) => change((next) => { next.digitsBackward.digitList = value; }, "digitsBackward.digitList")} />
                 <DigitStrings scat6={scat6} />
             </Part>
 
-            <Part scat6={scat6} path="monthsReverse" title="Đọc ngược các tháng" term="monthsReverse" description="Đánh dấu từng câu trả lời đúng, theo thứ tự trên mẫu.">
-                <Toggles scat6={scat6} path="monthsReverse.correctResponses" legend="Câu trả lời đúng" values={months.correct} />
+            <Part scat6={scat6} path="monthsReverse" title={t("doctorScat6.part.monthsReverse")} term="monthsReverse" description={t("doctorScat6.months.description")}>
+                <Toggles scat6={scat6} path="monthsReverse.correctResponses" legend={t("doctorScat6.common.correctResponses")} values={months.correct} />
                 <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-                    <NumberField scat6={scat6} path="monthsReverse.timeSeconds" label="Thời gian" value={months.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => change((next) => { next.monthsReverse.timeSeconds = value; }, "monthsReverse.timeSeconds")} />
+                    <NumberField scat6={scat6} path="monthsReverse.timeSeconds" label={t("doctorScat6.common.time")} value={months.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => change((next) => { next.monthsReverse.timeSeconds = value; }, "monthsReverse.timeSeconds")} />
                     <div className="flex flex-col gap-2">
-                        <NumberField scat6={scat6} path="monthsReverse.errors" label="Lỗi" value={months.errors} min={0} max={SCAT6.MONTHS} onChange={(value) => change((next) => { next.monthsReverse.errors = value; }, "monthsReverse.errors")} />
+                        <NumberField scat6={scat6} path="monthsReverse.errors" label={t("doctorScat6.common.errors")} value={months.errors} min={0} max={SCAT6.MONTHS} onChange={(value) => change((next) => { next.monthsReverse.errors = value; }, "monthsReverse.errors")} />
                         {months.errors.trim() === "" && draft.marked["monthsReverse.correctResponses"] && months.correct.every(Boolean) && (
-                            <SuggestionChips label="Chọn nhanh" suggestions={[{ label: "Không lỗi", value: "0" }]} onPick={(value) => change((next) => { next.monthsReverse.errors = value; }, "monthsReverse.errors")} />
+                            <SuggestionChips label={t("doctorScat6.common.quickPick")} suggestions={[{ label: t("doctorScat6.months.noErrors"), value: "0" }]} onPick={(value) => change((next) => { next.monthsReverse.errors = value; }, "monthsReverse.errors")} />
                         )}
                     </div>
                 </div>
@@ -447,14 +452,16 @@ export function Scat6MemoryFields({ scat6 }: { scat6: Scat6Controller }) {
 
 /* ─── Step 3: balance, delayed recall and the SCAT6 decision ──────────────── */
 
-const SURFACES = [{ label: "Sàn cứng" }, { label: "Thảm" }];
-const FOOTWEAR = [{ label: "Chân trần" }, { label: "Mang giày" }];
 
 /** mBESS, tandem and dual-task gait, delayed recall and the doctor's reading of the SCAT6. */
 export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
     const { draft, change } = scat6;
     const dual = draft.dualTaskGait;
     const earliest = delayedRecallEarliest(draft);
+    const t = useT();
+    // The chip text is what gets written into the field, so it is in the doctor's language.
+    const surfaces = [{ label: t("doctorScat6.mbess.surface.floor") }, { label: t("doctorScat6.mbess.surface.mat") }];
+    const footwear = [{ label: t("doctorScat6.mbess.footwear.barefoot") }, { label: t("doctorScat6.mbess.footwear.shod") }];
     const pick = (field: "testingSurface" | "footwear", options: { label: string }[]) => (value: string) =>
         change((next) => {
             const current = next.mbess[field].trim();
@@ -463,27 +470,27 @@ export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
         }, `mbess.${field}`);
     return (
         <>
-            <Part scat6={scat6} path="mbess" title="Thăng bằng (mBESS)" term="mbess" description="Số lỗi mỗi tư thế 20 giây. Không giữ được 5 giây đầu tính điểm tối đa.">
+            <Part scat6={scat6} path="mbess" title={t("doctorScat6.mbess.title")} term="mbess" description={t("doctorScat6.mbess.description")}>
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                    <Field label="Chân kiểm tra" htmlFor={scat6.id("mbess.footTested")} error={scat6.error("mbess.footTested")} required hint="Thường là chân không thuận.">
+                    <Field label={t("doctorScat6.mbess.footTested")} htmlFor={scat6.id("mbess.footTested")} error={scat6.error("mbess.footTested")} required hint={t("doctorScat6.mbess.footTestedHint")}>
                         <Select
                             id={scat6.id("mbess.footTested")}
                             name="scat6.mbess.footTested"
                             value={draft.mbess.footTested}
                             onChange={(event) => change((next) => { next.mbess.footTested = event.target.value as Scat6Draft["mbess"]["footTested"]; }, "mbess.footTested")}
                         >
-                            <option value="">Chọn…</option>
-                            <option value="LEFT">Trái</option>
-                            <option value="RIGHT">Phải</option>
+                            <option value="">{t("doctorScat6.common.choose")}</option>
+                            <option value="LEFT">{t("doctorScat6.common.left")}</option>
+                            <option value="RIGHT">{t("doctorScat6.common.right")}</option>
                         </Select>
                     </Field>
                     <div className="flex flex-col gap-2">
-                        <Text scat6={scat6} path="mbess.testingSurface" label="Bề mặt kiểm tra" value={draft.mbess.testingSurface} max={200} onChange={(value) => change((next) => { next.mbess.testingSurface = value; }, "mbess.testingSurface")} />
-                        <SuggestionChips label="Chọn nhanh" suggestions={SURFACES} onPick={pick("testingSurface", SURFACES)} />
+                        <Text scat6={scat6} path="mbess.testingSurface" label={t("doctorScat6.mbess.testingSurface")} value={draft.mbess.testingSurface} max={200} onChange={(value) => change((next) => { next.mbess.testingSurface = value; }, "mbess.testingSurface")} />
+                        <SuggestionChips label={t("doctorScat6.common.quickPick")} suggestions={surfaces} onPick={pick("testingSurface", surfaces)} />
                     </div>
                     <div className="flex flex-col gap-2">
-                        <Text scat6={scat6} path="mbess.footwear" label="Giày dép" value={draft.mbess.footwear} max={200} onChange={(value) => change((next) => { next.mbess.footwear = value; }, "mbess.footwear")} />
-                        <SuggestionChips label="Chọn nhanh" suggestions={FOOTWEAR} onPick={pick("footwear", FOOTWEAR)} />
+                        <Text scat6={scat6} path="mbess.footwear" label={t("doctorScat6.mbess.footwear")} value={draft.mbess.footwear} max={200} onChange={(value) => change((next) => { next.mbess.footwear = value; }, "mbess.footwear")} />
+                        <SuggestionChips label={t("doctorScat6.common.quickPick")} suggestions={footwear} onPick={pick("footwear", footwear)} />
                     </div>
                 </div>
                 <Stances scat6={scat6} surface="firm" stances={draft.mbess.firm} />
@@ -492,40 +499,40 @@ export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
                     name="scat6.mbess.foam.performed"
                     checked={draft.mbess.foamPerformed}
                     onChange={(event) => change((next) => { next.mbess.foamPerformed = event.target.checked; })}
-                    label="Có kiểm tra thêm trên đệm xốp"
+                    label={t("doctorScat6.mbess.foamPerformed")}
                 />
                 {draft.mbess.foamPerformed && <Stances scat6={scat6} surface="foam" stances={draft.mbess.foam} />}
             </Part>
 
-            <Part scat6={scat6} path="tandemGait" title="Đi nối gót tính giờ" term="tandemGait" description="Ba lượt. Đánh dấu “Dừng sớm” cho lượt vận động viên không hoàn thành.">
+            <Part scat6={scat6} path="tandemGait" title={t("doctorScat6.tandem.title")} term="tandemGait" description={t("doctorScat6.tandem.description")}>
                 <GaitTrials scat6={scat6} />
             </Part>
 
-            <OptionalPart scat6={scat6} part="dualTaskGait" title="Đi kết hợp nhiệm vụ kép" term="dualTaskGait" description="Không bắt buộc. Cần hoàn thành cả ba lượt đi nối gót trước." skipLabel="Not done at this baseline">
+            <OptionalPart scat6={scat6} part="dualTaskGait" title={t("doctorScat6.part.dualTaskGait")} term="dualTaskGait" description={t("doctorScat6.dual.description")} skipLabel={t("doctorScat6.dual.skip")}>
                 <NumberField
                     scat6={scat6}
                     path="dualTaskGait.subtractionStep"
-                    label="Bước trừ"
+                    label={t("doctorScat6.dual.step")}
                     value={dual.subtractionStep}
                     min={1}
                     max={20}
-                    hint="Là 7, trừ khi không hoàn thành được lượt luyện với 7."
+                    hint={t("doctorScat6.dual.stepHint")}
                     onChange={(value) => change((next) => { next.dualTaskGait.subtractionStep = value; })}
                 />
-                <Toggles scat6={scat6} path="dualTaskGait.practice.correctResponses" legend="Luyện tập: câu đúng" values={dual.practice.correct} />
+                <Toggles scat6={scat6} path="dualTaskGait.practice.correctResponses" legend={t("doctorScat6.dual.practiceCorrect")} values={dual.practice.correct} />
                 <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-                    <NumberField scat6={scat6} path="dualTaskGait.practice.errors" label="Lỗi khi luyện tập" value={dual.practice.errors} min={0} max={100} onChange={(value) => change((next) => { next.dualTaskGait.practice.errors = value; })} />
-                    <NumberField scat6={scat6} path="dualTaskGait.practice.timeSeconds" label="Thời gian luyện tập" value={dual.practice.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" optional onChange={(value) => change((next) => { next.dualTaskGait.practice.timeSeconds = value; })} />
+                    <NumberField scat6={scat6} path="dualTaskGait.practice.errors" label={t("doctorScat6.dual.practiceErrors")} value={dual.practice.errors} min={0} max={100} onChange={(value) => change((next) => { next.dualTaskGait.practice.errors = value; })} />
+                    <NumberField scat6={scat6} path="dualTaskGait.practice.timeSeconds" label={t("doctorScat6.dual.practiceTime")} value={dual.practice.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" optional onChange={(value) => change((next) => { next.dualTaskGait.practice.timeSeconds = value; })} />
                 </div>
                 <ChoiceGroup
                     id={scat6.id("dualTaskGait.sequence.kind")}
                     name="scat6.dualTaskGait.sequence.kind"
-                    legend="Lượt đã dùng"
+                    legend={t("doctorScat6.dual.kind")}
                     columns={2}
                     variant="compact"
                     options={[
-                        { value: "PRINTED", label: "Dãy in sẵn", description: "Ba dòng in sẵn, đếm lùi 7." },
-                        { value: "ALTERNATE", label: "Dòng thay thế", description: "Số bắt đầu hoặc bước trừ khác." },
+                        { value: "PRINTED", label: t("doctorScat6.dual.printed"), description: t("doctorScat6.dual.printedHint") },
+                        { value: "ALTERNATE", label: t("doctorScat6.dual.alternate"), description: t("doctorScat6.dual.alternateHint") },
                     ]}
                     value={dual.kind}
                     onChange={(kind) => change((next) => { next.dualTaskGait.kind = kind; }, "dualTaskGait.sequence")}
@@ -535,40 +542,40 @@ export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
             </OptionalPart>
 
             {anyGaitTrialIncomplete(draft) && (
-                <FormSection title="Lượt đi chưa hoàn thành">
-                    <TextArea scat6={scat6} path="gaitIncompleteReason" label="Lý do lượt đi chưa hoàn thành" value={draft.gaitIncompleteReason} max={1_000} onChange={(value) => change((next) => { next.gaitIncompleteReason = value; }, "gaitIncompleteReason")} />
+                <FormSection title={t("doctorScat6.gaitIncomplete.title")}>
+                    <TextArea scat6={scat6} path="gaitIncompleteReason" label={t("doctorScat6.gaitIncomplete.reason")} value={draft.gaitIncompleteReason} max={1_000} onChange={(value) => change((next) => { next.gaitIncompleteReason = value; }, "gaitIncompleteReason")} />
                 </FormSection>
             )}
 
-            <Part scat6={scat6} path="delayedRecall" title="Nhớ lại có trì hoãn" term="delayedRecall" description="Lại danh sách trí nhớ tức thời, ít nhất 5 phút sau lượt cuối.">
+            <Part scat6={scat6} path="delayedRecall" title={t("doctorScat6.part.delayedRecall")} term="delayedRecall" description={t("doctorScat6.delayed.description")}>
                 <StampedTime
                     scat6={scat6}
                     field="delayedRecall.startedAt"
-                    label="Bắt đầu"
+                    label={t("doctorScat6.common.start")}
                     value={draft.delayedRecall.startedAt}
-                    hint={earliest ? `Có thể bắt đầu từ ${earliest.slice(11)} (5 phút sau lượt trí nhớ cuối).` : "Hãy ghi thời điểm kết thúc lượt trí nhớ cuối trước."}
+                    hint={earliest ? t("doctorScat6.delayed.earliest", { time: earliest.slice(11) }) : t("doctorScat6.delayed.needLastTrial")}
                 />
-                <Toggles scat6={scat6} path="delayedRecall.words" legend="Từ nhớ được" values={draft.delayedRecall.words} itemLabel="Word" />
+                <Toggles scat6={scat6} path="delayedRecall.words" legend={t("doctorScat6.delayed.words")} values={draft.delayedRecall.words} itemLabel={t("doctorScat6.common.word")} />
             </Part>
 
-            <FormSection title="Kết luận SCAT6" description="Nhận định chung của bạn về SCAT6.">
+            <FormSection title={t("doctorScat6.part.conclusion")} description={t("doctorScat6.conclusion.description")}>
                 <ChoiceGroup
                     id={scat6.id("differentFromUsualSelf")}
                     name="scat6.differentFromUsualSelf"
-                    legend="Khác với bình thường?"
+                    legend={t("doctorScat6.conclusion.different")}
                     required
                     columns={3}
                     variant="compact"
                     options={[
-                        { value: "NO", label: "Không" },
-                        { value: "YES", label: "Có" },
-                        { value: "NOT_APPLICABLE", label: "Không áp dụng" },
+                        { value: "NO", label: t("doctorScat6.conclusion.no") },
+                        { value: "YES", label: t("doctorScat6.common.yes") },
+                        { value: "NOT_APPLICABLE", label: t("doctorScat6.common.notApplicable") },
                     ]}
                     value={draft.differentFromUsualSelf}
                     onChange={(value) => change((next) => { next.differentFromUsualSelf = value; }, "differentFromUsualSelf")}
                     error={scat6.error("differentFromUsualSelf")}
                 />
-                <Field label="Chẩn đoán chấn động não" htmlFor={scat6.id("concussionDiagnosed")} error={scat6.error("concussionDiagnosed")} optional>
+                <Field label={t("doctorScat6.review.concussionDiagnosed")} htmlFor={scat6.id("concussionDiagnosed")} error={scat6.error("concussionDiagnosed")} optional>
                     <Select
                         id={scat6.id("concussionDiagnosed")}
                         name="scat6.concussionDiagnosed"
@@ -576,13 +583,13 @@ export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
                         onChange={(event) => change((next) => { next.concussionDiagnosed = event.target.value as Scat6Draft["concussionDiagnosed"]; })}
                         className="sm:w-56"
                     >
-                        <option value="">Chưa ghi nhận</option>
-                        <option value="NO">No</option>
-                        <option value="YES">Có</option>
-                        <option value="DEFERRED">Hoãn lại</option>
+                        <option value="">{t("doctorScat6.conclusion.notRecorded")}</option>
+                        <option value="NO">{t("doctorScat6.common.no")}</option>
+                        <option value="YES">{t("doctorScat6.common.yes")}</option>
+                        <option value="DEFERRED">{t("doctorScat6.common.deferred")}</option>
                     </Select>
                 </Field>
-                <TextArea scat6={scat6} path="clinicalNotes" label="Ghi chú lâm sàng" value={draft.clinicalNotes} max={4_000} optional onChange={(value) => change((next) => { next.clinicalNotes = value; })} />
+                <TextArea scat6={scat6} path="clinicalNotes" label={t("doctorScat6.conclusion.clinicalNotes")} value={draft.clinicalNotes} max={4_000} optional onChange={(value) => change((next) => { next.clinicalNotes = value; })} />
             </FormSection>
         </>
     );
@@ -596,6 +603,7 @@ type PartPath = "symptoms" | "orientation" | "immediateMemory" | "digitsBackward
 function Part({ scat6, path, title, term, description, children }: { scat6: Scat6Controller; path: PartPath; title: string; term: GlossaryTerm; description?: ReactNode; children: ReactNode }) {
     const part = scat6.draft[path];
     const message = scat6.error(path);
+    const t = useT();
     return (
         <FormSection title={title} info={<TermHint term={term} />} description={description}>
             <div data-invalid={message ? "true" : undefined} className="flex flex-col gap-1">
@@ -604,14 +612,14 @@ function Part({ scat6, path, title, term, description, children }: { scat6: Scat
                     name={`scat6.${path}.performed`}
                     checked={!part.performed}
                     onChange={(event) => scat6.change((next) => { next[path].performed = !event.target.checked; }, path)}
-                    label="Không thực hiện"
+                    label={t("doctorScat6.common.notPerformed")}
                 />
                 <ErrorText message={message} />
             </div>
             {part.performed ? (
                 children
             ) : (
-                <TextArea scat6={scat6} path={`${path}.reason`} label="Lý do không thực hiện" value={part.reason} max={1_000} onChange={(value) => scat6.change((next) => { next[path].reason = value; }, `${path}.reason`)} />
+                <TextArea scat6={scat6} path={`${path}.reason`} label={t("doctorScat6.common.notPerformedReason")} value={part.reason} max={1_000} onChange={(value) => scat6.change((next) => { next[path].reason = value; }, `${path}.reason`)} />
             )}
         </FormSection>
     );
@@ -637,26 +645,27 @@ function OptionalPart({
 }) {
     const { performed, reason } = scat6.draft[part];
     const message = scat6.error(`${part}.performed`) ?? scat6.error(part);
+    const t = useT();
     return (
         <FormSection title={title} info={<TermHint term={term} />} description={description}>
             <ChoiceGroup
                 id={scat6.id(`${part}.performed`)}
                 name={`scat6.${part}.performed`}
-                legend="Có thực hiện ở lần khám này?"
+                legend={t("doctorScat6.optional.legend")}
                 required
                 columns={2}
                 variant="compact"
                 options={[
-                    { value: "YES", label: "Đã thực hiện" },
-                    { value: "NO", label: "Không thực hiện" },
+                    { value: "YES", label: t("doctorScat6.common.performed") },
+                    { value: "NO", label: t("doctorScat6.common.notPerformed") },
                 ]}
                 value={performed === null ? "" : performed ? "YES" : "NO"}
                 onChange={(value) => scat6.change((next) => { next[part].performed = value === "YES"; }, part)}
                 error={message}
             />
-            <QuickFill label={skipLabel} icon={SkipForward} available={performed === null} note={scat6.notes[part]} onClick={() => scat6.quick(part, (draft) => skipPart(draft, part), part)} />
+            <QuickFill label={skipLabel} icon={SkipForward} available={performed === null} note={scat6.notes[part]} onClick={() => scat6.quick(part, (draft) => skipPart(draft, part, t), part)} />
             {performed === false && (
-                <TextArea scat6={scat6} path={`${part}.reason`} label="Lý do không thực hiện" value={reason} max={1_000} onChange={(value) => scat6.change((next) => { next[part].reason = value; }, `${part}.reason`)} />
+                <TextArea scat6={scat6} path={`${part}.reason`} label={t("doctorScat6.common.notPerformedReason")} value={reason} max={1_000} onChange={(value) => scat6.change((next) => { next[part].reason = value; }, `${part}.reason`)} />
             )}
             {performed === true && children}
         </FormSection>
@@ -665,6 +674,7 @@ function OptionalPart({
 
 function GcsRows({ scat6 }: { scat6: Scat6Controller }) {
     const rows = scat6.draft.immediateAssessment.gcs;
+    const t = useT();
     const scale = (row: number, key: "eye" | "verbal" | "motor", label: string, max: number) => {
         const path = `immediateAssessment.glasgowComaScale.${row}.${key}`;
         const id = scat6.id(path);
@@ -694,25 +704,25 @@ function GcsRows({ scat6 }: { scat6: Scat6Controller }) {
     return (
         <fieldset className="flex flex-col gap-3">
             <legend className="mb-1 flex items-center gap-1.5 text-sm font-medium text-fg">
-                Thang điểm hôn mê Glasgow <TermHint term="gcs" />
+                {t("doctorScat6.gcs.legend")} <TermHint term="gcs" />
             </legend>
             {rows.map((row, index) => (
                 <div key={index} className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 rounded-lg border border-border p-3 sm:grid-cols-[minmax(0,14rem)_repeat(3,5rem)_auto]">
                     <DateTime
                         scat6={scat6}
                         path={`immediateAssessment.glasgowComaScale.${index}.assessedAt`}
-                        label={`Lần đánh giá ${index + 1}`}
+                        label={t("doctorScat6.gcs.assessment", { n: index + 1 })}
                         value={row.assessedAt}
                         onChange={(value) => scat6.change((next) => { next.immediateAssessment.gcs[index].assessedAt = value; }, `immediateAssessment.glasgowComaScale.${index}.assessedAt`)}
                     />
-                    {scale(index, "eye", "Mắt", 4)}
-                    {scale(index, "verbal", "Lời nói", 5)}
-                    {scale(index, "motor", "Vận động", 6)}
+                    {scale(index, "eye", t("doctorScat6.gcs.eye"), 4)}
+                    {scale(index, "verbal", t("doctorScat6.gcs.verbal"), 5)}
+                    {scale(index, "motor", t("doctorScat6.gcs.motor"), 6)}
                     <Button
                         variant="ghost"
                         size="icon"
                         disabled={rows.length === 1}
-                        aria-label={`Xóa lần đánh giá ${index + 1}`}
+                        aria-label={t("doctorScat6.gcs.remove", { n: index + 1 })}
                         onClick={() => scat6.change((next) => { next.immediateAssessment.gcs.splice(index, 1); }, "immediateAssessment.glasgowComaScale")}
                     >
                         <X />
@@ -727,7 +737,7 @@ function GcsRows({ scat6 }: { scat6: Scat6Controller }) {
                     onClick={() => scat6.change((next) => { next.immediateAssessment.gcs.push({ assessedAt: "", eye: "", verbal: "", motor: "" }); })}
                 >
                     <Plus aria-hidden />
-                    Thêm đánh giá
+                    {t("doctorScat6.gcs.add")}
                 </Button>
             )}
         </fieldset>
@@ -736,6 +746,7 @@ function GcsRows({ scat6 }: { scat6: Scat6Controller }) {
 
 function DigitStrings({ scat6 }: { scat6: Scat6Controller }) {
     const strings = scat6.draft.digitsBackward.strings;
+    const t = useT();
     const answer = (index: number, trial: "trial1" | "trial2", value: boolean) =>
         scat6.change((next) => {
             const entries = next.digitsBackward.strings;
@@ -750,10 +761,10 @@ function DigitStrings({ scat6 }: { scat6: Scat6Controller }) {
             <ErrorText message={scat6.error("digitsBackward.strings")} />
             {strings.map((entry, index) => (
                 <div key={index} className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-lg border border-border px-3 py-2.5">
-                    <span className="w-28 text-sm font-medium text-fg">Độ dài dãy {index + 1}</span>
-                    <YesNoField scat6={scat6} path={`digitsBackward.strings.${index}.trial1Correct`} label="Lượt 1 đúng" value={entry.trial1} inline onChange={(value) => answer(index, "trial1", value)} />
+                    <span className="w-28 text-sm font-medium text-fg">{t("doctorScat6.digits.length", { n: index + 1 })}</span>
+                    <YesNoField scat6={scat6} path={`digitsBackward.strings.${index}.trial1Correct`} label={t("doctorScat6.digits.trial1")} value={entry.trial1} inline onChange={(value) => answer(index, "trial1", value)} />
                     {entry.trial1 === false && (
-                        <YesNoField scat6={scat6} path={`digitsBackward.strings.${index}.trial2Correct`} label="Lượt 2 đúng" value={entry.trial2} inline onChange={(value) => answer(index, "trial2", value)} />
+                        <YesNoField scat6={scat6} path={`digitsBackward.strings.${index}.trial2Correct`} label={t("doctorScat6.digits.trial2")} value={entry.trial2} inline onChange={(value) => answer(index, "trial2", value)} />
                     )}
                 </div>
             ))}
@@ -763,23 +774,24 @@ function DigitStrings({ scat6 }: { scat6: Scat6Controller }) {
 
 function Stances({ scat6, surface, stances }: { scat6: Scat6Controller; surface: "firm" | "foam"; stances: StancesDraft }) {
     const base = surface === "firm" ? "mbess.firm" : "mbess.foam.stances";
+    const t = useT();
     return (
         <fieldset className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <legend className="mb-2 text-sm font-medium text-fg">{surface === "firm" ? "Bề mặt cứng" : "Bề mặt đệm xốp"}</legend>
+            <legend className="mb-2 text-sm font-medium text-fg">{surface === "firm" ? t("doctorScat6.mbess.firm") : t("doctorScat6.mbess.foam")}</legend>
             {(
                 [
-                    ["doubleLeg", "Hai chân"],
-                    ["singleLeg", "Một chân"],
-                    ["tandem", "Nối gót"],
+                    ["doubleLeg", "doctorScat6.mbess.doubleLeg"],
+                    ["singleLeg", "doctorScat6.mbess.singleLeg"],
+                    ["tandem", "doctorScat6.mbess.tandem"],
                 ] as const
             ).map(([key, label]) => (
                 <div key={key} className="flex flex-col gap-2 rounded-lg border border-border p-3">
-                    <p className="text-sm font-medium text-fg">{label}</p>
+                    <p className="text-sm font-medium text-fg">{t(label)}</p>
                     {stances[key].held && (
                         <NumberField
                             scat6={scat6}
                             path={`${base}.${key}.errors`}
-                            label="Lỗi"
+                            label={t("doctorScat6.common.errors")}
                             value={stances[key].errors}
                             min={0}
                             max={SCAT6.MBESS_MAX_ERRORS}
@@ -791,8 +803,8 @@ function Stances({ scat6, surface, stances }: { scat6: Scat6Controller; surface:
                         name={`scat6.${base}.${key}.unableToHoldFiveSeconds`}
                         checked={!stances[key].held}
                         onChange={(event) => scat6.change((next) => { next.mbess[surface][key].held = !event.target.checked; }, `${base}.${key}`)}
-                        label="Không giữ được 5 giây"
-                        description={stances[key].held ? undefined : "Tính tối đa 10 lỗi."}
+                        label={t("doctorScat6.mbess.unableToHold")}
+                        description={stances[key].held ? undefined : t("doctorScat6.mbess.maxErrors")}
                     />
                 </div>
             ))}
@@ -801,16 +813,17 @@ function Stances({ scat6, surface, stances }: { scat6: Scat6Controller; surface:
 }
 
 function GaitTrials({ scat6 }: { scat6: Scat6Controller }) {
+    const t = useT();
     return (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             {scat6.draft.tandemGait.trials.map((trial, index) => (
                 <div key={index} className="flex flex-col gap-2 rounded-lg border border-border p-3">
-                    <p className="text-sm font-medium text-fg">Lượt {index + 1}</p>
+                    <p className="text-sm font-medium text-fg">{t("doctorScat6.common.trial", { n: index + 1 })}</p>
                     {trial.completed && (
                         <NumberField
                             scat6={scat6}
                             path={`tandemGait.trials.${index}.timeSeconds`}
-                            label="Thời gian"
+                            label={t("doctorScat6.common.time")}
                             value={trial.timeSeconds}
                             min={0}
                             max={3_600}
@@ -824,7 +837,7 @@ function GaitTrials({ scat6 }: { scat6: Scat6Controller }) {
                         name={`scat6.tandemGait.trials.${index}.completed`}
                         checked={!trial.completed}
                         onChange={(event) => scat6.change((next) => { next.tandemGait.trials[index].completed = !event.target.checked; }, `tandemGait.trials.${index}`)}
-                        label="Dừng sớm"
+                        label={t("doctorScat6.common.stoppedEarly")}
                     />
                 </div>
             ))}
@@ -833,21 +846,22 @@ function GaitTrials({ scat6 }: { scat6: Scat6Controller }) {
 }
 
 function PrintedTrials({ scat6 }: { scat6: Scat6Controller }) {
+    const t = useT();
     return (
         <div className="flex flex-col gap-3">
             {scat6.draft.dualTaskGait.printed.map((trial, index) => {
                 const path = `dualTaskGait.sequence.trials.${index}`;
                 return (
                     <div key={index} className="flex flex-col gap-3 rounded-lg border border-border p-3">
-                        <p className="text-sm font-medium text-fg">Lượt {index + 1}</p>
-                        <Toggles scat6={scat6} path={`${path}.correctResponses`} legend="Câu trả lời đúng" values={trial.correct} />
+                        <p className="text-sm font-medium text-fg">{t("doctorScat6.common.trial", { n: index + 1 })}</p>
+                        <Toggles scat6={scat6} path={`${path}.correctResponses`} legend={t("doctorScat6.common.correctResponses")} values={trial.correct} />
                         {trial.completed && (
                             <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-                                <NumberField scat6={scat6} path={`${path}.errors`} label="Lỗi" value={trial.errors} min={0} max={100} onChange={(value) => scat6.change((next) => { next.dualTaskGait.printed[index].errors = value; })} />
+                                <NumberField scat6={scat6} path={`${path}.errors`} label={t("doctorScat6.common.errors")} value={trial.errors} min={0} max={100} onChange={(value) => scat6.change((next) => { next.dualTaskGait.printed[index].errors = value; })} />
                                 <NumberField
                                     scat6={scat6}
                                     path={`${path}.timeSeconds`}
-                                    label="Thời gian"
+                                    label={t("doctorScat6.common.time")}
                                     value={trial.timeSeconds}
                                     min={0}
                                     max={3_600}
@@ -862,7 +876,7 @@ function PrintedTrials({ scat6 }: { scat6: Scat6Controller }) {
                             name={`scat6.${path}.completed`}
                             checked={!trial.completed}
                             onChange={(event) => scat6.change((next) => { next.dualTaskGait.printed[index].completed = !event.target.checked; }, path)}
-                            label="Dừng sớm"
+                            label={t("doctorScat6.common.stoppedEarly")}
                         />
                     </div>
                 );
@@ -874,23 +888,24 @@ function PrintedTrials({ scat6 }: { scat6: Scat6Controller }) {
 function AlternateTrial({ scat6 }: { scat6: Scat6Controller }) {
     const alternate = scat6.draft.dualTaskGait.alternate;
     const path = "dualTaskGait.sequence";
+    const t = useT();
     return (
         <div className="flex flex-col gap-4 rounded-lg border border-border p-3">
-            <NumberField scat6={scat6} path={`${path}.startingInteger`} label="Số bắt đầu" value={alternate.startingInteger} min={1} max={1_000} onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.startingInteger = value; })} />
+            <NumberField scat6={scat6} path={`${path}.startingInteger`} label={t("doctorScat6.dual.startingInteger")} value={alternate.startingInteger} min={1} max={1_000} onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.startingInteger = value; })} />
             <Text
                 scat6={scat6}
                 path={`${path}.responses`}
-                label="Các số đã nói, theo thứ tự"
+                label={t("doctorScat6.dual.responses")}
                 value={alternate.responses}
                 max={400}
                 optional
-                hint="Cách nhau bằng dấu phẩy hoặc khoảng trắng, tối đa 30."
+                hint={t("doctorScat6.dual.responsesHint")}
                 onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.responses = value; })}
             />
             {alternate.completed && (
                 <div className="grid grid-cols-1 gap-4 sm:max-w-md sm:grid-cols-2">
-                    <NumberField scat6={scat6} path={`${path}.trial.errors`} label="Lỗi" value={alternate.errors} min={0} max={100} onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.errors = value; })} />
-                    <NumberField scat6={scat6} path={`${path}.trial.timeSeconds`} label="Thời gian" value={alternate.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.timeSeconds = value; })} />
+                    <NumberField scat6={scat6} path={`${path}.trial.errors`} label={t("doctorScat6.common.errors")} value={alternate.errors} min={0} max={100} onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.errors = value; })} />
+                    <NumberField scat6={scat6} path={`${path}.trial.timeSeconds`} label={t("doctorScat6.common.time")} value={alternate.timeSeconds} min={0} max={3_600} step="0.1" suffix="s" onChange={(value) => scat6.change((next) => { next.dualTaskGait.alternate.timeSeconds = value; })} />
                 </div>
             )}
             <Checkbox
@@ -898,7 +913,7 @@ function AlternateTrial({ scat6 }: { scat6: Scat6Controller }) {
                 name={`scat6.${path}.trial.completed`}
                 checked={!alternate.completed}
                 onChange={(event) => scat6.change((next) => { next.dualTaskGait.alternate.completed = !event.target.checked; }, `${path}.trial`)}
-                label="Dừng sớm"
+                label={t("doctorScat6.common.stoppedEarly")}
             />
         </div>
     );
@@ -914,17 +929,18 @@ function ErrorText({ message }: { message?: string }) {
  * Numbered tick boxes for a row of the form (signs, questions, words, responses), in form order. Until the doctor
  * ticks an item or chooses all or none, the row reads "not marked" and isn't sent as "none ticked".
  */
-function Toggles({ scat6, path, legend, values, itemLabel = "Mục", term }: { scat6: Scat6Controller; path: string; legend: string; values: boolean[]; itemLabel?: string; term?: GlossaryTerm }) {
+function Toggles({ scat6, path, legend, values, itemLabel, term }: { scat6: Scat6Controller; path: string; legend: string; values: boolean[]; itemLabel?: string; term?: GlossaryTerm }) {
+    const t = useT();
     const message = scat6.error(path);
     const marked = Boolean(scat6.draft.marked[path]);
-    const rule = toggleRows(scat6.draft).find((candidate) => candidate.path === path);
+    const rule = toggleRows(scat6.draft, t).find((candidate) => candidate.path === path);
     const ticked = values.filter(Boolean).length;
     return (
         <fieldset className="flex min-w-0 flex-col gap-1.5" aria-invalid={message ? true : undefined}>
             <legend className="mb-1 flex flex-wrap items-center gap-x-1.5 text-sm font-medium text-fg">
                 {legend}
                 {term && <TermHint term={term} />}
-                <span className="font-normal text-fg-subtle">{marked ? `(${ticked}/${values.length})` : "(chưa đánh dấu)"}</span>
+                <span className="font-normal text-fg-subtle">{marked ? `(${ticked}/${values.length})` : t("doctorScat6.common.notMarked")}</span>
             </legend>
             <div className="flex flex-wrap gap-1.5">
                 {values.map((checked, index) => (
@@ -949,7 +965,7 @@ function Toggles({ scat6, path, legend, values, itemLabel = "Mục", term }: { s
                                 }, path);
                             }}
                             className="sr-only"
-                            aria-label={`${itemLabel} ${index + 1}`}
+                            aria-label={`${itemLabel ?? t("doctorScat6.common.item")} ${index + 1}`}
                         />
                         {index + 1}
                     </label>
@@ -957,11 +973,11 @@ function Toggles({ scat6, path, legend, values, itemLabel = "Mục", term }: { s
             </div>
             {rule && !marked && (
                 <div className="flex flex-wrap items-center gap-2">
-                    <Button variant="secondary" size="sm" onClick={() => scat6.quick(path, (draft) => fillToggleRow(draft, path, true), path)}>
+                    <Button variant="secondary" size="sm" onClick={() => scat6.quick(path, (draft) => fillToggleRow(draft, path, true, t), path)}>
                         <CheckCheck aria-hidden />
                         {rule.all}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => scat6.quick(path, (draft) => fillToggleRow(draft, path, false), path)}>
+                    <Button variant="ghost" size="sm" onClick={() => scat6.quick(path, (draft) => fillToggleRow(draft, path, false, t), path)}>
                         {rule.none}
                     </Button>
                 </div>
@@ -978,6 +994,7 @@ function Toggles({ scat6, path, legend, values, itemLabel = "Mục", term }: { s
 function YesNoField({ scat6, path, label, value, inline, onChange }: { scat6: Scat6Controller; path: string; label: string; value: YesNo; inline?: boolean; onChange: (value: boolean) => void }) {
     const message = scat6.error(path);
     const name = `scat6.${path}`;
+    const t = useT();
     return (
         <fieldset
             role="radiogroup"
@@ -992,11 +1009,11 @@ function YesNoField({ scat6, path, label, value, inline, onChange }: { scat6: Sc
             <span className="flex items-center gap-3">
                 {(
                     [
-                        [true, "Có"],
-                        [false, "No"],
+                        [true, t("doctorScat6.common.yes")],
+                        [false, t("doctorScat6.common.no")],
                     ] as const
                 ).map(([option, text]) => (
-                    <label key={text} className="inline-flex cursor-pointer items-center gap-1.5 text-sm">
+                    <label key={String(option)} className="inline-flex cursor-pointer items-center gap-1.5 text-sm">
                         <input type="radio" name={name} required checked={value === option} onChange={() => onChange(option)} className="size-4 accent-[var(--primary)]" />
                         {text}
                     </label>
@@ -1008,11 +1025,14 @@ function YesNoField({ scat6, path, label, value, inline, onChange }: { scat6: Sc
 }
 
 function ListChoice({ scat6, path, value, onChange }: { scat6: Scat6Controller; path: string; value: string; onChange: (value: "A" | "B" | "C") => void }) {
-    return <ChoiceGroup id={scat6.id(path)} name={`scat6.${path}`} legend="Danh sách đã dùng" required columns={3} variant="compact" options={LIST_OPTIONS} value={value as "A" | "B" | "C" | ""} onChange={onChange} error={scat6.error(path)} />;
+    const t = useT();
+    const options = SCAT6_LISTS.map((list) => ({ value: list, label: t("doctorScat6.common.list", { list }) }));
+    return <ChoiceGroup id={scat6.id(path)} name={`scat6.${path}`} legend={t("doctorScat6.listUsed")} required columns={3} variant="compact" options={options} value={value as "A" | "B" | "C" | ""} onChange={onChange} error={scat6.error(path)} />;
 }
 
 /** A time the doctor stamps with one click when the step happens, or types. A time already entered is never replaced. */
 function StampedTime({ scat6, field, label, value, hint }: { scat6: Scat6Controller; field: "immediateMemory.lastTrialCompletedAt" | "delayedRecall.startedAt"; label: string; value: string; hint: string }) {
+    const t = useT();
     const set = (next: Scat6Draft, time: string) => {
         if (field === "immediateMemory.lastTrialCompletedAt") next.immediateMemory.lastTrialCompletedAt = time;
         else next.delayedRecall.startedAt = time;
@@ -1021,11 +1041,11 @@ function StampedTime({ scat6, field, label, value, hint }: { scat6: Scat6Control
         <div className="flex flex-col gap-2">
             <DateTime scat6={scat6} path={field} label={label} value={value} hint={hint} onChange={(time) => scat6.change((next) => set(next, time), field)} />
             <QuickFill
-                label="Ghi giờ hiện tại"
+                label={t("doctorScat6.common.stampNow")}
                 icon={Clock}
                 available={value === ""}
                 note={value ? scat6.notes[field] : undefined}
-                onClick={() => scat6.quick(field, (draft) => stampNow(draft, field, new Date()), field)}
+                onClick={() => scat6.quick(field, (draft) => stampNow(draft, field, new Date(), t), field)}
             />
         </div>
     );
@@ -1101,8 +1121,9 @@ function NumberField({
 function DateTime({ scat6, path, label, value, hint, onChange }: { scat6: Scat6Controller; path: string; label: string; value: string; hint?: string; onChange: (value: string) => void }) {
     const control = scat6.form.control(`scat6.${path}`, { required: true, hint: true });
     const message = scat6.error(path);
+    const t = useT();
     return (
-        <Field label={label} htmlFor={control.id} error={message} required hint={hint ?? "Giờ học viện (TP. Hồ Chí Minh)"}>
+        <Field label={label} htmlFor={control.id} error={message} required hint={hint ?? t("doctorScat6.common.academyTime")}>
             <Input {...wired(control, message)} type="datetime-local" value={value} onChange={(event) => onChange(event.target.value)} className="sm:w-64" />
         </Field>
     );

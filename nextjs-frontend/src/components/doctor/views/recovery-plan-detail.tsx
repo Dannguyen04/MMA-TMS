@@ -31,8 +31,13 @@ import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus, getRecoveryPlanDetail } from "@/lib/services/medical";
 import { medicalFeatureAvailable, usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { getDoctor } from "@/lib/services/people";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { param } from "@/lib/utils";
-import { NOT_RECORDED } from "@/components/domain/domain-format";
+
+/** The shared injury title and badges keep this screen's Vietnamese wording only when given no locale, so they get one only in English. */
+const enOnly = (locale: Locale) => (locale === "en" ? locale : undefined);
 
 /** The plan with its fighter, injury, treatments and doctor, loaded once per request for the metadata and the page. */
 const loadRecoveryPlanDetail = cache(getRecoveryPlanDetail);
@@ -48,12 +53,14 @@ export async function recoveryPlanMetadata(planId: string): Promise<Metadata> {
     const detail = await loadRecoveryPlanDetail(planId);
     // The title must not reveal a plan the viewer isn't assigned to.
     const visible = detail && user && canAccessFighter(user, detail.plan.fighterId);
-    return { title: visible ? `${detail.plan.title} · ${detail.fighter.name}` : "Kế hoạch phục hồi" };
+    const { t } = await getTranslator();
+    return { title: visible ? `${detail.plan.title} · ${detail.fighter.name}` : t("doctorViews.injury.plan") };
 }
 
 /** One recovery plan, shown inside its fighter's profile. */
 export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }: { planId: string; query: Record<string, string | string[] | undefined>; fighterId: string }) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
     const now = new Date().toISOString();
 
     const [detail, settings] = await Promise.all([loadRecoveryPlanDetail(planId), getSettings()]);
@@ -73,8 +80,8 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
     return (
         <>
             <PageHeader
-                back={{ href: routes.doctor.fighterRecovery(fighter.id), label: "Phục hồi" }}
-                eyebrow="Kế hoạch phục hồi"
+                back={{ href: routes.doctor.fighterRecovery(fighter.id), label: t("doctorViews.history.kind.plan") }}
+                eyebrow={t("doctorViews.injury.plan")}
                 title={plan.title}
                 meta={
                     <>
@@ -96,9 +103,9 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                                     href={routes.doctor.fighterInjury(injury.fighterId, injury.id)}
                                     className="rounded-md text-sm text-fg-muted hover:text-fg hover:underline"
                                 >
-                                    {injuryTitle(injury)}
+                                    {injuryTitle(injury, enOnly(locale))}
                                 </Link>
-                                <InjuryStatusBadge status={injury.status} size="sm" />
+                                <InjuryStatusBadge status={injury.status} size="sm" locale={enOnly(locale)} />
                             </>
                         )}
                     </>
@@ -124,16 +131,16 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                         tone="success"
                         icon={CircleCheck}
                         role="status"
-                        title="Đã tạo kế hoạch phục hồi"
+                        title={t("doctorViews.plan.createdTitle")}
                         action={
                             <ButtonLink href={routes.doctor.fighterRecoveryPlan(plan.fighterId, plan.id)} variant="ghost" size="sm" replace scroll={false}>
-                                Đóng
+                                {t("doctorViews.injury.close")}
                             </ButtonLink>
                         }
                     >
                         {serviceForms
-                            ? `${fighter.name} có thể theo dõi kế hoạch ở trang Sức khỏe. Đánh dấu từng mốc khi đạt.`
-                            : `${fighter.name} đã được thông báo, HLV được báo kế hoạch trở lại tập đã bắt đầu — không kèm chi tiết lâm sàng. Ghi lần kiểm tra đầu tiên để bắt đầu theo dõi.`}
+                            ? t("doctorViews.plan.createdService", { name: fighter.name })
+                            : t("doctorViews.plan.createdDemo", { name: fighter.name })}
                     </Callout>
                 )}
 
@@ -141,29 +148,29 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                     <Callout
                         tone="success"
                         icon={CircleCheck}
-                        title={serviceForms ? "Đã hoàn tất kế hoạch" : "Mọi giai đoạn đã xong"}
+                        title={serviceForms ? t("doctorViews.plan.completedService") : t("doctorViews.plan.completedDemo")}
                         action={
                             <>
                                 <ButtonLink href={routes.doctor.fighterInjury(injury.fighterId, injury.id)} size="sm" variant="secondary">
-                                    Mở hồ sơ chấn thương
+                                    {t("doctorViews.plan.openInjury")}
                                 </ButtonLink>
                                 <ButtonLink href={clinicalLinks.grantClearanceFor(fighter.id)} size="sm">
                                     <ShieldCheck aria-hidden />
-                                    Xem lại giấy phép
+                                    {t("doctorViews.plan.reviewClearance")}
                                 </ButtonLink>
                             </>
                         }
                     >
-                        Hồ sơ chấn thương và giấy phép không tự thay đổi. Hãy đánh dấu đã khỏi và cập nhật giấy phép khi đánh giá của bạn cho phép trở lại hoàn toàn.
+                        {t("doctorViews.plan.completedBody")}
                     </Callout>
                 )}
 
                 {serviceForms ? (
                     <Card>
                         <CardHeader
-                            title="Các mốc"
+                            title={t("doctorViews.plan.milestones")}
                             icon={<ListChecks />}
-                            description={plan.status === "active" ? "Đánh dấu mốc khi đạt. Võ sĩ thấy chúng ở trang Sức khỏe." : "Kế hoạch này đã đóng."}
+                            description={plan.status === "active" ? t("doctorViews.plan.milestonesActive") : t("doctorViews.plan.closed")}
                         />
                         <CardContent>
                             {plan.legacyMilestones ? (
@@ -176,9 +183,9 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                 ) : (
                     <Card>
                         <CardHeader
-                            title="Giai đoạn & mốc"
+                            title={t("doctorViews.plan.phases")}
                             icon={<ListChecks />}
-                            description="Đánh dấu mốc khi đạt. Tiến độ cập nhật ngay."
+                            description={t("doctorViews.plan.phasesSub")}
                         />
                         <CardContent>
                             <RecoveryTracker plan={plan} now={now} />
@@ -189,55 +196,55 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                 {medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
                     <Card className="overflow-hidden">
                         <CardHeader
-                            title="Kiểm tra định kỳ"
+                            title={t("doctorViews.plan.checkIns")}
                             icon={<LineChartIcon />}
                             description={
                                 plan.checkIns.length === 0
-                                    ? "Đau, vận động và sức mạnh theo thời gian"
-                                    : `${plan.checkIns.length} lần kiểm tra · gần nhất ${formatDate(plan.checkIns.at(-1)?.date ?? now)}`
+                                    ? t("doctorViews.plan.checkInsSub")
+                                    : plural(t, "doctorViews.plan.checkInsCount", plan.checkIns.length, { date: formatDate(plan.checkIns.at(-1)?.date ?? now, locale) })
                             }
                         />
                         {plan.checkIns.length === 0 ? (
                             <EmptyState
                                 compact
                                 icon={<LineChartIcon />}
-                                title="Chưa có lần kiểm tra"
-                                description="Ghi đau, vận động và sức mạnh mỗi lần kiểm tra để theo dõi đáp ứng."
+                                title={t("doctorViews.plan.noCheckIns")}
+                                description={t("doctorViews.plan.noCheckInsBody")}
                                 className="border-t border-border"
                             />
                         ) : (
                             <>
                                 <CardContent>
                                     {plan.checkIns.length >= 2 ? (
-                                        <CheckInCharts checkIns={plan.checkIns} audience="clinical" />
+                                        <CheckInCharts checkIns={plan.checkIns} audience="clinical" locale={locale} />
                                     ) : (
                                         <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
-                                            Xu hướng hiện sau lần kiểm tra thứ hai.
+                                            {t("doctorViews.plan.trendLater")}
                                         </p>
                                     )}
                                 </CardContent>
                                 <div className="border-t border-border">
-                                    <h3 className="sr-only">Lịch sử kiểm tra</h3>
-                                    <Table caption="Lịch sử kiểm tra, mới nhất trước">
+                                    <h3 className="sr-only">{t("doctorViews.plan.history")}</h3>
+                                    <Table caption={t("doctorViews.plan.historyCaption")}>
                                         <THead>
                                             <tr>
-                                                <TH>Ngày</TH>
-                                                <TH className="text-right">Đau</TH>
-                                                <TH className="text-right">Vận động</TH>
-                                                <TH className="text-right">Sức mạnh</TH>
-                                                <TH>Ghi chú</TH>
+                                                <TH>{t("doctorViews.plan.colDate")}</TH>
+                                                <TH className="text-right">{t("doctorViews.plan.colPain")}</TH>
+                                                <TH className="text-right">{t("doctorViews.plan.colMobility")}</TH>
+                                                <TH className="text-right">{t("doctorViews.plan.colStrength")}</TH>
+                                                <TH>{t("doctorViews.plan.colNote")}</TH>
                                             </tr>
                                         </THead>
                                         <TBody>
                                             {checkInsNewestFirst.map((checkIn) => (
                                                 <TR key={checkIn.date}>
                                                     <TD className="whitespace-nowrap">
-                                                        <time dateTime={checkIn.date}>{formatDate(checkIn.date)}</time>
+                                                        <time dateTime={checkIn.date}>{formatDate(checkIn.date, locale)}</time>
                                                     </TD>
                                                     <TD className="text-right whitespace-nowrap">
                                                         <span className="font-medium">{checkIn.painLevel}</span>
                                                         <span className="text-fg-muted">/10</span>
-                                                        <span className="block text-xs text-fg-muted">{painLabel(checkIn.painLevel)}</span>
+                                                        <span className="block text-xs text-fg-muted">{painLabel(checkIn.painLevel, undefined, t)}</span>
                                                     </TD>
                                                     <TD className="text-right">{checkIn.mobilityPct}%</TD>
                                                     <TD className="text-right">{checkIn.strengthPct}%</TD>
@@ -255,25 +262,25 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <Card className="min-w-0 overflow-hidden lg:col-span-2">
                         <CardHeader
-                            title="Điều trị"
+                            title={t("doctorViews.injuries.colTreatment")}
                             icon={<ClipboardList />}
-                            description="Cho chấn thương này"
+                            description={t("doctorViews.plan.treatmentsSub")}
                             action={
                                 injury && (
-                                    <CardLink href={routes.doctor.fighterInjury(injury.fighterId, injury.id)} srContext="điều trị trong hồ sơ chấn thương">
-                                        Quản lý
+                                    <CardLink href={routes.doctor.fighterInjury(injury.fighterId, injury.id)} srContext={t("doctorViews.plan.manageContext")}>
+                                        {t("doctorViews.plan.manage")}
                                     </CardLink>
                                 )
                             }
                         />
                         {treatments.length === 0 ? (
-                            <p className="border-t border-border px-5 py-4 text-sm text-fg-muted">Chưa ghi nhận điều trị cho chấn thương này.</p>
+                            <p className="border-t border-border px-5 py-4 text-sm text-fg-muted">{t("doctorViews.plan.noTreatments")}</p>
                         ) : (
                             <TreatmentList treatments={treatments} className="border-t border-border" />
                         )}
                     </Card>
 
-                    <aside aria-label="Giấy phép và chi tiết kế hoạch" className="flex min-w-0 flex-col gap-6">
+                    <aside aria-label={t("doctorViews.plan.asideLabel")} className="flex min-w-0 flex-col gap-6">
                         <ClearanceCard
                             clearance={clearance}
                             state={clearanceNow}
@@ -283,24 +290,24 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                             warningDays={settings.clearanceExpiryWarningDays}
                         />
                         <Card>
-                            <CardHeader title="Chi tiết kế hoạch" icon={<FileText />} />
+                            <CardHeader title={t("doctorViews.plan.details")} icon={<FileText />} />
                             <CardContent>
                                 <DescriptionList
                                     columns={1}
                                     items={[
-                                        { label: "Bác sĩ phụ trách", value: doctor?.name ?? "Bác sĩ thể thao" },
-                                        { label: "Bắt đầu", value: <time dateTime={plan.startDate}>{formatDate(plan.startDate)}</time> },
+                                        { label: t("doctorViews.plan.doctor"), value: doctor?.name ?? t("doctorViews.exam.doctorFallback") },
+                                        { label: t("doctorViews.plan.start"), value: <time dateTime={plan.startDate}>{formatDate(plan.startDate, locale)}</time> },
                                         {
-                                            label: "Mục tiêu trở lại",
-                                            value: plan.targetReturnDate ? <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate)}</time> : NOT_RECORDED,
+                                            label: t("doctorViews.plan.targetReturn"),
+                                            value: plan.targetReturnDate ? <time dateTime={plan.targetReturnDate}>{formatDate(plan.targetReturnDate, locale)}</time> : t("doctorViews.injury.notRecorded"),
                                         },
                                         serviceForms
-                                            ? { label: "Các mốc", value: `Đạt ${milestones.filter((m) => m.isCompleted).length}/${milestones.length}` }
+                                            ? { label: t("doctorViews.plan.milestones"), value: t("doctorViews.plan.milestonesDone", { done: milestones.filter((m) => m.isCompleted).length, total: milestones.length }) }
                                             : {
-                                                  label: "Giai đoạn",
-                                                  value: `Xong ${plan.phases.filter((p) => p.status === "completed").length}/${plan.phases.length}`,
+                                                  label: t("doctorViews.plan.phase"),
+                                                  value: t("doctorViews.plan.phasesDone", { done: plan.phases.filter((p) => p.status === "completed").length, total: plan.phases.length }),
                                               },
-                                        ...(plan.description ? [{ label: "Phương pháp", value: <span className="font-normal">{plan.description}</span> }] : []),
+                                        ...(plan.description ? [{ label: t("doctorViews.plan.method"), value: <span className="font-normal">{plan.description}</span> }] : []),
                                     ]}
                                 />
                             </CardContent>

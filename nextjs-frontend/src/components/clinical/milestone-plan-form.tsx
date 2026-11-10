@@ -4,15 +4,17 @@ import { ArrowDown, ArrowUp, Info, ListPlus, Plus, Trash2 } from "lucide-react";
 import { useId, useState } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FormFooter, FormSection, Input, Select, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createMilestonePlanAction } from "@/lib/actions/medical-contract";
 import { MEDICAL_TEXT_LIMITS, RECOVERY_MILESTONES_MAX } from "@/lib/domain/medical-contract";
-import { injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
+import type { MessageKey } from "@/lib/i18n/translate";
+import { injuryText } from "./clinical-copy";
 
 export interface MilestonePlanFormProps {
     fighter: { id: string; name: string };
@@ -32,12 +34,12 @@ interface MilestoneRow {
     notes: string;
 }
 
-/** A common return-to-training ladder the doctor can start from and edit. */
-const STANDARD_STEPS: Pick<MilestoneRow, "title" | "criteria">[] = [
-    { title: "Sinh hoạt hằng ngày không đau", criteria: "Không đau khi đi bộ, leo cầu thang hoặc nằm nghiêng bên bị thương." },
-    { title: "Biên độ vận động đầy đủ", criteria: "Biên độ vận động bằng bên lành, không đau." },
-    { title: "Bài tập chuyên môn", criteria: "Đánh gió và đánh đích tốc độ tối đa, không có triệu chứng vào ngày hôm sau." },
-    { title: "Trở lại đấu tập", criteria: "Hai buổi đấu tập nhẹ không triệu chứng, được bác sĩ thể thao xác nhận." },
+/** A common return-to-training ladder the doctor can start from and edit (dictionary keys, filled in the viewer's language). */
+const STANDARD_STEPS: { title: MessageKey; criteria: MessageKey }[] = [
+    { title: "doctorClinical.milestonePlan.step1.title", criteria: "doctorClinical.milestonePlan.step1.criteria" },
+    { title: "doctorClinical.milestonePlan.step2.title", criteria: "doctorClinical.milestonePlan.step2.criteria" },
+    { title: "doctorClinical.milestonePlan.step3.title", criteria: "doctorClinical.milestonePlan.step3.criteria" },
+    { title: "doctorClinical.milestonePlan.step4.title", criteria: "doctorClinical.milestonePlan.step4.criteria" },
 ];
 
 let rowCounter = 0;
@@ -48,6 +50,8 @@ const newRow = (values: Partial<MilestoneRow> = {}): MilestoneRow => ({ key: `m$
  * each with how the doctor will know it's reached. Completing milestones never clears the fighter by itself.
  */
 export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, cancelHref }: MilestonePlanFormProps) {
+    const t = useT();
+    const locale = useLocale();
     const form = useActionForm(createMilestonePlanAction, { id: "milestone-plan", hiddenFields: ["milestones"] });
     const { control, error } = form;
     const baseId = useId();
@@ -77,60 +81,60 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                 <input type="hidden" name="fighterId" value={fighter.id} />
                 <input type="hidden" name="milestones" value={serialized} />
 
-                <FormSection title="Kế hoạch" info={<TermHint term="recoveryPlan" />} description={`${fighter.name} đang phục hồi sau chấn thương gì và dự kiến khi nào trở lại.`}>
-                    <Field label="Chấn thương" htmlFor={control("injuryId").id} error={error("injuryId")} required>
+                <FormSection title={t("doctorClinical.milestonePlan.plan")} info={<TermHint term="recoveryPlan" />} description={t("doctorClinical.milestonePlan.planDescription", { name: fighter.name })}>
+                    <Field label={t("doctorClinical.common.injury")} htmlFor={control("injuryId").id} error={error("injuryId")} required>
                         <Select
                             {...control("injuryId", { required: true })}
                             value={injuryId}
                             onChange={(event) => setInjuryId(event.target.value)}
                         >
-                            <option value="">Chọn chấn thương…</option>
+                            <option value="">{t("doctorClinical.common.chooseInjury")}</option>
                             {injuries.map((option) => (
                                 <option key={option.id} value={option.id}>
-                                    {injuryTypeName(option)} · {formatShortDate(option.occurredAt)}
+                                    {injuryText(t, option)} · {formatShortDate(option.occurredAt, locale)}
                                 </option>
                             ))}
                         </Select>
                     </Field>
-                    <Field label="Tiêu đề" htmlFor={control("title").id} error={error("title")} required>
+                    <Field label={t("doctorClinical.milestonePlan.title")} htmlFor={control("title").id} error={error("title")} required>
                         {/* Suggested from the injury; choosing another injury suggests again. */}
                         <Input
                             {...control("title", { required: true })}
                             key={injury?.id ?? "none"}
-                            defaultValue={injury ? `${injuryTypeName(injury)} — trở lại tập luyện` : ""}
+                            defaultValue={injury ? t("doctorClinical.milestonePlan.defaultTitle", { type: injuryText(t, injury) }) : ""}
                             maxLength={MEDICAL_TEXT_LIMITS.planTitle}
                         />
                     </Field>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <Field label="Bắt đầu" htmlFor={control("startDate").id} error={error("startDate")} required>
+                        <Field label={t("doctorClinical.common.start")} htmlFor={control("startDate").id} error={error("startDate")} required>
                             <Input {...control("startDate", { required: true })} type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} />
                         </Field>
-                        <Field label="Dự kiến kết thúc" htmlFor={control("estimatedEndDate").id} error={error("estimatedEndDate")} optional hint="Để trống nếu chưa ước tính được.">
+                        <Field label={t("doctorClinical.milestonePlan.estimatedEnd")} htmlFor={control("estimatedEndDate").id} error={error("estimatedEndDate")} optional hint={t("doctorClinical.common.notYetEstimated")}>
                             <Input {...control("estimatedEndDate", { hint: true })} type="date" min={startDate || undefined} />
                         </Field>
                     </div>
-                    <Field label="Mô tả" htmlFor={control("description").id} error={error("description")} optional hint="Phương pháp, lưu ý và điều võ sĩ cần biết.">
+                    <Field label={t("doctorClinical.common.description")} htmlFor={control("description").id} error={error("description")} optional hint={t("doctorClinical.milestonePlan.descriptionHint")}>
                         <Textarea {...control("description", { hint: true })} rows={3} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
                     </Field>
                 </FormSection>
 
-                <FormSection title="Các mốc" info={<TermHint term="milestone" />} description="Theo thứ tự. Mỗi mốc ghi tiêu chí đạt. Có thể thêm sau.">
+                <FormSection title={t("doctorClinical.common.milestones")} info={<TermHint term="milestone" />} description={t("doctorClinical.milestonePlan.milestonesDescription")}>
                     {rows.length === 0 ? (
-                        <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">Chưa có mốc. Tự thêm hoặc bắt đầu từ các bước chuẩn.</p>
+                        <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">{t("doctorClinical.milestonePlan.empty")}</p>
                     ) : (
                         <ol className="flex flex-col gap-3">
                             {rows.map((row, index) => (
                                 <li key={row.key} className="flex flex-col gap-3 rounded-lg border border-border p-3.5">
                                     <div className="flex items-center justify-between gap-2">
-                                        <p className="font-display text-sm font-bold text-fg">Mốc {index + 1}</p>
+                                        <p className="font-display text-sm font-bold text-fg">{t("doctorClinical.milestonePlan.milestoneN", { n: index + 1 })}</p>
                                         <div className="flex items-center gap-1">
-                                            <Button variant="ghost" size="icon-sm" aria-label={`Đưa mốc ${index + 1} lên`} disabled={index === 0} onClick={() => move(index, -1)}>
+                                            <Button variant="ghost" size="icon-sm" aria-label={t("doctorClinical.milestonePlan.moveUp", { n: index + 1 })} disabled={index === 0} onClick={() => move(index, -1)}>
                                                 <ArrowUp aria-hidden />
                                             </Button>
                                             <Button
                                                 variant="ghost"
                                                 size="icon-sm"
-                                                aria-label={`Đưa mốc ${index + 1} xuống`}
+                                                aria-label={t("doctorClinical.milestonePlan.moveDown", { n: index + 1 })}
                                                 disabled={index === rows.length - 1}
                                                 onClick={() => move(index, 1)}
                                             >
@@ -139,7 +143,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                                             <Button
                                                 variant="ghost"
                                                 size="icon-sm"
-                                                aria-label={`Xóa mốc ${index + 1}`}
+                                                aria-label={t("doctorClinical.milestonePlan.remove", { n: index + 1 })}
                                                 onClick={() => {
                                                     setRows((current) => current.filter((candidate) => candidate.key !== row.key));
                                                     form.markEdited("milestones");
@@ -150,7 +154,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                                         </div>
                                     </div>
                                     <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
-                                        <Field label="Mốc" htmlFor={`${baseId}-${row.key}-title`} error={error(`milestones.${index}.title`)} required>
+                                        <Field label={t("doctorClinical.common.milestone")} htmlFor={`${baseId}-${row.key}-title`} error={error(`milestones.${index}.title`)} required>
                                             <Input
                                                 id={`${baseId}-${row.key}-title`}
                                                 value={row.title}
@@ -158,7 +162,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                                                 onChange={(event) => update(row.key, { title: event.target.value }, `milestones.${index}.title`)}
                                             />
                                         </Field>
-                                        <Field label="Ngày mục tiêu" htmlFor={`${baseId}-${row.key}-date`} error={error(`milestones.${index}.targetDate`)} optional>
+                                        <Field label={t("doctorClinical.common.targetDate")} htmlFor={`${baseId}-${row.key}-date`} error={error(`milestones.${index}.targetDate`)} optional>
                                             <Input
                                                 id={`${baseId}-${row.key}-date`}
                                                 type="date"
@@ -168,7 +172,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                                             />
                                         </Field>
                                     </div>
-                                    <Field label="Tiêu chí đạt" htmlFor={`${baseId}-${row.key}-criteria`} error={error(`milestones.${index}.criteria`)} required>
+                                    <Field label={t("doctorClinical.common.criteria")} htmlFor={`${baseId}-${row.key}-criteria`} error={error(`milestones.${index}.criteria`)} required>
                                         <Textarea
                                             id={`${baseId}-${row.key}-criteria`}
                                             rows={2}
@@ -192,29 +196,29 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                             }}
                         >
                             <Plus aria-hidden />
-                            Thêm mốc
+                            {t("doctorClinical.common.addMilestone")}
                         </Button>
                         {rows.length === 0 && (
-                            <Button variant="ghost" size="sm" onClick={() => setRows(STANDARD_STEPS.map((step) => newRow(step)))}>
+                            <Button variant="ghost" size="sm" onClick={() => setRows(STANDARD_STEPS.map((step) => newRow({ title: t(step.title), criteria: t(step.criteria) })))}>
                                 <ListPlus aria-hidden />
-                                Bắt đầu từ các bước chuẩn
+                                {t("doctorClinical.milestonePlan.useStandard")}
                             </Button>
                         )}
                     </div>
                     {error("milestones") && <p className="text-[13px] font-medium text-danger-fg">{error("milestones")}</p>}
                 </FormSection>
 
-                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Tạo kế hoạch phục hồi" pendingLabel="Đang tạo kế hoạch…" />
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel={t("doctorClinical.common.createPlan")} pendingLabel={t("doctorClinical.common.creatingPlan")} />
             </Card>
 
-            <aside aria-label="Kế hoạch phục hồi hoạt động thế nào" className="min-w-0">
+            <aside aria-label={t("doctorClinical.milestonePlan.howLabel")} className="min-w-0">
                 <Card>
-                    <CardHeader title="Cách hoạt động" icon={<Info />} />
+                    <CardHeader title={t("doctorClinical.milestonePlan.how")} icon={<Info />} />
                     <CardContent>
                         <ul className="flex flex-col gap-2.5 text-[13px] text-fg-muted">
-                            <li>{fighter.name} xem kế hoạch và từng mốc trên trang Sức khỏe.</li>
-                            <li>Đánh dấu mốc trên trang kế hoạch khi đạt.</li>
-                            <li className="font-medium text-fg">Hoàn tất kế hoạch không có nghĩa võ sĩ được tập: hãy khám và cấp giấy phép.</li>
+                            <li>{t("doctorClinical.milestonePlan.how1", { name: fighter.name })}</li>
+                            <li>{t("doctorClinical.milestonePlan.how2")}</li>
+                            <li className="font-medium text-fg">{t("doctorClinical.milestonePlan.how3")}</li>
                         </ul>
                     </CardContent>
                 </Card>

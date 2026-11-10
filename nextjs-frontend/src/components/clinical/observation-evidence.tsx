@@ -3,6 +3,7 @@
 import { Play } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { createPlaybackStore, PlaybackProvider, usePlayback, usePlaybackStore } from "@/components/video/playback-store";
 import { PosePlayer } from "@/components/video/pose-player";
 import type { AIAnalysis, CameraAngle, Stance } from "@/lib/domain/types";
@@ -38,6 +39,7 @@ export function ObservationEvidence({ analysis, stance, cameraAngle, sourceUrl, 
 }
 
 function ClipButtons({ timestampsMs, durationMs }: { timestampsMs: number[]; durationMs: number }) {
+    const t = useT();
     const store = usePlaybackStore();
     const clips = timestampsMs.map((ms) => ({ start: Math.max(0, ms - CLIP_PADDING_MS), end: Math.min(durationMs, ms + CLIP_PADDING_MS) }));
     // Subscribe to which clips hold the playhead (a primitive key), not the raw time, so playback
@@ -48,7 +50,7 @@ function ClipButtons({ timestampsMs, durationMs }: { timestampsMs: number[]; dur
 
     return (
         <div>
-            <h4 className="mb-2 text-[13px] font-semibold text-fg">Thời điểm được đánh dấu</h4>
+            <h4 className="mb-2 text-[13px] font-semibold text-fg">{t("doctorClinical.evidence.heading")}</h4>
             <ol className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {clips.map(({ start, end }, index) => {
                     const ms = timestampsMs[index];
@@ -74,7 +76,7 @@ function ClipButtons({ timestampsMs, durationMs }: { timestampsMs: number[]; dur
                                     <Play className="size-3.5" />
                                 </span>
                                 <span className="min-w-0 text-[13px]">
-                                    <span className="block font-medium text-fg">Thời điểm {index + 1}</span>
+                                    <span className="block font-medium text-fg">{t("doctorClinical.evidence.moment", { n: index + 1 })}</span>
                                     <span className="text-fg-muted tabular-nums">
                                         {formatTimestamp(start)} – {formatTimestamp(end)}
                                     </span>

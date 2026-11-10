@@ -1,3 +1,4 @@
+import type { MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 
 /** A tab of the profile. */
@@ -8,14 +9,14 @@ export type FighterSection = FighterTab | "new-examination" | "new-clearance" | 
 export type FighterAction = "new-examination" | "new-clearance" | "new-injury" | "new-recovery";
 
 /** The profile's tabs. Each stays inside the profile, so the doctor never loses the fighter they were looking at. */
-export function fighterTabs(fighterId: string): { key: FighterTab; label: string; href: string }[] {
+export function fighterTabs(fighterId: string): { key: FighterTab; label: MessageKey; href: string }[] {
     return [
-        { key: "overview", label: "Tổng quan", href: routes.doctor.fighter(fighterId) },
-        { key: "exams", label: "Phiếu khám", href: routes.doctor.fighterExaminations(fighterId) },
-        { key: "injuries", label: "Chấn thương", href: routes.doctor.fighterInjuries(fighterId) },
-        { key: "recovery", label: "Phục hồi", href: routes.doctor.fighterRecovery(fighterId) },
-        { key: "clearance", label: "Giấy phép", href: routes.doctor.fighterClearance(fighterId) },
-        { key: "history", label: "Lịch sử", href: routes.doctor.fighterHistory(fighterId) },
+        { key: "overview", label: "doctorUi.tab.overview", href: routes.doctor.fighter(fighterId) },
+        { key: "exams", label: "doctorUi.tab.exams", href: routes.doctor.fighterExaminations(fighterId) },
+        { key: "injuries", label: "doctorUi.tab.injuries", href: routes.doctor.fighterInjuries(fighterId) },
+        { key: "recovery", label: "doctorUi.tab.recovery", href: routes.doctor.fighterRecovery(fighterId) },
+        { key: "clearance", label: "doctorUi.tab.clearance", href: routes.doctor.fighterClearance(fighterId) },
+        { key: "history", label: "doctorUi.tab.history", href: routes.doctor.fighterHistory(fighterId) },
     ];
 }
 

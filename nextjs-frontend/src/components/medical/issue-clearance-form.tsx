@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { Term, TermHint } from "@/components/domain/term-hint";
+import { useT } from "@/components/i18n/locale-provider";
 import { Callout } from "@/components/training/callout";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
@@ -17,9 +18,6 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import { issueClearanceAction } from "@/lib/actions/medical-contract";
 import {
     CLEARANCE_TYPES_BY_SCOPE,
-    CLEARANCE_TYPE_LABELS,
-    EXAMINATION_DECISION_LABELS,
-    EXAMINATION_SCOPE_LABELS,
     MEDICAL_TEXT_LIMITS,
     type ClearanceType,
 } from "@/lib/domain/medical-contract";
@@ -28,6 +26,7 @@ import { clearanceFromExamination, RECONCILE_FIELD, suggestClearanceType, type C
 import type { GlossaryTerm } from "@/lib/domain/glossary";
 import type { MedicalClearance } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, formatDate } from "@/lib/format";
+import { plural, type MessageKey } from "@/lib/i18n/translate";
 import type { CurrentExamination } from "@/lib/services/medical";
 import { ExaminationReadBack } from "./examination-read-back";
 import type { ProgressStep } from "./exam-progress";
@@ -55,10 +54,10 @@ export interface IssueClearanceFormProps {
     demoFill?: boolean;
 }
 
-const CLEARANCE_TYPE_DESCRIPTIONS: Record<ClearanceType, string> = {
-    TRAINING: "Giấy phép tập luyện thường quy.",
-    RETURN_FROM_INJURY: "Trở lại tập sau chấn thương, thường có giới hạn.",
-    COMPETITION: "Cho phép võ sĩ thi đấu một trận.",
+const CLEARANCE_TYPE_DESCRIPTIONS: Record<ClearanceType, MessageKey> = {
+    TRAINING: "doctorMedical.issue.typeDescription.TRAINING",
+    RETURN_FROM_INJURY: "doctorMedical.issue.typeDescription.RETURN_FROM_INJURY",
+    COMPETITION: "doctorMedical.issue.typeDescription.COMPETITION",
 };
 
 /** Quick picks for the end date, in days from today; only those inside the examination's validity are offered. */
@@ -85,6 +84,7 @@ function startingType(exam: CurrentExamination | null, suggestion: ClearanceType
  * doesn't confirm, the record is checked before anything is sent again, and only the clearance is retried.
  */
 export function IssueClearanceForm({ fighter, examinations, activeClearances, activeInjuries, defaultExaminationId, weightLimitKg, today, cancelHref, clearancesHref, demoFill = false }: IssueClearanceFormProps) {
+    const t = useT();
     const form = useActionForm(issueClearanceAction, { id: "issue-clearance" });
     const { control, error } = form;
     const suggestionFor = (exam: CurrentExamination | null) => (exam ? suggestClearanceType({ scope: exam.scope, examinationType: exam.details?.type ?? null, activeInjuries }) : null);
@@ -107,32 +107,40 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
 
     const examOptions: ChoiceOption<string>[] = examinations.map((candidate) => ({
         value: candidate.id,
-        label: `${EXAMINATION_SCOPE_LABELS[candidate.scope]} — ${EXAMINATION_DECISION_LABELS[candidate.decision]}`,
-        description: `Khám ${formatDate(candidate.examinedAt)}${candidate.validUntil ? ` · hiệu lực đến ${formatDate(candidate.validUntil)}` : ""}`,
+        label: `${t(`doctorMedical.scope.${candidate.scope}`)} — ${t(`doctorMedical.decision.${candidate.decision}`)}`,
+        description: candidate.validUntil
+            ? t("doctorMedical.issue.examinedValid", { date: formatDate(candidate.examinedAt), until: formatDate(candidate.validUntil) })
+            : t("doctorMedical.issue.examined", { date: formatDate(candidate.examinedAt) }),
     }));
     const typeOptions: ChoiceOption<ClearanceType>[] = types.map((value) => ({
         value,
-        label: CLEARANCE_TYPE_LABELS[value],
-        description: CLEARANCE_TYPE_DESCRIPTIONS[value],
+        label: t(`doctorMedical.clearanceType.${value}`),
+        description: t(CLEARANCE_TYPE_DESCRIPTIONS[value]),
         extra:
             suggestion?.type === value && types.length > 1 ? (
                 <Badge tone="info" size="sm" className="mt-1.5">
-                    Gợi ý
+                    {t("doctorMedical.issue.suggested")}
                 </Badge>
             ) : undefined,
     }));
 
     const steps: ProgressStep[] = [
-        { key: "basis", label: "Căn cứ", pct: exam ? 1 : 0, state: exam ? "done" : "todo", text: exam ? `Khám ${formatDate(exam.examinedAt)}` : "Chưa có phiếu" },
+        {
+            key: "basis",
+            label: t("doctorMedical.grant.basis"),
+            pct: exam ? 1 : 0,
+            state: exam ? "done" : "todo",
+            text: exam ? t("doctorMedical.issue.examined", { date: formatDate(exam.examinedAt) }) : t("doctorMedical.issue.noExam"),
+        },
         {
             key: "clearance",
-            label: "Giấy phép",
+            label: t("doctorMedical.steps.clearance"),
             pct: clearanceType && !shownExisting ? 1 : clearanceType ? 0.5 : 0,
             state: shownExisting ? "need" : clearanceType ? "done" : "todo",
-            text: shownExisting ? "Đã cấp trước đó" : clearanceType ? CLEARANCE_TYPE_LABELS[clearanceType] : "Chọn loại",
+            text: shownExisting ? t("doctorMedical.issue.issuedBefore") : clearanceType ? t(`doctorMedical.clearanceType.${clearanceType}`) : t("doctorMedical.issue.chooseType"),
         },
         // Limits are copied from the examination, so this part is complete unless the doctor narrows them.
-        { key: "limits", label: "Giới hạn", pct: exam ? 1 : 0, state: exam ? "done" : "todo", text: exam ? "Theo phiếu khám" : "—" },
+        { key: "limits", label: t("doctorMedical.issue.limits"), pct: exam ? 1 : 0, state: exam ? "done" : "todo", text: exam ? t("doctorMedical.issue.perExam") : "—" },
     ];
 
     const validityPicks = VALIDITY_PICKS.map((days) => ({ days, date: addDaysToKey(today, days) })).filter((pick) => !examLastDay || pick.date <= examLastDay);
@@ -172,7 +180,7 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                 excludedJoints: [...new Set([...(bound.excludedJoints ?? []), "RIGHT_KNEE" as const])],
             },
         }));
-        setNotes("Đủ điều kiện theo phiếu khám. Khởi động kỹ trước buổi tập, báo bác sĩ ngay nếu đau đầu, chóng mặt hoặc đau tái phát.");
+        setNotes(t("doctorMedical.issue.sampleNotes"));
         ["examinationId", "clearanceType", "validUntil", "allowedSessionTypes", "excludedJoints", "notes"].forEach((name) => form.markEdited(name));
     };
     const clearAll = () => {
@@ -188,20 +196,20 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
             {demoFill && examinations.length > 0 && (
                 <DemoFillBar
                     className="xl:col-span-2"
-                    title="Điền nhanh dữ liệu mẫu"
-                    description="Chọn loại giấy phép theo gợi ý, thời hạn 30 ngày, chỉ cho các buổi tập không đối kháng, tránh gối phải và điền sẵn ghi chú. Chưa có gì được cấp cho tới khi bạn bấm Cấp giấy phép."
+                    title={t("doctorMedical.decision.demoTitle")}
+                    description={t("doctorMedical.issue.demoDescription")}
                     onFill={fillSample}
                     onClear={clearAll}
                 />
             )}
 
             <Card className="flex min-w-0 flex-col divide-y divide-border">
-                <FormPart prefix="iclr-" id="basis" title="Căn cứ" description="Giấy phép được cấp từ phiếu khám đạt hiện hành của phạm vi đó.">
+                <FormPart prefix="iclr-" id="basis" title={t("doctorMedical.grant.basis")} description={t("doctorMedical.issue.basisDescription")}>
                     {examinations.length > 1 ? (
                         <ChoiceGroup
                             id="issue-clearance-exam"
                             name="examinationId"
-                            legend="Phiếu khám"
+                            legend={t("doctorMedical.steps.examination")}
                             legendVisuallyHidden
                             required
                             columns={2}
@@ -223,11 +231,11 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                 </FormPart>
 
                 {exam && (
-                    <FormPart prefix="iclr-" id="clearance" title="Giấy phép" description="Cho phép võ sĩ làm gì và trong thời gian nào.">
+                    <FormPart prefix="iclr-" id="clearance" title={t("doctorMedical.steps.clearance")} description={t("doctorMedical.issue.clearanceDescription")}>
                         <ChoiceGroup
                             id="issue-clearance-type"
                             name="clearanceType"
-                            legend="Loại"
+                            legend={t("doctorMedical.issue.type")}
                             required
                             columns={types.length > 2 ? 3 : types.length > 1 ? 2 : 1}
                             variant="compact"
@@ -239,11 +247,11 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                         />
                         {types.length > 1 && (
                             <p className="-mt-2 text-[13px] text-fg-muted">
-                                Về các loại:{" "}
+                                {t("doctorMedical.issue.aboutTypes")}{" "}
                                 {types.map((value, index) => (
                                     <span key={value}>
                                         {index > 0 && ", "}
-                                        <Term term={CLEARANCE_TYPE_TERMS[value]}>{CLEARANCE_TYPE_LABELS[value].toLowerCase()}</Term>
+                                        <Term term={CLEARANCE_TYPE_TERMS[value]}>{t(`doctorMedical.clearanceType.${value}`).toLowerCase()}</Term>
                                     </span>
                                 ))}
                                 .
@@ -253,36 +261,41 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                             <Callout
                                 tone="warning"
                                 icon={TriangleAlert}
-                                title="Đã cấp"
+                                title={t("doctorMedical.issue.issued")}
                                 role={existing ? "status" : "note"}
                                 action={
                                     <Link href={clearancesHref} className="text-[13px] font-medium text-primary-soft-fg hover:underline">
-                                        Xem giấy phép
+                                        {t("doctorMedical.issue.viewClearance")}
                                     </Link>
                                 }
                             >
-                                Giấy phép {CLEARANCE_TYPE_LABELS[shownExisting.clearanceType].toLowerCase()} từ phiếu khám này có hiệu lực từ {formatDate(shownExisting.issuedAt)}
-                                {shownExisting.validUntil ? `, đến ${formatDate(shownExisting.validUntil)}` : ", không thời hạn"}. Hãy thu hồi trước nếu cần thay đổi.
+                                {t("doctorMedical.issue.existing", {
+                                    type: t(`doctorMedical.clearanceType.${shownExisting.clearanceType}`).toLowerCase(),
+                                    date: formatDate(shownExisting.issuedAt),
+                                    end: shownExisting.validUntil
+                                        ? t("doctorMedical.issue.existingUntil", { date: formatDate(shownExisting.validUntil) })
+                                        : t("doctorMedical.issue.existingNoEnd"),
+                                })}
                             </Callout>
                         )}
 
                         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                            <Field label="Bắt đầu" htmlFor={control("validFrom").id} error={error("validFrom")} optional hint="Để trống để bắt đầu ngay khi cấp.">
+                            <Field label={t("doctorMedical.issue.start")} htmlFor={control("validFrom").id} error={error("validFrom")} optional hint={t("doctorMedical.issue.startHint")}>
                                 <Input {...control("validFrom", { hint: true })} type="date" min={examDay} value={validFrom} onChange={(event) => setValidFrom(event.target.value)} />
                             </Field>
                             <Field
-                                label="Kết thúc"
+                                label={t("doctorMedical.issue.end")}
                                 htmlFor={control("validUntil").id}
                                 error={error("validUntil")}
                                 optional
                                 info={<TermHint term="validUntil" />}
-                                hint={examLastDay ? `Để trống để kết thúc cùng phiếu khám vào ${formatDate(exam.validUntil ?? "")}.` : "Để trống nếu không thời hạn (phiếu khám không đặt thời hạn)."}
+                                hint={examLastDay ? t("doctorMedical.issue.endWithExam", { date: formatDate(exam.validUntil ?? "") }) : t("doctorMedical.issue.endNone")}
                             >
                                 <Input {...control("validUntil", { hint: true })} type="date" min={today} max={examLastDay} value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
                             </Field>
                         </div>
-                        <div role="group" aria-label="Chọn nhanh ngày kết thúc" className="-mt-1 flex flex-wrap items-center gap-2">
-                            <span className="text-[13px] text-fg-subtle">Chọn nhanh:</span>
+                        <div role="group" aria-label={t("doctorMedical.issue.quickEndLabel")} className="-mt-1 flex flex-wrap items-center gap-2">
+                            <span className="text-[13px] text-fg-subtle">{t("doctorMedical.issue.quickPick")}</span>
                             {validityPicks.map((pick) => (
                                 <Button
                                     key={pick.days}
@@ -294,7 +307,7 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                                         form.markEdited("validUntil");
                                     }}
                                 >
-                                    {pick.days} ngày
+                                    {plural(t, "doctorMedical.days", pick.days)}
                                 </Button>
                             ))}
                             <Button
@@ -306,16 +319,16 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                                     form.markEdited("validUntil");
                                 }}
                             >
-                                {examLastDay ? "Theo phiếu khám" : "Không thời hạn"}
+                                {examLastDay ? t("doctorMedical.issue.perExam") : t("doctorMedical.decision.noEnd")}
                             </Button>
                         </div>
                     </FormPart>
                 )}
 
                 {exam && (
-                    <FormPart prefix="iclr-" id="limits" title="Giới hạn" description="Sao chép từ phiếu khám. Có thể thu hẹp, không thể mở rộng.">
+                    <FormPart prefix="iclr-" id="limits" title={t("doctorMedical.issue.limits")} description={t("doctorMedical.issue.limitsDescription")}>
                         <RestrictionFields key={`${exam.id}-${limits.key}`} form={form} idPrefix="issue-clearance" defaults={limits.lists ?? exam.restrictions} bound={exam.restrictions} />
-                        <Field label="Ghi chú" htmlFor={control("notes").id} error={error("notes")} optional hint="Hiển thị cùng giấy phép cho HLV và võ sĩ.">
+                        <Field label={t("doctorMedical.issue.notes")} htmlFor={control("notes").id} error={error("notes")} optional hint={t("doctorMedical.issue.notesHint")}>
                             <Textarea {...control("notes", { hint: true })} rows={3} maxLength={MEDICAL_TEXT_LIMITS.clearanceNotes} value={notes} onChange={(event) => setNotes(event.target.value)} />
                         </Field>
                     </FormPart>
@@ -325,23 +338,23 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
             <div className="xl:sticky xl:top-32">
                 <ExamProgressRail
                     steps={steps}
-                    title="Tiến độ"
-                    label="Tiến độ cấp giấy phép"
+                    title={t("doctorMedical.grant.progressTitle")}
+                    label={t("doctorMedical.grant.progressLabel")}
                     anchorPrefix="iclr-"
                     actions={
                         <>
                             <FormMessage {...form.message} />
-                            <SubmitButton pending={form.pending} pendingLabel={unconfirmed ? "Đang kiểm tra hồ sơ…" : "Đang cấp…"} disabled={!exam || Boolean(issued)} className="w-full">
-                                {unconfirmed ? "Thử lại" : "Cấp giấy phép"}
+                            <SubmitButton pending={form.pending} pendingLabel={unconfirmed ? t("doctorMedical.checkingRecord") : t("doctorMedical.issue.issuing")} disabled={!exam || Boolean(issued)} className="w-full">
+                                {unconfirmed ? t("doctorMedical.retry") : t("doctorMedical.grant.submit")}
                             </SubmitButton>
                             <Link href={cancelHref} className={buttonClasses({ variant: "secondary", className: "w-full" })}>
-                                Hủy
+                                {t("doctorMedical.cancel")}
                             </Link>
                         </>
                     }
                     footer={
                         <InlineNote icon={Info}>
-                            HLV lên lịch {fighter.name} theo giấy phép này ngay. Giấy phép không thể sửa: muốn thay đổi, hãy thu hồi và cấp mới.
+                            {t("doctorMedical.issue.footer", { name: fighter.name })}
                         </InlineNote>
                     }
                 />

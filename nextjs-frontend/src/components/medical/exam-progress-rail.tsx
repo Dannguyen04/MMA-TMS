@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
+import { plural } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 import { sectorPath, type ProgressStep, type StepState } from "./exam-progress";
@@ -81,8 +83,8 @@ export function ExamProgressRail({
     actions,
     footer,
     top,
-    title = "Tiến độ phiếu",
-    label = "Tiến độ phiếu khám",
+    title,
+    label,
     anchorPrefix = "exam-",
 }: {
     steps: readonly ProgressStep[];
@@ -93,13 +95,14 @@ export function ExamProgressRail({
     label?: string;
     anchorPrefix?: string;
 }) {
+    const t = useT();
     const total = steps.reduce((sum, step) => sum + step.pct, 0) / steps.length;
     const left = steps.filter((step) => step.state !== "done").length;
     return (
-        <aside aria-label={label} className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface shadow-card">
+        <aside aria-label={label ?? t("doctorMedical.progress.railLabel")} className="flex flex-col divide-y divide-border rounded-xl border border-border bg-surface shadow-card">
             {top}
             <div className="flex flex-col gap-3 px-5 py-4">
-                <h2 className="text-[13px] font-semibold text-fg-muted">{title}</h2>
+                <h2 className="text-[13px] font-semibold text-fg-muted">{title ?? t("doctorMedical.progress.railTitle")}</h2>
                 <div className="h-1.5 overflow-hidden rounded-full bg-neutral-soft" aria-hidden>
                     <div className="h-full rounded-full bg-primary transition-[width] duration-500 ease-out" style={{ width: `${Math.round(total * 100)}%` }} />
                 </div>
@@ -129,7 +132,7 @@ export function ExamProgressRail({
             <div className="flex flex-col gap-2.5 px-5 py-4">
                 {actions}
                 <p className="text-[13px] text-fg-muted" aria-live="polite">
-                    {left ? `Còn ${left} mục cần hoàn tất.` : "Đã đủ thông tin. Kiểm tra lại rồi lưu."}
+                    {left ? plural(t, "doctorMedical.progress.left", left) : t("doctorMedical.progress.complete")}
                 </p>
             </div>
             {footer && <div className="px-5 py-4 text-[13px] leading-relaxed text-fg-muted">{footer}</div>}

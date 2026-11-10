@@ -10,10 +10,12 @@ import { ProgressBar } from "@/components/ui/progress";
 import { recoveryProgressPct } from "@/lib/domain/rules";
 import type { Fighter, Injury, RecoveryPlan } from "@/lib/domain/types";
 import { daysBetween, formatDate, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { createTranslator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { RecoveryPlanStatusBadge } from "./clinical-badges";
-import { injuryTitle, painLabel } from "./clinical-copy";
+import { injuryText, painLabel, regionText } from "./clinical-copy";
 
 const TREND_POINTS = 8;
 
@@ -23,10 +25,12 @@ export interface RecoveryPlanCardProps {
     injury: Injury | null;
     now: string;
     className?: string;
+    locale?: Locale;
 }
 
 /** Active recovery plan at a glance: who, what, current phase, progress, target return and recent check-in trend. */
-export function RecoveryPlanCard({ plan, fighter, injury, now, className }: RecoveryPlanCardProps) {
+export function RecoveryPlanCard({ plan, fighter, injury, now, className, locale = "vi" }: RecoveryPlanCardProps) {
+    const t = createTranslator(locale);
     const progress = recoveryProgressPct(plan);
     const currentIndex = plan.phases.findIndex((phase) => phase.status === "current");
     const current = currentIndex === -1 ? null : plan.phases[currentIndex];
@@ -50,8 +54,8 @@ export function RecoveryPlanCard({ plan, fighter, injury, now, className }: Reco
                     </h3>
                     {injury && (
                         <p className="mt-1 flex flex-wrap items-center gap-2 text-[13px] text-fg-muted">
-                            {injuryTitle(injury)}
-                            <InjurySeverityBadge severity={injury.severity} size="sm" />
+                            {`${injuryText(t, injury)} — ${regionText(t, injury.bodyRegion)}`}
+                            <InjurySeverityBadge severity={injury.severity} size="sm" locale={locale} />
                         </p>
                     )}
                 </div>
@@ -62,28 +66,31 @@ export function RecoveryPlanCard({ plan, fighter, injury, now, className }: Reco
                             {current ? (
                                 <>
                                     <span className="text-fg-muted">
-                                        Giai đoạn {currentIndex + 1}/{plan.phases.length} ·{" "}
+                                        {t("doctorClinical.planCard.phase", { n: currentIndex + 1, total: plan.phases.length })} ·{" "}
                                     </span>
                                     <span className="font-medium">{current.name}</span>
                                 </>
                             ) : (
-                                <span className="text-fg-muted">{plan.status === "completed" ? "All phases completed" : "No current phase"}</span>
+                                <span className="text-fg-muted">{plan.status === "completed" ? t("doctorClinical.planCard.allCompleted") : t("doctorClinical.planCard.noCurrent")}</span>
                             )}
                         </span>
                         <span className="shrink-0 font-semibold text-fg tabular-nums">{progress}%</span>
                     </p>
-                    <ProgressBar value={progress} hideValue size="sm" tone="info" label={`${plan.title} progress`} valueText={`${progress}%`} />
+                    <ProgressBar value={progress} hideValue size="sm" tone="info" label={t("doctorClinical.planCard.progress", { title: plan.title })} valueText={`${progress}%`} />
                 </div>
 
                 {plan.targetReturnDate && daysToReturn !== null && (
                     <p className="flex items-center gap-2 text-[13px]">
                         <Flag aria-hidden className="size-3.5 shrink-0 text-fg-subtle" />
-                        <span className="text-fg-muted">Target return</span>
+                        <span className="text-fg-muted">{t("doctorClinical.planForm.targetReturn")}</span>
                         <time dateTime={plan.targetReturnDate} className="font-medium text-fg">
-                            {formatDate(plan.targetReturnDate)}
+                            {formatDate(plan.targetReturnDate, locale)}
                         </time>
                         <span className={daysToReturn < 0 ? "font-medium text-warning-fg" : "text-fg-muted"}>
-                            · {daysToReturn < 0 ? `passed ${describeDaysUntil(daysToReturn)}` : describeDaysUntil(daysToReturn)}
+                            ·{" "}
+                            {daysToReturn < 0
+                                ? t("doctorClinical.planCard.passed", { when: describeDaysUntil(daysToReturn, locale) })
+                                : describeDaysUntil(daysToReturn, locale)}
                         </span>
                 </p>
                 )}
@@ -92,29 +99,30 @@ export function RecoveryPlanCard({ plan, fighter, injury, now, className }: Reco
                     {last ? (
                         <>
                             <p className="text-xs text-fg-muted">
-                                Last check-in <time dateTime={last.date}>{formatRelative(last.date, now)}</time> · {recent.length} most recent
+                                {t("doctorClinical.planCard.lastCheckIn")} <time dateTime={last.date}>{formatRelative(last.date, now, locale)}</time> ·{" "}
+                                {t("doctorClinical.planCard.mostRecent", { n: recent.length })}
                             </p>
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                                 <CheckInTrendTile
-                                    label="Pain"
+                                    label={t("doctorClinical.checkIn.pain")}
                                     value={`${last.painLevel}/10`}
-                                    detail={painLabel(last.painLevel)}
+                                    detail={painLabel(last.painLevel, undefined, t)}
                                     values={recent.map((c) => c.painLevel)}
                                     color={CHECK_IN_COLORS.pain}
-                                    ariaLabel={`Pain over the last ${recent.length} check-ins, from ${recent[0].painLevel} to ${last.painLevel} out of 10`}
+                                    ariaLabel={t("doctorClinical.planCard.painTrend", { n: recent.length, from: recent[0].painLevel, to: last.painLevel })}
                                 />
                                 <CheckInTrendTile
-                                    label="Mobility"
+                                    label={t("doctorClinical.checkIn.mobility")}
                                     value={`${last.mobilityPct}%`}
-                                    detail="vs healthy side"
+                                    detail={t("doctorClinical.planCard.vsHealthy")}
                                     values={recent.map((c) => c.mobilityPct)}
                                     color={CHECK_IN_COLORS.mobility}
-                                    ariaLabel={`Mobility over the last ${recent.length} check-ins, from ${recent[0].mobilityPct}% to ${last.mobilityPct}%`}
+                                    ariaLabel={t("doctorClinical.planCard.mobilityTrend", { n: recent.length, from: recent[0].mobilityPct, to: last.mobilityPct })}
                                 />
                             </div>
                         </>
                     ) : (
-                        <p className="rounded-lg bg-surface-muted px-3 py-2.5 text-[13px] text-fg-muted">No check-ins logged yet.</p>
+                        <p className="rounded-lg bg-surface-muted px-3 py-2.5 text-[13px] text-fg-muted">{t("doctorClinical.planCard.noCheckIns")}</p>
                     )}
                 </div>
             </div>
@@ -124,7 +132,7 @@ export function RecoveryPlanCard({ plan, fighter, injury, now, className }: Reco
                     href={routes.doctor.recoveryPlan(plan.id)}
                     className="inline-flex items-center gap-1 rounded-md text-[13px] font-medium text-primary-soft-fg hover:underline"
                 >
-                    Open plan
+                    {t("doctorClinical.planCard.open")}
                     <span className="sr-only">: {plan.title}</span>
                     <ArrowRight aria-hidden className="size-3.5" />
                 </Link>

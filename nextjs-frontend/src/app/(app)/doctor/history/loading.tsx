@@ -1,10 +1,12 @@
 import { FilterSk, HeadSk, HistorySk, Skel } from "@/components/doctor/skeletons";
+import { getTranslator } from "@/lib/i18n/server";
 
 /** Shown the moment the page is opened, in the page's own layout, until its data arrives. */
-export default function Loading() {
+export default async function Loading() {
+    const { t } = await getTranslator();
     return (
         <div className="yt-page">
-            <Skel label="Đang tải lịch sử y tế">
+            <Skel label={t("doctorPages.loading.history")}>
                 <HeadSk actions={0} />
                 <FilterSk n={6} />
                 <HistorySk />

@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { ClearanceValidity } from "@/components/domain/clearance-validity";
-import { capitalize, describeDaysUntil } from "@/components/domain/domain-format";
+import { capitalize } from "@/components/domain/domain-format";
 import { FighterIdentity } from "@/components/domain/fighter-identity";
 import { ClearanceBadge, FighterStatusBadges } from "@/components/domain/status-badges";
 import { VitalsGrid } from "@/components/domain/vitals-grid";
@@ -13,7 +13,7 @@ import {
     AssessmentResultBadge,
     CLEARANCE_LEVEL_FOR_OUTCOME,
     ClearanceRecordStatusBadge,
-    EXAMINATION_OUTCOME_DESCRIPTIONS,
+    EXAMINATION_OUTCOME_DESCRIPTION_KEYS,
     EXAMINATION_OUTCOME_META,
     ExaminationOutcomeBadge,
 } from "@/components/medical/clinical-badges";
@@ -28,9 +28,13 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { assessmentAreaLabel, CLEARANCE_LEVEL_LABELS, examinationTitle } from "@/lib/domain/labels";
+import { assessmentAreaLabel, examinationTitle } from "@/lib/domain/labels";
 import { clearanceState, currentClearance, type ClearanceState } from "@/lib/domain/rules";
-import { daysBetween, formatDate, formatDateTime, pluralize } from "@/lib/format";
+import type { ClearanceLevel, ExaminationOutcome } from "@/lib/domain/types";
+import { daysBetween, formatDate, formatDateTime } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -39,6 +43,8 @@ import { BodyPanel } from "@/components/doctor/body-panel";
 import { Panel } from "@/components/doctor/ui";
 import { getFighter, listDoctors } from "@/lib/services/people";
 import { cn, param } from "@/lib/utils";
+
+import { daysUntil } from "./days-until";
 
 const PRINT_STYLES = `
 @media print {
@@ -63,14 +69,33 @@ export async function examinationOwner(examId: string): Promise<string | null> {
     return (await loadExamination(examId))?.fighter.id ?? null;
 }
 
+/**
+ * The shared domain labels and badges keep this screen's Vietnamese wording only when given no locale (their `vi`
+ * dictionary words some states differently), so they get a locale only in English.
+ */
+const enOnly = (locale: Locale) => (locale === "en" ? locale : undefined);
+
+const CLEARANCE_LEVEL_TEXT: Record<ClearanceLevel, MessageKey> = {
+    full: "doctorViews.exam.level.full",
+    restricted: "doctorViews.exam.level.restricted",
+    not_cleared: "doctorViews.exam.level.not_cleared",
+};
+const OUTCOME_TEXT: Record<ExaminationOutcome, MessageKey> = {
+    fit: "doctorViews.exam.outcome.fit",
+    fit_with_restrictions: "doctorViews.exam.outcome.fit_with_restrictions",
+    unfit: "doctorViews.exam.outcome.unfit",
+};
+
 export async function examinationMetadata(examId: string): Promise<Metadata> {
     const loaded = await loadExamination(examId);
-    return { title: loaded ? `${examinationTitle(loaded.exam)} — ${loaded.fighter.name}` : "Không tìm thấy phiếu khám" };
+    const { t, locale } = await getTranslator();
+    return { title: loaded ? `${examinationTitle(loaded.exam, enOnly(locale))} — ${loaded.fighter.name}` : t("doctorViews.exam.notFound") };
 }
 
 /** One examination, shown inside its fighter's profile. */
 export async function ExaminationDetail({ examId, query, fighterId: scopedId }: { examId: string; query: Record<string, string | string[] | undefined>; fighterId: string }) {
     const now = new Date().toISOString();
+    const { t, locale } = await getTranslator();
 
     const loaded = await loadExamination(examId);
     if (!loaded || loaded.fighter.id !== scopedId) notFound();
@@ -84,7 +109,7 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
         listInjuries({ fighterIds: [exam.fighterId] }).catch(() => []),
     ]);
 
-    const doctorName = doctors.find((doctor) => doctor.id === exam.doctorId)?.name ?? "Bác sĩ thể thao";
+    const doctorName = doctors.find((doctor) => doctor.id === exam.doctorId)?.name ?? t("doctorViews.exam.doctorFallback");
     const current = currentClearance(clearances, fighter.id);
     const currentState = clearanceState(current, now);
     const linked = clearances.filter((clearance) => clearance.examinationId === exam.id);
@@ -107,30 +132,30 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
             <FlashToast
                 notice={
                     param(query.notice) === "examination-recorded"
-                        ? { title: "Đã ghi phiếu khám", description: `${fighter.name} có thể xem tóm tắt và khuyến nghị ở trang Sức khỏe.` }
+                        ? { title: t("doctorViews.exam.recordedTitle"), description: t("doctorViews.exam.recordedBody", { name: fighter.name }) }
                         : null
                 }
                 cleanHref={hrefWith(routes.doctor.fighterExamination(fighter.id, exam.id), query, { notice: null })}
             />
 
             <PageHeader
-                back={{ href: routes.doctor.fighterExaminations(fighter.id), label: "Phiếu khám" }}
-                eyebrow="Phiếu khám"
-                title={examinationTitle(exam)}
+                back={{ href: routes.doctor.fighterExaminations(fighter.id), label: t("doctorViews.exam.eyebrow") }}
+                eyebrow={t("doctorViews.exam.eyebrow")}
+                title={examinationTitle(exam, enOnly(locale))}
                 description={
                     <>
                         <Link href={routes.doctor.fighter(fighter.id)} className="font-medium text-fg hover:underline">
                             {fighter.name}
                         </Link>{" "}
-                        · <time dateTime={exam.date}>{formatDateTime(exam.date)}</time> · {doctorName}
+                        · <time dateTime={exam.date}>{formatDateTime(exam.date, locale)}</time> · {doctorName}
                     </>
                 }
                 meta={
                     <>
-                        <ExaminationOutcomeBadge outcome={exam.outcome} />
+                        <ExaminationOutcomeBadge outcome={exam.outcome} locale={enOnly(locale)} />
                         {counts.abnormal > 0 && (
                             <Badge tone="warning" icon={TriangleAlert}>
-                                {pluralize(counts.abnormal, "dấu hiệu bất thường")}
+                                {plural(t, "doctorViews.exam.abnormalSigns", counts.abnormal)}
                             </Badge>
                         )}
                     </>
@@ -141,7 +166,7 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
                         {!suggestUpdate && (
                             <ButtonLink href={grantHref} variant="secondary">
                                 <ShieldCheck aria-hidden />
-                                Cập nhật giấy phép
+                                {t("doctorViews.exam.updateClearance")}
                             </ButtonLink>
                         )}
                     </div>
@@ -153,12 +178,12 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
                     <Callout
                         tone="info"
                         icon={ShieldCheck}
-                        title="Cập nhật giấy phép theo phiếu khám này"
-                        action={<ButtonLink href={grantHref}>Cập nhật giấy phép</ButtonLink>}
+                        title={t("doctorViews.exam.suggestTitle")}
+                        action={<ButtonLink href={grantHref}>{t("doctorViews.exam.updateClearance")}</ButtonLink>}
                         className="print:hidden"
                     >
-                        Kết luận “{outcomeMeta.label}” gợi ý <strong className="font-medium text-fg">{CLEARANCE_LEVEL_LABELS[expectedLevel]}</strong>, nhưng giấy phép của{" "}
-                        {fighter.name} hiện là {describeState(currentState)}. HLV lên giáo án theo giấy phép, nên hãy cập nhật cho khớp với kết quả khám.
+                        {t("doctorViews.exam.suggestLead", { outcome: t(OUTCOME_TEXT[exam.outcome]) })} <strong className="font-medium text-fg">{t(CLEARANCE_LEVEL_TEXT[expectedLevel])}</strong>
+                        {t("doctorViews.exam.suggestTail", { name: fighter.name, state: describeState(t, currentState) })}
                     </Callout>
                 )}
 
@@ -166,9 +191,9 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                         {exam.vitals && (
                             <Card>
-                                <CardHeader title="Sinh hiệu" icon={<Stethoscope />} description={`Đối chiếu ngưỡng vận động viên và giới hạn hạng cân ${fighter.targetWeightKg} kg`} />
+                                <CardHeader title={t("doctorViews.exam.vitals")} icon={<Stethoscope />} description={t("doctorViews.exam.vitalsSub", { kg: fighter.targetWeightKg })} />
                                 <CardContent>
-                                    <VitalsGrid vitals={exam.vitals} weightLimitKg={fighter.targetWeightKg} />
+                                    <VitalsGrid vitals={exam.vitals} weightLimitKg={fighter.targetWeightKg} locale={locale} />
                                 </CardContent>
                             </Card>
                         )}
@@ -176,34 +201,34 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
                         {exam.assessments.length > 0 && (
                             <Card>
                                 <CardHeader
-                                    title="Đánh giá"
+                                    title={t("doctorViews.exam.assessments")}
                                     icon={<ClipboardList />}
                                     description={[
-                                        counts.normal > 0 ? `${counts.normal} bình thường` : null,
-                                        counts.abnormal > 0 ? `${counts.abnormal} bất thường` : null,
-                                        counts.inconclusive > 0 ? `${counts.inconclusive} inconclusive` : null,
+                                        counts.normal > 0 ? t("doctorViews.exam.countNormal", { n: counts.normal }) : null,
+                                        counts.abnormal > 0 ? t("doctorViews.exam.countAbnormal", { n: counts.abnormal }) : null,
+                                        counts.inconclusive > 0 ? t("doctorViews.exam.countInconclusive", { n: counts.inconclusive }) : null,
                                     ]
                                         .filter(Boolean)
                                         .join(" · ")}
                                 />
                                 <div className="pb-2">
-                                    <Table caption="Đánh giá">
+                                    <Table caption={t("doctorViews.exam.assessments")}>
                                         <THead>
                                             <tr>
-                                                <TH>Vùng</TH>
-                                                <TH>Kết quả</TH>
-                                                <TH>Kết quả khám</TH>
+                                                <TH>{t("doctorViews.exam.colArea")}</TH>
+                                                <TH>{t("doctorViews.exam.colResult")}</TH>
+                                                <TH>{t("doctorViews.exam.colFinding")}</TH>
                                             </tr>
                                         </THead>
                                         <TBody>
                                             {exam.assessments.map((assessment, index) => (
                                                 <TR key={`${assessment.area}-${index}`} className={cn(assessment.result === "abnormal" && "bg-warning-soft/30")}>
-                                                    <TD className="min-w-44 font-medium">{assessmentAreaLabel(assessment.area)}</TD>
+                                                    <TD className="min-w-44 font-medium">{locale === "vi" ? assessmentAreaLabel(assessment.area) : assessment.area}</TD>
                                                     <TD className="whitespace-nowrap">
                                                         <AssessmentResultBadge result={assessment.result} size="sm" />
                                                     </TD>
                                                     <TD className="min-w-64 text-[13px] text-pretty">
-                                                        {assessment.note || <span className="text-fg-muted">Không có ghi chú</span>}
+                                                        {assessment.note || <span className="text-fg-muted">{t("doctorViews.exam.noNote")}</span>}
                                                     </TD>
                                                 </TR>
                                             ))}
@@ -214,19 +239,19 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
                         )}
 
                         <Card>
-                            <CardHeader title="Tóm tắt & khuyến nghị" icon={<NotebookPen />} />
+                            <CardHeader title={t("doctorViews.exam.summaryCard")} icon={<NotebookPen />} />
                             <CardContent className="flex flex-col gap-5">
                                 <div>
-                                    <h3 className="text-[13px] font-semibold text-fg-muted">Tóm tắt kết quả khám</h3>
+                                    <h3 className="text-[13px] font-semibold text-fg-muted">{t("doctorViews.exam.summary")}</h3>
                                     <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.summary}</p>
                                 </div>
                                 <div>
-                                    <h3 className="text-[13px] font-semibold text-fg-muted">Khuyến nghị</h3>
-                                    <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.recommendations || <span className="text-fg-muted">Chưa ghi nhận.</span>}</p>
+                                    <h3 className="text-[13px] font-semibold text-fg-muted">{t("doctorViews.exam.recommendations")}</h3>
+                                    <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.recommendations || <span className="text-fg-muted">{t("doctorViews.exam.notRecorded")}</span>}</p>
                                 </div>
                                 {exam.decisionRestrictions?.notes && (
                                     <div>
-                                        <h3 className="text-[13px] font-semibold text-fg-muted">Ghi chú hạn chế</h3>
+                                        <h3 className="text-[13px] font-semibold text-fg-muted">{t("doctorViews.exam.restrictionNotes")}</h3>
                                         <p className="mt-1 text-sm text-pretty whitespace-pre-line text-fg">{exam.decisionRestrictions.notes}</p>
                                     </div>
                                 )}
@@ -238,79 +263,79 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
 
                     <div className="flex min-w-0 flex-col gap-6">
                         <Card>
-                            <CardHeader title="Kết luận" />
+                            <CardHeader title={t("doctorViews.exam.conclusion")} />
                             <CardContent className="flex flex-col gap-4">
-                                <Callout tone={outcomeMeta.tone} icon={outcomeMeta.icon} title={outcomeMeta.label}>
-                                    {EXAMINATION_OUTCOME_DESCRIPTIONS[exam.outcome]}
+                                <Callout tone={outcomeMeta.tone} icon={outcomeMeta.icon} title={t(OUTCOME_TEXT[exam.outcome])}>
+                                    {t(EXAMINATION_OUTCOME_DESCRIPTION_KEYS[exam.outcome])}
                                 </Callout>
                                 <div className="flex items-start gap-2.5 text-sm">
                                     <CalendarClock aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-subtle" />
                                     {exam.followUpDate && followUpDays !== null ? (
                                         <p>
-                                            <span className="block text-[13px] text-fg-muted">Khám theo dõi</span>
+                                            <span className="block text-[13px] text-fg-muted">{t("doctorViews.exam.followUp")}</span>
                                             <time dateTime={exam.followUpDate} className="font-medium text-fg">
-                                                {formatDate(exam.followUpDate)}
+                                                {formatDate(exam.followUpDate, locale)}
                                             </time>
-                                            <span className="text-fg-muted"> · {followUpDays < 0 ? `${describeDaysUntil(followUpDays)}` : capitalize(describeDaysUntil(followUpDays))}</span>
+                                            <span className="text-fg-muted"> · {followUpDays < 0 ? daysUntil(t, followUpDays) : capitalize(daysUntil(t, followUpDays))}</span>
                                         </p>
                                     ) : (
-                                        <p className="text-fg-muted">Chưa hẹn khám theo dõi</p>
+                                        <p className="text-fg-muted">{t("doctorViews.exam.noFollowUp")}</p>
                                     )}
                                 </div>
                             </CardContent>
                         </Card>
 
                         <Card>
-                            <CardHeader title="Giấy phép" icon={<ShieldCheck />} />
+                            <CardHeader title={t("doctorViews.exam.clearance")} icon={<ShieldCheck />} />
                             <CardContent className="flex flex-col gap-4">
                                 {linked.length > 0 ? (
                                     <div className="flex flex-col gap-3">
-                                        <p className="text-[13px] text-fg-muted">Cấp dựa trên phiếu khám này:</p>
+                                        <p className="text-[13px] text-fg-muted">{t("doctorViews.exam.grantedFrom")}</p>
                                         {linked.map((clearance) => (
                                             <div key={clearance.id} className="rounded-lg border border-border px-3 py-2.5">
                                                 <div className="flex flex-wrap items-center gap-1.5">
-                                                    <ClearanceBadge state={clearance.level} size="sm" />
-                                                    <ClearanceRecordStatusBadge status={clearance.status} size="sm" />
+                                                    <ClearanceBadge state={clearance.level} size="sm" locale={enOnly(locale)} />
+                                                    <ClearanceRecordStatusBadge status={clearance.status} size="sm" locale={enOnly(locale)} />
                                                 </div>
                                                 <p className="mt-1.5 text-[13px] text-fg-muted">
-                                                    Cấp ngày {formatDate(clearance.issuedAt)}
-                                                    {clearance.validUntil ? ` · hiệu lực đến ${formatDate(clearance.validUntil)}` : ""}
+                                                    {t("doctorViews.exam.issuedOn", { date: formatDate(clearance.issuedAt, locale) })}
+                                                    {clearance.validUntil ? t("doctorViews.exam.validUntil", { date: formatDate(clearance.validUntil, locale) }) : ""}
                                                 </p>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-[13px] text-fg-muted">Chưa cấp giấy phép nào từ phiếu khám này.</p>
+                                    <p className="text-[13px] text-fg-muted">{t("doctorViews.exam.noneGranted")}</p>
                                 )}
                                 <div className="border-t border-border pt-4">
-                                    <p className="mb-1.5 text-[13px] text-fg-muted">Giấy phép hiện tại</p>
+                                    <p className="mb-1.5 text-[13px] text-fg-muted">{t("doctorViews.exam.currentClearance")}</p>
                                     <div className="flex flex-col items-start gap-1">
-                                        <ClearanceBadge state={currentState} size="sm" />
-                                        <ClearanceValidity clearance={current} state={currentState} now={now} warningDays={settings.clearanceExpiryWarningDays} />
+                                        <ClearanceBadge state={currentState} size="sm" locale={enOnly(locale)} />
+                                        <ClearanceValidity clearance={current} state={currentState} now={now} warningDays={settings.clearanceExpiryWarningDays} locale={locale} />
                                     </div>
                                     <Link
                                         href={`${routes.doctor.fighter(fighter.id)}?tab=clearance`}
                                         className="mt-3 inline-flex text-[13px] font-medium text-primary-soft-fg hover:underline print:hidden"
                                     >
-                                        Lịch sử giấy phép
+                                        {t("doctorViews.exam.clearanceHistory")}
                                     </Link>
                                 </div>
                             </CardContent>
                         </Card>
 
-                        <Panel title="Bản đồ cơ thể" aside={fighterInjuries.length === 0 ? "Chưa ghi chấn thương" : `${fighterInjuries.length} chấn thương`} tone="plate" id="ban-do-co-the">
+                        <Panel title={t("doctorViews.exam.bodyMap")} aside={fighterInjuries.length === 0 ? t("doctorViews.exam.noInjuries") : plural(t, "doctorViews.exam.injuryCount", fighterInjuries.length)} tone="plate" id="ban-do-co-the">
                             <BodyPanel injuries={fighterInjuries} excluded={[]} height={340} />
                         </Panel>
 
                         <Card>
-                            <CardHeader title="Bệnh nhân" icon={<UserRound />} />
+                            <CardHeader title={t("doctorViews.exam.patient")} icon={<UserRound />} />
                             <CardContent className="flex flex-col gap-3">
-                                <FighterIdentity fighter={fighter} href={routes.doctor.fighter(fighter.id)} />
-                                <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={currentState} size="sm" className="self-start" />
+                                <FighterIdentity fighter={fighter} href={routes.doctor.fighter(fighter.id)} locale={enOnly(locale)} />
+                                <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={currentState} size="sm" className="self-start" locale={enOnly(locale)} />
                                 <p className="text-[13px] text-fg-muted">
                                     {isLatest
-                                        ? "Đây là phiếu khám gần nhất của võ sĩ."
-                                        : `Đã có phiếu khám mới hơn — ${fighterExams.findIndex((candidate) => candidate.id === exam.id)} phiếu khám được ghi sau đó.`}
+                                        ? t("doctorViews.exam.isLatest")
+                                        : plural(t, "doctorViews.exam.newerExist", fighterExams.findIndex((candidate) => candidate.id === exam.id))}
                                 </p>
                             </CardContent>
                         </Card>
@@ -321,13 +346,13 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
     );
 }
 
-function describeState(state: ClearanceState): string {
+function describeState(t: Translator, state: ClearanceState): string {
     switch (state) {
         case "none":
-            return "chưa có trong hồ sơ";
+            return t("doctorViews.exam.stateNone");
         case "expired":
-            return "expired";
+            return t("doctorViews.exam.stateExpired");
         default:
-            return `“${CLEARANCE_LEVEL_LABELS[state]}”`;
+            return t("doctorViews.exam.stateQuoted", { level: t(CLEARANCE_LEVEL_TEXT[state]) });
     }
 }

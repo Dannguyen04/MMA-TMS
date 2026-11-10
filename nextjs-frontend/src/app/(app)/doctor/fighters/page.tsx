@@ -5,16 +5,22 @@ import Link from "next/link";
 import { HEALTH_STATUS, JOINT, fmeta, fmtDate, injuryName, injuryPlace } from "@/components/doctor/labels";
 import { Empty, Gate, PageHead, Panel, Pill, reasonsText } from "@/components/doctor/ui";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { TRIAGE_ORDER, loadDoctorBoard, type Triage } from "@/lib/services/doctor-board";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Võ sĩ" };
-const TAG_WORD: Record<Triage, string> = { red: "Chặn", amber: "Theo dõi", green: "Thông qua" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctorPages.meta.fighters") };
+}
+const TAG_WORD: Record<Triage, MessageKey> = { red: "screens.doctor.lane.red.word", amber: "screens.doctor.lane.amber.word", green: "doctorPages.dashboard.laneClear" };
 const LOC: Record<string, Triage | null> = { all: null, blocked: "red", watch: "amber", ok: "green" };
 
 export default async function DoctorFightersPage({ searchParams }: PageProps<"/doctor/fighters">) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
     const query = await searchParams;
     const q = param(query.q) ?? "";
     const loc = param(query.loc) ?? "all";
@@ -34,53 +40,55 @@ export default async function DoctorFightersPage({ searchParams }: PageProps<"/d
 
     return (
         <div className="yt-page">
-            <PageHead title="Võ sĩ" sub={`${rows.length} võ sĩ được giao · sắp theo màu thẻ, đỏ trước`} />
+            <PageHead title={t("doctorPages.meta.fighters")} sub={plural(t, "doctorPages.fighters.sub", rows.length)} />
             <form className="yt-filters" role="search" data-shot="filters">
                 <label className="yt-search">
                     <Search aria-hidden />
-                    <span className="sr-only">Tìm võ sĩ theo tên</span>
-                    <input name="q" defaultValue={q} placeholder="Tìm theo tên võ sĩ" />
+                    <span className="sr-only">{t("doctorPages.fighters.searchLabel")}</span>
+                    <input name="q" defaultValue={q} placeholder={t("doctorPages.fighters.searchPlaceholder")} />
                 </label>
                 <input type="hidden" name="loc" value={loc} />
-                <nav className="yt-segs" aria-label="Lọc theo thẻ">
-                    {seg("all", "Tất cả")}
-                    {seg("blocked", "Chặn")}
-                    {seg("watch", "Theo dõi")}
-                    {seg("ok", "Thông qua")}
+                <nav className="yt-segs" aria-label={t("doctorPages.fighters.filterAria")}>
+                    {seg("all", t("screens.doctor.all"))}
+                    {seg("blocked", t(TAG_WORD.red))}
+                    {seg("watch", t(TAG_WORD.amber))}
+                    {seg("ok", t(TAG_WORD.green))}
                 </nav>
             </form>
             <Panel id="roster">
                 {list.length === 0 ? (
                     <Empty
-                        title={rows.length ? "Không có võ sĩ phù hợp" : "Chưa có võ sĩ nào được giao"}
+                        title={t(rows.length ? "doctorPages.fighters.empty.noMatch" : "doctorPages.fighters.empty.noneAssigned")}
                         action={
                             rows.length ? (
                                 <Link href={routes.doctor.fighters} className="yt-btn">
-                                    Xóa bộ lọc
+                                    {t("doctorPages.fighters.clearFilters")}
                                 </Link>
                             ) : undefined
                         }
                     >
-                        {rows.length ? `${q ? `Không có tên nào chứa “${q}”.` : "Chưa có võ sĩ nào ở nhóm này."} Thử bỏ bớt điều kiện lọc.` : "Khi quản trị viên giao võ sĩ cho bạn, danh sách sẽ hiện ở đây."}
+                        {rows.length
+                            ? `${q ? t("doctorPages.fighters.empty.noName", { q }) : t("doctorPages.fighters.empty.noneInGroup")} ${t("doctorPages.fighters.empty.tryLess")}`
+                            : t("doctorPages.fighters.empty.assignHint")}
                     </Empty>
                 ) : (
                     <div className="yt-tablewrap">
                         <table className="yt-table">
                             <thead>
                                 <tr>
-                                    <th>Võ sĩ</th>
-                                    <th>Điều kiện</th>
-                                    <th className="yt-hide-sm">Lý do / hạn chế</th>
-                                    <th className="yt-hide-sm">Chấn thương mở</th>
-                                    <th className="yt-hide-sm">Tình trạng</th>
-                                    <th className="yt-hide-sm">Khám gần nhất</th>
+                                    <th>{t("doctorPages.fighters.col.fighter")}</th>
+                                    <th>{t("doctorPages.fighters.col.eligibility")}</th>
+                                    <th className="yt-hide-sm">{t("doctorPages.fighters.col.reasons")}</th>
+                                    <th className="yt-hide-sm">{t("doctorPages.fighters.col.openInjuries")}</th>
+                                    <th className="yt-hide-sm">{t("doctorPages.fighters.col.status")}</th>
+                                    <th className="yt-hide-sm">{t("doctorPages.fighters.col.lastExam")}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {list.map((r, i) => {
                                     const last = r.summary.latestExamination;
                                     const st = HEALTH_STATUS[r.fighter.healthStatus];
-                                    const reasons = reasonsText(r.training);
+                                    const reasons = reasonsText(t, r.training);
                                     const excluded = r.dossier?.currentExaminations.TRAINING?.restrictions?.excludedJoints ?? [];
                                     return (
                                         <tr key={r.fighter.id} style={{ ["--i" as string]: i }}>
@@ -91,51 +99,51 @@ export default async function DoctorFightersPage({ searchParams }: PageProps<"/d
                                                         <Link className="yt-rowlink" href={routes.doctor.fighter(r.fighter.id)}>
                                                             {r.fighter.name}
                                                         </Link>
-                                                        <small>{fmeta(r.fighter)}</small>
+                                                        <small>{fmeta(t, r.fighter)}</small>
                                                     </span>
                                                 </span>
-                                                <span className="sr-only">Thẻ {TAG_WORD[r.tag]}</span>
+                                                <span className="sr-only">{t("doctorPages.fighters.tagSr", { tag: t(TAG_WORD[r.tag]) })}</span>
                                             </td>
                                             <td>
                                                 <span className="ro-gates">
-                                                    <Gate label="Tập" e={r.training} />
-                                                    {showCompetition && <Gate label="Thi đấu" e={r.competition} />}
+                                                    <Gate label={t("doctorPages.fighters.gateTraining")} e={r.training} t={t} />
+                                                    {showCompetition && <Gate label={t("screens.doctor.gate.competition")} e={r.competition} t={t} />}
                                                 </span>
                                             </td>
                                             <td className="yt-hide-sm">
                                                 {reasons.length ? (
                                                     <b>{reasons.join(" · ")}</b>
                                                 ) : excluded.length ? (
-                                                    `Tránh ${excluded.map((j) => JOINT[j].toLowerCase()).join(", ")}`
+                                                    t("screens.doctor.avoid", { region: excluded.map((j) => t(JOINT[j]).toLowerCase()).join(", ") })
                                                 ) : r.summary.clearanceState === "restricted" ? (
-                                                    "Tập có hạn chế"
+                                                    t("doctorPages.fighters.restricted")
                                                 ) : (
-                                                    <span className="yt-muted">Không</span>
+                                                    <span className="yt-muted">{t("doctorPages.fighters.none")}</span>
                                                 )}
                                             </td>
                                             <td className="yt-hide-sm">
                                                 {r.summary.activeInjuries.length ? (
                                                     r.summary.activeInjuries.map((j) => (
                                                         <span key={j.id}>
-                                                            {injuryName(j)}
-                                                            <small>{injuryPlace(j)}</small>
+                                                            {injuryName(t, j)}
+                                                            <small>{injuryPlace(t, j)}</small>
                                                         </span>
                                                     ))
                                                 ) : (
-                                                    <span className="yt-muted">Không</span>
+                                                    <span className="yt-muted">{t("doctorPages.fighters.none")}</span>
                                                 )}
                                             </td>
                                             <td className="yt-hide-sm">
-                                                <Pill tone={st.tone}>{st.label}</Pill>
+                                                <Pill tone={st.tone}>{t(st.label)}</Pill>
                                             </td>
                                             <td className="yt-hide-sm">
                                                 {last ? (
                                                     <>
-                                                        {fmtDate(last.date)}
-                                                        <small>{last.scope ? (last.scope === "TRAINING" ? "Tập luyện" : "Thi đấu") : "Phiếu khám"}</small>
+                                                        {fmtDate(last.date, locale)}
+                                                        <small>{t(last.scope ? (last.scope === "TRAINING" ? "screens.doctor.gate.training" : "screens.doctor.gate.competition") : "screens.doctor.event.exam")}</small>
                                                     </>
                                                 ) : (
-                                                    <span className="yt-muted">Chưa khám</span>
+                                                    <span className="yt-muted">{t("doctorPages.fighters.notExamined")}</span>
                                                 )}
                                             </td>
                                         </tr>

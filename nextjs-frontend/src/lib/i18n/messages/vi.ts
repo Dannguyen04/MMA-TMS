@@ -21,6 +21,12 @@ import { viScreensApp } from "./screens-app.vi";
 import { viScreensVideo } from "./screens-video.vi";
 import { viScreensAdmin } from "./screens-admin.vi";
 import { viScreensMisc } from "./screens-misc.vi";
+import { viDoctorScreens } from "./doctor-screens.vi";
+import { viDoctorViews } from "./doctor-views.vi";
+import { viDoctorMedical } from "./doctor-medical.vi";
+import { viDoctorScat6 } from "./doctor-scat6.vi";
+import { viDoctorClinical } from "./doctor-clinical.vi";
+import { viDoctorPages } from "./doctor-pages.vi";
 import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
@@ -48,6 +54,12 @@ export const vi = {
     ...viScreensVideo,
     ...viScreensAdmin,
     ...viScreensMisc,
+    ...viDoctorScreens,
+    ...viDoctorViews,
+    ...viDoctorMedical,
+    ...viDoctorScat6,
+    ...viDoctorClinical,
+    ...viDoctorPages,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",

@@ -14,6 +14,7 @@ import { EXAMINATION_SCOPES } from "@/lib/domain/medical-contract";
 import { clearanceState, currentClearance } from "@/lib/domain/rules";
 import type { ExaminationType, MedicalExamination } from "@/lib/domain/types";
 import { toDateTimeInputValue } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listClearances, listExaminations } from "@/lib/services/medical";
@@ -76,7 +77,8 @@ export async function NewExaminationView(props: NewExaminationViewProps) {
     const preselected = fighters.find((fighter) => fighter.id === defaultFighterId);
     if (scopedId && !preselected) notFound();
 
-    const description = "Ghi chỉ số sinh tồn, đánh giá và kết luận. Giấy phép được cập nhật riêng — hệ thống sẽ nhắc nếu cần.";
+    const { t } = await getTranslator();
+    const description = t("doctorUi.newExam.descriptionDemo");
     const form = (
         <ExaminationForm
             // Inside the profile only this fighter is offered, so the choice can't drift to someone else.
@@ -92,7 +94,7 @@ export async function NewExaminationView(props: NewExaminationViewProps) {
 
     if (scopedId) {
         return (
-            <FormSection title="Tạo phiếu khám" description={description}>
+            <FormSection title={t("doctorUi.action.newExamination")} description={description}>
                 {form}
             </FormSection>
         );
@@ -100,9 +102,9 @@ export async function NewExaminationView(props: NewExaminationViewProps) {
     return (
         <>
             <PageHeader
-                back={preselected ? { href: routes.doctor.fighter(preselected.id), label: preselected.name } : { href: routes.doctor.examinations, label: "Phiếu khám" }}
-                eyebrow="Phiếu khám"
-                title="Phiếu khám mới"
+                back={preselected ? { href: routes.doctor.fighter(preselected.id), label: preselected.name } : { href: routes.doctor.examinations, label: t("doctorUi.tab.exams") }}
+                eyebrow={t("doctorUi.tab.exams")}
+                title={t("doctorUi.newExam.title")}
                 description={description}
             />
             {form}
@@ -122,7 +124,8 @@ async function NewExaminationDecision({ query, fighterId: scopedId }: NewExamina
     const needsBaseline = dossier?.eligibility.TRAINING.reasons.includes("EXAMINATION_REQUIRED") ?? false;
     const defaultType =
         parseEnum(param(query.type), TYPES) ?? (needsBaseline && defaultScope === "TRAINING" ? "baseline" : defaultScope === "COMPETITION" ? "pre_fight" : fighter ? "routine" : "");
-    const description = "Ghi kết quả khám và quyết định võ sĩ có được tập/thi đấu. Giấy phép được cấp ở bước tiếp theo từ phiếu khám này.";
+    const { t } = await getTranslator();
+    const description = t("doctorUi.newExam.description");
     const steps = fighter && dossier ? <ExamClearanceSteps current={1} /> : undefined;
 
     const body =
@@ -144,14 +147,14 @@ async function NewExaminationDecision({ query, fighterId: scopedId }: NewExamina
             <FighterChooser
                 fighters={fighters}
                 hrefFor={(fighterId) => hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId, scope: defaultScope, type: param(query.type) })}
-                title="Bạn đã khám võ sĩ nào?"
+                title={t("doctorUi.newExam.choose")}
                 unreadable={fighter}
             />
         );
 
     if (scopedId) {
         return (
-            <FormSection title="Tạo phiếu khám" description={description} meta={steps}>
+            <FormSection title={t("doctorUi.action.newExamination")} description={description} meta={steps}>
                 {body}
             </FormSection>
         );
@@ -159,9 +162,9 @@ async function NewExaminationDecision({ query, fighterId: scopedId }: NewExamina
     return (
         <>
             <PageHeader
-                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.examinations, label: "Phiếu khám" }}
-                eyebrow="Phiếu khám"
-                title={fighter ? `Phiếu khám cho ${fighter.name}` : "Phiếu khám mới"}
+                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.examinations, label: t("doctorUi.tab.exams") }}
+                eyebrow={t("doctorUi.tab.exams")}
+                title={fighter ? t("doctorUi.newExam.titleFor", { name: fighter.name }) : t("doctorUi.newExam.title")}
                 description={description}
                 meta={steps}
             />

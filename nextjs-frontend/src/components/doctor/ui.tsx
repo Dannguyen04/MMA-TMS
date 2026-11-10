@@ -4,9 +4,10 @@ import type { ReactNode } from "react";
 
 import type { ClinicalRestrictions, MedicalEligibility } from "@/lib/domain/medical-contract";
 import type { Vitals as VitalsData } from "@/lib/domain/types";
+import type { Translator } from "@/lib/i18n/translate";
 import { ELIGIBILITY_REASON, HYDRATION, JOINT, SESSION_TYPE, TECHNIQUE, num, type Tone } from "./labels";
 
-export const reasonsText = (e: MedicalEligibility | null | undefined) => (e ? e.reasons.map((r) => ELIGIBILITY_REASON[r]) : []);
+export const reasonsText = (t: Translator, e: MedicalEligibility | null | undefined) => (e ? e.reasons.map((r) => t(ELIGIBILITY_REASON[r])) : []);
 
 export function PageHead({ title, sub, actions, className = "", children }: { title: ReactNode; sub?: ReactNode; actions?: ReactNode; className?: string; children?: ReactNode }) {
     return (
@@ -44,13 +45,13 @@ export function Pill({ tone = "neutral", children }: { tone?: Tone; children: Re
 }
 
 /** Cổng điều kiện (Tập/Thi đấu). `e` null: chưa đọc được (chế độ demo không có điều kiện thi đấu) nên không hiện. */
-export function Gate({ label, e }: { label: string; e: MedicalEligibility | null }) {
+export function Gate({ label, e, t }: { label: string; e: MedicalEligibility | null; t: Translator }) {
     if (!e) return null;
     return (
         <span className="yt-gate" data-ok={e.eligible}>
             {e.eligible ? <Check aria-hidden /> : <X aria-hidden />}
             {label}
-            <span className="sr-only">{e.eligible ? ": đủ điều kiện" : ": chưa đủ điều kiện"}</span>
+            <span className="sr-only">{t(e.eligible ? "doctorUi.gate.eligible" : "doctorUi.gate.notEligible")}</span>
         </span>
     );
 }
@@ -86,15 +87,16 @@ export function GoLink({ href, children }: { href: string; children: ReactNode }
     );
 }
 
-export function Vitals({ v }: { v: VitalsData | null | undefined }) {
-    if (!v) return <p className="yt-muted">Phiếu khám không có chỉ số sinh tồn.</p>;
+export function Vitals({ v, t }: { v: VitalsData | null | undefined; t: Translator }) {
+    if (!v) return <p className="yt-muted">{t("doctorUi.vitals.none")}</p>;
+    const locale = t.locale ?? "vi";
     const cells: [string, string, string][] = [
-        ["Cân nặng", num(v.weightKg), "kg"],
-        ["Mạch nghỉ", String(v.restingHeartRate), "lần/phút"],
-        ["Huyết áp", `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic}`, "mmHg"],
-        ["Nhiệt độ", num(v.temperatureC), "°C"],
+        [t("doctorUi.vitals.weight"), num(v.weightKg, locale), "kg"],
+        [t("doctorUi.vitals.restingHeartRate"), String(v.restingHeartRate), t("doctorUi.vitals.bpm")],
+        [t("doctorUi.vitals.bloodPressure"), `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic}`, "mmHg"],
+        [t("doctorUi.vitals.temperature"), num(v.temperatureC, locale), "°C"],
         ["SpO2", String(v.spo2Pct), "%"],
-        ["Mức nước", HYDRATION[v.hydration], ""],
+        [t("doctorUi.vitals.hydration"), t(HYDRATION[v.hydration]), ""],
     ];
     return (
         <dl className="yt-vitals">
@@ -112,16 +114,16 @@ export function Vitals({ v }: { v: VitalsData | null | undefined }) {
 }
 
 /** Giới hạn bằng lời của bác sĩ (dạng của dịch vụ y tế). */
-export function Restrictions({ r }: { r: ClinicalRestrictions | null | undefined }) {
+export function Restrictions({ r, t }: { r: ClinicalRestrictions | null | undefined; t: Translator }) {
     if (!r || (!r.allowedSessionTypes?.length && !r.allowedTechniqueTypes?.length && !r.excludedJoints?.length && !r.notes)) return null;
     return (
         <div className="yt-restr">
             <ul className="yt-chips">
-                {r.allowedSessionTypes?.map((s) => <li key={s}>{SESSION_TYPE[s] ?? s}</li>)}
-                {r.allowedTechniqueTypes?.map((t) => <li key={t}>{TECHNIQUE[t] ?? t}</li>)}
+                {r.allowedSessionTypes?.map((s) => <li key={s}>{SESSION_TYPE[s] ? t(SESSION_TYPE[s]) : s}</li>)}
+                {r.allowedTechniqueTypes?.map((k) => <li key={k}>{TECHNIQUE[k] ? t(TECHNIQUE[k]) : k}</li>)}
                 {r.excludedJoints?.map((j) => (
                     <li key={j} data-tone="block">
-                        Tránh {JOINT[j]?.toLowerCase() ?? j}
+                        {t("doctorUi.restrictions.avoid", { joint: JOINT[j] ? t(JOINT[j]).toLowerCase() : j })}
                     </li>
                 ))}
             </ul>
@@ -135,7 +137,21 @@ export function Sk({ w = "100%", h = 14, r = 6 }: { w?: string | number; h?: num
 }
 
 /** Lọc theo võ sĩ bằng liên kết (giữ các tham số khác). */
-export function FighterFilter({ base, fighters, current, extra = {}, param = "fighter" }: { base: string; fighters: { id: string; name: string }[]; current?: string; extra?: Record<string, string | undefined>; param?: string }) {
+export function FighterFilter({
+    base,
+    fighters,
+    current,
+    extra = {},
+    param = "fighter",
+    t,
+}: {
+    base: string;
+    fighters: { id: string; name: string }[];
+    current?: string;
+    extra?: Record<string, string | undefined>;
+    param?: string;
+    t: Translator;
+}) {
     const q = (f?: string) => {
         const p = new URLSearchParams();
         for (const [k, v] of Object.entries(extra)) if (v) p.set(k, v);
@@ -144,9 +160,9 @@ export function FighterFilter({ base, fighters, current, extra = {}, param = "fi
         return s ? `${base}?${s}` : base;
     };
     return (
-        <nav className="yt-segs yt-fseg" aria-label="Lọc theo võ sĩ" data-shot="filters">
+        <nav className="yt-segs yt-fseg" aria-label={t("doctorUi.filter.byFighter")} data-shot="filters">
             <Link href={q()} aria-current={!current ? "page" : undefined}>
-                Tất cả võ sĩ
+                {t("doctorUi.filter.allFighters")}
             </Link>
             {fighters.map((f) => (
                 <Link key={f.id} href={q(f.id)} aria-current={current === f.id ? "page" : undefined}>

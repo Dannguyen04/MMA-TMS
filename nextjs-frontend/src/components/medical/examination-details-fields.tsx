@@ -4,6 +4,7 @@ import { CheckCheck, CircleCheck, History, ListRestart, Plus, TriangleAlert, X }
 import { useState, type ReactNode } from "react";
 
 import { TermHint } from "@/components/domain/term-hint";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/form";
 import { TONE_SOFT, TONE_TEXT } from "@/components/ui/tone";
@@ -11,9 +12,20 @@ import type { ActionForm } from "@/components/ui/use-action-form";
 import { ASSESSMENT_RESULT_LABELS, EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
 import type { AssessmentResult, ExaminationType } from "@/lib/domain/types";
 import { addDaysToKey } from "@/lib/format";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { ASSESSMENT_RESULT_META } from "./clinical-badges";
-import { ASSESSMENT_PRESETS, checkVitals, EXAMINATION_TYPE_HINTS, fillBlankVitals, FOLLOW_UP_DEFAULT_DAYS, markUnmarkedNormal, unmarkedAreas, type VitalCheck } from "./examination-presets";
+import {
+    assessmentPresets,
+    checkVitals,
+    EXAMINATION_TYPE_HINTS,
+    fillBlankVitals,
+    FOLLOW_UP_DEFAULT_DAYS,
+    localLabel,
+    markUnmarkedNormal,
+    unmarkedAreas,
+    type VitalCheck,
+} from "./examination-presets";
 import { QuickFill } from "./quick-fill";
 
 /**
@@ -29,6 +41,9 @@ export type VitalsDraft = Record<VitalField | "hydration", string>;
 
 const EXAMINATION_TYPES = Object.keys(EXAMINATION_TYPE_LABELS) as ExaminationType[];
 
+/** An examination type's name in the viewer's language. */
+const typeLabel = (t: Translator, type: ExaminationType) => localLabel(t, `examinationType.${type}`, EXAMINATION_TYPE_LABELS[type]);
+
 /** The kind of visit, which also sets the starting assessments. */
 export function ExaminationTypeField({
     form,
@@ -41,21 +56,22 @@ export function ExaminationTypeField({
     onChange: (type: ExaminationType | "") => void;
     className?: string;
 }) {
+    const t = useT();
     return (
         <Field
-            label="Loại phiếu khám"
+            label={t("doctorMedical.details.typeLabel")}
             htmlFor={form.control("type").id}
             error={form.error("type")}
             required
-            hint={value ? EXAMINATION_TYPE_HINTS[value] : "Loại khám quyết định danh sách đánh giá ban đầu."}
+            hint={value ? t(EXAMINATION_TYPE_HINTS[value]) : t("doctorMedical.details.typeHint")}
             info={<TermHint term="baselineExam" />}
             className={className}
         >
             <Select {...form.control("type", { hint: true, required: true })} value={value} onChange={(event) => onChange(event.target.value as ExaminationType | "")} className="sm:max-w-sm">
-                <option value="">Chọn loại…</option>
+                <option value="">{t("doctorMedical.details.chooseType")}</option>
                 {EXAMINATION_TYPES.map((type) => (
                     <option key={type} value={type}>
-                        {EXAMINATION_TYPE_LABELS[type]}
+                        {typeLabel(t, type)}
                     </option>
                 ))}
             </Select>
@@ -79,28 +95,29 @@ export interface VitalsFieldsProps {
     previousLabel?: ReactNode;
 }
 
-const HYDRATION_LABELS: Record<string, string> = { good: "Tốt", fair: "Trung bình", poor: "Kém" };
+const HYDRATION_LABELS: Record<string, MessageKey> = { good: "doctorMedical.hydration.good", fair: "doctorMedical.hydration.fair", poor: "doctorMedical.hydration.poor" };
 /** The previous readings as the strip shows them. */
-const PREVIOUS_ITEMS: { label: string; read: (v: VitalsDraft) => string }[] = [
-    { label: "Cân nặng", read: (v) => (v.weightKg ? `${v.weightKg} kg` : "") },
-    { label: "Mạch nghỉ", read: (v) => (v.restingHeartRate ? `${v.restingHeartRate} bpm` : "") },
-    { label: "Huyết áp", read: (v) => (v.bloodPressureSystolic ? `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic}` : "") },
-    { label: "Nhiệt độ", read: (v) => (v.temperatureC ? `${v.temperatureC} °C` : "") },
-    { label: "SpO2", read: (v) => (v.spo2Pct ? `${v.spo2Pct}%` : "") },
-    { label: "Mức nước", read: (v) => HYDRATION_LABELS[v.hydration] ?? "" },
+const PREVIOUS_ITEMS: { label: MessageKey; read: (v: VitalsDraft, t: Translator) => string }[] = [
+    { label: "doctorMedical.vitals.weight", read: (v) => (v.weightKg ? `${v.weightKg} kg` : "") },
+    { label: "doctorMedical.vitals.heartRate", read: (v) => (v.restingHeartRate ? `${v.restingHeartRate} bpm` : "") },
+    { label: "doctorMedical.vitals.bloodPressure", read: (v) => (v.bloodPressureSystolic ? `${v.bloodPressureSystolic}/${v.bloodPressureDiastolic}` : "") },
+    { label: "doctorMedical.vitals.temperature", read: (v) => (v.temperatureC ? `${v.temperatureC} °C` : "") },
+    { label: "doctorMedical.vitals.spo2", read: (v) => (v.spo2Pct ? `${v.spo2Pct}%` : "") },
+    { label: "doctorMedical.vitals.hydration", read: (v, t) => (HYDRATION_LABELS[v.hydration] ? t(HYDRATION_LABELS[v.hydration]) : "") },
 ];
-const VITAL_NAMES: Record<keyof VitalsDraft, string> = {
-    weightKg: "cân nặng",
-    restingHeartRate: "mạch nghỉ",
-    bloodPressureSystolic: "huyết áp tâm thu",
-    bloodPressureDiastolic: "huyết áp tâm trương",
-    temperatureC: "nhiệt độ",
-    spo2Pct: "SpO2",
-    hydration: "mức nước",
+const VITAL_NAMES: Record<keyof VitalsDraft, MessageKey> = {
+    weightKg: "doctorMedical.vitalName.weightKg",
+    restingHeartRate: "doctorMedical.vitalName.restingHeartRate",
+    bloodPressureSystolic: "doctorMedical.vitalName.bloodPressureSystolic",
+    bloodPressureDiastolic: "doctorMedical.vitalName.bloodPressureDiastolic",
+    temperatureC: "doctorMedical.vitalName.temperatureC",
+    spo2Pct: "doctorMedical.vitalName.spo2Pct",
+    hydration: "doctorMedical.vitalName.hydration",
 };
 
 /** The seven readings, each checked against athlete reference ranges as it's typed. Out-of-range readings are flagged, never blocked. */
 export function VitalsFields({ form, value, onChange, weightLimitKg, required, previous, previousLabel }: VitalsFieldsProps) {
+    const t = useT();
     const { error } = form;
     const [fillNote, setFillNote] = useState<string>();
     const canFill = !!previous && fillBlankVitals(value, previous).filled.length > 0;
@@ -109,10 +126,10 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required, p
         const { next, filled } = fillBlankVitals(value, previous);
         onChange(next);
         for (const key of filled) form.markEdited(key);
-        setFillNote(`Đã điền ${filled.map((key) => VITAL_NAMES[key]).join(", ")} từ lần khám trước. Hãy đo lại nếu tình trạng đã thay đổi.`);
+        setFillNote(t("doctorMedical.vitals.filledNote", { names: filled.map((key) => t(VITAL_NAMES[key])).join(", ") }));
     };
-    const was = (name: keyof VitalsDraft) => (previous?.[name] ? `Lần trước: ${previous[name]}` : undefined);
-    const checks = checkVitals(value, weightLimitKg);
+    const was = (name: keyof VitalsDraft) => (previous?.[name] ? t("doctorMedical.vitals.was", { value: previous[name] }) : undefined);
+    const checks = checkVitals(t, value, weightLimitKg);
     const outOfRange = Object.values(checks).filter((check) => check?.status === "check").length;
     const set = (name: keyof VitalsDraft, next: string) => onChange({ ...value, [name]: next });
     const id = (name: string) => form.control(name).id;
@@ -157,43 +174,45 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required, p
             {previous && (
                 <div className="grid gap-3 rounded-lg bg-surface-muted px-4 py-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
                     <div className="min-w-0 text-[13px] text-fg-muted">
-                        <p>{previousLabel ?? "Lần khám trước"}</p>
+                        <p>{previousLabel ?? t("doctorMedical.vitals.previous")}</p>
                         <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
                             {PREVIOUS_ITEMS.map(({ label, read }) => {
-                                const shown = read(previous);
+                                const shown = read(previous, t);
                                 return shown ? (
                                     <div key={label} className="flex gap-1.5">
-                                        <dt className="text-fg-subtle">{label}</dt>
+                                        <dt className="text-fg-subtle">{t(label)}</dt>
                                         <dd className="font-semibold text-fg">{shown}</dd>
                                     </div>
                                 ) : null;
                             })}
                         </dl>
                     </div>
-                    <QuickFill label="Điền ô trống từ lần trước" icon={History} available={canFill} note={fillNote} onClick={fillPrevious} className="sm:max-w-64" />
+                    <QuickFill label={t("doctorMedical.vitals.fillFromPrevious")} icon={History} available={canFill} note={fillNote} onClick={fillPrevious} className="sm:max-w-64" />
                 </div>
             )}
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                {vitalInput("weightKg", "Cân nặng", "kg", { step: "0.1", min: 35, max: 180 }, checks.weightKg)}
-                {vitalInput("restingHeartRate", "Mạch nghỉ", "bpm", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
-                {vitalInput("temperatureC", "Nhiệt độ", "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC, <TermHint term="bodyTemperature" />)}
+                {vitalInput("weightKg", t("doctorMedical.vitals.weight"), "kg", { step: "0.1", min: 35, max: 180 }, checks.weightKg)}
+                {vitalInput("restingHeartRate", t("doctorMedical.vitals.heartRate"), "bpm", { min: 25, max: 150 }, checks.restingHeartRate, <TermHint term="restingHeartRate" />)}
+                {vitalInput("temperatureC", t("doctorMedical.vitals.temperature"), "°C", { step: "0.1", min: 33, max: 42 }, checks.temperatureC, <TermHint term="bodyTemperature" />)}
                 <fieldset className="flex min-w-0 flex-col gap-1.5 sm:col-span-2 xl:col-span-2">
                     <legend className="mb-1.5 flex items-center gap-1.5 text-sm font-medium text-fg">
-                        Huyết áp<span className="sr-only"> (mmHg)</span>
+                        {t("doctorMedical.vitals.bloodPressure")}
+                        <span className="sr-only"> (mmHg)</span>
                         {required && (
                             <span className="ml-0.5 text-danger-fg" aria-hidden>
                                 *
                             </span>
                         )}
                         <span className="inline-flex items-center gap-1 text-[13px] font-normal text-fg-subtle">
-                            tâm thu <TermHint term="systolicPressure" /> / tâm trương <TermHint term="diastolicPressure" />
+                            {t("doctorMedical.vitals.systolicShort")} <TermHint term="systolicPressure" /> / {t("doctorMedical.vitals.diastolicShort")}{" "}
+                            <TermHint term="diastolicPressure" />
                         </span>
                     </legend>
                     <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                         <BpInput
                             id={id("bloodPressureSystolic")}
                             name="bloodPressureSystolic"
-                            label="Tâm thu"
+                            label={t("doctorMedical.vitals.systolic")}
                             value={value.bloodPressureSystolic}
                             placeholder={was("bloodPressureSystolic")}
                             required={required}
@@ -207,7 +226,7 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required, p
                         <BpInput
                             id={id("bloodPressureDiastolic")}
                             name="bloodPressureDiastolic"
-                            label="Tâm trương"
+                            label={t("doctorMedical.vitals.diastolic")}
                             value={value.bloodPressureDiastolic}
                             placeholder={was("bloodPressureDiastolic")}
                             required={required}
@@ -218,39 +237,42 @@ export function VitalsFields({ form, value, onChange, weightLimitKg, required, p
                     </div>
                     <RangeHint id={bpRangeId} check={checks.bloodPressure} />
                 </fieldset>
-                {vitalInput("spo2Pct", "SpO2", "%", { min: 70, max: 100 }, checks.spo2Pct, <TermHint term="spo2" />)}
-                <Field label="Mức nước" htmlFor={id("hydration")} error={error("hydration")} required={required} info={<TermHint term="hydration" />}>
+                {vitalInput("spo2Pct", t("doctorMedical.vitals.spo2"), "%", { min: 70, max: 100 }, checks.spo2Pct, <TermHint term="spo2" />)}
+                <Field label={t("doctorMedical.vitals.hydration")} htmlFor={id("hydration")} error={error("hydration")} required={required} info={<TermHint term="hydration" />}>
                     <Select
                         {...form.control("hydration", { required })}
                         value={value.hydration}
                         onChange={(event) => set("hydration", event.target.value)}
                         aria-describedby={error("hydration") ? `${id("hydration")}-error` : checks.hydration ? `${id("hydration")}-range` : undefined}
                     >
-                        <option value="">{previous?.hydration ? `Chọn… (lần trước: ${HYDRATION_LABELS[previous.hydration] ?? previous.hydration})` : "Chọn…"}</option>
-                        <option value="good">Tốt</option>
-                        <option value="fair">Trung bình</option>
-                        <option value="poor">Kém</option>
+                        <option value="">
+                            {previous?.hydration
+                                ? t("doctorMedical.vitals.chooseWas", { value: HYDRATION_LABELS[previous.hydration] ? t(HYDRATION_LABELS[previous.hydration]) : previous.hydration })
+                                : t("doctorMedical.vitals.choose")}
+                        </option>
+                        <option value="good">{t("doctorMedical.hydration.good")}</option>
+                        <option value="fair">{t("doctorMedical.hydration.fair")}</option>
+                        <option value="poor">{t("doctorMedical.hydration.poor")}</option>
                     </Select>
                     {!error("hydration") && <RangeHint id={`${id("hydration")}-range`} check={checks.hydration} />}
                 </Field>
             </div>
             <p aria-live="polite" className={cn("text-[13px]", outOfRange > 0 ? "font-medium text-warning-fg" : "text-fg-subtle")}>
-                {outOfRange > 0
-                    ? `${outOfRange} chỉ số nằm ngoài ngưỡng tham chiếu vận động viên — nên đo lại.`
-                    : "Mọi chỉ số đã nhập đều trong ngưỡng tham chiếu."}
+                {outOfRange > 0 ? plural(t, "doctorMedical.vitals.outOfRange", outOfRange) : t("doctorMedical.vitals.allInRange")}
             </p>
         </>
     );
 }
 
 function RangeHint({ id, check }: { id: string; check: VitalCheck }) {
+    const t = useT();
     if (!check) return null;
     const normal = check.status === "normal";
     return (
         <p id={id} className={cn("flex items-start gap-1 text-[13px]", normal ? "text-fg-subtle" : "font-medium text-warning-fg")}>
             {normal ? <CircleCheck aria-hidden className="mt-0.5 size-3.5 shrink-0 text-success-fg" /> : <TriangleAlert aria-hidden className="mt-0.5 size-3.5 shrink-0" />}
             <span>
-                <span className="sr-only">{normal ? "Trong ngưỡng:" : "Cần kiểm tra:"}</span>
+                <span className="sr-only">{normal ? t("doctorMedical.vitals.inRange") : t("doctorMedical.vitals.toCheck")}</span>
                 {check.text}
             </span>
         </p>
@@ -319,15 +341,16 @@ export interface AssessmentRow {
 
 const RESULTS = Object.keys(ASSESSMENT_RESULT_LABELS) as AssessmentResult[];
 
-const presetRows = (type: ExaminationType | "", startKey: number): AssessmentRow[] =>
-    (type ? ASSESSMENT_PRESETS[type] : []).map((area, index) => ({ key: startKey + index, area, result: "", note: "" }));
+const presetRows = (t: Translator, type: ExaminationType | "", startKey: number): AssessmentRow[] =>
+    (type ? assessmentPresets(t, type) : []).map((area, index) => ({ key: startKey + index, area, result: "", note: "" }));
 
 /**
  * Assessment rows that start from the examination type's list. Until the doctor edits a row, changing the type swaps
  * the list; afterwards their rows stay and "Reset" brings the list back.
  */
 export function useAssessmentRows(form: FormControls, initialType: ExaminationType | "") {
-    const [rows, setRows] = useState<AssessmentRow[]>(() => presetRows(initialType, 0));
+    const t = useT();
+    const [rows, setRows] = useState<AssessmentRow[]>(() => presetRows(t, initialType, 0));
     const [edited, setEdited] = useState(false);
     const [nextKey, setNextKey] = useState(100);
 
@@ -337,7 +360,7 @@ export function useAssessmentRows(form: FormControls, initialType: ExaminationTy
         form.markEdited("assessments");
     };
     const loadPreset = (type: ExaminationType | "") => {
-        replace(presetRows(type, nextKey));
+        replace(presetRows(t, type, nextKey));
         setNextKey((key) => key + 10);
     };
 
@@ -394,27 +417,28 @@ export function AssessmentsField({
     /** After the doctor tried to move on: rows still without a name or result are marked, so none is taken as examined. */
     checkMissing?: boolean;
 }) {
+    const t = useT();
     const idPrefix = form.control("assessment").id;
     const [note, setNote] = useState<string>();
     const unmarked = unmarkedAreas(rows.rows).length;
     const markNormal = () => {
         const filled = rows.markUnmarkedNormal();
-        if (filled.length > 0) setNote(`Đã đánh dấu Bình thường: ${filled.join(", ")}. Hãy sửa mục nào không đúng.`);
+        if (filled.length > 0) setNote(t("doctorMedical.assess.markedNote", { areas: filled.join(", ") }));
     };
     return (
         <>
             <input type="hidden" name="assessments" value={JSON.stringify(rows.rows.map(({ area, result, note }) => ({ area, result, note })))} />
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-[13px] text-fg-muted">{type ? `Danh sách ban đầu cho ${EXAMINATION_TYPE_LABELS[type].toLowerCase()}.` : "Chọn loại phiếu khám để tải danh sách ban đầu."}</p>
+                <p className="text-[13px] text-fg-muted">{type ? t("doctorMedical.assess.startingList", { type: typeLabel(t, type).toLowerCase() }) : t("doctorMedical.assess.chooseTypeFirst")}</p>
                 {type && rows.edited && (
                     <Button variant="ghost" size="sm" onClick={() => rows.reset(type)}>
                         <ListRestart aria-hidden />
-                        Đặt lại theo {EXAMINATION_TYPE_LABELS[type].toLowerCase()} list
+                        {t("doctorMedical.assess.reset", { type: typeLabel(t, type).toLowerCase() })}
                     </Button>
                 )}
             </div>
             <QuickFill
-                label={`Đánh dấu ${unmarked === 1 ? "vùng chưa ghi" : `${unmarked} vùng chưa ghi`} là Bình thường`}
+                label={plural(t, "doctorMedical.assess.markNormal", unmarked)}
                 icon={CheckCheck}
                 available={unmarked > 0}
                 note={note}
@@ -429,9 +453,9 @@ export function AssessmentsField({
                         index={index}
                         idPrefix={`${idPrefix}-${row.key}`}
                         errors={{
-                            area: form.error(`assessments.${index}.area`) ?? (checkMissing && !row.area.trim() ? "Ghi tên vùng được đánh giá, hoặc xóa dòng." : undefined),
-                            result: form.error(`assessments.${index}.result`) ?? (checkMissing && !row.result ? "Chọn kết quả." : undefined),
-                            note: form.error(`assessments.${index}.note`) ?? (checkMissing && row.result === "abnormal" && !row.note.trim() ? "Mô tả dấu hiệu bất thường." : undefined),
+                            area: form.error(`assessments.${index}.area`) ?? (checkMissing && !row.area.trim() ? t("doctorMedical.assess.areaMissing") : undefined),
+                            result: form.error(`assessments.${index}.result`) ?? (checkMissing && !row.result ? t("doctorMedical.assess.resultMissing") : undefined),
+                            note: form.error(`assessments.${index}.note`) ?? (checkMissing && row.result === "abnormal" && !row.note.trim() ? t("doctorMedical.assess.noteMissing") : undefined),
                         }}
                         onChange={(patch) => rows.update(index, patch)}
                         onRemove={() => rows.remove(row.key)}
@@ -440,7 +464,7 @@ export function AssessmentsField({
             </ol>
             <Button variant="secondary" size="sm" className="self-start" onClick={rows.add}>
                 <Plus aria-hidden />
-                Thêm đánh giá
+                {t("doctorMedical.assess.add")}
             </Button>
         </>
     );
@@ -461,7 +485,8 @@ function AssessmentRowEditor({
     onChange: (patch: Partial<AssessmentRow>) => void;
     onRemove: () => void;
 }) {
-    const name = row.area.trim() || `đánh giá ${index + 1}`;
+    const t = useT();
+    const name = row.area.trim() || t("doctorMedical.assess.rowName", { n: index + 1 });
     const noteRequired = row.result === "abnormal";
     return (
         <li className={cn("px-3 py-2.5", errors.area || errors.result || errors.note ? "bg-danger-soft/40" : "bg-surface")}>
@@ -469,13 +494,13 @@ function AssessmentRowEditor({
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 lg:grid-cols-[minmax(0,1fr)_auto_auto] 2xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1.25fr)_auto]">
                 <div className="flex min-w-0 flex-col gap-1">
                     <label htmlFor={`${idPrefix}-area`} className="sr-only">
-                        Vùng được đánh giá, dòng {index + 1}
+                        {t("doctorMedical.assess.areaLabel", { n: index + 1 })}
                     </label>
                     <Input
                         id={`${idPrefix}-area`}
                         value={row.area}
                         onChange={(event) => onChange({ area: event.target.value })}
-                        placeholder="Vùng đánh giá, VD Hawkins–Kennedy"
+                        placeholder={t("doctorMedical.assess.areaPlaceholder")}
                         aria-invalid={errors.area ? true : undefined}
                         aria-describedby={errors.area ? `${idPrefix}-area-error` : undefined}
                         className="font-medium"
@@ -489,7 +514,7 @@ function AssessmentRowEditor({
                 <div className="col-span-2 flex min-w-0 flex-col gap-1 lg:col-span-1 lg:col-start-2 lg:row-start-1">
                     <div
                         role="radiogroup"
-                        aria-label={`Kết quả cho ${name}`}
+                        aria-label={t("doctorMedical.assess.resultFor", { name })}
                         aria-invalid={errors.result ? true : undefined}
                         aria-describedby={errors.result ? `${idPrefix}-result-error` : undefined}
                         className={cn("grid grid-cols-3 rounded-lg border bg-surface p-0.5 lg:inline-flex", errors.result ? "border-danger-solid" : "border-border")}
@@ -509,7 +534,7 @@ function AssessmentRowEditor({
                                 >
                                     <input type="radio" name={`${idPrefix}-result`} value={result} checked={checked} onChange={() => onChange({ result })} className="sr-only" />
                                     <Icon aria-hidden className={cn("size-3.5 shrink-0 max-sm:hidden", checked ? TONE_TEXT[meta.tone] : "text-fg-subtle")} />
-                                    {meta.label}
+                                    {t(`doctorMedical.result.${result}`)}
                                 </label>
                             );
                         })}
@@ -522,14 +547,14 @@ function AssessmentRowEditor({
                 </div>
                 <div className="col-span-2 flex min-w-0 flex-col gap-1 lg:col-span-3 2xl:col-span-1 2xl:col-start-3 2xl:row-start-1">
                     <label htmlFor={`${idPrefix}-note`} className="sr-only">
-                        Kết quả cho {name}
-                        {noteRequired ? "(bắt buộc khi bất thường)" : "(không bắt buộc)"}
+                        {t("doctorMedical.assess.resultFor", { name })}
+                        {noteRequired ? t("doctorMedical.assess.noteRequiredSr") : t("doctorMedical.assess.noteOptionalSr")}
                     </label>
                     <Input
                         id={`${idPrefix}-note`}
                         value={row.note}
                         onChange={(event) => onChange({ note: event.target.value })}
-                        placeholder={noteRequired ? "Mô tả dấu hiệu bất thường (bắt buộc)" : "Kết quả (không bắt buộc)"}
+                        placeholder={noteRequired ? t("doctorMedical.assess.notePlaceholderRequired") : t("doctorMedical.assess.notePlaceholder")}
                         aria-invalid={errors.note ? true : undefined}
                         aria-describedby={errors.note ? `${idPrefix}-note-error` : undefined}
                     />
@@ -539,7 +564,7 @@ function AssessmentRowEditor({
                         </p>
                     )}
                 </div>
-                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={`Xóa ${name}`} className="col-start-2 row-start-1 lg:col-start-3 2xl:col-start-4">
+                <Button variant="ghost" size="icon" onClick={onRemove} aria-label={t("doctorMedical.assess.remove", { name })} className="col-start-2 row-start-1 lg:col-start-3 2xl:col-start-4">
                     <X />
                 </Button>
             </div>
@@ -578,9 +603,10 @@ export function useFollowUpDate(initialType: ExaminationType | "", examDay: stri
 
 /** An optional follow-up date after the examination day, with quick picks. */
 export function FollowUpField({ form, examDay, value, onChange, hint }: { form: FormControls; examDay: string; value: string; onChange: (value: string) => void; hint: string }) {
+    const t = useT();
     const control = form.control("followUpDate", { hint: true });
     return (
-        <Field label="Khám theo dõi" htmlFor={control.id} error={form.error("followUpDate")} optional hint={hint} info={<TermHint term="followUpDate" />}>
+        <Field label={t("doctorMedical.followUp.label")} htmlFor={control.id} error={form.error("followUpDate")} optional hint={hint} info={<TermHint term="followUpDate" />}>
             <div className="flex flex-wrap items-center gap-2">
                 <div className="w-44">
                     <Input {...control} type="date" value={value} min={examDay ? addDaysToKey(examDay, 1) : undefined} onChange={(event) => onChange(event.target.value)} />
@@ -588,12 +614,12 @@ export function FollowUpField({ form, examDay, value, onChange, hint }: { form: 
                 {examDay &&
                     FOLLOW_UP_PICKS.map((days) => (
                         <Button key={days} variant="ghost" size="sm" onClick={() => onChange(addDaysToKey(examDay, days))}>
-                            Sau {days === 7 ? "1 tuần" : `${days / 7} tuần`}
+                            {plural(t, "doctorMedical.followUp.after", days / 7)}
                         </Button>
                     ))}
                 {value && (
                     <Button variant="ghost" size="sm" onClick={() => onChange("")}>
-                        Xóa
+                        {t("doctorMedical.followUp.clear")}
                     </Button>
                 )}
             </div>

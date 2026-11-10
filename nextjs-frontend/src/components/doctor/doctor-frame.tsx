@@ -6,7 +6,7 @@ import "./doctor.css";
  */
 export function DoctorFrame({ children }: { children: React.ReactNode }) {
     return (
-        <div lang="vi" className="yt">
+        <div className="yt">
             {children}
         </div>
     );

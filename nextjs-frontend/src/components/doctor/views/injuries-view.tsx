@@ -11,6 +11,8 @@ import type { Injury } from "@/lib/domain/types";
 import { routes } from "@/lib/routes";
 import { getInjuryDetail, listInjuries } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { param } from "@/lib/utils";
 
 /**
@@ -19,6 +21,7 @@ import { param } from "@/lib/utils";
  */
 export async function InjuriesView({ query, fighterId: scopedId }: { query: Record<string, string | string[] | undefined>; fighterId?: string }) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
     const requested = scopedId ?? param(query.fighter);
     const fighterId = requested && canAccessFighter(user, requested) ? requested : undefined;
     const [fighters, list] = await Promise.all([listFighters(user), listInjuries({ fighterIds: fighterId ? [fighterId] : accessibleFighterIds(user) })]);
@@ -35,49 +38,49 @@ export async function InjuriesView({ query, fighterId: scopedId }: { query: Reco
             <table className="yt-table">
                 <thead>
                     <tr>
-                        <th>Chấn thương</th>
-                        {!scopedId && <th>Võ sĩ</th>}
-                        <th>Vị trí</th>
-                        <th className="yt-hide-sm">Mức độ</th>
-                        <th>Tình trạng</th>
-                        <th className="yt-hide-sm">Điều trị</th>
-                        <th className="yt-hide-sm">Hẹn đánh giá lại</th>
+                        <th>{t("doctorViews.injuries.colInjury")}</th>
+                        {!scopedId && <th>{t("doctorViews.common.fighter")}</th>}
+                        <th>{t("doctorViews.injuries.colPlace")}</th>
+                        <th className="yt-hide-sm">{t("doctorViews.injuries.colSeverity")}</th>
+                        <th>{t("doctorViews.injuries.colStatus")}</th>
+                        <th className="yt-hide-sm">{t("doctorViews.injuries.colTreatment")}</th>
+                        <th className="yt-hide-sm">{t("doctorViews.injuries.colReview")}</th>
                     </tr>
                 </thead>
                 <tbody>
                     {rows.map((i, n) => {
                         const ts = treatmentsOf.get(i.id) ?? [];
-                        const next = ts.map((t) => t.nextReviewAt).filter((d): d is string => !!d && Date.parse(d) > now).sort()[0];
+                        const next = ts.map((tr) => tr.nextReviewAt).filter((d): d is string => !!d && Date.parse(d) > now).sort()[0];
                         return (
                             <tr key={i.id} style={{ ["--i" as string]: n }}>
                                 <td>
                                     <Link className="yt-rowlink" href={routes.doctor.fighterInjury(i.fighterId, i.id)}>
-                                        {injuryName(i)}
+                                        {injuryName(t, i)}
                                     </Link>
-                                    <small>Xảy ra {fmtDate(i.occurredAt)}</small>
+                                    <small>{t("doctorViews.injuries.occurred", { date: fmtDate(i.occurredAt, locale) })}</small>
                                 </td>
                                 {!scopedId && (
                                     <td>
-                                        <Link className="yt-sublink" href={routes.doctor.fighter(i.fighterId)}>{nameOf.get(i.fighterId) ?? "Võ sĩ"}</Link>
+                                        <Link className="yt-sublink" href={routes.doctor.fighter(i.fighterId)}>{nameOf.get(i.fighterId) ?? t("doctorViews.common.fighter")}</Link>
                                     </td>
                                 )}
-                                <td>{injuryPlace(i)}</td>
+                                <td>{injuryPlace(t, i)}</td>
                                 <td className="yt-hide-sm">
-                                    <Pill tone={SEVERITY[i.severity].tone}>{SEVERITY[i.severity].label}</Pill>
+                                    <Pill tone={SEVERITY[i.severity].tone}>{t(SEVERITY[i.severity].label)}</Pill>
                                 </td>
                                 <td>
-                                    <Pill tone={INJURY_STATUS[i.status].tone}>{INJURY_STATUS[i.status].label}</Pill>
-                                    {i.resolvedAt && <small>Khỏi {fmtDate(i.resolvedAt)}</small>}
+                                    <Pill tone={INJURY_STATUS[i.status].tone}>{t(INJURY_STATUS[i.status].label)}</Pill>
+                                    {i.resolvedAt && <small>{t("doctorViews.injuries.resolvedOn", { date: fmtDate(i.resolvedAt, locale) })}</small>}
                                 </td>
-                                <td className="yt-hide-sm">{ts.length} lần</td>
+                                <td className="yt-hide-sm">{plural(t, "doctorViews.injuries.times", ts.length)}</td>
                                 <td className="yt-hide-sm">
                                     {next ? (
                                         <>
-                                            {fmtDate(next)}
-                                            <small>{rel(next)}</small>
+                                            {fmtDate(next, locale)}
+                                            <small>{rel(t, next)}</small>
                                         </>
                                     ) : (
-                                        <span className="yt-muted">Không</span>
+                                        <span className="yt-muted">{t("doctorViews.exams.none")}</span>
                                     )}
                                 </td>
                             </tr>
@@ -92,21 +95,21 @@ export async function InjuriesView({ query, fighterId: scopedId }: { query: Reco
         <>
             <ListHead
                 scoped={!!scopedId}
-                title="Chấn thương"
-                sub={`${open.length} đang mở · ${closed.length} đã khỏi`}
+                title={t("doctorViews.injuries.title")}
+                sub={t("doctorViews.injuries.sub", { open: open.length, closed: closed.length })}
                 actions={
                     <Link href={newHref} className="yt-btn" data-v="primary">
                         <Plus aria-hidden />
-                        Ghi nhận chấn thương
+                        {t("doctorViews.injuries.new")}
                     </Link>
                 }
             />
-            {!scopedId && <FighterFilter base={routes.doctor.injuries} fighters={fighters} current={fighterId} />}
-            <Panel title={`Đang mở · ${open.length}`} id="dang-mo">
-                {open.length ? table(open) : <Empty title="Không có chấn thương đang mở">Mọi chấn thương của nhóm này đã khỏi.</Empty>}
+            {!scopedId && <FighterFilter base={routes.doctor.injuries} fighters={fighters} current={fighterId} t={t} />}
+            <Panel title={t("doctorViews.injuries.openPanel", { n: open.length })} id="dang-mo">
+                {open.length ? table(open) : <Empty title={t("doctorViews.injuries.openEmptyTitle")}>{t("doctorViews.injuries.openEmptyBody")}</Empty>}
             </Panel>
-            <Panel title={`Đã khỏi · ${closed.length}`} id="da-khoi">
-                {closed.length ? table(closed) : <Empty title="Chưa có chấn thương đã khỏi" />}
+            <Panel title={t("doctorViews.injuries.closedPanel", { n: closed.length })} id="da-khoi">
+                {closed.length ? table(closed) : <Empty title={t("doctorViews.injuries.closedEmpty")} />}
             </Panel>
         </>
     );

@@ -108,3 +108,41 @@ Claude sửa sau khi gộp, chỉ trong `doctor.css`: 4 màn tràn ngang ở 390
 Việc còn mở, báo Fon:
 - **T-059:** đã đưa lại vào `components/doctor/views/examinations-view.tsx` cùng ngày: phiếu khám đọc riêng từng võ sĩ, một võ sĩ lỗi chỉ để trống phần đó và báo; tất cả lỗi thì hiện khung lỗi có nút Tải lại; danh sách võ sĩ lỗi thì ẩn bộ lọc. 6 test của T-059 chạy trên view mới.
 - Màn bác sĩ viết cứng tiếng Việt và đặt `lang="vi"`, nên không dịch theo ngôn ngữ người dùng.
+
+## Rà soát API mode và hiệu năng (10/11)
+
+Kết quả trên bản production (`next build` + `next start`, API mode, Supabase của team):
+
+| Kiểm | Kết quả |
+| --- | --- |
+| `ui:smoke` 4 vai, 1440 và 390 px (mới có chế độ API: `--coach-email` …, mật khẩu hỏi trên terminal) | 182 trang, 0 lỗi (5xx, console, màn lỗi, tràn ngang). Tải trang trung vị 1,5 giây, chậm nhất màn tổng quan HLV 5,4 giây |
+| UAT API đủ kịch bản, võ sĩ Kenji | 17/17, 0 lỗi console/trang/HTTP |
+| Lint, typecheck, test frontend | Sạch, 1366 test qua |
+
+Hiệu năng:
+- Đo bằng `API_TIMING_LOG=1` (mới, in từng lời gọi backend kèm thời gian).
+- `next dev` chậm hơn production nhiều: mỗi lời gọi 1–2 giây, so với khoảng 100 ms. Run-sheet đổi sang chạy bản production.
+- `authenticatedApiRequest` nay chỉ gọi một lần cho mỗi GET giống nhau trong cùng một lần render (`cache` của React). Trước đó trận của từng võ sĩ bị đọc hai lần, bộ luật đọc nhiều lần.
+- Còn chậm, phải sửa ở backend (báo Ken/Dan):
+  - Màn tổng quan HLV đọc riêng từng võ sĩ, khoảng 40 request, vì `/training-sessions` và `/bouts` bắt buộc `fighterId` và mỗi lần chỉ nhận một `status`.
+  - Pool database chỉ có `max: 10` (`nestjs-api/src/database/database.module.ts`).
+  - Cách sửa: thêm endpoint đọc theo cả đội, hoặc nhận nhiều trạng thái trong một lần gọi, hoặc tăng pool.
+
+Màn bác sĩ dịch theo ngôn ngữ người dùng:
+- 1.945 khoá mới trong `doctor-*.{en,vi}.ts`. Chữ viết cứng trong khu bác sĩ giảm từ 913 xuống 60 (baseline).
+- Còn lại: khoảng 76 câu kiểm lỗi SCAT6 (zod) vẫn là tiếng Việt khi chọn tiếng Anh. 10 component y tế cũ vốn đã viết cứng tiếng Anh.
+- Sửa kèm: `clearance-validity` in tiếng Việt khi chọn tiếng Anh, và `describeDaysUntil` tiếng Anh in "sau 5 ngày".
+
+Dữ liệu Supabase, bổ sung qua API bằng script seed (không chạy SQL). Script và nhật ký nằm ngoài repo, trên máy chủ dự án:
+- **Đã tạo:**
+  - Phiếu khám ban đầu và giấy phép tập cho Minh, Aigerim, Kenji; Lucas thêm giấy phép tập.
+  - Chấn thương cũ đã khỏi cho Minh và Aigerim.
+  - Giáo án cho Minh và Aigerim, mỗi giáo án 4 bài tập.
+  - 8 buổi tập trong tuần này và tuần sau cho mỗi người. Kenji bị đình chỉ KO chặn mọi buổi.
+  - 8 lần cân cho mỗi người.
+  - Trận của Aigerim 26/12 với Daria Volkova, đã vào trại, có kế hoạch ăn.
+- **Đã dọn:** 3 giáo án nháp UAT của Kenji, buổi tập treo ngày 9/11, trận rác "asdasdasfasdasf" của Minh.
+- **Không dọn được qua API:**
+  - Các trận UAT đã COMPLETED và đình chỉ KO của Kenji. Đình chỉ loại CLB không kết thúc sớm được; muốn xoá phải dùng SQL hoặc sửa backend.
+  - Lượt UAT ngày 10/11 (`UAT API-1011-prod`) cũng tạo thêm một trận như vậy cho Kenji.
+- **Không làm:** tạo 8 võ sĩ và 2 HLV chỉ có trong demo mode. Việc này là tạo tài khoản thật trên database chung, cần chủ dự án quyết.

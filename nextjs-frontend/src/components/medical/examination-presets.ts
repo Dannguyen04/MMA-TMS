@@ -1,27 +1,51 @@
+import { examinationTitle } from "@/lib/domain/labels";
 import type { AssessmentResult, ExaminationType, Vitals } from "@/lib/domain/types";
 import { assessVital, vitalAssessmentMessage, type VitalAssessment, type VitalKey } from "@/lib/domain/vitals";
-import { createTranslator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+
+/**
+ * A label from `lib/domain/labels` in the viewer's language: in Vietnamese the wording these screens have always shown
+ * (the domain map), in English the shared dictionary key.
+ */
+export function localLabel(t: Translator, key: MessageKey, vi: string): string {
+    return (t.locale ?? "vi") === "en" ? t(key) : vi;
+}
+
+/** `examinationTitle` in the viewer's language, keeping the Vietnamese wording of these screens. */
+export function localExaminationTitle(t: Translator, examination: Parameters<typeof examinationTitle>[0]): string {
+    return (t.locale ?? "vi") === "en" ? examinationTitle(examination, "en") : examinationTitle(examination);
+}
+
+/** The locale to hand a shared badge: English only, so Vietnamese badges keep the wording they always had. */
+export function badgeLocale(t: Translator): "en" | undefined {
+    return t.locale === "en" ? "en" : undefined;
+}
 
 /**
  * Assessment areas pre-filled for each examination type, with no result: the doctor marks each one. Doctors can rename,
  * remove or add rows. A baseline's SCAT6 has its own steps, so it isn't an area here.
  */
-export const ASSESSMENT_PRESETS: Record<ExaminationType, string[]> = {
-    baseline: ["Tim mạch", "Hô hấp", "Sàng lọc thần kinh", "Thị lực", "Sàng lọc cơ xương khớp"],
-    routine: ["Tim mạch", "Hô hấp", "Biên độ vận động chủ động", "Sức mạnh", "Nghiệm pháp đặc hiệu", "Cân nặng & mức nước"],
-    pre_fight: ["Tim mạch", "Sàng lọc thần kinh", "Sàng lọc mắt", "Sàng lọc cơ xương khớp", "Kiểm tra cân nặng", "Sàng lọc bệnh truyền nhiễm"],
-    post_injury: ["Nhìn", "Sờ nắn", "Biên độ vận động chủ động", "Sức mạnh", "Nghiệm pháp đặc hiệu", "Thần kinh – mạch máu"],
-    concussion_screen: ["Sàng lọc dấu hiệu nguy hiểm", "Đánh giá triệu chứng", "Sàng lọc nhận thức (SAC)", "Thăng bằng (mBESS)", "Cột sống cổ"],
-    return_to_play: ["Rà soát triệu chứng", "Biên độ vận động chủ động", "Sức mạnh", "Kiểm tra chức năng", "Bài tập chuyên môn", "Khả năng chịu gắng sức"],
+export const ASSESSMENT_PRESETS: Record<ExaminationType, MessageKey[]> = {
+    baseline: ["doctorMedical.area.cardiovascular", "doctorMedical.area.respiratory", "doctorMedical.area.neuroScreen", "doctorMedical.area.vision", "doctorMedical.area.mskScreen"],
+    routine: ["doctorMedical.area.cardiovascular", "doctorMedical.area.respiratory", "doctorMedical.area.activeRom", "doctorMedical.area.strength", "doctorMedical.area.specialTests", "doctorMedical.area.weightHydration"],
+    pre_fight: ["doctorMedical.area.cardiovascular", "doctorMedical.area.neuroScreen", "doctorMedical.area.eyeScreen", "doctorMedical.area.mskScreen", "doctorMedical.area.weightCheck", "doctorMedical.area.infectiousScreen"],
+    post_injury: ["doctorMedical.area.inspection", "doctorMedical.area.palpation", "doctorMedical.area.activeRom", "doctorMedical.area.strength", "doctorMedical.area.specialTests", "doctorMedical.area.neurovascular"],
+    concussion_screen: ["doctorMedical.area.redFlags", "doctorMedical.area.symptoms", "doctorMedical.area.sac", "doctorMedical.area.mbess", "doctorMedical.area.cervicalSpine"],
+    return_to_play: ["doctorMedical.area.symptomReview", "doctorMedical.area.activeRom", "doctorMedical.area.strength", "doctorMedical.area.functionalTests", "doctorMedical.area.sportDrills", "doctorMedical.area.exertion"],
 };
 
-export const EXAMINATION_TYPE_HINTS: Record<ExaminationType, string> = {
-    baseline: "Khám tổng quát đầu tiên, đặt giá trị tham chiếu cho các lần khám sau.",
-    routine: "Khám định kỳ, hoặc đánh giá trọng tâm khi chưa ghi nhận chấn thương.",
-    pre_fight: "Bắt buộc trước thi đấu, thường dùng để gia hạn giấy phép.",
-    post_injury: "Đánh giá chấn thương mới hoặc nghi ngờ.",
-    concussion_screen: "Sàng lọc theo SCAT6 sau va chạm đầu: triệu chứng, nhận thức và thăng bằng.",
-    return_to_play: "Kiểm tra mức sẵn sàng tăng tập sau chấn thương hoặc bệnh.",
+/** The starting assessment areas of an examination type, worded in the viewer's language. */
+export function assessmentPresets(t: Translator, type: ExaminationType): string[] {
+    return ASSESSMENT_PRESETS[type].map((key) => t(key));
+}
+
+export const EXAMINATION_TYPE_HINTS: Record<ExaminationType, MessageKey> = {
+    baseline: "doctorMedical.typeHint.baseline",
+    routine: "doctorMedical.typeHint.routine",
+    pre_fight: "doctorMedical.typeHint.pre_fight",
+    post_injury: "doctorMedical.typeHint.post_injury",
+    concussion_screen: "doctorMedical.typeHint.concussion_screen",
+    return_to_play: "doctorMedical.typeHint.return_to_play",
 };
 
 /** A row of the assessments list as the form keeps it: the result stays empty until the doctor marks it. */
@@ -51,15 +75,15 @@ export function markUnmarkedNormal<T extends AssessmentRowDraft>(rows: readonly 
 }
 
 /** What stops the doctor leaving the assessments, in one sentence, or null. Mirrors the action's rules for the rows. */
-export function assessmentRowsProblem(rows: readonly AssessmentRowDraft[], { baseline }: { baseline: boolean }): string | null {
-    if (baseline && rows.length === 0) return "Khám nền cần ít nhất một vùng được đánh giá. Hãy thêm một vùng.";
+export function assessmentRowsProblem(t: Translator, rows: readonly AssessmentRowDraft[], { baseline }: { baseline: boolean }): string | null {
+    if (baseline && rows.length === 0) return t("doctorMedical.rowsProblem.baselineEmpty");
     const unnamed = rows.filter((row) => row.area.trim() === "").length;
     const unmarked = rows.filter((row) => row.area.trim() !== "" && row.result === "").length;
     const undescribed = rows.filter((row) => row.result === "abnormal" && row.note.trim() === "").length;
     const parts = [
-        unmarked > 0 ? `ghi kết quả cho ${unmarked === 1 ? "1 vùng" : `${unmarked} vùng`}` : null,
-        unnamed > 0 ? `đặt tên ${unnamed === 1 ? "1 dòng" : `${unnamed} dòng`} hoặc xóa đi` : null,
-        undescribed > 0 ? `mô tả ${undescribed === 1 ? "dấu hiệu bất thường" : `${undescribed} dấu hiệu bất thường`}` : null,
+        unmarked > 0 ? plural(t, "doctorMedical.rowsProblem.unmarked", unmarked) : null,
+        unnamed > 0 ? plural(t, "doctorMedical.rowsProblem.unnamed", unnamed) : null,
+        undescribed > 0 ? plural(t, "doctorMedical.rowsProblem.undescribed", undescribed) : null,
     ].filter(Boolean);
     if (parts.length === 0) return null;
     const sentence = parts.join(", ");
@@ -75,8 +99,8 @@ const parse = (value: string): number | null => {
     return Number.isNaN(number) ? null : number;
 };
 
-const toCheck = (assessment: VitalAssessment | null): VitalCheck =>
-    assessment && { status: assessment.status, text: vitalAssessmentMessage(createTranslator("vi"), assessment) };
+const toCheck = (t: Translator, assessment: VitalAssessment | null): VitalCheck =>
+    assessment && { status: assessment.status, text: vitalAssessmentMessage(t, assessment) };
 
 const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
 
@@ -85,6 +109,7 @@ const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
  * VitalsGrid on examination pages, so the form and the saved record agree.
  */
 export function checkVitals(
+    t: Translator,
     values: Record<keyof Omit<Vitals, "hydration">, string> & { hydration: string },
     weightLimitKg: number | null,
 ): Record<VitalKey, VitalCheck> {
@@ -97,12 +122,12 @@ export function checkVitals(
     const hydration = HYDRATION_LEVELS.find((level) => level === values.hydration);
 
     return {
-        weightKg: weight === null ? null : (toCheck(assessVital("weightKg", weight, { weightLimitKg })) ?? { status: "normal", text: "Không có tham chiếu hạng cân" }),
-        restingHeartRate: heartRate === null ? null : toCheck(assessVital("restingHeartRate", heartRate)),
-        bloodPressure: systolic === null || diastolic === null ? null : toCheck(assessVital("bloodPressure", { systolic, diastolic })),
-        temperatureC: temperature === null ? null : toCheck(assessVital("temperatureC", temperature)),
-        spo2Pct: spo2 === null ? null : toCheck(assessVital("spo2Pct", spo2)),
-        hydration: hydration ? toCheck(assessVital("hydration", hydration)) : null,
+        weightKg: weight === null ? null : (toCheck(t, assessVital("weightKg", weight, { weightLimitKg })) ?? { status: "normal", text: t("doctorMedical.vitals.noClassReference") }),
+        restingHeartRate: heartRate === null ? null : toCheck(t, assessVital("restingHeartRate", heartRate)),
+        bloodPressure: systolic === null || diastolic === null ? null : toCheck(t, assessVital("bloodPressure", { systolic, diastolic })),
+        temperatureC: temperature === null ? null : toCheck(t, assessVital("temperatureC", temperature)),
+        spo2Pct: spo2 === null ? null : toCheck(t, assessVital("spo2Pct", spo2)),
+        hydration: hydration ? toCheck(t, assessVital("hydration", hydration)) : null,
     };
 }
 

@@ -4,7 +4,7 @@ import { StatusBadge, type BadgeSize, type StatusMeta } from "@/components/domai
 import { ASSESSMENT_RESULT_LABELS, CLEARANCE_STATUS_LABELS, EXAMINATION_OUTCOME_LABELS } from "@/lib/domain/labels";
 import type { AssessmentResult, ClearanceLevel, ClearanceStatus, ExaminationOutcome } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
 
 /**
  * Presentation for clinical statuses that have no badge in the shared domain set:
@@ -19,10 +19,17 @@ export const EXAMINATION_OUTCOME_META: Record<ExaminationOutcome, StatusMeta> = 
 };
 
 /** Plain-language meaning of each outcome, shown in the form and on the examination. */
+export const EXAMINATION_OUTCOME_DESCRIPTION_KEYS: Record<ExaminationOutcome, MessageKey> = {
+    fit: "doctorMedical.outcomeDescription.fit",
+    fit_with_restrictions: "doctorMedical.outcomeDescription.fit_with_restrictions",
+    unfit: "doctorMedical.outcomeDescription.unfit",
+};
+
+/** The Vietnamese descriptions, for screens that do not translate yet; use `EXAMINATION_OUTCOME_DESCRIPTION_KEYS` with `t`. */
 export const EXAMINATION_OUTCOME_DESCRIPTIONS: Record<ExaminationOutcome, string> = {
-    fit: "Không có dấu hiệu hạn chế tập luyện. Võ sĩ tập bình thường.",
-    fit_with_restrictions: "Võ sĩ được tập nhưng cần giới hạn — đặt trong giấy phép có hạn chế.",
-    unfit: "Võ sĩ không nên tập cho đến khi được đánh giá lại.",
+    fit: createTranslator("vi")(EXAMINATION_OUTCOME_DESCRIPTION_KEYS.fit),
+    fit_with_restrictions: createTranslator("vi")(EXAMINATION_OUTCOME_DESCRIPTION_KEYS.fit_with_restrictions),
+    unfit: createTranslator("vi")(EXAMINATION_OUTCOME_DESCRIPTION_KEYS.unfit),
 };
 
 /** The clearance level an examination outcome points to. */

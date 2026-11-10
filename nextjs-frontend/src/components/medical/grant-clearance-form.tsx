@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useT } from "@/components/i18n/locale-provider";
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
 import { ClearanceBadge } from "@/components/domain/status-badges";
@@ -15,14 +16,16 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 import { Field, FormMessage, Input, Select, Textarea } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { grantClearanceAction } from "@/lib/actions/medical";
-import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS, examinationTitle } from "@/lib/domain/labels";
+import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS } from "@/lib/domain/labels";
 import { clearanceState, type ClearanceState } from "@/lib/domain/rules";
 import type { ClearanceLevel, ExaminationOutcome, ExaminationType, MedicalClearance } from "@/lib/domain/types";
-import { addDaysToKey, daysBetween, formatDate, pluralizeVi } from "@/lib/format";
+import { addDaysToKey, daysBetween, formatDate } from "@/lib/format";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { CLEARANCE_LEVEL_FOR_OUTCOME } from "./clinical-badges";
 import type { ProgressStep } from "./exam-progress";
 import { ExamProgressRail } from "./exam-progress-rail";
+import { badgeLocale, localExaminationTitle, localLabel } from "./examination-presets";
 import { DemoFillBar, DoctorsOnly, FormPart } from "./form-parts";
 import { RestrictionBuilder, type RestrictionDraft } from "./restriction-builder";
 
@@ -69,27 +72,30 @@ function defaultValidUntil(level: ClearanceLevel | "", today: string): string {
     return level && level !== "not_cleared" ? addDaysToKey(today, DEFAULT_VALIDITY_DAYS) : "";
 }
 
-const LEVEL_OPTIONS: ChoiceOption<ClearanceLevel>[] = [
+/** A clearance level's name in the viewer's language. */
+const levelLabel = (t: Translator, level: ClearanceLevel) => localLabel(t, `clearanceLevel.${level}`, CLEARANCE_LEVEL_LABELS[level]);
+
+const levelOptions = (t: Translator): ChoiceOption<ClearanceLevel>[] => [
     {
         value: "full",
-        label: CLEARANCE_LEVEL_LABELS.full,
+        label: levelLabel(t, "full"),
         icon: ShieldCheck,
         tone: "success",
-        description: "Được tham gia mọi buổi tập và thi đấu. HLV lên lịch bất kỳ buổi nào.",
+        description: t("doctorMedical.grant.fullDescription"),
     },
     {
         value: "restricted",
-        label: CLEARANCE_LEVEL_LABELS.restricted,
+        label: levelLabel(t, "restricted"),
         icon: ShieldAlert,
         tone: "warning",
-        description: "Được tập trong giới hạn bạn đặt. Buổi vi phạm giới hạn sẽ bị chặn hoặc cảnh báo khi HLV lên lịch.",
+        description: t("doctorMedical.grant.restrictedDescription"),
     },
     {
         value: "not_cleared",
-        label: CLEARANCE_LEVEL_LABELS.not_cleared,
+        label: levelLabel(t, "not_cleared"),
         icon: ShieldX,
         tone: "danger",
-        description: "Không được tập. Buổi đã lên lịch bị chặn cho đến khi bạn cấp giấy phép mới.",
+        description: t("doctorMedical.grant.notClearedDescription"),
     },
 ];
 
@@ -117,6 +123,7 @@ export function GrantClearanceForm({
     fighterLocked = false,
     demoFill = false,
 }: GrantClearanceFormProps) {
+    const t = useT();
     const form = useActionForm(grantClearanceAction, { id: "clearance" });
     const { control, error } = form;
 
@@ -164,36 +171,42 @@ export function GrantClearanceForm({
                   validUntil: level !== "not_cleared" && validUntil ? `${validUntil}T12:00:00.000Z` : null,
                   reason,
                   restrictions:
-                      level === "restricted" ? drafts.map(({ key, ...restriction }) => ({ ...restriction, id: `preview-${key}`, label: restriction.label || "Hạn chế chưa đặt tên" })) : [],
+                      level === "restricted" ? drafts.map(({ key, ...restriction }) => ({ ...restriction, id: `preview-${key}`, label: restriction.label || t("doctorMedical.grant.unnamedRestriction") })) : [],
                   examinationId: examinationId || null,
                   revokedAt: null,
                   revokedReason: null,
               }
             : null;
 
-    const submitLabel = level === "restricted" ? "Cấp giấy phép có hạn chế" : level === "not_cleared" ? "Đặt là chưa được tập…" : "Cấp giấy phép";
+    const submitLabel =
+        level === "restricted" ? t("doctorMedical.grant.submitRestricted") : level === "not_cleared" ? t("doctorMedical.grant.submitNotCleared") : t("doctorMedical.grant.submit");
 
     const steps: ProgressStep[] = [
         {
             key: "decide",
-            label: "Quyết định",
+            label: t("doctorMedical.decision.title"),
             pct: !level ? 0 : level === "restricted" && drafts.length === 0 ? 0.5 : 1,
             state: !level ? "todo" : level === "restricted" && drafts.length === 0 ? "part" : "done",
-            text: !level ? "Chưa chọn" : level === "restricted" && drafts.length === 0 ? "Thêm hạn chế" : CLEARANCE_LEVEL_LABELS[level],
+            text: !level ? t("doctorMedical.progress.notChosen") : level === "restricted" && drafts.length === 0 ? t("doctorMedical.grant.addRestrictions") : levelLabel(t, level),
         },
         {
             key: "validity",
-            label: "Hiệu lực",
+            label: t("doctorMedical.grant.validity"),
             pct: level === "not_cleared" || validUntil ? 1 : 0,
             state: level === "not_cleared" || validUntil ? "done" : "todo",
-            text: level === "not_cleared" ? "Không thời hạn" : validDays !== null && validDays >= 0 ? pluralizeVi(validDays, "day") : "Chưa chọn ngày",
+            text:
+                level === "not_cleared"
+                    ? t("doctorMedical.decision.noEnd")
+                    : validDays !== null && validDays >= 0
+                      ? plural(t, "doctorMedical.days", validDays)
+                      : t("doctorMedical.grant.noDate"),
         },
         {
             key: "basis",
-            label: "Căn cứ",
+            label: t("doctorMedical.grant.basis"),
             pct: (reason.trim() ? 0.5 : 0) + (examinationId ? 0.5 : 0),
             state: reason.trim() ? "done" : examinationId ? "part" : "todo",
-            text: reason.trim() ? (linkedExam ? formatDate(linkedExam.date) : "Đã ghi lý do") : "Thiếu lý do",
+            text: reason.trim() ? (linkedExam ? formatDate(linkedExam.date) : t("doctorMedical.grant.reasonGiven")) : t("doctorMedical.grant.reasonMissing"),
         },
     ];
 
@@ -202,7 +215,7 @@ export function GrantClearanceForm({
         setLevel("full");
         setValidUntil(addDaysToKey(today, DEFAULT_VALIDITY_DAYS));
         setExaminationId(fighter?.examinations[0]?.id ?? "");
-        setReason("Hết triệu chứng 48 giờ, khám lại các chỉ số về mức nền, hoàn tất các bậc tập lại không tái phát. Cho tập đầy đủ.");
+        setReason(t("doctorMedical.grant.sampleReason"));
         ["level", "validUntil", "reason", "examinationId"].forEach((name) => form.markEdited(name));
     };
     const clearAll = () => {
@@ -242,18 +255,18 @@ export function GrantClearanceForm({
                 {demoFill && (
                     <DemoFillBar
                         className="xl:col-span-2"
-                        description="Điền sẵn một quyết định mẫu: được tập đầy đủ, hiệu lực 90 ngày, căn cứ là phiếu khám gần nhất kèm lý do lâm sàng."
+                        description={t("doctorMedical.grant.demoDescription")}
                         onFill={fillSample}
                         onClear={clearAll}
                     />
                 )}
 
                 <Card className="flex min-w-0 flex-col divide-y divide-border">
-                    <FormPart prefix="clr-" id="decide" title="Quyết định" description="Võ sĩ được làm gì từ bây giờ. Hệ quả ghi ngay dưới từng lựa chọn.">
+                    <FormPart prefix="clr-" id="decide" title={t("doctorMedical.decision.title")} description={t("doctorMedical.grant.decideDescription")}>
                         {!fighterLocked && (
-                            <Field label="Võ sĩ" htmlFor={control("fighterId").id} error={error("fighterId")} required className="sm:max-w-sm">
+                            <Field label={t("doctorMedical.exam.fighter")} htmlFor={control("fighterId").id} error={error("fighterId")} required className="sm:max-w-sm">
                                 <Select {...control("fighterId", { required: true })} value={fighterId} onChange={(event) => changeFighter(event.target.value)}>
-                                    <option value="">Chọn võ sĩ…</option>
+                                    <option value="">{t("doctorMedical.exam.chooseFighter")}</option>
                                     {fighters.map((option) => (
                                         <option key={option.id} value={option.id}>
                                             {option.name}
@@ -266,11 +279,11 @@ export function GrantClearanceForm({
                             <ChoiceGroup
                                 id={control("level").id}
                                 name="level"
-                                legend="Mức giấy phép"
+                                legend={t("doctorMedical.grant.level")}
                                 legendVisuallyHidden
                                 required
                                 columns={3}
-                                options={LEVEL_OPTIONS}
+                                options={levelOptions(t)}
                                 value={level}
                                 onChange={setLevel}
                                 error={error("level")}
@@ -279,8 +292,11 @@ export function GrantClearanceForm({
                                 {linkedExam && level && (
                                     <InlineNote icon={Info} tone={examMismatch ? "warning" : "neutral"} className="mt-2">
                                         {examMismatch
-                                            ? `Phiếu ${examinationTitle(linkedExam).toLowerCase()} liên kết kết luận “${EXAMINATION_OUTCOME_LABELS[linkedExam.outcome]}”. Hãy giải thích khác biệt trong lý do lâm sàng.`
-                                            : `Khớp với kết luận của phiếu ${examinationTitle(linkedExam).toLowerCase()} liên kết.`}
+                                            ? t("doctorMedical.grant.examMismatch", {
+                                                  exam: localExaminationTitle(t, linkedExam).toLowerCase(),
+                                                  outcome: localLabel(t, `examinationOutcome.${linkedExam.outcome}`, EXAMINATION_OUTCOME_LABELS[linkedExam.outcome]),
+                                              })
+                                            : t("doctorMedical.grant.examMatches", { exam: localExaminationTitle(t, linkedExam).toLowerCase() })}
                                     </InlineNote>
                                 )}
                             </div>
@@ -290,19 +306,19 @@ export function GrantClearanceForm({
                     <FormPart
                         prefix="clr-"
                         id="validity"
-                        title="Hiệu lực"
-                        description={level === "not_cleared" ? "Quyết định chưa được tập không có thời hạn." : "Giấy phép hết hạn vào ngày này; việc tập bị chặn cho đến khi gia hạn."}
+                        title={t("doctorMedical.grant.validity")}
+                        description={level === "not_cleared" ? t("doctorMedical.grant.validityNotCleared") : t("doctorMedical.grant.validityDescription")}
                     >
                         {level !== "not_cleared" ? (
                             <Field
-                                label="Hiệu lực đến"
+                                label={t("doctorMedical.grant.validUntil")}
                                 htmlFor={control("validUntil").id}
                                 error={error("validUntil")}
                                 required
                                 hint={
                                     validDays !== null && validDays >= 0
-                                        ? `Hiệu lực ${pluralizeVi(validDays, "day")}. HLV thấy cảnh báo ${warningDays} ngày trước khi hết hạn.`
-                                        : "Tối đa 12 tháng. Nên khớp với lần khám dự kiến tiếp theo."
+                                        ? t("doctorMedical.grant.validForHint", { days: plural(t, "doctorMedical.days", validDays), warning: warningDays })
+                                        : t("doctorMedical.grant.validityMax")
                                 }
                             >
                                 <div className="flex flex-wrap items-center gap-2">
@@ -329,59 +345,65 @@ export function GrantClearanceForm({
                                                     form.markEdited("validUntil");
                                                 }}
                                             >
-                                                {days} ngày
+                                                {plural(t, "doctorMedical.days", days)}
                                             </Button>
                                         );
                                     })}
                                 </div>
                             </Field>
                         ) : (
-                            <InlineNote icon={Info}>Có hiệu lực cho đến khi bạn khám lại và cấp giấy phép mới.</InlineNote>
+                            <InlineNote icon={Info}>{t("doctorMedical.grant.notClearedUntil")}</InlineNote>
                         )}
                     </FormPart>
 
                     {level === "restricted" && (
-                        <FormPart prefix="clr-" id="limits" title="Hạn chế" description="Viết mỗi hạn chế theo cách HLV dễ hiểu. Giới hạn bên dưới được áp dụng khi lên lịch buổi tập.">
+                        <FormPart prefix="clr-" id="limits" title={t("doctorMedical.decision.restrictions")} description={t("doctorMedical.grant.limitsDescription")}>
                             {copiedRestrictions && drafts.length > 0 && (
                                 <InlineNote icon={Info} tone="info">
-                                    Sao chép từ giấy phép hiện tại — hãy xem lại từng mục trước khi cấp.
+                                    {t("doctorMedical.grant.copied")}
                                 </InlineNote>
                             )}
                             <RestrictionBuilder drafts={drafts} onChange={setDrafts} error={error} markEdited={form.markEdited} />
                         </FormPart>
                     )}
 
-                    <FormPart prefix="clr-" id="basis" title="Căn cứ" description="Phiếu khám làm căn cứ và lý do lâm sàng của quyết định." aside={<DoctorsOnly>Lý do chỉ bác sĩ xem</DoctorsOnly>}>
+                    <FormPart
+                        prefix="clr-"
+                        id="basis"
+                        title={t("doctorMedical.grant.basis")}
+                        description={t("doctorMedical.grant.basisDescription")}
+                        aside={<DoctorsOnly>{t("doctorMedical.grant.reasonDoctorsOnly")}</DoctorsOnly>}
+                    >
                         <Field
-                            label="Phiếu khám liên kết"
+                            label={t("doctorMedical.grant.linkedExam")}
                             htmlFor={control("examinationId").id}
                             error={error("examinationId")}
                             optional
-                            hint={fighter && fighter.examinations.length === 0 ? "Võ sĩ này chưa có phiếu khám." : "Phiếu khám làm căn cứ cho quyết định."}
+                            hint={fighter && fighter.examinations.length === 0 ? t("doctorMedical.grant.noExams") : t("doctorMedical.grant.linkedExamHint")}
                             className="sm:max-w-lg"
                         >
                             <Select {...control("examinationId", { hint: true })} value={examinationId} onChange={(event) => setExaminationId(event.target.value)} disabled={!fighter}>
-                                <option value="">Không liên kết phiếu khám</option>
+                                <option value="">{t("doctorMedical.grant.noLink")}</option>
                                 {fighter?.examinations.map((exam) => (
                                     <option key={exam.id} value={exam.id}>
-                                        {examinationTitle(exam)} · {formatDate(exam.date)} · {EXAMINATION_OUTCOME_LABELS[exam.outcome]}
+                                        {localExaminationTitle(t, exam)} · {formatDate(exam.date)} · {localLabel(t, `examinationOutcome.${exam.outcome}`, EXAMINATION_OUTCOME_LABELS[exam.outcome])}
                                     </option>
                                 ))}
                             </Select>
                         </Field>
                         <Field
-                            label="Lý do lâm sàng"
+                            label={t("doctorMedical.grant.reason")}
                             htmlFor={control("reason").id}
                             error={error("reason")}
                             required
-                            hint="HLV và võ sĩ thấy mức, hạn chế và hiệu lực — không bao giờ thấy lý do này."
+                            hint={t("doctorMedical.grant.reasonHint")}
                         >
                             <Textarea
                                 {...control("reason", { hint: true, required: true })}
                                 rows={4}
                                 value={reason}
                                 onChange={(event) => setReason(event.target.value)}
-                                placeholder="VD: Hết triệu chứng 48 giờ, khám lại về mức nền, hoàn tất bậc 5 không tái phát. Cho tập đầy đủ."
+                                placeholder={t("doctorMedical.grant.reasonPlaceholder")}
                             />
                         </Field>
                     </FormPart>
@@ -390,35 +412,45 @@ export function GrantClearanceForm({
                 <div className="xl:sticky xl:top-32">
                     <ExamProgressRail
                         steps={steps}
-                        title="Tiến độ"
-                        label="Tiến độ cấp giấy phép"
+                        title={t("doctorMedical.grant.progressTitle")}
+                        label={t("doctorMedical.grant.progressLabel")}
                         anchorPrefix="clr-"
                         top={
                             <div className="flex flex-col gap-4 px-5 py-4">
                                 <div className="flex flex-col gap-2">
-                                    <h2 className="text-[13px] font-semibold text-fg-muted">Thay đổi</h2>
+                                    <h2 className="text-[13px] font-semibold text-fg-muted">{t("doctorMedical.grant.change")}</h2>
                                     <div className="flex flex-col items-stretch gap-1.5">
                                         <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-muted px-3 py-2">
-                                            <span className="text-xs text-fg-subtle">Hiện tại</span>
-                                            {fighter ? <ClearanceBadge state={fighter.state} size="sm" /> : <span className="text-sm text-fg-muted">—</span>}
+                                            <span className="text-xs text-fg-subtle">{t("doctorMedical.grant.current")}</span>
+                                            {fighter ? <ClearanceBadge locale={badgeLocale(t)} state={fighter.state} size="sm" /> : <span className="text-sm text-fg-muted">—</span>}
                                             <span className="ml-auto text-xs text-fg-subtle">
-                                                {fighter?.clearance?.validUntil && fighter.state !== "not_cleared" ? `đến ${formatDate(fighter.clearance.validUntil)}` : "không thời hạn"}
+                                                {fighter?.clearance?.validUntil && fighter.state !== "not_cleared"
+                                                    ? t("doctorMedical.grant.until", { date: formatDate(fighter.clearance.validUntil) })
+                                                    : t("doctorMedical.grant.noEnd")}
                                             </span>
                                         </div>
                                         <ArrowRight aria-hidden className="size-4 rotate-90 self-center text-fg-subtle" />
                                         <div className="flex items-center justify-between gap-3 rounded-lg bg-surface-muted px-3 py-2">
-                                            <span className="text-xs text-fg-subtle">Sau khi cấp</span>
-                                            {level ? <ClearanceBadge state={level} size="sm" /> : <span className="text-sm text-fg-muted">Chưa chọn</span>}
-                                            <span className="ml-auto text-xs text-fg-subtle">{level && level !== "not_cleared" && validUntil ? `đến ${formatDate(`${validUntil}T12:00:00.000Z`)}` : "không thời hạn"}</span>
+                                            <span className="text-xs text-fg-subtle">{t("doctorMedical.grant.after")}</span>
+                                            {level ? (
+                                                <ClearanceBadge locale={badgeLocale(t)} state={level} size="sm" />
+                                            ) : (
+                                                <span className="text-sm text-fg-muted">{t("doctorMedical.progress.notChosen")}</span>
+                                            )}
+                                            <span className="ml-auto text-xs text-fg-subtle">
+                                                {level && level !== "not_cleared" && validUntil
+                                                    ? t("doctorMedical.grant.until", { date: formatDate(`${validUntil}T12:00:00.000Z`) })
+                                                    : t("doctorMedical.grant.noEnd")}
+                                            </span>
                                         </div>
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-2">
-                                    <h2 className="text-[13px] font-semibold text-fg-muted">HLV và võ sĩ sẽ thấy</h2>
+                                    <h2 className="text-[13px] font-semibold text-fg-muted">{t("doctorMedical.grant.preview")}</h2>
                                     {preview ? (
                                         <ClearanceCard clearance={preview} state={clearanceState(preview, now)} doctorName={doctorName} now={now} variant="summary" warningDays={warningDays} />
                                     ) : (
-                                        <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-[13px] text-fg-muted">Chọn mức giấy phép để xem trước.</p>
+                                        <p className="rounded-lg border border-dashed border-border px-3 py-4 text-center text-[13px] text-fg-muted">{t("doctorMedical.grant.previewEmpty")}</p>
                                     )}
                                 </div>
                             </div>
@@ -427,13 +459,13 @@ export function GrantClearanceForm({
                             <>
                                 <FormMessage {...form.message} />
                                 <Button type="submit" variant={level === "not_cleared" ? "danger" : "primary"} loading={form.pending} className="w-full">
-                                    {form.pending ? "Đang cấp giấy phép…" : submitLabel}
+                                    {form.pending ? t("doctorMedical.grant.submitting") : submitLabel}
                                 </Button>
                                 <Link
                                     href={fighter ? (fighterLocked ? routes.doctor.fighterClearance(fighter.id) : routes.doctor.fighter(fighter.id)) : routes.doctor.clearance}
                                     className={buttonClasses({ variant: "secondary", className: "w-full" })}
                                 >
-                                    Hủy
+                                    {t("doctorMedical.cancel")}
                                 </Link>
                             </>
                         }
@@ -448,9 +480,9 @@ export function GrantClearanceForm({
                     setConfirmOpen(false);
                     form.submit({ confirmNotCleared: "yes" });
                 }}
-                title={`Đặt ${fighter?.name ?? "võ sĩ này"} là chưa được tập?`}
-                description="HLV và võ sĩ được thông báo ngay; mọi buổi đã lên lịch bị chặn cho đến khi bạn cấp giấy phép mới."
-                confirmLabel="Đặt là chưa được tập"
+                title={t("doctorMedical.grant.confirmTitle", { name: fighter?.name ?? t("doctorMedical.grant.thisFighter") })}
+                description={t("doctorMedical.grant.confirmDescription")}
+                confirmLabel={t("doctorMedical.grant.confirm")}
             />
         </>
     );

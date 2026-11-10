@@ -135,7 +135,7 @@ export function ClearanceHistory({ clearances, examinationsById, doctorNames, no
                                     {t("clearanceHistory.basedOn")}{" "}
                                     <Link href={routes.doctor.examination(examination.id)} className="rounded-sm font-medium text-primary-soft-fg hover:underline">
                                         {examinationTitle(examination, locale).toLowerCase()}{" "}
-                                        {locale === "vi" ? "vào" : "on"} {formatDate(examination.date, locale)}
+                                        {t("doctorMedical.clearanceHistory.on")} {formatDate(examination.date, locale)}
                                     </Link>
                                 </p>
                             )}

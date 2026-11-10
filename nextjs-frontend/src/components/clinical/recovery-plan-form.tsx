@@ -4,6 +4,7 @@ import { LayoutTemplate, ListChecks, Plus, Sparkle } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { InjuryCard } from "@/components/domain/injury-card";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { TermHint } from "@/components/domain/term-hint";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,11 +13,11 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 import { Field, FormFooter, FormSection, Input, Select } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createRecoveryPlanAction } from "@/lib/actions/clinical";
-import { BODY_REGION_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import type { Injury } from "@/lib/domain/types";
-import { addDaysToKey, dayKey, daysBetweenKeys, formatDate, pluralizeVi } from "@/lib/format";
+import { addDaysToKey, dayKey, daysBetweenKeys, formatDate } from "@/lib/format";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
-import { injuryPhrase } from "./clinical-copy";
+import { injuryPhrase, injuryText, regionText } from "./clinical-copy";
 import { PhaseBuilder, type PhaseDraft } from "./phase-builder";
 import { RECOVERY_TEMPLATES, recommendedTemplate, type RecoveryTemplate } from "./recovery-templates";
 
@@ -47,16 +48,16 @@ function keySequence(start = 0): KeyFactory {
     };
 }
 
-function phasesFromTemplate(template: RecoveryTemplate, startDate: string, makeKey: KeyFactory): PhaseDraft[] {
+function phasesFromTemplate(template: RecoveryTemplate, startDate: string, makeKey: KeyFactory, t: Translator): PhaseDraft[] {
     let offset = 0;
     return template.phases.map((phase) => {
         const draft: PhaseDraft = {
             key: makeKey(),
-            name: phase.name,
-            goal: phase.goal,
+            name: t(phase.name),
+            goal: t(phase.goal),
             startDate: addDaysToKey(startDate, offset),
             endDate: addDaysToKey(startDate, offset + phase.durationDays),
-            milestones: phase.milestones.map((text) => ({ key: makeKey(), text })),
+            milestones: phase.milestones.map((text) => ({ key: makeKey(), text: t(text) })),
         };
         offset += phase.durationDays;
         return draft;
@@ -67,13 +68,15 @@ function blankPhase(startDate: string, makeKey: KeyFactory): PhaseDraft {
     return { key: makeKey(), name: "", goal: "", startDate, endDate: addDaysToKey(startDate, 7), milestones: [{ key: makeKey(), text: "" }] };
 }
 
-function defaultTitle(injury: Injury): string {
-    if (injury.type === "concussion") return "Chấn động não — trở lại tập theo từng bậc";
-    return `${injuryTypeName(injury)} ${BODY_REGION_LABELS[injury.bodyRegion].toLowerCase()} — trở lại tập luyện`;
+function defaultTitle(injury: Injury, t: Translator): string {
+    if (injury.type === "concussion") return t("doctorClinical.planForm.concussionTitle");
+    return t("doctorClinical.planForm.defaultTitle", { type: injuryText(t, injury), region: regionText(t, injury.bodyRegion).toLowerCase() });
 }
 
 /** Creates a phased recovery plan for an open injury, optionally starting from a template. */
 export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancelHref }: RecoveryPlanFormProps) {
+    const t = useT();
+    const locale = useLocale();
     const form = useActionForm(createRecoveryPlanAction, { id: "recovery" });
     const { control, error, markEdited } = form;
     const id = (name: string) => `recovery-${name}`;
@@ -86,12 +89,12 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
 
     const initialInjury = injuries.find((option) => option.injury.id === defaultInjuryId)?.injury ?? null;
     const [injuryId, setInjuryId] = useState(initialInjury?.id ?? "");
-    const [title, setTitle] = useState(initialInjury ? defaultTitle(initialInjury) : "");
+    const [title, setTitle] = useState(initialInjury ? defaultTitle(initialInjury, t) : "");
     const [titleTouched, setTitleTouched] = useState(false);
     const [startDate, setStartDate] = useState(today);
     const [templateId, setTemplateId] = useState<RecoveryTemplate["id"] | null>(initialInjury ? recommendedTemplate(initialInjury.type).id : null);
     const [phases, setPhases] = useState<PhaseDraft[]>(() =>
-        initialInjury ? phasesFromTemplate(recommendedTemplate(initialInjury.type), today, keySequence()) : [blankPhase(today, keySequence())],
+        initialInjury ? phasesFromTemplate(recommendedTemplate(initialInjury.type), today, keySequence(), t) : [blankPhase(today, keySequence())],
     );
     const [phasesEdited, setPhasesEdited] = useState(false);
     const [targetReturnDate, setTargetReturnDate] = useState(() => phases.at(-1)?.endDate ?? addDaysToKey(today, 28));
@@ -105,7 +108,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
     const phasesChanged = () => markEdited("phases");
 
     const applyTemplate = (template: RecoveryTemplate) => {
-        const next = phasesFromTemplate(template, startDate || today, makeKey);
+        const next = phasesFromTemplate(template, startDate || today, makeKey, t);
         setPhases(next);
         phasesChanged();
         setTemplateId(template.id);
@@ -123,7 +126,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
         setInjuryId(nextId);
         const injury = injuries.find((option) => option.injury.id === nextId)?.injury;
         if (!injury) return;
-        if (!titleTouched) setTitle(defaultTitle(injury));
+        if (!titleTouched) setTitle(defaultTitle(injury, t));
         if (!phasesEdited) applyTemplate(recommendedTemplate(injury.type));
     };
 
@@ -195,28 +198,28 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
         >
             <input type="hidden" name="phases" value={serializedPhases} />
             <Card className="min-w-0 px-5 py-6 sm:px-6">
-                <FormSection title="Chấn thương & kế hoạch" info={<TermHint term="recoveryPlan" />} description="Chấn thương mà kế hoạch điều trị, tên kế hoạch và ngày dự kiến trở lại.">
+                <FormSection title={t("doctorClinical.planForm.injuryAndPlan")} info={<TermHint term="recoveryPlan" />} description={t("doctorClinical.planForm.injuryAndPlanDescription")}>
                     <Field
-                        label="Chấn thương"
+                        label={t("doctorClinical.common.injury")}
                         htmlFor={id("injuryId")}
                         error={error("injuryId")}
                         required
                         hint={
                             injuries.length === 0
-                                ? "Mọi chấn thương đang mở đều đã có kế hoạch phục hồi."
-                                : "Chấn thương đang mở chưa có kế hoạch."
+                                ? t("doctorClinical.planForm.allPlanned")
+                                : t("doctorClinical.planForm.openWithoutPlan")
                         }
                     >
                         <Select {...control("injuryId", { hint: true, required: true })} value={injuryId} onChange={(event) => changeInjury(event.target.value)}>
-                            <option value="">Chọn chấn thương…</option>
+                            <option value="">{t("doctorClinical.common.chooseInjury")}</option>
                             {injuries.map(({ injury, fighterName }) => (
                                 <option key={injury.id} value={injury.id}>
-                                    {fighterName} — {injuryPhrase(injury)} ({formatDate(injury.occurredAt)})
+                                    {fighterName} — {injuryPhrase(injury, t)} ({formatDate(injury.occurredAt, locale)})
                                 </option>
                             ))}
                         </Select>
                     </Field>
-                    <Field label="Tên kế hoạch" htmlFor={id("title")} error={error("title")} required hint="Hiển thị cho võ sĩ trên trang Sức khỏe.">
+                    <Field label={t("doctorClinical.planForm.title")} htmlFor={id("title")} error={error("title")} required hint={t("doctorClinical.planForm.titleHint")}>
                         <Input
                             {...control("title", { hint: true, required: true })}
                             value={title}
@@ -228,15 +231,15 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                         />
                     </Field>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-                        <Field label="Ngày bắt đầu" htmlFor={id("startDate")} error={error("startDate")} required hint="Đổi ngày sẽ dời mọi giai đoạn.">
+                        <Field label={t("doctorClinical.common.startDate")} htmlFor={id("startDate")} error={error("startDate")} required hint={t("doctorClinical.planForm.startHint")}>
                             <Input {...control("startDate", { hint: true, required: true })} type="date" value={startDate} onChange={(event) => changeStart(event.target.value)} />
                         </Field>
                         <Field
-                            label="Mục tiêu trở lại"
+                            label={t("doctorClinical.planForm.targetReturn")}
                             htmlFor={id("targetReturnDate")}
                             error={error("targetReturnDate")}
                             required
-                            hint={planDays !== null && planDays >= 0 ? `${pluralizeVi(planDays, "day")} kể từ ngày bắt đầu` : undefined}
+                            hint={planDays !== null && planDays >= 0 ? t("doctorClinical.planForm.daysFromStart", { days: plural(t, "doctorClinical.count.days", planDays) }) : undefined}
                         >
                             <Input
                                 {...control("targetReturnDate", { hint: planDays !== null && planDays >= 0, required: true })}
@@ -249,7 +252,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                     </div>
                     {selected?.injury.expectedReturnAt && dayKey(selected.injury.expectedReturnAt) !== targetReturnDate && (
                         <p className="-mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-fg-muted">
-                            Hồ sơ chấn thương dự kiến trở lại vào {formatDate(selected.injury.expectedReturnAt)}.
+                            {t("doctorClinical.planForm.recordExpectedReturn", { date: formatDate(selected.injury.expectedReturnAt, locale) })}
                             <Button
                                 variant="ghost"
                                 size="sm"
@@ -260,17 +263,17 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                                     markEdited("targetReturnDate");
                                 }}
                             >
-                                Dùng ngày đó
+                                {t("doctorClinical.planForm.useThatDate")}
                             </Button>
                         </p>
                     )}
                 </FormSection>
 
                 <FormSection
-                    title="Mẫu"
-                    description="Bắt đầu từ phác đồ điển hình rồi điều chỉnh cho võ sĩ. Áp dụng mẫu sẽ thay các giai đoạn bên dưới."
+                    title={t("doctorClinical.planForm.templates")}
+                    description={t("doctorClinical.planForm.templatesDescription")}
                 >
-                    <div role="group" aria-label="Mẫu kế hoạch phục hồi" className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                    <div role="group" aria-label={t("doctorClinical.planForm.templatesLabel")} className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                         {RECOVERY_TEMPLATES.map((template) => {
                             const isApplied = template.id === templateId && !phasesEdited;
                             return (
@@ -289,14 +292,14 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                                     <LayoutTemplate aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-muted" />
                                     <span className="min-w-0">
                                         <span className="flex flex-wrap items-center gap-1.5 text-sm font-semibold text-fg">
-                                            {template.label}
+                                            {t(template.label)}
                                             {selected && recommended?.id === template.id && (
                                                 <Badge tone="primary" size="sm" icon={Sparkle}>
-                                                    Gợi ý cho {injuryTypeName(selected.injury).toLowerCase()}
+                                                    {t("doctorClinical.planForm.suggestedFor", { type: injuryText(t, selected.injury).toLowerCase() })}
                                                 </Badge>
                                             )}
                                         </span>
-                                        <span className="mt-0.5 block text-[13px] text-fg-muted">{template.summary}</span>
+                                        <span className="mt-0.5 block text-[13px] text-fg-muted">{t(template.summary)}</span>
                                     </span>
                                 </button>
                             );
@@ -305,9 +308,9 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                 </FormSection>
 
                 <FormSection
-                    title="Giai đoạn"
+                    title={t("doctorClinical.planForm.phases")}
                     info={<TermHint term="milestone" />}
-                    description="Mỗi giai đoạn có mục tiêu và các mốc. Tiến độ tính theo giai đoạn đã xong cộng các mốc đã đạt trong giai đoạn hiện tại."
+                    description={t("doctorClinical.planForm.phasesDescription")}
                 >
                     <PhaseBuilder
                         phases={phases}
@@ -322,7 +325,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <Button variant="secondary" size="sm" onClick={addPhase} disabled={phases.length >= 10}>
                             <Plus aria-hidden />
-                            Thêm giai đoạn
+                            {t("doctorClinical.planForm.addPhase")}
                         </Button>
                         {lastPhaseEnd && targetReturnDate && lastPhaseEnd !== targetReturnDate && (
                             <Button
@@ -334,26 +337,26 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                                     markEdited("targetReturnDate");
                                 }}
                             >
-                                Đặt mục tiêu trở lại bằng ngày kết thúc giai đoạn cuối ({formatDate(`${lastPhaseEnd}T12:00:00Z`)})
+                                {t("doctorClinical.planForm.matchLastPhase", { date: formatDate(`${lastPhaseEnd}T12:00:00Z`, locale) })}
                             </Button>
                         )}
                     </div>
                 </FormSection>
 
-                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel="Tạo kế hoạch phục hồi" pendingLabel="Đang tạo kế hoạch…" disabled={injuries.length === 0} />
+                <FormFooter message={form.message} cancelHref={cancelHref} pending={form.pending} submitLabel={t("doctorClinical.common.createPlan")} pendingLabel={t("doctorClinical.common.creatingPlan")} disabled={injuries.length === 0} />
             </Card>
 
-            <aside aria-label="Chấn thương đã chọn" className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
+            <aside aria-label={t("doctorClinical.planForm.selectedInjury")} className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-20">
                 {selected ? (
                     <section aria-labelledby="recovery-injury-heading" className="flex flex-col gap-2">
                         <h2 id="recovery-injury-heading" className="text-sm font-semibold text-fg">
                             {selected.fighterName}
                         </h2>
-                        <InjuryCard injury={selected.injury} now={now} />
+                        <InjuryCard injury={selected.injury} now={now} locale={locale} />
                     </section>
                 ) : null}
                 <Card>
-                    <CardHeader title="Tổng quan kế hoạch" icon={<ListChecks />} />
+                    <CardHeader title={t("doctorClinical.planForm.overview")} icon={<ListChecks />} />
                     <CardContent>
                         <ol className="flex flex-col gap-2">
                             {phases.map((phase, index) => (
@@ -366,20 +369,20 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                                     </span>
                                     <span className="min-w-0">
                                         <span className={cn("block font-medium", phase.name ? "text-fg" : "text-fg-subtle")}>
-                                            {phase.name || "Giai đoạn chưa đặt tên"}
+                                            {phase.name || t("doctorClinical.planForm.unnamedPhase")}
                                         </span>
                                         <span className="text-fg-muted">
-                                            {pluralizeVi(phase.milestones.filter((m) => m.text.trim()).length, "milestone")}
+                                            {plural(t, "doctorClinical.count.milestones", phase.milestones.filter((m) => m.text.trim()).length)}
                                             {phase.startDate &&
                                                 phase.endDate &&
-                                                ` · ${pluralizeVi(Math.max(0, daysBetweenKeys(phase.startDate, phase.endDate)), "day")}`}
+                                                ` · ${plural(t, "doctorClinical.count.days", Math.max(0, daysBetweenKeys(phase.startDate, phase.endDate)))}`}
                                         </span>
                                     </span>
                                 </li>
                             ))}
                         </ol>
                         <p className="mt-4 border-t border-border pt-3 text-[13px] text-fg-muted">
-                            Giai đoạn đầu tiên bắt đầu ngay. Võ sĩ được thông báo, HLV được báo kế hoạch trở lại tập đã bắt đầu — không kèm chi tiết lâm sàng.
+                            {t("doctorClinical.planForm.overviewNote")}
                         </p>
                     </CardContent>
                 </Card>
@@ -389,9 +392,9 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
                 open={pendingTemplate !== null}
                 onClose={() => setPendingTemplate(null)}
                 onConfirm={() => pendingTemplate && applyTemplate(pendingTemplate)}
-                title="Thay các giai đoạn hiện có?"
-                description={`Áp dụng mẫu ${pendingTemplate?.label.toLowerCase() ?? ""} sẽ thay các giai đoạn và mốc bạn đã sửa. Không thể hoàn tác.`}
-                confirmLabel="Thay giai đoạn"
+                title={t("doctorClinical.planForm.replaceTitle")}
+                description={t("doctorClinical.planForm.replaceDescription", { template: pendingTemplate ? t(pendingTemplate.label).toLowerCase() : "" })}
+                confirmLabel={t("doctorClinical.planForm.replaceConfirm")}
             />
         </form>
     );

@@ -32,7 +32,7 @@ async function readExaminations(fighterIds: string[] | "all"): Promise<{ list: M
 
 /** Phiếu khám của mọi võ sĩ được giao: ghép `GET /fighters/:id/medical-examinations` từng võ sĩ (chưa có danh sách theo bác sĩ). */
 export async function ExaminationsView({ query, fighterId: scopedId }: { query: Record<string, string | string[] | undefined>; fighterId?: string }) {
-    const { t } = await getTranslator();
+    const { t, locale } = await getTranslator();
     const user = await requireRole("doctor");
     const requested = scopedId ?? param(query.fighter);
     const fighterId = requested && canAccessFighter(user, requested) ? requested : undefined;
@@ -67,24 +67,24 @@ export async function ExaminationsView({ query, fighterId: scopedId }: { query: 
         <>
             <ListHead
                 scoped={!!scopedId}
-                title="Phiếu khám"
-                sub={`${list.length} phiếu · mới nhất trước`}
+                title={t("doctorViews.exams.title")}
+                sub={t("doctorViews.exams.sub", { n: list.length })}
                 actions={
                     <Link href={newHref} className="yt-btn" data-v="primary">
                         <FilePlus2 aria-hidden />
-                        Tạo phiếu khám
+                        {t("doctorViews.exams.new")}
                     </Link>
                 }
             />
             {failed > 0 && all.length > 0 && <Flash text={plural(t, "screens.doctor.examinations.partial", failed)} />}
             {roster === null && <Flash text={t("screens.doctor.examinations.namesUnavailable")} />}
             <div className="yt-filters">
-                {!scopedId && roster && <FighterFilter base={routes.doctor.examinations} fighters={fighters} current={fighterId} extra={{ scope }} />}
+                {!scopedId && roster && <FighterFilter base={routes.doctor.examinations} fighters={fighters} current={fighterId} extra={{ scope }} t={t} />}
                 {hasScopes && (
-                    <nav className="yt-segs" aria-label="Phạm vi">
-                        {seg(undefined, "Mọi phạm vi")}
-                        {seg("TRAINING", "Tập luyện")}
-                        {seg("COMPETITION", "Thi đấu")}
+                    <nav className="yt-segs" aria-label={t("doctorViews.exams.scope")}>
+                        {seg(undefined, t("doctorViews.exams.scopeAll"))}
+                        {seg("TRAINING", t("doctorViews.exams.scopeTraining"))}
+                        {seg("COMPETITION", t("doctorViews.exams.scopeCompetition"))}
                     </nav>
                 )}
             </div>
@@ -102,28 +102,28 @@ export async function ExaminationsView({ query, fighterId: scopedId }: { query: 
                     </ErrorBox>
                 ) : list.length === 0 ? (
                     <Empty
-                        title="Chưa có phiếu khám"
+                        title={t("doctorViews.exams.emptyTitle")}
                         action={
                             <Link href={newHref} className="yt-btn" data-v="primary">
-                                Tạo phiếu khám đầu tiên
+                                {t("doctorViews.exams.newFirst")}
                             </Link>
                         }
                     >
-                        Không có phiếu khám nào khớp bộ lọc này.
+                        {t("doctorViews.exams.emptyBody")}
                     </Empty>
                 ) : (
                     <div className="yt-tablewrap">
                         <table className="yt-table">
                             <thead>
                                 <tr>
-                                    <th>Ngày khám</th>
-                                    {!scopedId && <th>Võ sĩ</th>}
-                                    <th>Loại khám</th>
-                                    {hasScopes && <th className="yt-hide-sm">Phạm vi</th>}
-                                    <th>Kết luận</th>
-                                    <th className="yt-hide-sm">Hiệu lực đến</th>
-                                    <th className="yt-hide-sm">Tái khám</th>
-                                    <th className="yt-hide-sm">Tình trạng</th>
+                                    <th>{t("doctorViews.exams.colDate")}</th>
+                                    {!scopedId && <th>{t("doctorViews.common.fighter")}</th>}
+                                    <th>{t("doctorViews.exams.colType")}</th>
+                                    {hasScopes && <th className="yt-hide-sm">{t("doctorViews.exams.scope")}</th>}
+                                    <th>{t("doctorViews.exams.colOutcome")}</th>
+                                    <th className="yt-hide-sm">{t("doctorViews.exams.colValidUntil")}</th>
+                                    <th className="yt-hide-sm">{t("doctorViews.exams.colFollowUp")}</th>
+                                    <th className="yt-hide-sm">{t("doctorViews.exams.colStatus")}</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -131,22 +131,22 @@ export async function ExaminationsView({ query, fighterId: scopedId }: { query: 
                                     <tr key={e.id} style={{ ["--i" as string]: i }}>
                                         <td>
                                             <Link className="yt-rowlink" href={routes.doctor.fighterExamination(e.fighterId, e.id)}>
-                                                {fmtDate(e.date)}
+                                                {fmtDate(e.date, locale)}
                                             </Link>
                                         </td>
                                         {!scopedId && (
                                             <td>
-                                                <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>{nameOf.get(e.fighterId) ?? "Võ sĩ"}</Link>
+                                                <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>{nameOf.get(e.fighterId) ?? t("doctorViews.common.fighter")}</Link>
                                             </td>
                                         )}
-                                        <td>{e.type ? examKind(e) : "Không có chi tiết"}</td>
-                                        {hasScopes && <td className="yt-hide-sm">{e.scope ? SCOPE[e.scope] : "—"}</td>}
+                                        <td>{e.type ? examKind(t, e) : t("doctorViews.exams.noDetail")}</td>
+                                        {hasScopes && <td className="yt-hide-sm">{e.scope ? t(SCOPE[e.scope]) : "—"}</td>}
                                         <td>
-                                            <Pill tone={OUTCOME[e.outcome].tone}>{OUTCOME[e.outcome].label}</Pill>
+                                            <Pill tone={OUTCOME[e.outcome].tone}>{t(OUTCOME[e.outcome].label)}</Pill>
                                         </td>
-                                        <td className="yt-hide-sm">{e.validUntil ? fmtDate(e.validUntil) : <span className="yt-muted">Không giới hạn</span>}</td>
-                                        <td className="yt-hide-sm">{e.followUpDate ? fmtDate(e.followUpDate) : <span className="yt-muted">Không</span>}</td>
-                                        <td className="yt-hide-sm">{current.has(e.id) ? "Hiện hành" : <span className="yt-muted">Đã có phiếu mới hơn</span>}</td>
+                                        <td className="yt-hide-sm">{e.validUntil ? fmtDate(e.validUntil, locale) : <span className="yt-muted">{t("doctorViews.clearance.noLimit")}</span>}</td>
+                                        <td className="yt-hide-sm">{e.followUpDate ? fmtDate(e.followUpDate, locale) : <span className="yt-muted">{t("doctorViews.exams.none")}</span>}</td>
+                                        <td className="yt-hide-sm">{current.has(e.id) ? t("doctorViews.exams.current") : <span className="yt-muted">{t("doctorViews.exams.superseded")}</span>}</td>
                                     </tr>
                                 ))}
                             </tbody>

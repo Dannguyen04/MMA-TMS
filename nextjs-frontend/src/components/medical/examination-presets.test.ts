@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
-import { ASSESSMENT_PRESETS, assessmentRowsProblem, markUnmarkedNormal, unmarkedAreas, type AssessmentRowDraft } from "./examination-presets";
-import { findingsSummary } from "./findings-summary";
+import { createTranslator } from "@/lib/i18n/translate";
+
+import { assessmentPresets, assessmentRowsProblem as rowsProblem, markUnmarkedNormal, unmarkedAreas, type AssessmentRowDraft } from "./examination-presets";
+import { findingsSummary as summaryFor, type FindingsInput } from "./findings-summary";
+
+const vi = createTranslator("vi");
+const en = createTranslator("en");
+const assessmentRowsProblem = (rows: readonly AssessmentRowDraft[], options: { baseline: boolean }) => rowsProblem(vi, rows, options);
+const findingsSummary = (input: FindingsInput) => summaryFor(vi, input);
 
 const rows = (): (AssessmentRowDraft & { key: number })[] => [
     { key: 1, area: "Cardiovascular", result: "", note: "" },
@@ -13,7 +20,8 @@ const rows = (): (AssessmentRowDraft & { key: number })[] => [
 
 describe("assessment presets", () => {
     it("leaves the SCAT6 out of the baseline areas: it has its own steps", () => {
-        expect(ASSESSMENT_PRESETS.baseline.some((area) => /scat/i.test(area))).toBe(false);
+        expect(assessmentPresets(vi, "baseline").some((area) => /scat/i.test(area))).toBe(false);
+        expect(assessmentPresets(en, "baseline").some((area) => /scat/i.test(area))).toBe(false);
     });
 });
 
@@ -42,6 +50,7 @@ describe("assessmentRowsProblem", () => {
         expect(assessmentRowsProblem([{ area: "Knee", result: "abnormal", note: " " }], { baseline: false })).toBe("Mô tả dấu hiệu bất thường.");
         expect(assessmentRowsProblem([], { baseline: true })).toContain("ít nhất một vùng được đánh giá");
         expect(assessmentRowsProblem([], { baseline: false })).toBeNull();
+        expect(rowsProblem(en, rows(), { baseline: true })).toBe("Record a result for 2 areas, name 1 row or remove it.");
     });
 });
 

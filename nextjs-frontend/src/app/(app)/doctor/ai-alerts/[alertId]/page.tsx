@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 
 import { AlertDecisionPanel } from "@/components/clinical/alert-decision-panel";
-import { describeMetricComparison, injuryTitle, metricUnit } from "@/components/clinical/clinical-copy";
+import { describeMetricComparison, injuryTitle, metricUnit, regionText, trainingTypeText } from "@/components/clinical/clinical-copy";
 import { clinicalLinks } from "@/components/clinical/clinical-links";
 import { ObservationEvidence } from "@/components/clinical/observation-evidence";
 import { CHART_MUTED } from "@/components/charts/colors";
@@ -25,10 +25,12 @@ import { PageHeader } from "@/components/ui/page-header";
 import { FeatureUnavailable } from "@/components/ui/states";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { BODY_REGION_LABELS, CAMERA_ANGLE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import { isLowConfidence } from "@/lib/domain/rules";
 import type { AbnormalMovementAlert } from "@/lib/domain/types";
 import { daysBetween, formatClock, formatConfidence, formatDate, formatDateTime, formatDelta, formatTimestamp } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import type { Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getAlertDetail, listAlerts } from "@/lib/services/ai";
 import { getFighterHealthSummary } from "@/lib/services/medical";
@@ -38,23 +40,27 @@ import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 const loadAlertDetail = cache(getAlertDetail);
 
 export async function generateMetadata({ params }: PageProps<"/doctor/ai-alerts/[alertId]">): Promise<Metadata> {
-    if (!medicalFeatureAvailable("aiObservations")) return { title: "Quan sát AI" };
+    const { t } = await getTranslator();
+    if (!medicalFeatureAvailable("aiObservations")) return { title: t("doctorPages.meta.aiAlerts") };
     const [{ alertId }, user] = await Promise.all([params, getCurrentUser()]);
     const detail = await loadAlertDetail(alertId);
     // The title must not reveal an observation the viewer isn't assigned to.
     const visible = detail?.fighter && user && canAccessFighter(user, detail.alert.fighterId);
-    return { title: visible && detail.fighter ? `Quan sát AI · ${detail.fighter.name}` : "Quan sát chuyển động AI" };
+    return { title: visible && detail.fighter ? t("doctorPages.meta.aiAlert", { name: detail.fighter.name }) : t("doctorPages.meta.aiAlertFallback") };
 }
 
 const HISTORY_LIMIT = 6;
 
 export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/ai-alerts/[alertId]">) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
+    // Without a locale these shared components keep their Vietnamese wording; the dictionary words some labels differently.
+    const legacy = locale === "vi" ? undefined : locale;
     if (!medicalFeatureAvailable("aiObservations")) {
         return (
             <>
-                <PageHeader back={{ href: routes.doctor.aiAlerts, label: "Quan sát AI" }} title="Quan sát AI" />
-                <FeatureUnavailable title="Quan sát AI chưa khả dụng" />
+                <PageHeader back={{ href: routes.doctor.aiAlerts, label: t("doctorPages.meta.aiAlerts") }} title={t("doctorPages.meta.aiAlerts")} />
+                <FeatureUnavailable title={t("doctorPages.alerts.unavailable")} description={t("doctorPages.featureUnavailable")} />
             </>
         );
     }
@@ -85,69 +91,65 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
     return (
         <>
             <PageHeader
-                back={{ href: routes.doctor.aiAlerts, label: "Quan sát AI" }}
-                eyebrow={`Quan sát AI · ${BODY_REGION_LABELS[alert.bodyRegion]}`}
+                back={{ href: routes.doctor.aiAlerts, label: t("doctorPages.meta.aiAlerts") }}
+                eyebrow={t("doctorPages.alert.eyebrow", { region: regionText(t, alert.bodyRegion) })}
                 title={alert.pattern}
                 meta={
                     <>
-                        <AIGeneratedBadge label="Quan sát AI" />
-                        <ConfidenceBadge confidence={alert.confidence} />
+                        <AIGeneratedBadge label={t("doctorPages.meta.aiAlerts")} />
+                        <ConfidenceBadge confidence={alert.confidence} locale={locale} />
                         <AlertStatusBadge status={alert.status} />
                         <span aria-hidden className="mx-1 h-4 w-px bg-border" />
                         <span className="text-sm text-fg-muted">
-                            Phát hiện <time dateTime={alert.detectedAt}>{formatDateTime(alert.detectedAt)}</time>
+                            {t("doctorPages.alert.detected")} <time dateTime={alert.detectedAt}>{formatDateTime(alert.detectedAt, locale)}</time>
                         </span>
                     </>
                 }
             />
 
             <div className="flex flex-col gap-6">
-                <AINotice audience="doctor" />
+                <AINotice audience="doctor" locale={legacy} />
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
                     <section aria-labelledby="evidence-heading" className="flex min-w-0 flex-col gap-4">
                         <h2 id="evidence-heading" className="flex items-center gap-2 text-lg font-semibold text-fg">
                             <Sparkles aria-hidden className="size-4 text-ai-fg" />
-                            Bằng chứng
-                            <span className="text-sm font-normal text-fg-muted">— do AI tạo</span>
+                            {t("doctorPages.alert.evidence")}
+                            <span className="text-sm font-normal text-fg-muted">{t("doctorPages.alert.aiMade")}</span>
                         </h2>
 
                         <Card className="border-ai-border">
                             <CardHeader
                                 as="h3"
-                                title="Quan sát AI"
-                                description="Mẫu chuyển động theo mô hình AI"
+                                title={t("doctorPages.meta.aiAlerts")}
+                                description={t("doctorPages.alert.patternDesc")}
                                 icon={<Sparkles />}
-                                action={<AIGeneratedBadge size="sm" />}
+                                action={<AIGeneratedBadge size="sm" locale={locale} />}
                             />
                             <CardContent className="flex flex-col gap-4">
                                 <p className="rounded-lg bg-ai-soft/40 px-4 py-3 text-sm leading-relaxed text-pretty text-fg ring-1 ring-inset ring-ai-border/60">
                                     {alert.description}
                                 </p>
                                 <div>
-                                    <p className="mb-1.5 text-[13px] text-fg-muted">Độ tin cậy của AI</p>
-                                    <ConfidenceMeter confidence={alert.confidence} label="Độ tin cậy của AI" />
-                                    {lowConfidence && (
-                                        <p className="mt-2 text-[13px] text-warning-fg">
-                                            Độ tin cậy dưới ngưỡng xem lại. Hãy coi đây là gợi ý để xem kỹ, và xác nhận bằng Video rõ hơn hoặc khi khám.
-                                        </p>
-                                    )}
+                                    <p className="mb-1.5 text-[13px] text-fg-muted">{t("doctorPages.alert.confidence")}</p>
+                                    <ConfidenceMeter confidence={alert.confidence} label={t("doctorPages.alert.confidence")} locale={locale} />
+                                    {lowConfidence && <p className="mt-2 text-[13px] text-warning-fg">{t("doctorPages.alert.lowConfidence")}</p>}
                                 </div>
                             </CardContent>
                         </Card>
 
                         <Card>
-                            <CardHeader as="h3" title="Số đo so với mức nền" description={alert.metric.label} icon={<Ruler />} />
+                            <CardHeader as="h3" title={t("doctorPages.alert.metricTitle")} description={alert.metric.label} icon={<Ruler />} />
                             <CardContent className="flex flex-col gap-4">
                                 <HorizontalBars
-                                    ariaLabel={`${alert.metric.label}: ${describeMetricComparison(alert.metric)}`}
+                                    ariaLabel={`${alert.metric.label}: ${describeMetricComparison(alert.metric, t)}`}
                                     items={[
-                                        { label: "Buổi này", value: alert.metric.observed, color: "var(--ai-solid)", hint: "Số đo AI" },
+                                        { label: t("doctorPages.alert.thisSession"), value: alert.metric.observed, color: "var(--ai-solid)", hint: t("doctorPages.alert.aiMeasure") },
                                         {
-                                            label: `Mức nền của ${fighter.name.split(" ")[0]}`,
+                                            label: t("doctorPages.alert.baselineOf", { name: fighter.name.split(" ")[0] ?? fighter.name }),
                                             value: alert.metric.baseline,
                                             color: CHART_MUTED,
-                                            hint: "Video đã phân tích trước đây",
+                                            hint: t("doctorPages.alert.baselineHint"),
                                         },
                                     ]}
                                     valueSuffix={suffix}
@@ -155,12 +157,13 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                     max={Math.max(alert.metric.observed, alert.metric.baseline) * 1.1}
                                 />
                                 <p className="text-[13px] text-fg-muted">
-                                    Chênh lệch:{" "}
+                                    {t("doctorPages.alert.difference")}{" "}
                                     <span className="font-medium text-fg">
                                         {formatDelta(delta, decimals)}
                                         {suffix}
                                     </span>
-                                    {deltaPct !== null && unit !== "%" && ` (${formatDelta(deltaPct)}% so với mức nền)`}. Chênh lệch so với mức nền chỉ mô tả chuyển động, không phải nguyên nhân.
+                                    {deltaPct !== null && unit !== "%" && t("doctorPages.alert.deltaPct", { pct: formatDelta(deltaPct) })}
+                                    {t("doctorPages.alert.differenceNote")}
                                 </p>
                             </CardContent>
                         </Card>
@@ -168,9 +171,9 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                         <Card>
                             <CardHeader
                                 as="h3"
-                                title="Video nguồn"
+                                title={t("doctorPages.alert.sourceVideo")}
                                 icon={<Film />}
-                                description={video ? video.title : "Video không còn"}
+                                description={video ? video.title : t("doctorPages.alert.videoGone")}
                             />
                             <CardContent className="flex flex-col gap-5">
                                 {video ? (
@@ -178,25 +181,23 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                         columns={3}
                                         items={[
                                             {
-                                                label: "Loại buổi tập",
+                                                label: t("doctorPages.alert.sessionType"),
                                                 value: (
                                                     <span className="inline-flex items-center gap-1.5">
                                                         <TrainingTypeIcon type={video.trainingType} className="text-fg-muted" />
-                                                        {TRAINING_TYPE_LABELS[video.trainingType]}
+                                                        {trainingTypeText(t, video.trainingType)}
                                                     </span>
                                                 ),
                                             },
-                                            { label: "Đã ghi", value: <time dateTime={video.uploadedAt}>{formatDate(video.uploadedAt)}</time> },
+                                            { label: t("doctorPages.alert.recorded"), value: <time dateTime={video.uploadedAt}>{formatDate(video.uploadedAt, locale)}</time> },
                                             {
-                                                label: "Thời lượng · camera",
-                                                value: `${formatClock(video.durationSec)} · ${CAMERA_ANGLE_LABELS[video.cameraAngle]}`,
+                                                label: t("doctorPages.alert.durationCamera"),
+                                                value: `${formatClock(video.durationSec)} · ${t(`screens.admin.cameraAngle.${video.cameraAngle}`)}`,
                                             },
                                         ]}
                                     />
                                 ) : (
-                                    <p className="text-sm text-fg-muted">
-                                        Video đã bị xóa sau khi xem xét. Các thời điểm được đánh dấu vẫn được lưu trong hồ sơ.
-                                    </p>
+                                    <p className="text-sm text-fg-muted">{t("doctorPages.alert.videoDeleted")}</p>
                                 )}
 
                                 {video && analysis ? (
@@ -210,14 +211,14 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                     />
                                 ) : (
                                     <div>
-                                        <h4 className="mb-2 text-[13px] font-semibold text-fg">Thời điểm bị đánh dấu</h4>
+                                        <h4 className="mb-2 text-[13px] font-semibold text-fg">{t("doctorPages.alert.flaggedMoments")}</h4>
                                         <ol className="flex flex-wrap gap-2">
                                             {alert.timestampsMs.map((ms, index) => (
                                                 <li
                                                     key={`${ms}-${index}`}
                                                     className="rounded-md bg-surface-muted px-2.5 py-1 text-[13px] text-fg tabular-nums"
                                                 >
-                                                    Thời điểm {index + 1} · {formatTimestamp(ms)}
+                                                    {t("doctorPages.alert.moment", { n: index + 1, time: formatTimestamp(ms) })}
                                                 </li>
                                             ))}
                                         </ol>
@@ -230,43 +231,45 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                     <section aria-labelledby="decision-heading" className="flex min-w-0 flex-col gap-4">
                         <h2 id="decision-heading" className="flex items-center gap-2 text-lg font-semibold text-fg">
                             <Stethoscope aria-hidden className="size-4 text-fg-muted" />
-                            Quyết định lâm sàng
+                            {t("doctorPages.alert.decision")}
                         </h2>
 
                         <Card>
-                            <CardHeader as="h3" title="Vùng được quan sát" description={BODY_REGION_LABELS[alert.bodyRegion]} icon={<Ruler />} />
+                            <CardHeader as="h3" title={t("doctorPages.alert.region")} description={regionText(t, alert.bodyRegion)} icon={<Ruler />} />
                             <CardContent>
-                                <RegionModel targets={[{ region: alert.bodyRegion }]} label="Vùng AI quan sát" status="RECOVERING" height={300} legend={false} />
+                                <RegionModel targets={[{ region: alert.bodyRegion }]} label={t("doctorPages.alert.regionModel")} status="RECOVERING" height={300} legend={false} />
                             </CardContent>
                         </Card>
 
                         <Card>
-                            <CardHeader as="h3" title="Sức khỏe võ sĩ" icon={<HeartPulse />} />
+                            <CardHeader as="h3" title={t("doctorPages.alert.health")} icon={<HeartPulse />} />
                             <CardContent className="flex flex-col gap-4">
-                                <FighterIdentity fighter={fighter} href={routes.doctor.fighter(fighter.id)} />
-                                <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={summary.clearanceState} />
+                                <FighterIdentity fighter={fighter} href={routes.doctor.fighter(fighter.id)} locale={legacy} />
+                                <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={summary.clearanceState} locale={legacy} />
                                 <div>
-                                    <h4 className="mb-1.5 text-[13px] font-semibold text-fg">Chấn thương đang mở</h4>
+                                    <h4 className="mb-1.5 text-[13px] font-semibold text-fg">{t("doctorPages.alert.openInjuries")}</h4>
                                     {summary.activeInjuries.length > 0 ? (
                                         <ul className="flex flex-col gap-1.5">
                                             {summary.activeInjuries.map((injury) => (
                                                 <li key={injury.id} className="flex flex-wrap items-center gap-2 text-[13px]">
                                                     <Link href={routes.doctor.fighterInjury(injury.fighterId, injury.id)} className="font-medium text-fg hover:underline">
-                                                        {injuryTitle(injury)}
+                                                        {injuryTitle(injury, legacy)}
                                                     </Link>
-                                                    <InjuryStatusBadge status={injury.status} size="sm" />
+                                                    <InjuryStatusBadge status={injury.status} size="sm" locale={legacy} />
                                                 </li>
                                             ))}
                                         </ul>
                                     ) : (
-                                        <p className="text-[13px] text-fg-muted">Chưa ghi nhận.</p>
+                                        <p className="text-[13px] text-fg-muted">{t("doctorPages.alert.noInjuries")}</p>
                                     )}
                                 </div>
                                 {summary.nextFollowUp && (
                                     <p className="flex items-center gap-2 text-[13px] text-fg-muted">
                                         <CalendarClock aria-hidden className="size-3.5" />
-                                        Khám theo dõi {describeDaysUntil(summary.nextFollowUp.daysUntil)} (
-                                        {formatDate(summary.nextFollowUp.date)})
+                                        {t("doctorPages.alert.followUp", {
+                                            when: describeDaysUntil(summary.nextFollowUp.daysUntil, locale),
+                                            date: formatDate(summary.nextFollowUp.date, locale),
+                                        })}
                                     </p>
                                 )}
                             </CardContent>
@@ -276,12 +279,8 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                             <Card>
                                 <CardHeader
                                     as="h3"
-                                    title="Quyết định của bạn"
-                                    description={
-                                        alert.doctorReview
-                                            ? "Do bác sĩ ghi — tách biệt với kết quả AI"
-                                            : "Xử lý quan sát này thế nào?"
-                                    }
+                                    title={t("doctorPages.alert.yourDecision")}
+                                    description={t(alert.doctorReview ? "doctorPages.alert.decisionByDoctor" : "doctorPages.alert.decisionPrompt")}
                                     icon={<Stethoscope />}
                                 />
                                 <CardContent>
@@ -291,20 +290,20 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                         )}
 
                         <Card>
-                            <CardHeader as="h3" title="Bước tiếp theo" icon={<ClipboardPlus />} />
+                            <CardHeader as="h3" title={t("doctorPages.alert.nextSteps")} icon={<ClipboardPlus />} />
                             <CardContent className="flex flex-col gap-3">
                                 {linkedInjury ? (
                                     <div className="flex flex-col gap-1.5 rounded-lg border border-border px-3 py-2.5">
-                                        <p className="text-xs text-fg-muted">Hồ sơ chấn thương liên kết</p>
+                                        <p className="text-xs text-fg-muted">{t("doctorPages.alert.linkedInjury")}</p>
                                         <p className="flex flex-wrap items-center gap-2">
                                             <Bandage aria-hidden className="size-4 text-fg-muted" />
                                             <Link
                                                 href={routes.doctor.fighterInjury(linkedInjury.fighterId, linkedInjury.id)}
                                                 className="text-sm font-medium text-fg hover:underline"
                                             >
-                                                {injuryTitle(linkedInjury)}
+                                                {injuryTitle(linkedInjury, legacy)}
                                             </Link>
-                                            <InjuryStatusBadge status={linkedInjury.status} size="sm" />
+                                            <InjuryStatusBadge status={linkedInjury.status} size="sm" locale={legacy} />
                                         </p>
                                     </div>
                                 ) : (
@@ -314,12 +313,12 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                         className="justify-start"
                                     >
                                         <Bandage aria-hidden />
-                                        Ghi chấn thương từ quan sát này
+                                        {t("doctorPages.alert.recordInjury")}
                                     </ButtonLink>
                                 )}
                                 <ButtonLink href={clinicalLinks.newExaminationFor(fighter.id)} variant="secondary" className="justify-start">
                                     <Stethoscope aria-hidden />
-                                    Đặt lịch khám
+                                    {t("doctorPages.alert.bookExam")}
                                 </ButtonLink>
                             </CardContent>
                         </Card>
@@ -328,18 +327,16 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
 
                 <Card className="overflow-hidden">
                     <CardHeader
-                        title={`Quan sát trước đây của ${fighter.name}`}
-                        description="Cùng vùng cơ thể trước, sau đó mới nhất"
+                        title={t("doctorPages.alert.previous", { name: fighter.name })}
+                        description={t("doctorPages.alert.previousDesc")}
                         icon={<History />}
                     />
                     {history.length === 0 ? (
-                        <p className="border-t border-border px-5 py-4 text-sm text-fg-muted">
-                            Võ sĩ này chưa có quan sát AI nào trước đây.
-                        </p>
+                        <p className="border-t border-border px-5 py-4 text-sm text-fg-muted">{t("doctorPages.alert.noPrevious")}</p>
                     ) : (
                         <ul className="divide-y divide-border border-t border-border">
                             {history.map((other) => (
-                                <HistoryRow key={other.id} alert={other} sameRegion={other.bodyRegion === alert.bodyRegion} now={now} />
+                                <HistoryRow key={other.id} alert={other} sameRegion={other.bodyRegion === alert.bodyRegion} now={now} t={t} locale={locale} />
                             ))}
                         </ul>
                     )}
@@ -349,20 +346,20 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
     );
 }
 
-function HistoryRow({ alert, sameRegion, now }: { alert: AbnormalMovementAlert; sameRegion: boolean; now: string }) {
+function HistoryRow({ alert, sameRegion, now, t, locale }: { alert: AbnormalMovementAlert; sameRegion: boolean; now: string; t: Translator; locale: Locale }) {
     const days = daysBetween(alert.detectedAt, now);
     return (
         <li className="relative flex flex-col gap-2 px-5 py-3 transition-colors hover:bg-surface-muted/50 sm:flex-row sm:items-center sm:gap-4">
             <div className="min-w-0 flex-1">
                 <p className="flex flex-wrap items-center gap-2 text-xs text-fg-muted">
-                    <span>{BODY_REGION_LABELS[alert.bodyRegion]}</span>
+                    <span>{regionText(t, alert.bodyRegion)}</span>
                     {sameRegion && (
                         <Badge tone="ai" size="sm">
-                            Cùng vùng
+                            {t("doctorPages.alert.sameRegion")}
                         </Badge>
                     )}
                     <span>
-                        · <time dateTime={alert.detectedAt}>{formatDate(alert.detectedAt)}</time> ({capitalize(describeDaysUntil(-days))})
+                        · <time dateTime={alert.detectedAt}>{formatDate(alert.detectedAt, locale)}</time> ({capitalize(describeDaysUntil(-days, locale))})
                     </span>
                 </p>
                 <p className="mt-0.5 text-sm font-medium text-fg">
@@ -372,7 +369,7 @@ function HistoryRow({ alert, sameRegion, now }: { alert: AbnormalMovementAlert; 
                 </p>
             </div>
             <div className="flex shrink-0 flex-wrap items-center gap-2">
-                {alert.confidence !== null && <span className="text-[13px] text-fg-muted tabular-nums">độ tin cậy {formatConfidence(alert.confidence)}</span>}
+                {alert.confidence !== null && <span className="text-[13px] text-fg-muted tabular-nums">{t("doctorPages.alert.confidenceShort", { value: formatConfidence(alert.confidence) })}</span>}
                 <AlertStatusBadge status={alert.status} size="sm" />
                 <ArrowRight aria-hidden className="hidden size-4 text-fg-subtle sm:block" />
             </div>

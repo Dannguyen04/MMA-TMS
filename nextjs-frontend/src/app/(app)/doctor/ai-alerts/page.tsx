@@ -11,6 +11,8 @@ import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import type { AlertStatus } from "@/lib/domain/types";
+import { getTranslator } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { hrefWith, paginate, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listAlerts } from "@/lib/services/ai";
@@ -19,45 +21,40 @@ import { listFighters } from "@/lib/services/people";
 import { listVideos } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Quan sát AI" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctorPages.meta.aiAlerts") };
+}
 
 const PATH = routes.doctor.aiAlerts;
 const PAGE_SIZE = 8;
 const FILTERS = ["new", "follow_up", "acknowledged", "dismissed", "all"] as const;
 type AlertView = (typeof FILTERS)[number];
 
-const SEGMENTS: { value: AlertView; label: string; icon: SegmentedLinkItem["icon"] }[] = [
-    { value: "new", label: "Mới", icon: BellRing },
-    { value: "follow_up", label: "Theo dõi", icon: CalendarClock },
-    { value: "acknowledged", label: "Đã xác nhận", icon: CircleCheck },
-    { value: "dismissed", label: "Đã bỏ qua", icon: CircleX },
-    { value: "all", label: "Tất cả", icon: Layers },
+const SEGMENTS: { value: AlertView; label: MessageKey; icon: SegmentedLinkItem["icon"] }[] = [
+    { value: "new", label: "doctorPages.alerts.seg.new", icon: BellRing },
+    { value: "follow_up", label: "doctorPages.alerts.seg.follow_up", icon: CalendarClock },
+    { value: "acknowledged", label: "doctorPages.alerts.seg.acknowledged", icon: CircleCheck },
+    { value: "dismissed", label: "doctorPages.alerts.seg.dismissed", icon: CircleX },
+    { value: "all", label: "doctorPages.alerts.seg.all", icon: Layers },
 ];
 
-const EMPTY_COPY: Record<AlertView, { title: string; description: string }> = {
-    new: {
-        title: "Không có quan sát mới cần xem",
-        description: "Đã xem hết. Quan sát AI mới từ Video tập luyện sẽ hiện ở đây.",
-    },
-    follow_up: {
-        title: "Không có quan sát chờ theo dõi",
-        description: "Các quan sát cần theo dõi sẽ hiện ở đây đến khi bạn ghi quyết định mới.",
-    },
-    acknowledged: { title: "Chưa có quan sát đã xác nhận", description: "Các quan sát bạn xác nhận có ý nghĩa lâm sàng sẽ hiện ở đây." },
-    dismissed: { title: "Chưa có quan sát bị bỏ qua", description: "Các quan sát bạn bỏ qua sẽ hiện ở đây." },
-    all: {
-        title: "Chưa có quan sát AI",
-        description: "Khi AI phát hiện mẫu chuyển động bất thường trong Video tập luyện, quan sát sẽ hiện ở đây để xem xét.",
-    },
+const EMPTY_COPY: Record<AlertView, { title: MessageKey; description: MessageKey }> = {
+    new: { title: "doctorPages.alerts.empty.new.title", description: "doctorPages.alerts.empty.new.description" },
+    follow_up: { title: "doctorPages.alerts.empty.follow_up.title", description: "doctorPages.alerts.empty.follow_up.description" },
+    acknowledged: { title: "doctorPages.alerts.empty.acknowledged.title", description: "doctorPages.alerts.empty.acknowledged.description" },
+    dismissed: { title: "doctorPages.alerts.empty.dismissed.title", description: "doctorPages.alerts.empty.dismissed.description" },
+    all: { title: "doctorPages.alerts.empty.all.title", description: "doctorPages.alerts.empty.all.description" },
 };
 
 export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/ai-alerts">) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
     if (!medicalFeatureAvailable("aiObservations")) {
         return (
             <>
-                <PageHeader title="Quan sát AI" />
-                <FeatureUnavailable title="Quan sát AI chưa khả dụng" />
+                <PageHeader title={t("doctorPages.meta.aiAlerts")} />
+                <FeatureUnavailable title={t("doctorPages.alerts.unavailable")} description={t("doctorPages.featureUnavailable")} />
             </>
         );
     }
@@ -81,19 +78,20 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
     return (
         <>
             <PageHeader
-                title="Quan sát AI"
-                description={`Mẫu chuyển động AI đánh dấu trong Video tập luyện, so với video trước của chính võ sĩ.${reviews ? " Xem từng quan sát và ghi quyết định lâm sàng." : ""}`}
+                title={t("doctorPages.meta.aiAlerts")}
+                description={`${t("doctorPages.alerts.description")}${reviews ? t("doctorPages.alerts.descriptionReview") : ""}`}
             />
 
             <div className="flex flex-col gap-5">
-                <AINotice audience="doctor" />
+                {/* Without a locale the notice keeps its Vietnamese wording; the dictionary words it differently. */}
+                <AINotice audience="doctor" locale={locale === "vi" ? undefined : locale} />
 
                 {reviews && (
                     <SegmentedLinks
-                        label="Lọc quan sát theo trạng thái"
+                        label={t("doctorPages.alerts.filterLabel")}
                         items={SEGMENTS.map((segment) => ({
                             href: hrefWith(PATH, {}, { status: segment.value === "new" ? null : segment.value }),
-                            label: segment.label,
+                            label: t(segment.label),
                             count: count(segment.value),
                             active: segment.value === view,
                             icon: segment.icon,
@@ -101,16 +99,16 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
                     />
                 )}
 
-                <section aria-label={`Quan sát: ${SEGMENTS.find((segment) => segment.value === view)?.label ?? "Tất cả"}`}>
+                <section aria-label={t("doctorPages.alerts.sectionAria", { label: t(SEGMENTS.find((segment) => segment.value === view)?.label ?? "doctorPages.alerts.seg.all") })}>
                     {page.total === 0 ? (
                         <EmptyState
                             icon={<Radar />}
-                            title={EMPTY_COPY[view].title}
-                            description={EMPTY_COPY[view].description}
+                            title={t(EMPTY_COPY[view].title)}
+                            description={t(EMPTY_COPY[view].description)}
                             action={
                                 view !== "all" && visible.length > 0 ? (
                                     <ButtonLink href={hrefWith(PATH, {}, { status: "all" })} variant="secondary">
-                                        Xem mọi quan sát
+                                        {t("doctorPages.alerts.viewAll")}
                                     </ButtonLink>
                                 ) : undefined
                             }
@@ -143,7 +141,8 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
                                         pageSize={page.pageSize}
                                         pathname={PATH}
                                         searchParams={params}
-                                        itemLabel="quan sát"
+                                        itemLabel={t("doctorPages.alerts.itemLabel")}
+                                        locale={locale}
                                     />
                                 </div>
                             )}

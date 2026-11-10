@@ -3,6 +3,7 @@
 import { Eraser, Lock, WandSparkles } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 
 /** One part of a doctor's form, with an anchor (`#{prefix}{id}`) the progress column links to. */
@@ -40,7 +41,7 @@ export function FormPart({
 
 /** Demo mode only: fills the form with plausible sample values for presenting the flow, or empties it again. */
 export function DemoFillBar({
-    title = "Chế độ demo",
+    title,
     description,
     onFill,
     onClear,
@@ -52,25 +53,26 @@ export function DemoFillBar({
     onClear: () => void;
     className?: string;
 }) {
+    const t = useT();
     return (
         <div
             role="region"
-            aria-label="Dữ liệu mẫu cho demo"
+            aria-label={t("doctorMedical.demo.region")}
             className={`grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-3.5 gap-y-3 rounded-xl border border-dashed border-primary/45 bg-primary-soft/55 px-4 py-3 md:grid-cols-[auto_minmax(0,1fr)_auto] ${className}`}
         >
             <WandSparkles aria-hidden className="size-5 text-primary-soft-fg" />
             <div>
-                <p className="text-sm font-semibold text-fg">{title}</p>
+                <p className="text-sm font-semibold text-fg">{title ?? t("doctorMedical.demo.title")}</p>
                 <p className="mt-0.5 max-w-[80ch] text-[13px] text-fg-muted">{description}</p>
             </div>
             <div className="col-span-2 flex gap-2 md:col-span-1">
                 <Button variant="secondary" size="sm" onClick={onClear}>
                     <Eraser aria-hidden />
-                    Xóa hết
+                    {t("doctorMedical.demo.clear")}
                 </Button>
                 <Button size="sm" onClick={onFill}>
                     <WandSparkles aria-hidden />
-                    Điền dữ liệu mẫu
+                    {t("doctorMedical.demo.fill")}
                 </Button>
             </div>
         </div>
@@ -78,11 +80,12 @@ export function DemoFillBar({
 }
 
 /** A private-to-doctors marker for notes coaches and fighters never see. */
-export function DoctorsOnly({ children = "Chỉ bác sĩ xem" }: { children?: ReactNode }) {
+export function DoctorsOnly({ children }: { children?: ReactNode }) {
+    const t = useT();
     return (
         <span className="inline-flex items-center gap-1.5 rounded-full bg-neutral-soft px-2.5 py-0.5 text-[12.5px] font-semibold text-neutral-fg">
             <Lock aria-hidden className="size-3.5" />
-            {children}
+            {children ?? t("doctorMedical.doctorsOnly")}
         </span>
     );
 }

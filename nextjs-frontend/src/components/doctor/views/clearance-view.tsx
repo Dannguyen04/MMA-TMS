@@ -13,6 +13,8 @@ import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceOverview, listClearances } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural } from "@/lib/i18n/translate";
 import { param } from "@/lib/utils";
 
 const isLive = (c: MedicalClearance) => c.status === "active" && c.isCurrentlyValid !== false;
@@ -23,6 +25,7 @@ const isLive = (c: MedicalClearance) => c.status === "active" && c.isCurrentlyVa
  */
 export async function ClearanceView({ query, fighterId: scopedId }: { query: Record<string, string | string[] | undefined>; fighterId?: string }) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
     const requested = scopedId ?? param(query.fighter);
     const fighterId = requested && canAccessFighter(user, requested) ? requested : undefined;
     const scope = fighterId ? [fighterId] : accessibleFighterIds(user);
@@ -41,12 +44,12 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
      * alone, no filled title cards).
      */
     const statusOf = (c: MedicalClearance): { tone: "ok" | "warn" | "bad" | "off"; Icon: LucideIcon; text: string } => {
-        if (c.status === "revoked") return { tone: "bad", Icon: Ban, text: `Đã thu hồi${c.revokedAt ? ` ${fmtDate(c.revokedAt)}` : ""}` };
-        if (c.status === "superseded") return { tone: "off", Icon: History, text: "Đã thay thế" };
-        if (!isLive(c)) return { tone: "off", Icon: History, text: "Hết hạn" };
-        if (!c.validUntil) return { tone: "ok", Icon: CircleCheck, text: "Đang hiệu lực · không thời hạn" };
+        if (c.status === "revoked") return { tone: "bad", Icon: Ban, text: c.revokedAt ? t("doctorViews.clearance.revokedOn", { date: fmtDate(c.revokedAt, locale) }) : t("doctorViews.clearance.revoked") };
+        if (c.status === "superseded") return { tone: "off", Icon: History, text: t("doctorViews.clearance.superseded") };
+        if (!isLive(c)) return { tone: "off", Icon: History, text: t("doctorViews.clearance.expired") };
+        if (!c.validUntil) return { tone: "ok", Icon: CircleCheck, text: t("doctorViews.clearance.activeNoEnd") };
         const days = dayDiff(c.validUntil, now);
-        return days <= warn ? { tone: "warn", Icon: TriangleAlert, text: `Sắp hết hạn · còn ${days} ngày` } : { tone: "ok", Icon: CircleCheck, text: `Đang hiệu lực · còn ${days} ngày` };
+        return days <= warn ? { tone: "warn", Icon: TriangleAlert, text: plural(t, "doctorViews.clearance.expiringDays", days) } : { tone: "ok", Icon: CircleCheck, text: plural(t, "doctorViews.clearance.activeDays", days) };
     };
 
     const col = (title: string, tag: string, rows: MedicalClearance[], note: string) => (
@@ -68,7 +71,7 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
                         return (
                             <li key={c.id} className="gp-card" data-tone={status.tone} style={{ ["--i" as string]: i }}>
                                 <header>
-                                    <b>{c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]}</b>
+                                    <b>{t(c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level])}</b>
                                     <span className="gp-status">
                                         <status.Icon aria-hidden />
                                         {status.text}
@@ -77,17 +80,17 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
                                 <div className="gp-body">
                                     {!scopedId && (
                                         <Link href={routes.doctor.fighter(c.fighterId)} className="yt-rowlink">
-                                            <b>{nameOf.get(c.fighterId) ?? "Võ sĩ"}</b>
+                                            <b>{nameOf.get(c.fighterId) ?? t("doctorViews.common.fighter")}</b>
                                         </Link>
                                     )}
                                     <div className="gp-dates">
                                         <span>
-                                            <small>Từ</small>
-                                            {fmtDate(c.issuedAt)}
+                                            <small>{t("doctorViews.clearance.from")}</small>
+                                            {fmtDate(c.issuedAt, locale)}
                                         </span>
                                         <span style={{ textAlign: "right" }}>
-                                            <small>Đến</small>
-                                            {c.validUntil ? fmtDate(c.validUntil) : "Không giới hạn"}
+                                            <small>{t("doctorViews.clearance.until")}</small>
+                                            {c.validUntil ? fmtDate(c.validUntil, locale) : t("doctorViews.clearance.noLimit")}
                                         </span>
                                     </div>
                                     {/* Time used of the validity window; a clearance with no end date has none to show. */}
@@ -98,23 +101,23 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
                                     )}
                                     {c.revokedReason && (
                                         <p className="gp-revoked">
-                                            Thu hồi {fmtDate(c.revokedAt)}: {c.revokedReason}
+                                            {t("doctorViews.clearance.revokedReason", { date: fmtDate(c.revokedAt, locale), reason: c.revokedReason })}
                                         </p>
                                     )}
                                     {c.reason && <p className="yt-note">{c.reason}</p>}
-                                    <Restrictions r={c.allowLists ? { ...c.allowLists, notes: null } : null} />
+                                    <Restrictions r={c.allowLists ? { ...c.allowLists, notes: null } : null} t={t} />
                                     {!c.allowLists && regions.length > 0 && (
                                         <ul className="yt-chips">
                                             {regions.map((r) => (
                                                 <li key={r} data-tone="block">
-                                                    Tránh {BODY_REGION[r].toLowerCase()}
+                                                    {t("doctorViews.clearance.avoidRegion", { region: t(BODY_REGION[r]).toLowerCase() })}
                                                 </li>
                                             ))}
                                         </ul>
                                     )}
                                     {live && c.level !== "not_cleared" && (
                                         <div>
-                                            <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? "võ sĩ"} />
+                                            <RevokeClearanceButton clearanceId={c.id} fighterId={c.fighterId} fighterName={nameOf.get(c.fighterId) ?? t("doctorViews.common.fighterLower")} />
                                         </div>
                                     )}
                                 </div>
@@ -123,7 +126,7 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
                     })}
                 </ol>
             ) : (
-                <Empty title="Không có giấy phép" />
+                <Empty title={t("doctorViews.clearance.empty")} />
             )}
         </section>
     );
@@ -132,19 +135,19 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
         <>
             <ListHead
                 scoped={!!scopedId}
-                title="Giấy phép"
-                sub={`Cảnh báo khi còn ≤ ${warn} ngày theo cài đặt hệ thống`}
+                title={t("doctorViews.clearance.title")}
+                sub={plural(t, "doctorViews.clearance.sub", warn)}
                 actions={
                     <Link href={issueHref} className="yt-btn" data-v="primary">
                         <ShieldCheck aria-hidden />
-                        Cấp giấy phép
+                        {t("doctorViews.clearance.grant")}
                     </Link>
                 }
             />
-            {!scopedId && <FighterFilter base={routes.doctor.clearance} fighters={fighters} current={fighterId} />}
+            {!scopedId && <FighterFilter base={routes.doctor.clearance} fighters={fighters} current={fighterId} t={t} />}
             {/* Inside the profile the header already says whether this fighter has a valid clearance. */}
             {!scopedId && missing.length > 0 && (
-                <Panel title={`Chưa có giấy phép hợp lệ · ${missing.length}`} id="thieu">
+                <Panel title={t("doctorViews.clearance.missing", { n: missing.length })} id="thieu">
                     <ul className="hs-clr">
                         {missing.map((r) => (
                             <li key={r.fighter.id}>
@@ -153,19 +156,19 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
                                 </Link>
                                 <small>
                                     <Link className="yt-go" href={`${routes.doctor.grantClearance}?fighter=${r.fighter.id}`}>
-                                        Cấp giấy phép
+                                        {t("doctorViews.clearance.grant")}
                                     </Link>
                                 </small>
-                                <Pill tone={CLEARANCE_STATE[r.state].tone}>{CLEARANCE_STATE[r.state].label}</Pill>
+                                <Pill tone={CLEARANCE_STATE[r.state].tone}>{t(CLEARANCE_STATE[r.state].label)}</Pill>
                             </li>
                         ))}
                     </ul>
                 </Panel>
             )}
             <div className="gp-cols">
-                {col("Hiệu lực", "green", valid, "đang dùng")}
-                {col("Sắp hết hạn", "amber", soon, `≤ ${warn} ngày`)}
-                {col("Thu hồi / hết hạn", "red", off, "lưu trữ")}
+                {col(t("doctorViews.clearance.colValid"), "green", valid, t("doctorViews.clearance.colValidNote"))}
+                {col(t("doctorViews.clearance.colSoon"), "amber", soon, plural(t, "doctorViews.clearance.colSoonNote", warn))}
+                {col(t("doctorViews.clearance.colOff"), "red", off, t("doctorViews.clearance.colOffNote"))}
             </div>
         </>
     );

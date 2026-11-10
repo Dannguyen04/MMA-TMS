@@ -3,16 +3,14 @@
 import { Lock } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Switch } from "@/components/ui/switch";
 import type { ActionForm } from "@/components/ui/use-action-form";
 import type { RestrictionLists } from "@/lib/domain/medical-bodies";
 import {
     BODY_JOINTS,
-    BODY_JOINT_LABELS,
     SESSION_TYPES,
-    SESSION_TYPE_LABELS,
     TECHNIQUE_TYPES,
-    TECHNIQUE_TYPE_LABELS,
     type BodyJoint,
     type SessionType,
     type TechniqueType,
@@ -40,6 +38,7 @@ export interface RestrictionFieldsProps {
  * (each an allow-list, off meaning "no limit") and joints to keep out of training.
  */
 export function RestrictionFields({ form, idPrefix, defaults, bound }: RestrictionFieldsProps) {
+    const t = useT();
     const [limitSessions, setLimitSessions] = useState(defaults?.allowedSessionTypes != null || bound?.allowedSessionTypes != null);
     const [sessions, setSessions] = useState<SessionType[]>([...(defaults?.allowedSessionTypes ?? [])]);
     const [limitTechniques, setLimitTechniques] = useState(defaults?.allowedTechniqueTypes != null || bound?.allowedTechniqueTypes != null);
@@ -57,13 +56,13 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 id={`${idPrefix}-sessions`}
                 name="allowedSessionTypes"
                 switchName="limitSessions"
-                switchLabel="Giới hạn loại buổi tập"
-                switchDescription={sessionsLocked ? "Phiếu khám giới hạn loại buổi tập nên giấy phép cũng phải giới hạn." : "Tắt nghĩa là mọi loại buổi tập đều được phép."}
+                switchLabel={t("doctorMedical.fields.limitSessions")}
+                switchDescription={sessionsLocked ? t("doctorMedical.fields.sessionsLocked") : t("doctorMedical.fields.sessionsOff")}
                 on={limitSessions}
                 locked={sessionsLocked}
                 onToggle={setLimitSessions}
-                legend="Loại buổi tập võ sĩ được làm"
-                options={(bound?.allowedSessionTypes ?? SESSION_TYPES).map((value) => ({ value, label: SESSION_TYPE_LABELS[value] }))}
+                legend={t("doctorMedical.fields.sessionsLegend")}
+                options={(bound?.allowedSessionTypes ?? SESSION_TYPES).map((value) => ({ value, label: t(`doctorMedical.sessionType.${value}`) }))}
                 selected={sessions}
                 onSelect={setSessions}
             />
@@ -72,13 +71,13 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 id={`${idPrefix}-techniques`}
                 name="allowedTechniqueTypes"
                 switchName="limitTechniques"
-                switchLabel="Giới hạn kỹ thuật"
-                switchDescription={techniquesLocked ? "Phiếu khám giới hạn kỹ thuật nên giấy phép cũng phải giới hạn." : "Tắt nghĩa là mọi kỹ thuật đều được phép."}
+                switchLabel={t("doctorMedical.fields.limitTechniques")}
+                switchDescription={techniquesLocked ? t("doctorMedical.fields.techniquesLocked") : t("doctorMedical.fields.techniquesOff")}
                 on={limitTechniques}
                 locked={techniquesLocked}
                 onToggle={setLimitTechniques}
-                legend="Kỹ thuật võ sĩ được dùng"
-                options={(bound?.allowedTechniqueTypes ?? TECHNIQUE_TYPES).map((value) => ({ value, label: TECHNIQUE_TYPE_LABELS[value] }))}
+                legend={t("doctorMedical.fields.techniquesLegend")}
+                options={(bound?.allowedTechniqueTypes ?? TECHNIQUE_TYPES).map((value) => ({ value, label: t(`doctorMedical.techniqueType.${value}`) }))}
                 selected={techniques}
                 onSelect={setTechniques}
             />
@@ -86,9 +85,9 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 form={form}
                 id={`${idPrefix}-joints`}
                 name="excludedJoints"
-                legend="Khớp cần tránh khi tập"
-                hint={lockedJoints.length > 0 ? "Khớp phiếu khám đã loại trừ vẫn bị loại trừ." : "Bỏ trống nếu không cần bảo vệ khớp nào."}
-                options={BODY_JOINTS.map((value) => ({ value, label: BODY_JOINT_LABELS[value], locked: lockedJoints.includes(value) }))}
+                legend={t("doctorMedical.fields.jointsLegend")}
+                hint={lockedJoints.length > 0 ? t("doctorMedical.fields.jointsLocked") : t("doctorMedical.fields.jointsHint")}
+                options={BODY_JOINTS.map((value) => ({ value, label: t(`doctorMedical.joint.${value}`), locked: lockedJoints.includes(value) }))}
                 selected={joints}
                 onSelect={setJoints}
             />
@@ -172,6 +171,7 @@ function CheckboxChips<T extends string>({
     selected: T[];
     onSelect: (values: T[]) => void;
 }) {
+    const t = useT();
     const error = form.error(name);
     const describedBy = error ? `${id}-error` : hint ? `${id}-hint` : undefined;
     return (
@@ -205,7 +205,7 @@ function CheckboxChips<T extends string>({
                                 className="size-3.5 shrink-0 accent-[var(--primary)]"
                             />
                             {option.label}
-                            {option.locked && <Lock aria-label="Bắt buộc theo phiếu khám" className="size-3 text-fg-subtle" />}
+                            {option.locked && <Lock aria-label={t("doctorMedical.fields.lockedByExam")} className="size-3 text-fg-subtle" />}
                         </label>
                     );
                 })}

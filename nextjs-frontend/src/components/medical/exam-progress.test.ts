@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { examProgress, sectorPath, type ExamProgressInput } from "./exam-progress";
+import { createTranslator } from "@/lib/i18n/translate";
+
+import { examProgress as examProgressFor, sectorPath, type ExamProgressInput } from "./exam-progress";
+
+const examProgress = (input: ExamProgressInput) => examProgressFor(createTranslator("vi"), input);
 
 const EMPTY_VITALS = { weightKg: "", restingHeartRate: "", bloodPressureSystolic: "", bloodPressureDiastolic: "", temperatureC: "", spo2Pct: "", hydration: "" };
 const base: ExamProgressInput = { date: "2026-11-09T20:06", type: "routine", vitals: EMPTY_VITALS, rows: [], outcome: "", summary: "", recommendations: "" };

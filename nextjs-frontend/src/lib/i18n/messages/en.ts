@@ -26,6 +26,12 @@ import { enScreensApp } from "./screens-app.en";
 import { enScreensVideo } from "./screens-video.en";
 import { enScreensAdmin } from "./screens-admin.en";
 import { enScreensMisc } from "./screens-misc.en";
+import { enDoctorScreens } from "./doctor-screens.en";
+import { enDoctorViews } from "./doctor-views.en";
+import { enDoctorMedical } from "./doctor-medical.en";
+import { enDoctorScat6 } from "./doctor-scat6.en";
+import { enDoctorClinical } from "./doctor-clinical.en";
+import { enDoctorPages } from "./doctor-pages.en";
 
 export const en = {
     ...enDemoFlow,
@@ -51,6 +57,12 @@ export const en = {
     ...enScreensVideo,
     ...enScreensAdmin,
     ...enScreensMisc,
+    ...enDoctorScreens,
+    ...enDoctorViews,
+    ...enDoctorMedical,
+    ...enDoctorScat6,
+    ...enDoctorClinical,
+    ...enDoctorPages,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",

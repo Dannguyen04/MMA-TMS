@@ -14,7 +14,6 @@ import { TreatmentList } from "@/components/clinical/treatment-list";
 import { AINotice } from "@/components/domain/ai-notice";
 import { RegionModel } from "@/components/doctor/region-model";
 import { ClearanceValidity } from "@/components/domain/clearance-validity";
-import { describeDaysUntil, labelOf, NOT_RECORDED } from "@/components/domain/domain-format";
 import { RecoveryProgress } from "@/components/domain/recovery-progress";
 import { ClearanceBadge, FighterStatusBadges, InjurySeverityBadge, InjuryStatusBadge } from "@/components/domain/status-badges";
 import { RestrictionSummary } from "@/components/medical/restriction-summary";
@@ -27,15 +26,40 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { canAccessFighter } from "@/lib/auth/access";
 import { getCurrentUser, requireRole } from "@/lib/auth/session";
-import { INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_STATUS_LABELS } from "@/lib/domain/labels";
-import type { Injury } from "@/lib/domain/types";
+import type { Injury, InjuryMechanism, InjuryStatus } from "@/lib/domain/types";
 import { dayKey, daysBetween, formatDate, formatDateTime } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
 import { getClearanceStatus, getInjuryDetail } from "@/lib/services/medical";
 import { medicalFeatureAvailable, usesMedicalServiceForms } from "@/lib/services/medical-features";
 import { getVideo } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
+
+import { daysUntil } from "./days-until";
+
+/**
+ * The shared domain labels and badges keep this screen's Vietnamese wording only when given no locale (their `vi`
+ * dictionary words some values differently), so they get a locale only in English.
+ */
+const enOnly = (locale: Locale) => (locale === "en" ? locale : undefined);
+
+const STATUS_TEXT: Record<InjuryStatus, MessageKey> = {
+    active: "doctorViews.injury.status.active",
+    recovering: "doctorViews.injury.status.recovering",
+    resolved: "doctorViews.injury.status.resolved",
+};
+const MECHANISM_TEXT: Record<InjuryMechanism, MessageKey> = {
+    sparring: "doctorViews.injury.mechanism.sparring",
+    pad_work: "doctorViews.injury.mechanism.pad_work",
+    heavy_bag: "doctorViews.injury.mechanism.heavy_bag",
+    grappling: "doctorViews.injury.mechanism.grappling",
+    strength_conditioning: "doctorViews.injury.mechanism.strength_conditioning",
+    competition: "doctorViews.injury.mechanism.competition",
+    outside_training: "doctorViews.injury.mechanism.outside_training",
+};
 
 /** The injury with its fighter, treatments, plan and linked observation, loaded once per request for the metadata and the page. */
 const loadInjuryDetail = cache(getInjuryDetail);
@@ -51,12 +75,14 @@ export async function injuryMetadata(injuryId: string): Promise<Metadata> {
     const detail = await loadInjuryDetail(injuryId);
     // The title must not reveal a record the viewer isn't assigned to.
     const visible = detail && user && canAccessFighter(user, detail.injury.fighterId);
-    return { title: visible ? `${injuryTitle(detail.injury)} · ${detail.fighter.name}` : "Chấn thương" };
+    const { t, locale } = await getTranslator();
+    return { title: visible ? `${injuryTitle(detail.injury, enOnly(locale))} · ${detail.fighter.name}` : t("doctorViews.injuries.title") };
 }
 
 /** One injury, shown inside its fighter's profile. */
 export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { injuryId: string; query: Record<string, string | string[] | undefined>; fighterId: string }) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
     const now = new Date().toISOString();
 
     const [detail, settings] = await Promise.all([loadInjuryDetail(injuryId), getSettings()]);
@@ -73,13 +99,13 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
     return (
         <>
             <PageHeader
-                back={{ href: routes.doctor.fighterInjuries(fighter.id), label: "Chấn thương" }}
-                eyebrow="Hồ sơ chấn thương"
-                title={injuryTitle(injury)}
+                back={{ href: routes.doctor.fighterInjuries(fighter.id), label: t("doctorViews.injuries.title") }}
+                eyebrow={t("doctorViews.injury.eyebrow")}
+                title={injuryTitle(injury, enOnly(locale))}
                 meta={
                     <>
-                        <InjurySeverityBadge severity={injury.severity} />
-                        <InjuryStatusBadge status={injury.status} />
+                        <InjurySeverityBadge severity={injury.severity} locale={enOnly(locale)} />
+                        <InjuryStatusBadge status={injury.status} locale={enOnly(locale)} />
                         <span aria-hidden className="mx-1 h-4 w-px bg-border" />
                         <Link
                             href={routes.doctor.fighter(fighter.id)}
@@ -88,7 +114,7 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                             <Avatar name={fighter.name} shape="octagon" size="xs" />
                             {fighter.name}
                         </Link>
-                        <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={clearanceNow} size="sm" />
+                        <FighterStatusBadges healthStatus={fighter.healthStatus} clearanceState={clearanceNow} size="sm" locale={enOnly(locale)} />
                     </>
                 }
                 actions={
@@ -99,7 +125,7 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                         canReopen={!usesMedicalServiceForms()}
                         fighterName={fighter.name}
                         openPlanTitle={openPlan?.title ?? null}
-                        todayLabel={formatDate(now)}
+                        todayLabel={formatDate(now, locale)}
                     />
                 }
             />
@@ -110,33 +136,33 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                         tone="success"
                         icon={CircleCheck}
                         role="status"
-                        title="Đã ghi chấn thương"
+                        title={t("doctorViews.injury.createdTitle")}
                         action={
                             <>
                                 <ButtonLink href={clinicalLinks.grantClearanceFor(fighter.id)} size="sm">
                                     <ShieldCheck aria-hidden />
-                                    Xem lại giấy phép của {fighter.name}
+                                    {t("doctorViews.injury.reviewClearance", { name: fighter.name })}
                                 </ButtonLink>
                                 <ButtonLink href={routes.doctor.fighterInjury(injury.fighterId, injury.id)} variant="ghost" size="sm" replace scroll={false}>
-                                    Đóng
+                                    {t("doctorViews.injury.close")}
                                 </ButtonLink>
                             </>
                         }
                     >
                         {serviceForms
-                            ? `Giấy phép không tự thay đổi. Hãy khám ${fighter.name} và xem lại để giới hạn tập luyện khớp với chấn thương.`
-                            : `HLV của ${fighter.name} đã được nhắc kiểm tra giấy phép. Hãy xem lại ngay để giới hạn tập luyện khớp với chấn thương này.`}
+                            ? t("doctorViews.injury.createdService", { name: fighter.name })
+                            : t("doctorViews.injury.createdDemo", { name: fighter.name })}
                     </Callout>
                 )}
 
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                     <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                         <Card>
-                            <CardHeader title="Chi tiết chấn thương" icon={<FileText />} />
+                            <CardHeader title={t("doctorViews.injury.details")} icon={<FileText />} />
                             <CardContent className="flex flex-col gap-5">
-                                <DescriptionList items={detailItems(injury, now, recordedBy?.name ?? null)} columns={3} className="grid-cols-2" />
+                                <DescriptionList items={detailItems(t, locale, injury, now, recordedBy?.name ?? null)} columns={3} className="grid-cols-2" />
                                 <div className="border-t border-border pt-4">
-                                    <h3 className="text-[13px] font-semibold text-fg">Mô tả lâm sàng</h3>
+                                    <h3 className="text-[13px] font-semibold text-fg">{t("doctorViews.injury.description")}</h3>
                                     <p className="mt-1 text-sm leading-relaxed text-pretty whitespace-pre-line text-fg">{injury.description}</p>
                                 </div>
                             </CardContent>
@@ -144,13 +170,13 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
 
                         <Card className="overflow-hidden">
                             <CardHeader
-                                title="Điều trị"
+                                title={t("doctorViews.injuries.colTreatment")}
                                 description={
                                     treatments.length === 0
-                                        ? "Những gì đang thực hiện cho chấn thương này"
+                                        ? t("doctorViews.injury.treatmentsSub")
                                         : medicalFeatureAvailable("treatmentStatus")
-                                          ? `${treatments.filter((t) => t.status === "ongoing").length} đang thực hiện · tổng ${treatments.length}`
-                                          : `Đã ghi ${treatments.length} điều trị`
+                                          ? t("doctorViews.injury.treatmentsOngoing", { n: treatments.filter((tr) => tr.status === "ongoing").length, total: treatments.length })
+                                          : plural(t, "doctorViews.injury.treatmentsRecorded", treatments.length)
                                 }
                                 icon={<ClipboardList />}
                                 action={
@@ -167,8 +193,8 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                                 <EmptyState
                                     compact
                                     icon={<ClipboardList />}
-                                    title="Chưa có điều trị"
-                                    description="Thêm nghỉ ngơi, vật lý trị liệu, chẩn đoán hình ảnh hoặc chuyển tuyến để võ sĩ theo dõi kế hoạch."
+                                    title={t("doctorViews.injury.noTreatments")}
+                                    description={t("doctorViews.injury.noTreatmentsBody")}
                                     className="border-t border-border"
                                 />
                             ) : (
@@ -178,9 +204,9 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
 
                         <Card>
                             <CardHeader
-                                title="Kế hoạch phục hồi"
+                                title={t("doctorViews.injury.plan")}
                                 icon={<RefreshCw />}
-                                description={recoveryPlan ? recoveryPlan.title : "Trở lại tập sau chấn thương này"}
+                                description={recoveryPlan ? recoveryPlan.title : t("doctorViews.injury.planSub")}
                                 action={
                                     recoveryPlan ? (
                                         <div className="flex items-center gap-2">
@@ -192,32 +218,32 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                             <CardContent>
                                 {recoveryPlan ? (
                                     <div className="flex flex-col gap-5">
-                                        <RecoveryProgress plan={recoveryPlan} now={now} />
+                                        <RecoveryProgress plan={recoveryPlan} now={now} locale={locale} />
                                         <Link
                                             href={routes.doctor.fighterRecoveryPlan(recoveryPlan.fighterId, recoveryPlan.id)}
                                             className="inline-flex w-fit items-center gap-1 rounded-md text-sm font-medium text-primary-soft-fg hover:underline"
                                         >
-                                            {serviceForms ? "Mở kế hoạch phục hồi — các mốc" : "Mở kế hoạch phục hồi — mốc và lần kiểm tra"}
+                                            {serviceForms ? t("doctorViews.injury.openPlanService") : t("doctorViews.injury.openPlanDemo")}
                                             <ArrowRight aria-hidden className="size-4" />
                                         </Link>
                                     </div>
                                 ) : injury.status === "resolved" ? (
                                     <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
-                                        Chấn thương này không có kế hoạch phục hồi.
+                                        {t("doctorViews.injury.noPlanResolved")}
                                     </p>
                                 ) : (
                                     <EmptyState
                                         compact
                                         icon={<RefreshCw />}
-                                        title="Chưa có kế hoạch phục hồi"
+                                        title={t("doctorViews.injury.noPlan")}
                                         description={
                                             serviceForms
-                                                ? `Lập kế hoạch trở lại của ${firstName} theo các mốc, mỗi mốc có tiêu chí đạt.`
-                                                : `Lập kế hoạch trở lại của ${firstName} theo giai đoạn và mốc, theo dõi đau, vận động, sức mạnh mỗi lần kiểm tra.`
+                                                ? t("doctorViews.injury.noPlanService", { name: firstName })
+                                                : t("doctorViews.injury.noPlanDemo", { name: firstName })
                                         }
                                         action={
                                             <ButtonLink href={clinicalLinks.newRecoveryPlanFor(injury.id, fighter.id)} size="sm">
-                                                Lập kế hoạch phục hồi
+                                                {t("doctorViews.injury.createPlan")}
                                             </ButtonLink>
                                         }
                                     />
@@ -226,26 +252,26 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                         </Card>
                     </div>
 
-                    <aside aria-label="Vị trí, giấy phép và quan sát AI" className="flex min-w-0 flex-col gap-6">
+                    <aside aria-label={t("doctorViews.injury.asideLabel")} className="flex min-w-0 flex-col gap-6">
                         <Card>
-                            <CardHeader title="Vị trí" icon={<MapPin />} />
+                            <CardHeader title={t("doctorViews.injuries.colPlace")} icon={<MapPin />} />
                             <CardContent>
-                                <RegionModel targets={[{ joint: injury.joint, region: injury.bodyRegion }]} label={`${INJURY_SEVERITY_LABELS[injury.severity]} · ${INJURY_STATUS_LABELS[injury.status].toLowerCase()}`} status={injury.status === "active" ? "ACTIVE" : injury.status === "recovering" ? "RECOVERING" : "RESOLVED"} height={380} />
+                                <RegionModel targets={[{ joint: injury.joint, region: injury.bodyRegion }]} label={`${t(`injurySeverity.${injury.severity}`)} · ${t(STATUS_TEXT[injury.status]).toLowerCase()}`} status={injury.status === "active" ? "ACTIVE" : injury.status === "recovering" ? "RECOVERING" : "RESOLVED"} height={380} />
                             </CardContent>
                         </Card>
 
                         <Card>
-                            <CardHeader title="Giấy phép" icon={<ShieldCheck />} description="Cập nhật riêng với hồ sơ chấn thương" />
+                            <CardHeader title={t("doctorViews.exam.clearance")} icon={<ShieldCheck />} description={t("doctorViews.injury.clearanceSub")} />
                             <CardContent className="flex flex-col gap-3">
                                 <div className="flex flex-col items-start gap-1.5">
-                                    <ClearanceBadge state={clearanceNow} />
-                                    <ClearanceValidity clearance={clearance} state={clearanceNow} now={now} warningDays={settings.clearanceExpiryWarningDays} variant="inline" />
+                                    <ClearanceBadge state={clearanceNow} locale={enOnly(locale)} />
+                                    <ClearanceValidity clearance={clearance} state={clearanceNow} now={now} warningDays={settings.clearanceExpiryWarningDays} variant="inline" locale={locale} />
                                 </div>
                                 {clearance && clearance.restrictions.length > 0 && clearanceNow === "restricted" && (
-                                    <RestrictionSummary restrictions={clearance.restrictions} />
+                                    <RestrictionSummary restrictions={clearance.restrictions} locale={locale} />
                                 )}
                                 <ButtonLink href={clinicalLinks.grantClearanceFor(fighter.id)} variant="secondary" size="sm" className="w-fit">
-                                    Cập nhật giấy phép
+                                    {t("doctorViews.exam.updateClearance")}
                                 </ButtonLink>
                             </CardContent>
                         </Card>
@@ -254,9 +280,9 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                             <section aria-labelledby="linked-observation-heading" className="flex flex-col gap-3">
                                 <h2 id="linked-observation-heading" className="flex items-center gap-2 text-[15px] font-semibold text-fg">
                                     <Radar aria-hidden className="size-4 text-fg-muted" />
-                                    Quan sát AI liên kết
+                                    {t("doctorViews.injury.linkedAi")}
                                 </h2>
-                                <AINotice audience="doctor" compact />
+                                <AINotice audience="doctor" compact locale={enOnly(locale)} />
                                 <ObservationSummary
                                     alert={linkedAlert}
                                     source={linkedVideo ? { trainingType: linkedVideo.trainingType, uploadedAt: linkedVideo.uploadedAt } : null}
@@ -265,9 +291,9 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                             </section>
                         ) : (
                             <Card>
-                                <CardHeader title="Quan sát AI" icon={<Radar />} />
+                                <CardHeader title={t("doctorViews.injury.ai")} icon={<Radar />} />
                                 <CardContent>
-                                    <p className="text-sm text-fg-muted">Chưa có quan sát AI nào liên kết với chấn thương này.</p>
+                                    <p className="text-sm text-fg-muted">{t("doctorViews.injury.noAi")}</p>
                                 </CardContent>
                             </Card>
                         )}
@@ -278,40 +304,41 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
     );
 }
 
-function detailItems(injury: Injury, now: string, recordedByName: string | null): DescriptionItem[] {
+function detailItems(t: Translator, locale: Locale, injury: Injury, now: string, recordedByName: string | null): DescriptionItem[] {
     // The medical service keeps no diagnosis date, mechanism or expected return, so its records skip those rows.
     const serviceRecord = injury.joint !== undefined;
-    const items: DescriptionItem[] = [{ label: "Xảy ra", value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt)}</time> }];
+    const notRecorded = t("doctorViews.injury.notRecorded");
+    const items: DescriptionItem[] = [{ label: t("doctorViews.injury.occurred"), value: <time dateTime={injury.occurredAt}>{formatDateTime(injury.occurredAt, locale)}</time> }];
     if (!serviceRecord) {
         items.push(
-            { label: "Chẩn đoán", value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt)}</time> : NOT_RECORDED },
-            { label: "Cơ chế", value: labelOf(INJURY_MECHANISM_LABELS, injury.mechanism) ?? NOT_RECORDED },
+            { label: t("doctorViews.injury.diagnosed"), value: injury.diagnosedAt ? <time dateTime={injury.diagnosedAt}>{formatDate(injury.diagnosedAt, locale)}</time> : notRecorded },
+            { label: t("doctorViews.injury.mechanism"), value: injury.mechanism ? t(MECHANISM_TEXT[injury.mechanism]) : notRecorded },
         );
     }
 
     if (injury.resolvedAt) {
-        items.push({ label: "Đã khỏi", value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt)}</time> });
-        items.push({ label: "Thời gian khỏi", value: `${Math.max(0, daysBetween(injury.occurredAt, injury.resolvedAt))} ngày` });
+        items.push({ label: t("doctorViews.injury.status.resolved"), value: <time dateTime={injury.resolvedAt}>{formatDate(injury.resolvedAt, locale)}</time> });
+        items.push({ label: t("doctorViews.injury.timeToResolve"), value: plural(t, "doctorViews.injury.days", Math.max(0, daysBetween(injury.occurredAt, injury.resolvedAt))) });
     } else if (serviceRecord) {
         // No expected return in the service's record; the recovery plan carries it.
     } else if (injury.expectedReturnAt) {
         const days = daysBetween(now, injury.expectedReturnAt);
         items.push({
-            label: "Dự kiến trở lại",
+            label: t("doctorViews.injury.expectedReturn"),
             value: (
                 <span className="flex flex-col gap-0.5">
-                    <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt)}</time>
+                    <time dateTime={injury.expectedReturnAt}>{formatDate(injury.expectedReturnAt, locale)}</time>
                     <span className={days < 0 ? "text-[13px] font-medium text-warning-fg" : "text-[13px] font-normal text-fg-muted"}>
-                        {days < 0 ? `Đã quá mục tiêu ${describeDaysUntil(days)}` : days === 0 ? "Hôm nay" : `Còn ${days} ngày`}
+                        {days < 0 ? t("doctorViews.injury.overdue", { ago: daysUntil(t, days) }) : days === 0 ? t("doctorViews.injury.today") : plural(t, "doctorViews.injury.daysLeft", days)}
                     </span>
                 </span>
             ),
         });
     } else {
-        items.push({ label: "Dự kiến trở lại", value: <span className="font-normal text-fg-muted">Cần đánh giá</span> });
+        items.push({ label: t("doctorViews.injury.expectedReturn"), value: <span className="font-normal text-fg-muted">{t("doctorViews.injury.needsReview")}</span> });
     }
 
-    if (!injury.resolvedAt) items.push({ label: "Số ngày từ khi chấn thương", value: `${Math.max(0, daysBetween(injury.occurredAt, now))} ngày` });
-    if (recordedByName) items.push({ label: "Người ghi", value: recordedByName });
+    if (!injury.resolvedAt) items.push({ label: t("doctorViews.injury.daysSince"), value: plural(t, "doctorViews.injury.days", Math.max(0, daysBetween(injury.occurredAt, now))) });
+    if (recordedByName) items.push({ label: t("doctorViews.injury.recordedBy"), value: recordedByName });
     return items;
 }

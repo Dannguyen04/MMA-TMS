@@ -1,17 +1,19 @@
+"use client";
+
 import { Bandage, UserCheck } from "lucide-react";
 import Link from "next/link";
 
 import { ConfidenceMeter } from "@/components/domain/confidence-meter";
 import { FighterIdentity, type FighterIdentityData } from "@/components/domain/fighter-identity";
 import { AIGeneratedBadge, AlertStatusBadge } from "@/components/domain/status-badges";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
-import { BODY_REGION_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
 import type { AbnormalMovementAlert } from "@/lib/domain/types";
 import { formatDate, formatRelative } from "@/lib/format";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 import { DOCTOR_DECISION_META } from "./clinical-badges";
-import { describeMetricComparison } from "./clinical-copy";
+import { describeMetricComparison, regionText, trainingTypeText } from "./clinical-copy";
 import type { ObservationSource } from "./observation-summary";
 
 export interface ObservationCardProps {
@@ -24,6 +26,8 @@ export interface ObservationCardProps {
 
 /** One AI movement observation in the review list. The whole card opens the observation. */
 export function ObservationCard({ alert, fighter, source, now, className }: ObservationCardProps) {
+    const t = useT();
+    const locale = useLocale();
     const review = alert.doctorReview;
     const decision = review ? DOCTOR_DECISION_META[review.decision] : null;
 
@@ -38,13 +42,13 @@ export function ObservationCard({ alert, fighter, source, now, className }: Obse
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <FighterIdentity fighter={fighter} size="sm" />
                 <div className="flex flex-wrap items-center gap-1.5">
-                    <AIGeneratedBadge size="sm" label="Quan sát AI" />
+                    <AIGeneratedBadge size="sm" label={t("doctorClinical.common.aiObservation")} />
                     <AlertStatusBadge status={alert.status} size="sm" />
                 </div>
             </div>
 
             <div className="min-w-0">
-                <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{BODY_REGION_LABELS[alert.bodyRegion]}</p>
+                <p className="text-xs font-semibold tracking-wide text-fg-subtle uppercase">{regionText(t, alert.bodyRegion)}</p>
                 <h3 className="mt-0.5 text-[15px] leading-snug font-semibold text-pretty text-fg">
                     <Link
                         href={routes.doctor.aiAlert(alert.id)}
@@ -58,33 +62,33 @@ export function ObservationCard({ alert, fighter, source, now, className }: Obse
             <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-[13px] md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
                 <div className="min-w-0">
                     <dt className="text-fg-muted">{alert.metric.label}</dt>
-                    <dd className="mt-0.5 font-semibold text-fg">{describeMetricComparison(alert.metric)}</dd>
+                    <dd className="mt-0.5 font-semibold text-fg">{describeMetricComparison(alert.metric, t)}</dd>
                 </div>
                 <div className="min-w-0">
-                    <dt className="text-fg-muted">Độ tin cậy AI</dt>
+                    <dt className="text-fg-muted">{t("doctorClinical.observation.confidence")}</dt>
                     <dd className="mt-1">
-                        <ConfidenceMeter confidence={alert.confidence} label={`Độ tin cậy AI của quan sát này`} />
+                        <ConfidenceMeter confidence={alert.confidence} label={t("doctorClinical.observation.confidenceLabel")} locale={locale} />
                     </dd>
                 </div>
             </dl>
 
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-border pt-3 text-[13px] text-fg-muted">
                 <span>
-                    Phát hiện <time dateTime={alert.detectedAt}>{formatRelative(alert.detectedAt, now, "vi")}</time>
+                    {t("doctorClinical.common.detected")} <time dateTime={alert.detectedAt}>{formatRelative(alert.detectedAt, now, locale)}</time>
                 </span>
                 <span>
                     {source ? (
                         <>
-                            {TRAINING_TYPE_LABELS[source.trainingType]} Video ·{" "}
-                            <time dateTime={source.uploadedAt}>{formatDate(source.uploadedAt)}</time>
+                            {t("doctorClinical.observation.sourceVideo", { type: trainingTypeText(t, source.trainingType) })} ·{" "}
+                            <time dateTime={source.uploadedAt}>{formatDate(source.uploadedAt, locale)}</time>
                         </>
                     ) : (
-                        "Video không còn khả dụng"
+                        t("doctorClinical.observation.videoUnavailable")
                     )}
                 </span>
                 {alert.linkedInjuryId && (
                     <Badge tone="neutral" size="sm" icon={Bandage}>
-                        Đã liên kết hồ sơ chấn thương
+                        {t("doctorClinical.observation.linked")}
                     </Badge>
                 )}
             </div>
@@ -93,10 +97,11 @@ export function ObservationCard({ alert, fighter, source, now, className }: Obse
                 <p className="flex min-w-0 items-start gap-2 rounded-lg bg-surface-muted px-3 py-2 text-[13px]">
                     <UserCheck aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-muted" />
                     <span className="min-w-0">
-                        <span className="font-medium text-fg">{decision.label}</span>
+                        <span className="font-medium text-fg">{t(decision.label)}</span>
                         <span className="text-fg-muted">
                             {" "}
-                            bởi {review.reviewerName} · <time dateTime={review.reviewedAt}>{formatDate(review.reviewedAt)}</time>
+                            {t("doctorClinical.observation.by", { name: review.reviewerName })} ·{" "}
+                            <time dateTime={review.reviewedAt}>{formatDate(review.reviewedAt, locale)}</time>
                         </span>
                         <span className="mt-0.5 line-clamp-1 block text-fg-muted">{review.note}</span>
                     </span>

@@ -16,6 +16,7 @@ import { requireRole } from "@/lib/auth/session";
 import { BODY_REGION_LABELS, INJURY_STATUS_LABELS, injuryTypeName } from "@/lib/domain/labels";
 import { clearanceState, currentClearance } from "@/lib/domain/rules";
 import { dayKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getSettings } from "@/lib/services/admin";
@@ -86,7 +87,8 @@ export async function NewClearanceView(props: NewClearanceViewProps) {
     const preselected = fighters.find((fighter) => fighter.id === defaultFighterId);
     if (scopedId && !preselected) notFound();
 
-    const description = "Giấy phép mới thay thế giấy phép hiện tại ngay lập tức. Võ sĩ và huấn luyện viên sẽ được thông báo.";
+    const { t } = await getTranslator();
+    const description = t("doctorUi.newClearance.descriptionDemo");
     const form = (
         <GrantClearanceForm
             fighters={scopedId ? fighters.filter((fighter) => fighter.id === scopedId) : fighters}
@@ -103,7 +105,7 @@ export async function NewClearanceView(props: NewClearanceViewProps) {
 
     if (scopedId) {
         return (
-            <FormSection title="Cấp giấy phép" description={description}>
+            <FormSection title={t("doctorUi.action.newClearance")} description={description}>
                 {form}
             </FormSection>
         );
@@ -111,9 +113,9 @@ export async function NewClearanceView(props: NewClearanceViewProps) {
     return (
         <>
             <PageHeader
-                back={preselected ? { href: routes.doctor.fighter(preselected.id), label: preselected.name } : { href: routes.doctor.clearance, label: "Giấy phép" }}
-                eyebrow="Giấy phép"
-                title={preselected ? `Cập nhật giấy phép cho ${preselected.name}` : "Cấp giấy phép"}
+                back={preselected ? { href: routes.doctor.fighter(preselected.id), label: preselected.name } : { href: routes.doctor.clearance, label: t("doctorUi.tab.clearance") }}
+                eyebrow={t("doctorUi.tab.clearance")}
+                title={preselected ? t("doctorUi.newClearance.updateFor", { name: preselected.name }) : t("doctorUi.action.newClearance")}
                 description={description}
             />
             {form}
@@ -132,34 +134,34 @@ async function IssueClearance({ query, fighterId: scopedId }: NewClearanceViewPr
         : [];
     const justExamined = param(query.notice) === "examination-recorded";
     const fromExamination = Boolean(param(query.exam)) && positive.some((exam) => exam.id === param(query.exam));
-    const description =
-        "Kiểm tra phiếu khám rồi cấp giấy phép từ phiếu đó. Huấn luyện viên lên lịch tập theo giấy phép; võ sĩ và huấn luyện viên sẽ được thông báo.";
+    const { t } = await getTranslator();
+    const description = t("doctorUi.newClearance.description");
     const steps = fromExamination ? <ExamClearanceSteps current={2} /> : undefined;
     const newExamHref = (fighterId: string) => (scopedId ? routes.doctor.fighterNewExamination(fighterId) : hrefWith(routes.doctor.newExamination, {}, { fighter: fighterId }));
 
     const body = (
         <div className="flex flex-col gap-6">
             {fighter && justExamined && (
-                <Callout tone="success" icon={CircleCheck} role="status" title="Đã ghi phiếu khám">
-                    Đã lưu. Hãy kiểm tra bên dưới rồi cấp giấy phép để {fighter.name} có thể tập theo quyết định của bạn.
+                <Callout tone="success" icon={CircleCheck} role="status" title={t("doctorUi.newClearance.examRecorded")}>
+                    {t("doctorUi.newClearance.examRecordedBody", { name: fighter.name })}
                 </Callout>
             )}
             {!fighter || !dossier ? (
                 <FighterChooser
                     fighters={fighters}
                     hrefFor={(fighterId) => hrefWith(routes.doctor.grantClearance, {}, { fighter: fighterId })}
-                    title="Cấp giấy phép cho võ sĩ nào?"
+                    title={t("doctorUi.newClearance.choose")}
                     unreadable={fighter}
                 />
             ) : positive.length === 0 ? (
                 <EmptyState
                     icon={<ShieldQuestion />}
-                    title="Chưa có phiếu khám để cấp"
-                    description={`Giấy phép được cấp từ phiếu khám hợp lệ của ${fighter.name}. Hãy ghi phiếu khám trước.`}
+                    title={t("doctorUi.newClearance.noExam")}
+                    description={t("doctorUi.newClearance.noExamBody", { name: fighter.name })}
                     action={
                         <ButtonLink href={newExamHref(fighter.id)}>
                             <ClipboardPlus aria-hidden />
-                            Phiếu khám mới
+                            {t("doctorUi.newExam.title")}
                         </ButtonLink>
                     }
                 />
@@ -182,7 +184,7 @@ async function IssueClearance({ query, fighterId: scopedId }: NewClearanceViewPr
 
     if (scopedId) {
         return (
-            <FormSection title="Cấp giấy phép" description={description} meta={steps}>
+            <FormSection title={t("doctorUi.action.newClearance")} description={description} meta={steps}>
                 {body}
             </FormSection>
         );
@@ -190,9 +192,9 @@ async function IssueClearance({ query, fighterId: scopedId }: NewClearanceViewPr
     return (
         <>
             <PageHeader
-                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.clearance, label: "Giấy phép" }}
-                eyebrow="Giấy phép"
-                title={fighter ? `Cấp giấy phép cho ${fighter.name}` : "Cấp giấy phép"}
+                back={fighter ? { href: routes.doctor.fighter(fighter.id), label: fighter.name } : { href: routes.doctor.clearance, label: t("doctorUi.tab.clearance") }}
+                eyebrow={t("doctorUi.tab.clearance")}
+                title={fighter ? t("doctorUi.newClearance.issueFor", { name: fighter.name }) : t("doctorUi.action.newClearance")}
                 description={description}
                 meta={steps}
             />

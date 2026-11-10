@@ -4,6 +4,7 @@ import { History, NotebookPen } from "lucide-react";
 import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/form";
@@ -25,31 +26,32 @@ export interface CheckInDialogProps {
 }
 
 const PAIN_ANCHORS = [
-    { value: 0, label: "Không đau" },
-    { value: 5, label: "Trung bình" },
-    { value: 10, label: "Đau tột độ" },
-];
+    { value: 0, label: "doctorClinical.pain.none" },
+    { value: 5, label: "doctorClinical.pain.moderate" },
+    { value: 10, label: "doctorClinical.pain.worst" },
+] as const;
 
 /** "Log check-in" button with a dialog: date, pain slider, mobility and strength, and a note. */
 export function CheckInDialog({ planId, fighterName, minDate, today, lastCheckIn }: CheckInDialogProps) {
     const [open, setOpen] = useState(false);
     const toast = useToast();
+    const t = useT();
 
     return (
         <>
             <Button onClick={() => setOpen(true)}>
                 <NotebookPen aria-hidden />
-                Ghi kiểm tra
+                {t("doctorClinical.checkIn.log")}
             </Button>
             <ActionDialog
                 open={open}
                 onClose={() => setOpen(false)}
-                title="Ghi kiểm tra phục hồi"
-                description={`Đáp ứng hôm nay của ${fighterName}. Mức đau do võ sĩ tự báo; vận động và sức mạnh so với bên lành.`}
+                title={t("doctorClinical.checkIn.title")}
+                description={t("doctorClinical.checkIn.description", { name: fighterName })}
                 action={addCheckInAction}
-                submitLabel="Ghi kiểm tra"
-                pendingLabel="Đang lưu…"
-                onSuccess={(state) => toast({ title: "Đã ghi kiểm tra", description: state.message })}
+                submitLabel={t("doctorClinical.checkIn.log")}
+                pendingLabel={t("doctorClinical.common.saving")}
+                onSuccess={(state) => toast({ title: t("doctorClinical.checkIn.logged"), description: state.message })}
             >
                 {(form) => <CheckInFields form={form} planId={planId} minDate={minDate} today={today} lastCheckIn={lastCheckIn} />}
             </ActionDialog>
@@ -60,6 +62,8 @@ export function CheckInDialog({ planId, fighterName, minDate, today, lastCheckIn
 function CheckInFields({ form, planId, minDate, today, lastCheckIn }: Omit<CheckInDialogProps, "fighterName"> & { form: ActionForm<undefined> }) {
     const [painLevel, setPainLevel] = useState(lastCheckIn?.painLevel ?? 0);
     const { control, error } = form;
+    const t = useT();
+    const locale = useLocale();
 
     const percentField = (name: "mobilityPct" | "strengthPct", label: string, hint: string) => (
         <Field label={label} htmlFor={control(name).id} error={error(name)} required hint={hint}>
@@ -81,38 +85,42 @@ function CheckInFields({ form, planId, minDate, today, lastCheckIn }: Omit<Check
             <input type="hidden" name="planId" value={planId} />
             {lastCheckIn && (
                 <InlineNote icon={History}>
-                    Lần kiểm tra gần nhất {formatDate(lastCheckIn.date)}: đau {lastCheckIn.painLevel}/10, mobility {lastCheckIn.mobilityPct}%, sức mạnh{" "}
-                    {lastCheckIn.strengthPct}%
+                    {t("doctorClinical.checkIn.last", {
+                        date: formatDate(lastCheckIn.date, locale),
+                        pain: lastCheckIn.painLevel,
+                        mobility: lastCheckIn.mobilityPct,
+                        strength: lastCheckIn.strengthPct,
+                    })}
                 </InlineNote>
             )}
 
-            <Field label="Ngày" htmlFor={control("date").id} error={error("date")} required>
+            <Field label={t("doctorClinical.common.date")} htmlFor={control("date").id} error={error("date")} required>
                 <Input {...control("date", { required: true })} type="date" defaultValue={today} min={minDate} max={today} className="sm:max-w-48" />
             </Field>
 
             <ScaleSlider
                 id={control("painLevel").id}
                 name="painLevel"
-                label="Đau"
+                label={t("doctorClinical.checkIn.pain")}
                 min={0}
                 max={10}
                 value={painLevel}
                 onChange={setPainLevel}
-                formatValue={(level) => `${level}/10 · ${painLabel(level)}`}
-                anchors={PAIN_ANCHORS}
+                formatValue={(level) => `${level}/10 · ${painLabel(level, undefined, t)}`}
+                anchors={PAIN_ANCHORS.map((anchor) => ({ value: anchor.value, label: t(anchor.label) }))}
                 showTicks
-                hint="Võ sĩ tự báo, từ 0 (không đau) đến 10 (đau tột độ)."
+                hint={t("doctorClinical.checkIn.painHint")}
                 error={error("painLevel")}
                 required
             />
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {percentField("mobilityPct", "Vận động", "Biên độ vận động so với bên lành, tính theo %")}
-                {percentField("strengthPct", "Sức mạnh", "Sức mạnh so với bên lành, tính theo %")}
+                {percentField("mobilityPct", t("doctorClinical.checkIn.mobility"), t("doctorClinical.checkIn.mobilityHint"))}
+                {percentField("strengthPct", t("doctorClinical.checkIn.strength"), t("doctorClinical.checkIn.strengthHint"))}
             </div>
 
-            <Field label="Ghi chú" htmlFor={control("note").id} error={error("note")} optional>
-                <Textarea {...control("note")} rows={3} maxLength={500} placeholder="Đã làm gì, cảm giác thế nào, có gì thay đổi" />
+            <Field label={t("doctorClinical.common.notes")} htmlFor={control("note").id} error={error("note")} optional>
+                <Textarea {...control("note")} rows={3} maxLength={500} placeholder={t("doctorClinical.checkIn.notePlaceholder")} />
             </Field>
         </>
     );

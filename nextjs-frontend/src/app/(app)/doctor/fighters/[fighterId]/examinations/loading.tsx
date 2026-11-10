@@ -1,9 +1,11 @@
 import { FilterSk, SecHeadSk, Skel, TableSk } from "@/components/doctor/skeletons";
+import { getTranslator } from "@/lib/i18n/server";
 
 /** Shown under the profile header and tabs (which stay) while this section loads. */
-export default function Loading() {
+export default async function Loading() {
+    const { t } = await getTranslator();
     return (
-        <Skel label="Đang tải phiếu khám">
+        <Skel label={t("doctorPages.loading.examinations")}>
             <SecHeadSk />
             <FilterSk n={3} />
             <TableSk rows={5} cols={6} />

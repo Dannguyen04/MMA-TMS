@@ -3,6 +3,7 @@
 import { CircleCheck, CircleX, Flag, Plus } from "lucide-react";
 import { useOptimistic, useState, useTransition } from "react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
@@ -14,6 +15,7 @@ import { addPlanMilestoneAction, closeRecoveryPlanAction, setPlanMilestoneAction
 import { MEDICAL_TEXT_LIMITS, RECOVERY_MILESTONES_MAX, type RecoveryMilestone } from "@/lib/domain/medical-contract";
 import { milestoneProgressPct } from "@/lib/domain/medical-mappings";
 import { formatDate } from "@/lib/format";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 export interface MilestoneTrackerProps {
@@ -29,6 +31,8 @@ export interface MilestoneTrackerProps {
 /** A milestone plan's checklist: tick milestones off as they're reached, or add one at the end. */
 export function MilestoneTracker({ fighterId, planId, milestones, editable, startDate }: MilestoneTrackerProps) {
     const toast = useToast();
+    const t = useT();
+    const locale = useLocale();
     const [adding, setAdding] = useState(false);
     const [, startTransition] = useTransition();
     const [shown, setOptimistic] = useOptimistic(milestones, (current, change: { id: string; done: boolean }) =>
@@ -40,16 +44,19 @@ export function MilestoneTracker({ fighterId, planId, milestones, editable, star
         startTransition(async () => {
             setOptimistic({ id: milestone.id, done });
             const result = await setPlanMilestoneAction({ fighterId, planId, milestoneId: milestone.id, done });
-            if (result.status === "error") toast({ tone: "error", title: "Chưa cập nhật được mốc", description: result.message });
+            if (result.status === "error") toast({ tone: "error", title: t("doctorClinical.milestoneTracker.updateFailed"), description: result.message });
         });
 
     return (
         <div className="flex flex-col gap-4">
             {shown.length > 0 && (
-                <ProgressBar value={milestoneProgressPct(shown)} label="Mốc đã đạt" showLabel valueText={`${reached}/${shown.length}`} tone={reached === shown.length ? "success" : "primary"} />
+                <ProgressBar value={milestoneProgressPct(shown)} label={t("doctorClinical.milestoneTracker.reached")} showLabel valueText={`${reached}/${shown.length}`} tone={reached === shown.length ? "success" : "primary"} />
             )}
             {shown.length === 0 ? (
-                <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">Chưa có mốc.{editable ? "Thêm mốc đầu tiên." : ""}</p>
+                <p className="rounded-lg bg-surface-muted px-4 py-3 text-sm text-fg-muted">
+                    {t("doctorClinical.milestoneTracker.empty")}
+                    {editable ? t("doctorClinical.milestoneTracker.addFirst") : ""}
+                </p>
             ) : (
                 <ol className="flex flex-col divide-y divide-border rounded-lg ring-1 ring-border ring-inset">
                     {shown.map((milestone, index) => (
@@ -71,10 +78,10 @@ export function MilestoneTracker({ fighterId, planId, milestones, editable, star
                                     {milestone.targetDate && (
                                         <span className="inline-flex items-center gap-1">
                                             <Flag aria-hidden className="size-3" />
-                                            Mục tiêu {formatDate(milestone.targetDate)}
+                                            {t("doctorClinical.milestoneTracker.target", { date: formatDate(milestone.targetDate, locale) })}
                                         </span>
                                     )}
-                                    {milestone.completedAt && <span>Đã đạt {formatDate(milestone.completedAt)}</span>}
+                                    {milestone.completedAt && <span>{t("doctorClinical.milestoneTracker.reachedOn", { date: formatDate(milestone.completedAt, locale) })}</span>}
                                 </span>
                                 {milestone.notes && <span className="mt-1 block text-[13px] text-fg-muted italic">{milestone.notes}</span>}
                             </label>
@@ -86,32 +93,32 @@ export function MilestoneTracker({ fighterId, planId, milestones, editable, star
                 <>
                     <Button variant="secondary" size="sm" className="self-start" disabled={shown.length >= RECOVERY_MILESTONES_MAX} onClick={() => setAdding(true)}>
                         <Plus aria-hidden />
-                        Thêm mốc
+                        {t("doctorClinical.common.addMilestone")}
                     </Button>
                     <ActionDialog
                         open={adding}
                         onClose={() => setAdding(false)}
-                        title="Thêm mốc"
-                        description="Mốc được thêm vào cuối kế hoạch. Võ sĩ thấy trên trang Sức khỏe."
+                        title={t("doctorClinical.common.addMilestone")}
+                        description={t("doctorClinical.milestoneTracker.addDescription")}
                         action={addPlanMilestoneAction}
-                        submitLabel="Thêm mốc"
-                        pendingLabel="Đang thêm…"
-                        onSuccess={(state) => toast({ title: "Đã thêm mốc", description: state.message })}
+                        submitLabel={t("doctorClinical.common.addMilestone")}
+                        pendingLabel={t("doctorClinical.common.adding")}
+                        onSuccess={(state) => toast({ title: t("doctorClinical.milestoneTracker.added"), description: state.message })}
                     >
                         {(form) => (
                             <div className="flex flex-col gap-4">
                                 <input type="hidden" name="fighterId" value={fighterId} />
                                 <input type="hidden" name="planId" value={planId} />
-                                <Field label="Mốc" htmlFor={form.control("title").id} error={form.error("title")} required>
+                                <Field label={t("doctorClinical.common.milestone")} htmlFor={form.control("title").id} error={form.error("title")} required>
                                     <Input {...form.control("title", { required: true })} maxLength={MEDICAL_TEXT_LIMITS.planTitle} />
                                 </Field>
-                                <Field label="Tiêu chí đạt" htmlFor={form.control("criteria").id} error={form.error("criteria")} required>
+                                <Field label={t("doctorClinical.common.criteria")} htmlFor={form.control("criteria").id} error={form.error("criteria")} required>
                                     <Textarea {...form.control("criteria", { required: true })} rows={2} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
                                 </Field>
-                                <Field label="Ngày mục tiêu" htmlFor={form.control("targetDate").id} error={form.error("targetDate")} optional>
+                                <Field label={t("doctorClinical.common.targetDate")} htmlFor={form.control("targetDate").id} error={form.error("targetDate")} optional>
                                     <Input {...form.control("targetDate")} type="date" min={startDate} className="sm:w-56" />
                                 </Field>
-                                <Field label="Ghi chú" htmlFor={form.control("notes").id} error={form.error("notes")} optional>
+                                <Field label={t("doctorClinical.common.notes")} htmlFor={form.control("notes").id} error={form.error("notes")} optional>
                                     <Textarea {...form.control("notes")} rows={2} maxLength={MEDICAL_TEXT_LIMITS.clinicalText} />
                                 </Field>
                             </div>
@@ -125,9 +132,10 @@ export function MilestoneTracker({ fighterId, planId, milestones, editable, star
 
 /** A plan saved in an older format: shown as stored, never rewritten. */
 export function LegacyMilestones({ items }: { items: readonly unknown[] }) {
+    const t = useT();
     return (
         <div className="flex flex-col gap-2">
-            <p className="text-[13px] text-fg-muted">Các mốc này được lưu theo định dạng cũ và hiển thị nguyên trạng. Không thể đánh dấu tại đây.</p>
+            <p className="text-[13px] text-fg-muted">{t("doctorClinical.milestoneTracker.legacy")}</p>
             <ul className="flex list-disc flex-col gap-1 pl-5 text-sm text-fg">
                 {items.map((item, index) => (
                     <li key={index}>{typeof item === "string" ? item : typeof item === "object" && item && "title" in item ? String((item as { title: unknown }).title) : JSON.stringify(item)}</li>
@@ -139,24 +147,25 @@ export function LegacyMilestones({ items }: { items: readonly unknown[] }) {
 
 type Closing = "COMPLETED" | "CANCELLED";
 
-const CLOSE_COPY: Record<Closing, { title: string; description: string; confirmLabel: string }> = {
+const CLOSE_COPY: Record<Closing, { title: MessageKey; description: MessageKey; confirmLabel: MessageKey }> = {
     COMPLETED: {
-        title: "Hoàn tất kế hoạch phục hồi này?",
-        description: "Kế hoạch sẽ đóng và không mở lại được. Hoàn tất không làm chấn thương khỏi hay cấp phép cho võ sĩ — hãy xem lại các mục đó tiếp theo.",
-        confirmLabel: "Hoàn tất kế hoạch",
+        title: "doctorClinical.common.completePlanQuestion",
+        description: "doctorClinical.planClose.completeDescription",
+        confirmLabel: "doctorClinical.common.completePlan",
     },
     CANCELLED: {
-        title: "Hủy kế hoạch phục hồi này?",
-        description: "Kế hoạch sẽ đóng và không mở lại được. Tạo kế hoạch mới nếu võ sĩ vẫn cần.",
-        confirmLabel: "Hủy kế hoạch",
+        title: "doctorClinical.planClose.cancelTitle",
+        description: "doctorClinical.planClose.cancelDescription",
+        confirmLabel: "doctorClinical.planClose.cancel",
     },
 };
 
 /** Completes or cancels an active milestone plan, each behind a confirmation. */
 export function PlanCloseActions({ fighterId, planId }: { fighterId: string; planId: string }) {
     const toast = useToast();
+    const t = useT();
     const close = useConfirmAction((status: Closing) => closeRecoveryPlanAction({ fighterId, planId, status }), {
-        onSuccess: (state) => toast({ title: "Đã đóng kế hoạch phục hồi", description: state.message }),
+        onSuccess: (state) => toast({ title: t("doctorClinical.planClose.closed"), description: state.message }),
     });
     const copy = close.payload ? CLOSE_COPY[close.payload] : null;
 
@@ -164,17 +173,17 @@ export function PlanCloseActions({ fighterId, planId }: { fighterId: string; pla
         <>
             <Button variant="ghost" onClick={() => close.request("CANCELLED")}>
                 <CircleX aria-hidden />
-                Hủy kế hoạch
+                {t("doctorClinical.planClose.cancel")}
             </Button>
             <Button variant="secondary" onClick={() => close.request("COMPLETED")}>
                 <CircleCheck aria-hidden />
-                Hoàn tất kế hoạch
+                {t("doctorClinical.common.completePlan")}
             </Button>
             <ConfirmDialog
                 {...close.dialogProps}
-                title={copy?.title ?? ""}
-                description={copy?.description ?? ""}
-                confirmLabel={copy?.confirmLabel ?? ""}
+                title={copy ? t(copy.title) : ""}
+                description={copy ? t(copy.description) : ""}
+                confirmLabel={copy ? t(copy.confirmLabel) : ""}
                 tone={close.payload === "CANCELLED" ? "danger" : "primary"}
             />
         </>
