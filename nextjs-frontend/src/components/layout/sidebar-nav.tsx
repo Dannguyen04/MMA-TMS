@@ -7,7 +7,7 @@ import type { Role } from "@/lib/domain/types";
 import { useT } from "@/components/i18n/locale-provider";
 import { navLabel } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
-import { BADGE_LABELS, NAVIGATION, isNavItemActive, type NavBadgeKey, type NavItem, type NavSection } from "./navigation";
+import { BADGE_LABELS, URGENT_BADGES, isNavItemActive, navSectionsFor, type NavBadgeKey, type NavItem, type NavSection } from "./navigation";
 
 export type NavCounts = Partial<Record<NavBadgeKey, number>>;
 
@@ -35,7 +35,7 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
                 <span
                     className={cn(
                         "ml-auto min-w-5 rounded-full px-1.5 text-center font-sans text-[11px] leading-5 font-semibold tabular-nums",
-                        item.badge === "failedJobs" ? "bg-danger-solid text-white" : "bg-primary-soft text-primary-soft-fg",
+                        item.badge && URGENT_BADGES.includes(item.badge) ? "bg-danger-solid text-white" : "bg-primary-soft text-primary-soft-fg",
                     )}
                 >
                     {count}
@@ -50,8 +50,8 @@ function NavLink({ item, counts, onNavigate }: { item: NavItem; counts: NavCount
  * Icons are components and can't cross the server boundary, so the nav config is read here by role.
  * Notifications, profile and preferences live in the header (bell and account menu), not here.
  */
-export function SidebarNav({ role, counts, onNavigate }: { role: Role; counts: NavCounts; onNavigate?: () => void }) {
-    const sections: NavSection[] = NAVIGATION[role];
+export function SidebarNav({ role, counts, hidden, onNavigate }: { role: Role; counts: NavCounts; hidden?: readonly string[]; onNavigate?: () => void }) {
+    const sections: NavSection[] = navSectionsFor(role, hidden);
     const t = useT();
     return (
         <nav aria-label={t("shell.mainNav")} className="flex flex-1 flex-col gap-5">

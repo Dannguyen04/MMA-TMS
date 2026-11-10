@@ -35,8 +35,8 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
   const paint = useMemo(() => paintExcluded(paintRegions(rows), excludedJoints), [rows, excludedJoints]);
   const [mode, setMode] = useState<"pending" | "3d" | "fallback">("pending");
   const [ready, setReady] = useState(false);
-  const [bg, setBg] = useState("");
-  const [light, setLight] = useState(true);
+  const [bg, setBg] = useState("#0a1230");
+  const [light, setLight] = useState(false);
   const frame = useRef<HTMLDivElement>(null);
   const view = useRef<ViewState>({ angle: 0, target: 0 });
   const drag = useRef<number | null>(null);
@@ -44,26 +44,26 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
   useEffect(() => {
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     setMode(reduced || !hasWebGL() ? "fallback" : "3d");
-    const read = () => {
-      const root = document.documentElement;
-      const theme = root.getAttribute("data-theme");
-      const systemDark = matchMedia("(prefers-color-scheme: dark)").matches;
-      const dark = theme === "dark" || (theme !== "light" && systemDark);
-      const surface = getComputedStyle(root).getPropertyValue("--surface-muted").trim();
-      setBg(surface || (dark ? "#18263f" : "#f2f4f8"));
-      setLight(!dark);
-    };
-    read();
-    const theme = document.documentElement;
-    const observer = new MutationObserver(read);
-    observer.observe(theme, { attributes: true, attributeFilter: ["data-theme"] });
-    const scheme = matchMedia("(prefers-color-scheme: dark)");
-    scheme.addEventListener("change", read);
-    return () => {
-      observer.disconnect();
-      scheme.removeEventListener("change", read);
-    };
   }, []);
+  // The frame's colour decides the look (dark hologram or light outline); measured again whenever the theme changes.
+  useEffect(() => {
+    const measure = () => {
+      if (!frame.current) return;
+      const c = getComputedStyle(frame.current).backgroundColor;
+      setBg(c);
+      const n = c.match(/\d+(\.\d+)?/g)?.map(Number) ?? [0, 0, 0];
+      setLight(0.2126 * n[0] + 0.7152 * n[1] + 0.0722 * n[2] > 140);
+    };
+    measure();
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const theme = new MutationObserver(() => requestAnimationFrame(measure));
+    theme.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
+    media.addEventListener("change", measure);
+    return () => {
+      theme.disconnect();
+      media.removeEventListener("change", measure);
+    };
+  }, [mode]);
   useEffect(() => {
     if (mode !== "3d" || ready) return;
     const t = setTimeout(() => setMode("fallback"), LOAD_TIMEOUT_MS);

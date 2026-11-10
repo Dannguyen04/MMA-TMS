@@ -6,7 +6,7 @@ import { useEffect, useRef, useState, useTransition, type FormEvent } from "reac
 
 import { IntensityLadder } from "@/components/domain/intensity-ladder";
 import { SessionStatusBadge } from "@/components/domain/status-badges";
-import { TrainingTypeIcon } from "@/components/domain/training-type-icon";
+import { TrainingTypeIcon, trainingTypeOf } from "@/components/domain/training-type-icon";
 import { useT } from "@/components/i18n/locale-provider";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
@@ -17,12 +17,11 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { createSuspensionAction } from "@/lib/actions/suspensions";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
-import { trainingPhaseLabel, trainingTypeLabel } from "@/lib/domain/labels";
+import { sessionTypeLabel, trainingPhaseLabel } from "@/lib/domain/labels";
 import { deriveRequiresClearance, endsOnFor, SUSPENSION_REASON_MESSAGE_KEYS } from "@/lib/domain/suspension-rules";
 import type {
     SuspensionCreation,
     SuspensionReason,
-    TrainingType,
 } from "@/lib/domain/types";
 import { formatShortDate, isDateKey } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
@@ -305,10 +304,7 @@ export function CreateSuspensionPanel({
                                                     <div className="flex min-w-0 items-center gap-3">
                                                         {session.type && (
                                                             <TrainingTypeIcon
-                                                                type={
-                                                                    (session.type.toLowerCase() as TrainingType) ||
-                                                                    "recovery_mobility"
-                                                                }
+                                                                type={trainingTypeOf(session.type)}
                                                                 locale={locale}
                                                                 className="size-4 shrink-0 text-fg-muted"
                                                             />
@@ -578,10 +574,7 @@ export function CreateSuspensionPanel({
                                 <div className="grid grid-cols-2 gap-2">
                                     {SESSION_TYPES.map((type: SessionType) => {
                                         const isChecked = customBlockedTypes.includes(type);
-                                        const label = trainingTypeLabel(
-                                            t,
-                                            type.toLowerCase() as TrainingType,
-                                        );
+                                        const label = sessionTypeLabel(t, type);
                                         const checkboxId = `blocked-type-${type}`;
                                         return (
                                             <label
@@ -613,7 +606,7 @@ export function CreateSuspensionPanel({
                                                     className="size-4 rounded border-control-border text-primary focus:ring-primary"
                                                 />
                                                 <TrainingTypeIcon
-                                                    type={type.toLowerCase() as TrainingType}
+                                                    type={trainingTypeOf(type)}
                                                     locale={locale}
                                                     className="size-3.5 shrink-0"
                                                 />

@@ -1,5 +1,12 @@
-import { ListSkeleton } from "@/components/doctor/ui";
+import { DetailSk, Skel } from "@/components/doctor/skeletons";
 
+/** Shown the moment the page is opened, in the page's own layout, until its data arrives. */
 export default function Loading() {
-    return <ListSkeleton label="Đang tải dữ liệu y tế" />;
+    return (
+        <div className="yt-page">
+            <Skel label="Đang tải quan sát AI">
+                <DetailSk />
+            </Skel>
+        </div>
+    );
 }

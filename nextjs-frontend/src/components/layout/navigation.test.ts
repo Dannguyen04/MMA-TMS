@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { routes } from "@/lib/routes";
-import { NAVIGATION, hubForPath, hubTabsFor, isNavItemActive, mobilePrimaryItems } from "./navigation";
+import { NAVIGATION, hubForPath, hubTabsFor, isNavItemActive, mobilePrimaryItems, navSectionsFor } from "./navigation";
 
 const labels = (role: Parameters<typeof mobilePrimaryItems>[0]) => mobilePrimaryItems(role).map((item) => item.label);
 
@@ -12,8 +12,6 @@ describe("hubForPath", () => {
         expect(hubForPath("fighter", routes.fighter.history)?.label).toBe("Training");
         expect(hubForPath("coach", routes.coach.sessions)?.label).toBe("Training");
         expect(hubForPath("coach", routes.coach.plans)?.label).toBe("Training");
-        expect(hubForPath("doctor", routes.doctor.injuries)?.label).toBe("Clinical");
-        expect(hubForPath("doctor", routes.doctor.clearance)?.label).toBe("Clinical");
     });
 
     it("keeps the hub for detail pages under a tab", () => {
@@ -23,8 +21,6 @@ describe("hubForPath", () => {
         expect(hubForPath("coach", routes.coach.bout("b-1"))?.label).toBe("Bouts");
         expect(hubForPath("coach", routes.coach.newBout)?.label).toBe("Bouts");
         expect(hubForPath("coach", routes.coach.session("s-1"))?.label).toBe("Training");
-        expect(hubForPath("doctor", routes.doctor.injury("inj-1"))?.label).toBe("Clinical");
-        expect(hubForPath("doctor", routes.doctor.grantClearance)?.label).toBe("Clinical");
     });
 
     it("returns nothing for single-page destinations and shared pages", () => {
@@ -33,6 +29,7 @@ describe("hubForPath", () => {
         expect(hubForPath("coach", routes.coach.videoAnalysis)).toBeNull();
         expect(hubForPath("coach", routes.coach.fighters)).toBeNull();
         expect(hubForPath("doctor", routes.doctor.fighters)).toBeNull();
+        expect(hubForPath("doctor", routes.doctor.injuries)).toBeNull();
         expect(hubForPath("fighter", routes.notifications)).toBeNull();
     });
 });
@@ -62,24 +59,12 @@ describe("hubTabsFor", () => {
                 { label: "Readiness", href: routes.coach.readiness },
             ],
         });
-        expect(hubTabsFor("doctor", routes.doctor.injuries)).toEqual({
-            label: "Clinical",
-            tabs: [
-                { label: "Examinations", href: routes.doctor.examinations },
-                { label: "Injuries", href: routes.doctor.injuries },
-                { label: "Recovery", href: routes.doctor.recovery },
-                { label: "Clearance", href: routes.doctor.clearance },
-                { label: "History", href: routes.doctor.history },
-            ],
-        });
     });
 
     it("hides them on detail pages, which keep their back link and own tabs", () => {
         expect(hubTabsFor("fighter", routes.fighter.plan("p-1"))).toBeNull();
         expect(hubTabsFor("coach", routes.coach.plan("p-1"))).toBeNull();
         expect(hubTabsFor("coach", routes.coach.bout("b-1"))).toBeNull();
-        expect(hubTabsFor("doctor", routes.doctor.injury("inj-1"))).toBeNull();
-        expect(hubTabsFor("doctor", routes.doctor.grantClearance)).toBeNull();
     });
 });
 
@@ -105,7 +90,7 @@ describe("mobilePrimaryItems", () => {
     it("lists every hub for roles built on hubs", () => {
         expect(labels("fighter")).toEqual(["Today", "Bout", "Training", "Film", "Health"]);
         expect(labels("coach")).toEqual(["Today", "Bouts", "Roster", "Training", "Film room", "Clearance"]);
-        expect(labels("doctor")).toEqual(["Today", "Roster", "Review requests", "Clinical"]);
+        expect(labels("doctor")).toEqual(["Today", "Fighters", "Review requests", "AI observations"]);
     });
 
     it("keeps the four admin hubs that stay open (admissions is frozen, T-001)", () => {
@@ -158,7 +143,6 @@ describe("acceptance criteria: frozen navigation removal", () => {
         routes.coach.performance,
         routes.coach.goals,
         routes.coach.admissions,
-        routes.doctor.records,
         routes.admin.admissions,
         routes.admin.aiModels,
     ];
@@ -201,11 +185,9 @@ describe("acceptance criteria: frozen navigation removal", () => {
             "Clearance",
         ]);
 
-        expect(NAVIGATION.doctor.flatMap((s) => s.items).map((i) => i.label)).toEqual([
-            "Today",
-            "Roster",
-            "Review requests",
-            "Clinical",
+        expect(NAVIGATION.doctor.map((s) => ({ label: s.label, items: s.items.map((i) => i.label) }))).toEqual([
+            { label: "Daily", items: ["Today", "Fighters", "Review requests", "AI observations"] },
+            { label: "Medical", items: ["Examinations", "Injuries", "Recovery plans", "Clearances", "Medical history", "Medical records"] },
         ]);
 
         // Admin is grouped into hubs since main's PR #22; Admissions and AI models stay out of them.
@@ -218,17 +200,6 @@ describe("acceptance criteria: frozen navigation removal", () => {
             { label: "System", tabs: ["Audit logs", "Broadcasts", "Settings"] },
         ]);
 
-        const clinical = NAVIGATION.doctor
-            .flatMap((s) => s.items)
-            .find((i) => i.label === "Clinical")!;
-        expect(clinical.href).toBe(routes.doctor.examinations);
-        expect(clinical.tabs?.map((tab) => tab.href)).toEqual([
-            routes.doctor.examinations,
-            routes.doctor.injuries,
-            routes.doctor.recovery,
-            routes.doctor.clearance,
-            routes.doctor.history,
-        ]);
     });
 
     it("criterion 3: no hub has exactly one tab", () => {
@@ -242,5 +213,18 @@ describe("acceptance criteria: frozen navigation removal", () => {
                 }
             }
         }
+    });
+});
+
+describe("doctor workspace in the shared shell", () => {
+    it("leaves out destinations the deployment hides, and drops an emptied section", () => {
+        const sections = navSectionsFor("doctor", [routes.doctor.records]);
+        expect(sections.flatMap((section) => section.items).map((item) => item.href)).not.toContain(routes.doctor.records);
+        expect(navSectionsFor("doctor")).toBe(NAVIGATION.doctor);
+    });
+
+    it("carries the triage counts on the daily pages", () => {
+        const badges = NAVIGATION.doctor.flatMap((section) => section.items).map((item) => item.badge).filter(Boolean);
+        expect(badges).toEqual(["blockedFighters", "openReviews", "newAlerts"]);
     });
 });

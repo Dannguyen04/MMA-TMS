@@ -752,7 +752,8 @@ describe("T-050 Phần B: Ca kiểm thử W1-W9", () => {
         });
         const html = renderToStaticMarkup(pageElement);
 
-        expect(html).toContain("Fighter One");
+        // The name now lives in the profile layout header; the page itself still renders its panels.
+        expect(html).toContain("Bản đồ cơ thể");
         expect(html).toContain("Không tải được danh sách đình chỉ");
     });
 });

@@ -1,6 +1,6 @@
 import type { AssessmentResult, ExaminationType, Vitals } from "@/lib/domain/types";
 import { assessVital, vitalAssessmentMessage, type VitalAssessment, type VitalKey } from "@/lib/domain/vitals";
-import type { Translator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate";
 
 /**
  * Assessment areas pre-filled for each examination type, with no result: the doctor marks each one. Doctors can rename,
@@ -75,6 +75,9 @@ const parse = (value: string): number | null => {
     return Number.isNaN(number) ? null : number;
 };
 
+const toCheck = (assessment: VitalAssessment | null): VitalCheck =>
+    assessment && { status: assessment.status, text: vitalAssessmentMessage(createTranslator("vi"), assessment) };
+
 const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
 
 /**
@@ -84,10 +87,7 @@ const HYDRATION_LEVELS: Vitals["hydration"][] = ["good", "fair", "poor"];
 export function checkVitals(
     values: Record<keyof Omit<Vitals, "hydration">, string> & { hydration: string },
     weightLimitKg: number | null,
-    t: Translator,
 ): Record<VitalKey, VitalCheck> {
-    const toCheck = (assessment: VitalAssessment | null): VitalCheck =>
-        assessment && { status: assessment.status, text: vitalAssessmentMessage(t, assessment) };
     const weight = parse(values.weightKg);
     const heartRate = parse(values.restingHeartRate);
     const systolic = parse(values.bloodPressureSystolic);
@@ -97,11 +97,57 @@ export function checkVitals(
     const hydration = HYDRATION_LEVELS.find((level) => level === values.hydration);
 
     return {
-        weightKg: weight === null ? null : (toCheck(assessVital("weightKg", weight, { weightLimitKg })) ?? { status: "normal", text: t("vitals.noWeightClassReference") }),
+        weightKg: weight === null ? null : (toCheck(assessVital("weightKg", weight, { weightLimitKg })) ?? { status: "normal", text: "Không có tham chiếu hạng cân" }),
         restingHeartRate: heartRate === null ? null : toCheck(assessVital("restingHeartRate", heartRate)),
         bloodPressure: systolic === null || diastolic === null ? null : toCheck(assessVital("bloodPressure", { systolic, diastolic })),
         temperatureC: temperature === null ? null : toCheck(assessVital("temperatureC", temperature)),
         spo2Pct: spo2 === null ? null : toCheck(assessVital("spo2Pct", spo2)),
         hydration: hydration ? toCheck(assessVital("hydration", hydration)) : null,
     };
+}
+
+/**
+ * When to see the fighter again, by examination type, as the form's starting follow-up date. The doctor can change or
+ * clear it; a pre-fight check has none, since the bout is what comes next.
+ */
+export const FOLLOW_UP_DEFAULT_DAYS: Record<ExaminationType, number | null> = {
+    baseline: 28,
+    routine: 28,
+    pre_fight: null,
+    post_injury: 7,
+    concussion_screen: 7,
+    return_to_play: 14,
+};
+
+/** The type a new examination starts on when no link chose one: a baseline for a fighter never examined, otherwise a routine check. */
+export function defaultExaminationType(hasPreviousExamination: boolean): ExaminationType {
+    return hasPreviousExamination ? "routine" : "baseline";
+}
+
+/** The previous examination's vitals as form text, for the placeholders and the "use previous readings" fill. */
+export function vitalsDraftFrom(vitals: Vitals | null | undefined): Record<keyof Vitals, string> | null {
+    if (!vitals) return null;
+    return {
+        weightKg: String(vitals.weightKg),
+        restingHeartRate: String(vitals.restingHeartRate),
+        bloodPressureSystolic: String(vitals.bloodPressureSystolic),
+        bloodPressureDiastolic: String(vitals.bloodPressureDiastolic),
+        temperatureC: String(vitals.temperatureC),
+        spo2Pct: String(vitals.spo2Pct),
+        hydration: vitals.hydration,
+    };
+}
+
+/** Fills only the blank readings from the previous examination; a reading already typed is never replaced. */
+export function fillBlankVitals<T extends Record<string, string>>(current: T, previous: Partial<Record<keyof T, string>>): { next: T; filled: (keyof T)[] } {
+    const filled: (keyof T)[] = [];
+    const next = { ...current };
+    for (const key of Object.keys(current) as (keyof T)[]) {
+        const value = previous[key];
+        if (current[key].trim() === "" && value) {
+            next[key] = value as T[keyof T];
+            filled.push(key);
+        }
+    }
+    return { next, filled };
 }

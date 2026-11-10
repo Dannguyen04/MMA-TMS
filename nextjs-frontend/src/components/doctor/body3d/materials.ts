@@ -22,15 +22,20 @@ export function makeBody(face: readonly number[], light: boolean): THREE.ShaderM
     uniforms: {
       uF: { value: new THREE.Vector4(face[0], face[1], face[2], face[3]) },
       uZc: { value: face[4] },
-      uTint: { value: light ? new THREE.Color(0.16, 0.34, 0.72) : new THREE.Color(0.55, 0.7, 0.88) },
-      uBase: { value: PAINT.bodyOpacity },
+      // Light: a near-transparent body drawn by its dark rim, like the dark-mode hologram but ink on paper.
+      uTint: { value: light ? new THREE.Color(0.16, 0.27, 0.46) : new THREE.Color(0.55, 0.7, 0.88) },
+      uBase: { value: light ? PAINT.bodyOpacityLight : PAINT.bodyOpacity },
+      uRim: { value: light ? 0.95 : 0.6 },
+      // A higher power keeps the light outline thin; the dark hologram keeps its wider glow.
+      uPow: { value: light ? 3.4 : 2.6 },
+      uLift: { value: light ? new THREE.Vector2(1, 0) : new THREE.Vector2(0.55, 1.7) },
     },
     vertexShader: `varying vec3 vN;varying vec3 vV;varying vec3 vW;
 void main(){vec3 wn=normalize(mat3(modelMatrix)*normal);vec4 w=modelMatrix*vec4(position,1.);vW=w.xyz;vec4 mv=viewMatrix*w;vV=-mv.xyz;vN=(viewMatrix*vec4(wn,0.)).xyz;gl_Position=projectionMatrix*mv;}`,
-    fragmentShader: `uniform vec4 uF;uniform float uZc;uniform vec3 uTint;uniform float uBase;varying vec3 vN;varying vec3 vV;varying vec3 vW;
-void main(){vec3 nn=normalize(vN);float f=pow(1.-clamp(abs(dot(nn,normalize(vV))),0.,1.),2.6);
+    fragmentShader: `uniform vec4 uF;uniform float uZc;uniform vec3 uTint;uniform float uBase;uniform float uRim;uniform float uPow;uniform vec2 uLift;varying vec3 vN;varying vec3 vV;varying vec3 vW;
+void main(){vec3 nn=normalize(vN);float f=pow(1.-clamp(abs(dot(nn,normalize(vV))),0.,1.),uPow);
 float inFace=(1.-smoothstep(uF.w*.85,uF.w,distance(vW,uF.xyz)))*smoothstep(uZc-.0015,uZc+.0015,vW.z);f*=1.-inFace;
-gl_FragColor=vec4(uTint*(.55+1.7*f),uBase+0.6*f);}`,
+gl_FragColor=vec4(uTint*(uLift.x+uLift.y*f),uBase+uRim*f);}`,
   });
 }
 

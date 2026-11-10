@@ -48,6 +48,8 @@ export const PAINT = {
   occluded: 0.2,
   spineEnd: 0.08,
   bodyOpacity: 0.18,
+  /** Light backgrounds: just enough fill to read the silhouette; the rim carries the shape. */
+  bodyOpacityLight: 0,
 } as const;
 
 export type PaintStatus = "injury" | "recovering" | "healed";

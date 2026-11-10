@@ -57,7 +57,7 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 id={`${idPrefix}-sessions`}
                 name="allowedSessionTypes"
                 switchName="limitSessions"
-                switchLabel="Limit the session types"
+                switchLabel="Giới hạn loại buổi tập"
                 switchDescription={sessionsLocked ? "Phiếu khám giới hạn loại buổi tập nên giấy phép cũng phải giới hạn." : "Tắt nghĩa là mọi loại buổi tập đều được phép."}
                 on={limitSessions}
                 locked={sessionsLocked}
@@ -72,7 +72,7 @@ export function RestrictionFields({ form, idPrefix, defaults, bound }: Restricti
                 id={`${idPrefix}-techniques`}
                 name="allowedTechniqueTypes"
                 switchName="limitTechniques"
-                switchLabel="Limit the techniques"
+                switchLabel="Giới hạn kỹ thuật"
                 switchDescription={techniquesLocked ? "Phiếu khám giới hạn kỹ thuật nên giấy phép cũng phải giới hạn." : "Tắt nghĩa là mọi kỹ thuật đều được phép."}
                 on={limitTechniques}
                 locked={techniquesLocked}

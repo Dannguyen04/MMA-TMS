@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react-hooks/immutability -- three.js camera/uniforms are mutated per frame; canvas colour is measured from the DOM once on mount */
 import { useFrame, useLoader, useThree } from "@react-three/fiber";
-import { useEffect, useLayoutEffect, useMemo, useRef, type RefObject } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
@@ -16,20 +16,7 @@ type Paint = Record<string, { color: string; R: number; core: number }>;
 /** Port của mobile body-scene.tsx: useGLTF(drei) → useLoader(GLTFLoader) + MeshoptDecoder; thêm nhịp đập vùng tô. */
 export function BodyScene({ paint, view, light, background, pulse, onReady }: { paint: Paint; view: RefObject<ViewState>; light: boolean; background: string; pulse: boolean; onReady: () => void }) {
   const gltf = useLoader(GLTFLoader, BODY_MODEL.url, (l) => { (l as GLTFLoader).setMeshoptDecoder(MeshoptDecoder); });
-  const { camera, gl, scene } = useThree();
-  const clear = useMemo(() => new THREE.Color("#f2f4f8"), []);
-  const painted = useRef("");
-  useLayoutEffect(() => {
-    painted.current = "";
-  }, [background, light]);
-  useFrame(() => {
-    const hex = background || (light ? "#f2f4f8" : "#18263f");
-    if (painted.current === hex) return;
-    painted.current = hex;
-    clear.set(hex);
-    scene.background = clear;
-    gl.setClearColor(clear, 1);
-  });
+  const { camera } = useThree();
   const meta = BODY_MODEL.meta;
 
   const built = useMemo(() => {
@@ -94,6 +81,7 @@ export function BodyScene({ paint, view, light, background, pulse, onReady }: { 
 
   return (
     <>
+      <color attach="background" args={[background]} />
       <primitive object={built.root} />
     </>
   );

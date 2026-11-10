@@ -10,7 +10,6 @@ import { EmptyState, FeatureUnavailable } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
-import { getTranslator } from "@/lib/i18n/server";
 import type { AlertStatus } from "@/lib/domain/types";
 import { hrefWith, paginate, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
@@ -20,10 +19,7 @@ import { listFighters } from "@/lib/services/people";
 import { listVideos } from "@/lib/services/videos";
 import { param } from "@/lib/utils";
 
-export async function generateMetadata(): Promise<Metadata> {
-    const { t } = await getTranslator();
-    return { title: t("doctor.alerts.title") };
-}
+export const metadata: Metadata = { title: "Quan sát AI" };
 
 const PATH = routes.doctor.aiAlerts;
 const PAGE_SIZE = 8;
@@ -56,12 +52,11 @@ const EMPTY_COPY: Record<AlertView, { title: string; description: string }> = {
 };
 
 export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/ai-alerts">) {
-    const { t } = await getTranslator();
     const user = await requireRole("doctor");
     if (!medicalFeatureAvailable("aiObservations")) {
         return (
             <>
-                <PageHeader title={t("doctor.alerts.title")} />
+                <PageHeader title="Quan sát AI" />
                 <FeatureUnavailable title="Quan sát AI chưa khả dụng" />
             </>
         );
@@ -86,7 +81,7 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
     return (
         <>
             <PageHeader
-                title={t("doctor.alerts.title")}
+                title="Quan sát AI"
                 description={`Mẫu chuyển động AI đánh dấu trong Video tập luyện, so với video trước của chính võ sĩ.${reviews ? " Xem từng quan sát và ghi quyết định lâm sàng." : ""}`}
             />
 

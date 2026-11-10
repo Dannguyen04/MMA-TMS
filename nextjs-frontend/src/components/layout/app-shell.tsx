@@ -23,10 +23,12 @@ export interface AppShellProps {
     /** Null when the notification service doesn't answer, which leaves the bell out. */
     notifications: NotificationBellData | null;
     now: string;
+    /** Destinations this deployment doesn't offer, left out of the navigation. */
+    hiddenNav?: readonly string[];
     children: ReactNode;
 }
 
-export function AppShell({ user, theme, locale, counts, notifications, now, children }: AppShellProps) {
+export function AppShell({ user, theme, locale, counts, notifications, now, hiddenNav, children }: AppShellProps) {
     const t = createTranslator(locale);
     const shellUser = { name: user.name, email: user.email, title: user.title, role: user.role };
 
@@ -46,13 +48,13 @@ export function AppShell({ user, theme, locale, counts, notifications, now, chil
                 </Link>
                 <p className="mb-5 px-2 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{t("shell.workspace", { role: t(`role.${user.role}`) })}</p>
                 <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto py-1 pr-1 pl-3">
-                    <SidebarNav role={user.role} counts={counts} />
+                    <SidebarNav role={user.role} counts={counts} hidden={hiddenNav} />
                 </div>
             </aside>
 
             <div className="lg:pl-64 print:pl-0">
                 <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-surface/90 px-3 backdrop-blur sm:px-5 print:hidden">
-                    <MobileNavDrawer role={user.role} counts={counts} />
+                    <MobileNavDrawer role={user.role} counts={counts} hidden={hiddenNav} />
                     <Link href={dashboardPath(user.role)} className="flex items-center gap-2 lg:hidden" aria-label={t("shell.home")}>
                         <LogoMark className="size-7" />
                         <span className="font-display text-[17px] font-extrabold tracking-[0.01em] italic max-sm:hidden">MMA-TMS</span>

@@ -82,3 +82,29 @@ Ngày 9/11, Supabase của team chưa có migration 033 (T-050), dù bảng tick
 
 - Không chạy `next build` khi `next dev` đang chạy trong cùng thư mục. Build xoá `.next`, server dev mất cache rồi crash (Turbopack panic, gặp ngày 9/11).
 - Demo mode dự phòng không cần backend: đặt `APP_DATA_MODE=demo` và `NEXT_PUBLIC_VIDEO_PIPELINE=mock`. `.env.local` hiện đặt pipeline `api`, nên khi backend tắt thì các màn video báo lỗi.
+
+## Gộp màn bác sĩ mới của Fon (10/11)
+
+`origin/feat/website-platform` ở `59d7661` (2 commit: `2727090`, `59d7661`, tạo từ `fight-camp` `1befea2`), gộp `--no-ff` theo yêu cầu của chủ dự án.
+
+Fon cũng đã bỏ khung riêng của bác sĩ: mọi vai, kể cả bác sĩ, dùng chung `AppShell`. Khung của chủ dự án vì thế được giữ nguyên.
+
+Cách giải 28 file xung đột:
+
+| Nhóm | Bên được giữ |
+| --- | --- |
+| `app/(app)/doctor/**`, `components/doctor/**`, 4 file `components/medical/examination-*` | Fon. Các trang chuyển sang `components/doctor/views/*`. Bản restyle `7578683` và phần màn hình của `681935a` bị thay |
+| `app/(app)/layout.tsx`, `navigation.ts`, `navigation.test.ts` | Fon: nav bác sĩ hai nhóm (Hằng ngày / Hồ sơ y tế), badge từ bảng phân loại, `hiddenNav` ẩn Bệnh án khi tính năng tắt |
+| `app-shell.tsx` | Khung của chủ dự án (giữ `print:`) cộng prop `hiddenNav` của Fon |
+| `en.ts`, `vi.ts` | Khoá nav của cả hai bên |
+
+Test bỏ, vì code chúng kiểm đã không còn: `doctor/status-cards.test.ts` (hàm tone của bản restyle), `doctor/body3d/materials.test.ts` (Fon đổi vật liệu thân 3D ở theme sáng), `doctor/examinations/t059-partial-read.test.ts`. Baseline `hardcoded-english` được làm mới, vì màn bác sĩ của Fon viết cứng tiếng Việt.
+
+Claude sửa sau khi gộp, chỉ trong `doctor.css`: 4 màn tràn ngang ở 390 px.
+- `.yt-page` có cột `minmax(0, 1fr)`.
+- `.yt-segs` cuộn ngang bên trong.
+- Bảng nằm thẳng trên trang không còn lấn lề.
+
+Việc còn mở, báo Fon:
+- **T-059 mất:** `/doctor/examinations` đọc phiếu khám bằng `Promise.all`. Ở API mode, một võ sĩ đọc lỗi là cả trang hiện màn lỗi. Bản cũ chỉ để trống phần đó và báo.
+- Màn bác sĩ viết cứng tiếng Việt và đặt `lang="vi"`, nên không dịch theo ngôn ngữ người dùng.

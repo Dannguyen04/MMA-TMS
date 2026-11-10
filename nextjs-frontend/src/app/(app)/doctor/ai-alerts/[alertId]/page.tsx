@@ -251,7 +251,7 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                         <ul className="flex flex-col gap-1.5">
                                             {summary.activeInjuries.map((injury) => (
                                                 <li key={injury.id} className="flex flex-wrap items-center gap-2 text-[13px]">
-                                                    <Link href={routes.doctor.injury(injury.id)} className="font-medium text-fg hover:underline">
+                                                    <Link href={routes.doctor.fighterInjury(injury.fighterId, injury.id)} className="font-medium text-fg hover:underline">
                                                         {injuryTitle(injury)}
                                                     </Link>
                                                     <InjuryStatusBadge status={injury.status} size="sm" />
@@ -299,7 +299,7 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                                         <p className="flex flex-wrap items-center gap-2">
                                             <Bandage aria-hidden className="size-4 text-fg-muted" />
                                             <Link
-                                                href={routes.doctor.injury(linkedInjury.id)}
+                                                href={routes.doctor.fighterInjury(linkedInjury.fighterId, linkedInjury.id)}
                                                 className="text-sm font-medium text-fg hover:underline"
                                             >
                                                 {injuryTitle(linkedInjury)}
