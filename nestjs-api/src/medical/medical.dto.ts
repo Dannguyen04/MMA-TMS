@@ -16,9 +16,11 @@ import {
   listDoctorAssignmentsQuerySchema,
   listExaminationsQuerySchema,
   listMedicalDossiersQuerySchema,
+  listMedicalHistoryBatchQuerySchema,
   listMedicalHistoryQuerySchema,
   listReviewRequestsQuerySchema,
   medicalDossierSchema,
+  medicalHistoryBatchItemSchema,
   medicalHistoryEntrySchema,
   medicalRecordIdParamsSchema,
   recoveryPlanSchema,
@@ -49,6 +51,10 @@ export class ListMedicalHistoryQueryDto extends createZodDto(
 
 export class ListMedicalDossiersQueryDto extends createZodDto(
   listMedicalDossiersQuerySchema,
+) {}
+
+export class ListMedicalHistoryBatchQueryDto extends createZodDto(
+  listMedicalHistoryBatchQuerySchema,
 ) {}
 
 export class AssignDoctorDto extends createZodDto(assignDoctorSchema) {}
@@ -83,4 +89,7 @@ export class ClearanceDto extends createZodDto(clearanceSchema) {}
 export class MedicalDossierDto extends createZodDto(medicalDossierSchema) {}
 export class MedicalHistoryEntryDto extends createZodDto(
   medicalHistoryEntrySchema,
+) {}
+export class MedicalHistoryBatchItemDto extends createZodDto(
+  medicalHistoryBatchItemSchema,
 ) {}

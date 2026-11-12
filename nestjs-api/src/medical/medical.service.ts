@@ -37,6 +37,7 @@ import {
   medicalClearanceNotFound,
   medicalReferenceNotFound,
   medicalExaminationNotFound,
+  medicalHistoryBatchTooLarge,
   medicalRecordConflict,
   medicalReviewRequestNotFound,
   medicalSupervisionDisabled,
@@ -64,10 +65,12 @@ import type {
   ListDoctorAssignmentsQuery,
   ListExaminationsQuery,
   ListMedicalDossiersQuery,
+  ListMedicalHistoryBatchQuery,
   ListMedicalHistoryQuery,
   ListReviewRequestsQuery,
   MedicalDossier,
   MedicalEligibility,
+  MedicalHistoryBatchItem,
   MedicalHistoryEntry,
   Paginated,
   CreateRecoveryMilestoneInput,
@@ -83,6 +86,8 @@ import type {
 } from './medical.model.js';
 import {
   MEDICAL_DOSSIER_BATCH_MAX,
+  MEDICAL_HISTORY_BATCH_MAX,
+  MEDICAL_HISTORY_BATCH_MAX_ENTRIES,
   standardRecoveryMilestonesSchema,
 } from './medical.model.js';
 import {
@@ -673,6 +678,47 @@ export class MedicalService {
       requestId,
     );
     return paginate(await this.repo.listHistory(fighterId, query), query);
+  }
+
+  /**
+   * Batch history read: for every requested Fighter (or the caller's whole
+   * read scope) the entries `listHistory` returns, unpaginated, in the same
+   * order. One scope query, one multi-row audit INSERT (view HISTORY) and one
+   * history query whatever the batch size. More than
+   * `MEDICAL_HISTORY_BATCH_MAX_ENTRIES` entries is a 400, never a truncation.
+   */
+  async listHistoryBatch(
+    actor: AuthenticatedUser,
+    query: ListMedicalHistoryBatchQuery,
+    requestId: string,
+  ): Promise<MedicalHistoryBatchItem[]> {
+    const fighterIds = await this.access.authorizeClinicalBatchRead(
+      actor,
+      query.fighterIds,
+      MEDICAL_READ_VIEW.HISTORY,
+      requestId,
+      MEDICAL_HISTORY_BATCH_MAX,
+    );
+    if (fighterIds.length === 0) return [];
+
+    const rows = await this.repo.listHistoryForFighters(
+      fighterIds,
+      query.recordType,
+      MEDICAL_HISTORY_BATCH_MAX_ENTRIES + 1,
+    );
+    if (rows.length > MEDICAL_HISTORY_BATCH_MAX_ENTRIES) {
+      throw medicalHistoryBatchTooLarge(MEDICAL_HISTORY_BATCH_MAX_ENTRIES);
+    }
+    const byFighter = new Map<string, MedicalHistoryEntry[]>(
+      fighterIds.map((id) => [id, []]),
+    );
+    for (const { fighterId, entry } of rows) {
+      byFighter.get(fighterId)?.push(entry);
+    }
+    return fighterIds.map((fighterId) => ({
+      fighterId,
+      entries: byFighter.get(fighterId) ?? [],
+    }));
   }
 
   async listExaminations(

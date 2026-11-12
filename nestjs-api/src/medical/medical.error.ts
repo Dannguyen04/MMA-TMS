@@ -125,6 +125,14 @@ export const medicalDossierScopeTooLarge = (max: number) =>
     message: `More than ${max} Fighters are in scope; pass fighterIds (at most ${max}) instead`,
   });
 
+export const medicalHistoryBatchTooLarge = (max: number) =>
+  new BadRequestException({
+    statusCode: HttpStatus.BAD_REQUEST,
+    error: 'Bad Request',
+    code: 'MEDICAL_HISTORY_BATCH_TOO_LARGE',
+    message: `The requested history has more than ${max} entries; pass fewer fighterIds or a recordType`,
+  });
+
 // --- 500 ---
 
 export const medicalOperationFailed = () =>

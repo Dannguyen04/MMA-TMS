@@ -112,3 +112,13 @@ Chủ dự án giao Claude gộp các nhánh UI và làm các ticket còn mở c
 | T-050 | Migration 033 chưa có trên Supabase dù bảng ghi đã áp. Claude áp ngày 9/11 theo yêu cầu của chủ dự án |
 | T-009 B1, B3 | Đã gộp vào release |
 | [T-062](./T-062-persistence-spec-off-shared-db.md) | READY, Dan. Spec backend ghi rác vào Supabase mỗi lần chạy `pnpm test`. Ngày 9/11 đã xoá 984 tài khoản `@test.invalid` (chủ dự án đồng ý). Tới khi xong ticket: không chạy test backend khi có `.env` |
+
+## Cập nhật 12/11: hiệu năng và review dashboard của Ken
+
+Chủ dự án giao Claude làm hết kế hoạch [PERFORMANCE-PLAN.md](../PERFORMANCE-PLAN.md) trong ngày, không chờ giao ticket. Kết quả đo ở §8 của kế hoạch.
+
+| Ticket | Nội dung | Phần | Người làm | Trạng thái |
+| --- | --- | --- | --- | --- |
+| [T-063 đến T-069, T-072](./T-063-069-performance.md) | Danh sách nhiều võ sĩ, hồ sơ và lịch sử y tế theo lô, gộp xác thực, `/users/me` trả phạm vi, cache, pool cấu hình được | Backend | Claude | DONE trên `release/final-review` |
+| A1 đến A9 ([kế hoạch §3](../PERFORMANCE-PLAN.md#3-a-frontend-chủ-dự-án-làm-được-ngay)) | Frontend đọc theo lô, stream widget chậm, từ điển một ngôn ngữ, three.js tải trễ, cache ngắn | Frontend | Claude | DONE trên `release/final-review` |
+| T-070, T-071 | Dành cho Ken đánh số lại hai ticket dashboard HLV trên `User_Feature` (đang trùng T-062, T-064) | Frontend | Ken | CHANGES REQUESTED ([review](./REVIEW-KEN-COACH-DASHBOARD.md)) |

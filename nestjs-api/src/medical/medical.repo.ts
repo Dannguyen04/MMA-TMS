@@ -1577,47 +1577,11 @@ export class MedicalRepository {
     query: ListMedicalHistoryQuery,
     database: DatabaseExecutor = this.db,
   ): Promise<{ data: MedicalHistoryEntry[]; total: number }> {
-    const recordType = query.recordType ?? null;
-    const history = sql`(
-      SELECT 'INJURY' AS record_type, r.injury_id AS record_id, r.revision,
-             r.source::text AS source, r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.injury_record_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'RECOVERY_PLAN', r.recovery_plan_id, r.revision, r.source::text,
-             r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.recovery_plan_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'MEDICAL_CLEARANCE', r.clearance_id, r.revision, r.source::text,
-             r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.medical_clearance_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'MEDICAL_REVIEW_REQUEST', r.review_request_id, r.revision, r.source::text,
-             r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.medical_review_request_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'TREATMENT', t.id, 1, NULL, t.created_at, NULL::uuid, to_jsonb(t)
-        FROM public.treatments t
-        JOIN public.injury_records i ON i.id = t.injury_id
-       WHERE i.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'MEDICAL_EXAMINATION', e.id, 1, NULL, e.created_at, e.recorded_by_id,
-             to_jsonb(e) || jsonb_build_object('details', to_jsonb(d) - 'examination_id' - 'fighter_id')
-        FROM public.medical_examinations e
-        LEFT JOIN public.medical_examination_details d ON d.examination_id = e.id
-       WHERE e.fighter_id = ${fighterId}
-    ) AS h`;
-    const filter = sql`(${recordType}::text IS NULL OR h.record_type = ${recordType}::text)`;
+    const history = historyUnion(sql`= ${fighterId}`);
+    const filter = historyRecordTypeFilter(query.recordType);
 
     const [rowsResult, countResult] = await Promise.all([
-      database.execute<{
-        record_type: MedicalHistoryRecordType;
-        record_id: string;
-        revision: number;
-        source: 'APPLICATION' | 'MIGRATION_BASELINE' | null;
-        recorded_at: string | Date;
-        recorded_by_user_id: string | null;
-        snapshot: unknown;
-      }>(sql`
+      database.execute<HistoryRow>(sql`
         SELECT h.* FROM ${history} WHERE ${filter}
         ORDER BY h.recorded_at DESC, h.record_id, h.revision DESC
         LIMIT ${query.limit} OFFSET ${offsetOf(query)}
@@ -1628,16 +1592,106 @@ export class MedicalRepository {
     ]);
 
     return {
-      data: rowsResult.rows.map((row) => ({
-        recordType: row.record_type,
-        recordId: row.record_id,
-        revision: row.revision,
-        source: row.source,
-        recordedAt: new Date(row.recorded_at),
-        recordedByUserId: row.recorded_by_user_id,
-        snapshot: projectSnapshot(row.record_type, row.snapshot),
-      })),
+      data: rowsResult.rows.map(toHistoryEntry),
       total: countResult.rows[0]?.count ?? 0,
     };
   }
+
+  /**
+   * History of several Fighters in one query (batch form of `listHistory`):
+   * the same entries, in the same order (newest first), each tagged with its
+   * Fighter. At most `limit` rows are read; the caller passes its cap + 1 to
+   * detect an over-large batch instead of truncating it.
+   */
+  async listHistoryForFighters(
+    fighterIds: readonly string[],
+    recordType: MedicalHistoryRecordType | undefined,
+    limit: number,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ fighterId: string; entry: MedicalHistoryEntry }[]> {
+    if (fighterIds.length === 0) return [];
+    const ids = sql.join(
+      fighterIds.map((id) => sql`${id}::uuid`),
+      sql`, `,
+    );
+    const history = historyUnion(sql`IN (${ids})`);
+    const result = await database.execute<HistoryRow>(sql`
+      SELECT h.* FROM ${history}
+       WHERE ${historyRecordTypeFilter(recordType)}
+      ORDER BY h.recorded_at DESC, h.record_id, h.revision DESC
+      LIMIT ${limit}
+    `);
+    return result.rows.map((row) => ({
+      fighterId: row.fighter_id,
+      entry: toHistoryEntry(row),
+    }));
+  }
+}
+
+// --- History report helpers ---
+
+type HistoryRow = {
+  fighter_id: string;
+  record_type: MedicalHistoryRecordType;
+  record_id: string;
+  revision: number;
+  source: 'APPLICATION' | 'MIGRATION_BASELINE' | null;
+  recorded_at: string | Date;
+  recorded_by_user_id: string | null;
+  snapshot: unknown;
+};
+
+/**
+ * Every history entry of the Fighters matching `fighterMatch` (a condition on
+ * the Fighter id, e.g. `= $1` or `IN ($1, $2)`), shared by the single and the
+ * batch history reads so both return the same entries.
+ */
+function historyUnion(fighterMatch: SQL): SQL {
+  return sql`(
+      SELECT r.fighter_id, 'INJURY' AS record_type, r.injury_id AS record_id, r.revision,
+             r.source::text AS source, r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.injury_record_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT r.fighter_id, 'RECOVERY_PLAN', r.recovery_plan_id, r.revision, r.source::text,
+             r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.recovery_plan_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT r.fighter_id, 'MEDICAL_CLEARANCE', r.clearance_id, r.revision, r.source::text,
+             r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.medical_clearance_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT r.fighter_id, 'MEDICAL_REVIEW_REQUEST', r.review_request_id, r.revision, r.source::text,
+             r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.medical_review_request_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT i.fighter_id, 'TREATMENT', t.id, 1, NULL, t.created_at, NULL::uuid, to_jsonb(t)
+        FROM public.treatments t
+        JOIN public.injury_records i ON i.id = t.injury_id
+       WHERE i.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT e.fighter_id, 'MEDICAL_EXAMINATION', e.id, 1, NULL, e.created_at, e.recorded_by_id,
+             to_jsonb(e) || jsonb_build_object('details', to_jsonb(d) - 'examination_id' - 'fighter_id')
+        FROM public.medical_examinations e
+        LEFT JOIN public.medical_examination_details d ON d.examination_id = e.id
+       WHERE e.fighter_id ${fighterMatch}
+    ) AS h`;
+}
+
+function historyRecordTypeFilter(
+  recordType: MedicalHistoryRecordType | undefined,
+): SQL {
+  const value = recordType ?? null;
+  return sql`(${value}::text IS NULL OR h.record_type = ${value}::text)`;
+}
+
+function toHistoryEntry(row: HistoryRow): MedicalHistoryEntry {
+  return {
+    recordType: row.record_type,
+    recordId: row.record_id,
+    revision: row.revision,
+    source: row.source,
+    recordedAt: new Date(row.recorded_at),
+    recordedByUserId: row.recorded_by_user_id,
+    snapshot: projectSnapshot(row.record_type, row.snapshot),
+  };
 }

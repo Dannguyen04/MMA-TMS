@@ -280,6 +280,7 @@ describe('OpenAPI document (e2e)', () => {
     const medicalRoutes: Record<string, readonly string[]> = {
       '/fighters/{id}/medical': ['get'],
       '/medical/dossiers': ['get'],
+      '/medical/history': ['get'],
       '/fighters/{id}/medical/history': ['get'],
       '/fighters/{id}/medical-examinations': ['get', 'post'],
       '/fighters/{id}/medical-review-requests': ['get', 'post'],

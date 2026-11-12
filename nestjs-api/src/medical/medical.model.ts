@@ -103,6 +103,16 @@ export const listMedicalDossiersQuerySchema = z.strictObject({
   fighterIds: uuidListQuerySchema(MEDICAL_DOSSIER_BATCH_MAX),
 });
 
+/** At most this many Fighters per `GET /medical/history`. */
+export const MEDICAL_HISTORY_BATCH_MAX = 100;
+/** At most this many entries in one `GET /medical/history` response. */
+export const MEDICAL_HISTORY_BATCH_MAX_ENTRIES = 5_000;
+
+export const listMedicalHistoryBatchQuerySchema = z.strictObject({
+  fighterIds: uuidListQuerySchema(MEDICAL_HISTORY_BATCH_MAX),
+  recordType: z.enum(MEDICAL_HISTORY_RECORD_TYPE).optional(),
+});
+
 // --- Bodies ---
 
 export const assignDoctorSchema = z.strictObject({
@@ -623,6 +633,11 @@ export const medicalHistoryEntrySchema = z.strictObject({
   snapshot: z.record(z.string(), z.unknown()),
 });
 
+export const medicalHistoryBatchItemSchema = z.strictObject({
+  fighterId: z.uuid(),
+  entries: z.array(medicalHistoryEntrySchema),
+});
+
 // --- Types ---
 
 export type ListDoctorAssignmentsQuery = z.infer<
@@ -637,6 +652,9 @@ export type ListMedicalHistoryQuery = z.infer<
 >;
 export type ListMedicalDossiersQuery = z.infer<
   typeof listMedicalDossiersQuerySchema
+>;
+export type ListMedicalHistoryBatchQuery = z.infer<
+  typeof listMedicalHistoryBatchQuerySchema
 >;
 export type AssignDoctorInput = z.infer<typeof assignDoctorSchema>;
 export type EndDoctorAssignmentInput = z.infer<typeof endDoctorAssignmentSchema>;
@@ -668,5 +686,8 @@ export type Clearance = z.input<typeof clearanceSchema>;
 export type MedicalEligibility = z.infer<typeof medicalEligibilitySchema>;
 export type MedicalDossier = z.input<typeof medicalDossierSchema>;
 export type MedicalHistoryEntry = z.input<typeof medicalHistoryEntrySchema>;
+export type MedicalHistoryBatchItem = z.input<
+  typeof medicalHistoryBatchItemSchema
+>;
 
 export type Paginated<T> = { data: T[]; total: number; hasNextPage: boolean };

@@ -257,15 +257,49 @@ export function primeDossiers(fighterIds: readonly string[]): void {
 
 const examinationsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-examinations"), examinationSchema))) ?? []);
 
-const historyFor = cache(
+type HistoryEntry = z.output<typeof historyEntrySchema>;
+
+const singleHistory = cache(
     async (fighterId: string, recordType: HistoryRecordType) =>
         (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical/history"), historyEntrySchema, { recordType }))) ?? [],
 );
 
+/** Histories already requested in this render through the batch endpoint, by `${fighterId}|${recordType}`. */
+const batchedHistory = cache(() => new Map<string, Promise<HistoryEntry[]>>());
+
+const historyKey = (fighterId: string, recordType: HistoryRecordType) => `${fighterId}|${recordType}`;
+
+const historyFor = (fighterId: string, recordType: HistoryRecordType): Promise<HistoryEntry[]> =>
+    batchedHistory().get(historyKey(fighterId, recordType)) ?? singleHistory(fighterId, recordType);
+
+const HISTORY_BATCH_MAX = 100;
+
+const historyBatchSchema = z.array(z.object({ fighterId: z.string(), entries: z.array(historyEntrySchema) }));
+
+/**
+ * Reads one record type of the history of several fighters in one request (`GET /medical/history`) and keeps it for
+ * this render, so a list over many fighters sends one history request per record type instead of one per fighter. The
+ * batch is not paginated; one the service refuses (scope, more than 5000 entries) or doesn't know falls back to the
+ * per-fighter read, which also tells which fighter was the problem.
+ */
+function primeHistory(fighterIds: readonly string[], recordType: HistoryRecordType): void {
+    const store = batchedHistory();
+    const ids = [...new Set(fighterIds)].filter((id) => !store.has(historyKey(id, recordType)));
+    if (ids.length < 2) return;
+    for (let start = 0; start < ids.length; start += HISTORY_BATCH_MAX) {
+        const chunk = ids.slice(start, start + HISTORY_BATCH_MAX);
+        const batch = authenticatedApiRequest(`/medical/history?fighterIds=${chunk.join(",")}&recordType=${recordType}`, historyBatchSchema).then(
+            (list) => new Map(list.map((item) => [item.fighterId, item.entries] as const)),
+            () => null,
+        );
+        for (const id of chunk) store.set(historyKey(id, recordType), batch.then((found) => found?.get(id) ?? singleHistory(id, recordType)));
+    }
+}
+
 const reviewRequestsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-review-requests"), reviewRequestSchema))) ?? []);
 
 /** The newest revision of each record, parsed; snapshots in a shape the interface can't read are skipped. */
-function snapshots<T extends z.ZodType>(entries: z.output<typeof historyEntrySchema>[], schema: T): z.output<T>[] {
+function snapshots<T extends z.ZodType>(entries: HistoryEntry[], schema: T): z.output<T>[] {
     return latestRevisions(entries).flatMap((entry) => {
         const parsed = schema.safeParse(entry.snapshot);
         return parsed.success ? [parsed.data] : [];
@@ -506,6 +540,7 @@ async function clearancesOf(fighterId: string, now: string): Promise<MedicalClea
 
 export async function listClearances(filter: ClearanceFilter, now: string): Promise<MedicalClearance[]> {
     const ids = await fighterIdsIn(filter.fighterIds);
+    primeHistory(ids, "MEDICAL_CLEARANCE");
     const all = (await Promise.all(ids.map((id) => clearancesOf(id, now)))).flat();
     return all.filter((c) => (!filter.level || c.level === filter.level) && (!filter.status || c.status === filter.status)).sort(byNewest((c) => c.issuedAt));
 }
@@ -543,6 +578,7 @@ async function injuriesOf(fighterId: string): Promise<Injury[]> {
 
 export async function listInjuries(filter: InjuryFilter): Promise<Injury[]> {
     const ids = await fighterIdsIn(filter.fighterIds);
+    primeHistory(ids, "INJURY");
     const all = (await Promise.all(ids.map(injuriesOf))).flat();
     return all
         .filter(
@@ -599,6 +635,7 @@ export async function getInjuryDetail(id: string): Promise<InjuryDetail | null> 
 
 export async function listRecoveryPlans(filter: RecoveryPlanFilter): Promise<RecoveryPlan[]> {
     const ids = await fighterIdsIn(filter.fighterIds);
+    primeHistory(ids, "RECOVERY_PLAN");
     const all = (await Promise.all(ids.map(plansOf))).flat();
     return all.filter((p) => !filter.status || p.status === filter.status).sort(byNewest((p) => p.startDate));
 }
