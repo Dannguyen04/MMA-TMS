@@ -98,12 +98,12 @@ describe("video detail", () => {
         vi.unstubAllEnvs();
     });
 
-    it("reads the fighter with the job, and the result with the review state", async () => {
+    it("reads the fighter, the job and the review state together", async () => {
         const detail = await getVideoDetail(videoId);
         expect(detail?.analysis?.jobId).toBe(jobId);
         expect(detail?.fighter.id).toBe(fighterId);
-        expect(overlaps.some((path) => path === "fighter" || path === `/jobs/${jobId}`)).toBe(true);
-        expect(overlaps.some((path) => path.endsWith("/result") || path.endsWith("/state"))).toBe(true);
+        // The review state starts first (it only needs the job id); the fighter and the job start while it runs.
+        expect(overlaps).toEqual(expect.arrayContaining(["fighter", `/jobs/${jobId}`]));
     });
 
     it("downloads a completed job's result once, and the same analysis comes back", async () => {

@@ -232,7 +232,10 @@ export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
     // The access check: a video the viewer may not see ends here, before anything cached is read.
     const video = await getVideo(id);
     if (!video) return null;
-    // The fighter and the job only need the video, so they are read together.
+    // The fighter and the job only need the video, so they are read together. So does the review state (it is keyed by
+    // the job): it starts now and is used once the job turns out completed; a failure surfaces only then.
+    const reviewsRead = video.jobId ? readReviewState(video.jobId) : null;
+    reviewsRead?.catch(() => {});
     const [fighter, job] = await Promise.all([
         isDemoAuthEnabled() ? demoFighterForBackendId(video.fighterId) : getFighter(video.fighterId),
         video.jobId ? getJobProgress(video.jobId) : null,
@@ -241,7 +244,10 @@ export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
     if (isDemoAuthEnabled()) video.fighterId = fighter.id;
     let analysis: AIAnalysis | null = null;
     if (job?.status === "completed") {
-        const [result, reviews] = await Promise.all([readCompletedJobResult(job.id), readReviewState(job.id)]);
+        const [result, reviews] = await Promise.all([
+            readCompletedJobResult(job.id),
+            reviewsRead && video.jobId === job.id ? reviewsRead : readReviewState(job.id),
+        ]);
         analysis = mapWorkerResult(result, {
             analysisId: `an-${job.id}`,
             videoId: video.id,
