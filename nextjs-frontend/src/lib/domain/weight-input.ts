@@ -1,4 +1,4 @@
-import { createTranslator, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type Translator } from "@/lib/i18n/translate-client";
 
 export interface ParsedWeight {
     ok: true;

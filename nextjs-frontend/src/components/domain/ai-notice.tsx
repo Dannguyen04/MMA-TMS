@@ -3,7 +3,7 @@ import { Info, Sparkles, type LucideIcon } from "lucide-react";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { Callout } from "@/components/training/callout";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 
 export type AINoticeAudience = "coach" | "fighter" | "doctor" | "admin";
 

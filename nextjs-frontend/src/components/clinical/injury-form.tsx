@@ -18,7 +18,7 @@ import { createInjuryAction } from "@/lib/actions/clinical";
 import { INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
 import type { AbnormalMovementAlert, BodyRegion, InjuryMechanism, InjurySeverity, InjuryType } from "@/lib/domain/types";
 import { addDaysToKey, daysBetweenKeys, formatShortDate } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import {
     BODY_REGION_GROUPS,
     INJURY_SEVERITY_DESCRIPTIONS,

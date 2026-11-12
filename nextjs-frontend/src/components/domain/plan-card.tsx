@@ -7,7 +7,7 @@ import Link from "next/link";
 import { trainingPhaseLabel } from "@/lib/domain/labels";
 import type { TrainingPlan } from "@/lib/domain/types";
 import { formatPercent } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { FighterIdentity, type FighterIdentityData } from "./fighter-identity";
 import { PlanDates, PlanTimelineBar } from "./plan-schedule";

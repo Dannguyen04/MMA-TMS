@@ -4,7 +4,7 @@ import { StatusBadge, type BadgeSize, type StatusMeta } from "@/components/domai
 import { ASSESSMENT_RESULT_LABELS, CLEARANCE_STATUS_LABELS, EXAMINATION_OUTCOME_LABELS } from "@/lib/domain/labels";
 import type { AssessmentResult, ClearanceLevel, ClearanceStatus, ExaminationOutcome } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 
 /**
  * Presentation for clinical statuses that have no badge in the shared domain set:

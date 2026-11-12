@@ -10,7 +10,7 @@ import type { Fighter, MedicalClearance, TrainingSession, UpcomingBout, User } f
 import { DAY_MS } from "@/lib/format";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listCampBouts } from "@/lib/services/bouts";
-import { getClearanceStatus } from "@/lib/services/medical";
+import { getClearanceStatus, primeMedicalDossiers } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
 import { getPerformanceHistory, getTeamPerformance, overallScore, type TeamPerformanceRow } from "@/lib/services/performance";
 import { getUpcomingSessions, loadSessionClearanceConflicts } from "@/lib/services/training";
@@ -97,7 +97,10 @@ export function nextBoutFor(fighter: Fighter, bouts: CampBout[], now: string): U
 async function buildRoster(fightersInput: Fighter[] | Promise<Fighter[]>, idsInput: Promise<string[]>, now: string, withPerformance: boolean): Promise<RosterEntry[]> {
     const [fighters, clearances, team, upcoming, histories, bouts] = await Promise.all([
         fightersInput,
-        idsInput.then(async (ids) => new Map(await Promise.all(ids.map(async (id) => [id, await getClearanceStatus(id, now)] as const)))),
+        idsInput.then(async (ids) => {
+            primeMedicalDossiers(ids);
+            return new Map(await Promise.all(ids.map(async (id) => [id, await getClearanceStatus(id, now)] as const)));
+        }),
         idsInput.then((ids) => (ids.length === 0 || !withPerformance ? [] : getTeamPerformance(ids))),
         idsInput.then((ids) => (ids.length === 0 ? [] : getUpcomingSessions(ids, Number.POSITIVE_INFINITY))),
         idsInput.then(async (ids) =>

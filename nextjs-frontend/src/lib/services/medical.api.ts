@@ -227,7 +227,33 @@ const path = (fighterId: string, rest: string) => `/fighters/${encodeURIComponen
 
 const readDossier = (fighterId: string) => nullIfUnreadable(authenticatedApiRequest(path(fighterId, "/medical"), dossierSchema));
 
-const dossierFor = cache(readDossier);
+const singleDossier = cache(readDossier);
+
+/** Dossiers already requested in this render through the batch endpoint, by fighter id. */
+const batchedDossiers = cache(() => new Map<string, Promise<Dossier | null>>());
+
+const dossierFor = (fighterId: string): Promise<Dossier | null> => batchedDossiers().get(fighterId) ?? singleDossier(fighterId);
+
+const DOSSIER_BATCH_MAX = 100;
+
+/**
+ * Reads the dossiers of several fighters in one request (`GET /medical/dossiers`) and keeps them for this render, so
+ * screens that go through a roster (doctor board, coach roster) don't send one request per fighter. A batch the service
+ * refuses or doesn't know falls back to the per-fighter read, which also tells which fighter was the problem.
+ */
+export function primeDossiers(fighterIds: readonly string[]): void {
+    const store = batchedDossiers();
+    const ids = [...new Set(fighterIds)].filter((id) => !store.has(id));
+    if (ids.length < 2) return;
+    for (let start = 0; start < ids.length; start += DOSSIER_BATCH_MAX) {
+        const chunk = ids.slice(start, start + DOSSIER_BATCH_MAX);
+        const batch = authenticatedApiRequest(`/medical/dossiers?fighterIds=${chunk.join(",")}`, z.array(dossierSchema)).then(
+            (list) => new Map(list.map((dossier) => [dossier.fighterId, dossier] as const)),
+            () => null,
+        );
+        for (const id of chunk) store.set(id, batch.then((found) => found?.get(id) ?? singleDossier(id)));
+    }
+}
 
 const examinationsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-examinations"), examinationSchema))) ?? []);
 
@@ -452,8 +478,9 @@ function summaryFrom(stored: Fighter, dossier: Dossier, now: string | Date): Fig
     };
 }
 
-export async function healthSummary(fighterId: string, now: string | Date): Promise<FighterHealthSummary | null> {
-    const [fighter, dossier] = await Promise.all([getFighter(fighterId), dossierFor(fighterId)]);
+/** `known` skips the fighter read when the caller already listed the fighter (the doctor board). */
+export async function healthSummary(fighterId: string, now: string | Date, known?: Fighter): Promise<FighterHealthSummary | null> {
+    const [fighter, dossier] = await Promise.all([known ?? getFighter(fighterId), dossierFor(fighterId)]);
     return fighter && dossier ? summaryFrom(fighter, dossier, now) : null;
 }
 
@@ -604,6 +631,7 @@ async function fightersWithDossiers(scope: FighterScope): Promise<{ fighter: Fig
     if (!user) return [];
     const ids = new Set(await fighterIdsIn(scope));
     const fighters = (await listFighters(user)).filter((fighter) => ids.has(fighter.id));
+    primeDossiers(fighters.map((fighter) => fighter.id));
     const dossiers = await Promise.all(fighters.map((fighter) => dossierFor(fighter.id)));
     return fighters.flatMap((fighter, index) => {
         const dossier = dossiers[index];

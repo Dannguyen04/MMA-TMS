@@ -14,7 +14,7 @@ import { Card } from "@/components/ui/card";
 import { trainingPhaseLabel } from "@/lib/domain/labels";
 import type { TrainingPlan } from "@/lib/domain/types";
 import { daysBetween, formatPercent } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import type { PlanAdherence } from "./training-utils";
 

@@ -1,13 +1,15 @@
 import type { Metadata, Viewport } from "next";
 import { Barlow_Condensed, Be_Vietnam_Pro, Geist_Mono } from "next/font/google";
 import { cookies } from "next/headers";
+import Script from "next/script";
 
 import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { GraphicsTierMark } from "@/components/layout/graphics-tier-mark";
 import { ToastProvider } from "@/components/ui/toast";
 import { THEME_COOKIE, parseTheme } from "@/lib/auth/constants";
-import { LOCALE_COOKIE, parseLocale } from "@/lib/i18n/config";
+import { dictionaryScriptSrc, LOCALE_COOKIE, parseLocale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
+import { DICTIONARY_VERSION } from "@/lib/i18n/translate";
 import "./globals.css";
 
 // Latin is the preload subset. Vietnamese is included so dấu tiếng Việt dùng đúng Be Vietnam Pro và Barlow Condensed.
@@ -56,7 +58,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <html lang={locale} data-theme={theme} className={`${beVietnam.variable} ${barlow.variable} ${geistMono.variable} h-full antialiased`}>
             <body className="min-h-full bg-bg text-fg">
                 <GraphicsTierMark />
-                <LocaleProvider locale={locale}>
+                {/* The viewer's dictionary, fetched ahead of the app's own code and cached for good (versioned URL). */}
+                <Script src={dictionaryScriptSrc(locale, DICTIONARY_VERSION)} strategy="beforeInteractive" />
+                <LocaleProvider locale={locale} version={DICTIONARY_VERSION}>
                     <ToastProvider>{children}</ToastProvider>
                 </LocaleProvider>
             </body>

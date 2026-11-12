@@ -12,7 +12,7 @@ import {
     type TrainingBlockingSuspension,
 } from "@/lib/domain/suspension-rules";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 

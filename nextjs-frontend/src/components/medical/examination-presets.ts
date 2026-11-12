@@ -1,7 +1,7 @@
 import { examinationTitle } from "@/lib/domain/labels";
 import type { AssessmentResult, ExaminationType, Vitals } from "@/lib/domain/types";
 import { assessVital, vitalAssessmentMessage, type VitalAssessment, type VitalKey } from "@/lib/domain/vitals";
-import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 
 /**
  * A label from `lib/domain/labels` in the viewer's language: in Vietnamese the wording these screens have always shown

@@ -3,7 +3,7 @@ import { TriangleAlert } from "lucide-react";
 import { confidenceBand, LOW_CONFIDENCE_THRESHOLD, type ConfidenceBand } from "@/lib/domain/rules";
 import { formatConfidence } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { clamp, cn } from "@/lib/utils";
 
 const BAND_LABELS: Record<ConfidenceBand, string> = {

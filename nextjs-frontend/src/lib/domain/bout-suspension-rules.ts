@@ -1,5 +1,5 @@
 import { addDaysToKey, daysBetweenKeys, isDateKey } from "@/lib/format";
-import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, plural, type Translator } from "@/lib/i18n/translate-client";
 
 import type { BoutOutcome, LossOfConsciousness, Suspension, SuspensionReason, SuspensionRule } from "./bout";
 import type { TrainingType } from "./types";

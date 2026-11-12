@@ -1,5 +1,5 @@
 import { daysBetweenKeys } from "@/lib/format";
-import { createTranslator, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type Translator } from "@/lib/i18n/translate-client";
 
 import type { BoutPhase, NutritionNote, NutritionPhaseKey, NutritionPlan } from "./bout";
 import type { PlanAdherence, WeightStatus } from "./weight-chart";

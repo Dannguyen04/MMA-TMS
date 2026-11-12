@@ -33,7 +33,7 @@ import {
 } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, Technique, TrainingPhase } from "@/lib/domain/types";
 import { addDaysToKey, formatDate, academyDayStartIso, isDateKey } from "@/lib/format";
-import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { Callout } from "./callout";
 import { draftsFromPlanExercises, draftsFromTemplate, sentDrafts, serializePlanExerciseDrafts, type PlanCopy, type PlanExerciseDraft } from "./plan-drafts";

@@ -1,16 +1,9 @@
-import type { Fighter } from "@/lib/domain/types";
 import type { FigureParams } from "../figure-params";
 import type { FigureBuild } from "./body-rig";
-import { MODEL_HEIGHT, type BodyModelKind } from "./regions";
+import { bodyModelFor } from "./model-kind";
+import { MODEL_HEIGHT } from "./regions";
 
-/**
- * The scanned model is male; a female fighter gets the sex-neutral mannequin rather than a male body (until a
- * female model exists). A fighter whose sex is not recorded gets the scan too: the API has no sex field, and the
- * doctor's body map always draws the scan, so every screen shows the same figure for the same person.
- */
-export function bodyModelFor(sex: Fighter["sex"] | null | undefined): BodyModelKind {
-    return sex === "female" ? "mannequin" : "muscular";
-}
+export { bodyModelFor };
 
 /**
  * The fighter's own height and a width that follows their BMI, kept within a narrow band: the body

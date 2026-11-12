@@ -13,7 +13,7 @@ import { isNeedsReview } from "@/lib/domain/ai-review";
 import { isLowConfidence, LOW_CONFIDENCE_THRESHOLD } from "@/lib/domain/rules";
 import type { Detection, StrikeType } from "@/lib/domain/types";
 import { formatTimestamp } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { byStart, detectionAt } from "@/lib/video/analysis-nav";
 import { StrikeShape } from "./analysis-timeline";

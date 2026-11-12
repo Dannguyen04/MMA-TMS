@@ -12,7 +12,7 @@ import type { ActionForm } from "@/components/ui/use-action-form";
 import { ASSESSMENT_RESULT_LABELS, EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
 import type { AssessmentResult, ExaminationType } from "@/lib/domain/types";
 import { addDaysToKey } from "@/lib/format";
-import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { ASSESSMENT_RESULT_META } from "./clinical-badges";
 import {

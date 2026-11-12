@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { clamp, cn } from "@/lib/utils";
 
 export interface ThresholdBandsProps {

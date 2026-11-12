@@ -8,7 +8,7 @@ import { z } from "zod";
 import { authenticatedApiRequest } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { getCurrentUser } from "@/lib/auth/session";
-import type { BoutOutcome, CampBout, CancelReason, CompetitionRuleset, NutritionPhaseKey, Suspension } from "@/lib/domain/bout";
+import type { BoutOutcome, BoutPhase, CampBout, CancelReason, CompetitionRuleset, NutritionPhaseKey, Suspension } from "@/lib/domain/bout";
 import { boutLimitKg, isRunningPhase } from "@/lib/domain/bout";
 import { awaitsWeighInDecision, requirementCode, type RequirementUpdate } from "@/lib/domain/bout-rules";
 import { ADHERENCE_VALUES, nextNutritionPlan, wayOffCount } from "@/lib/domain/nutrition";
@@ -94,10 +94,19 @@ export async function getRuleset(id: string): Promise<CompetitionRuleset | null>
     return (await listRulesets()).find((item) => item.id === id) ?? null;
 }
 
-/** Bouts of the fighters in scope, in any phase. */
-export async function listCampBouts(fighterIds: string[] | "all" = "all"): Promise<CampBout[]> {
-    if (isDemoAuthEnabled()) return (await demo()).listDemoBouts(fighterIds);
-    return (await api()).listApiBouts(fighterIds);
+/** Phases of a bout that is still running (`isRunningPhase`). */
+const RUNNING_PHASES: readonly BoutPhase[] = ["SCHEDULED", "CAMP", "FIGHT_WEEK", "WEIGHED_IN"];
+
+/**
+ * Bouts of the fighters in scope, in any phase, or only in `phases` (the service filters them in API mode). A read that
+ * shares its list with the rest of the page should ask for every phase: a render reads each path once.
+ */
+export async function listCampBouts(fighterIds: string[] | "all" = "all", phases: readonly BoutPhase[] = []): Promise<CampBout[]> {
+    if (isDemoAuthEnabled()) {
+        const bouts = (await demo()).listDemoBouts(fighterIds);
+        return phases.length === 0 ? bouts : bouts.filter((bout) => phases.includes(bout.phase));
+    }
+    return (await api()).listApiBouts(fighterIds, phases);
 }
 
 /** The service records who acted by account id. Coaches may not read other accounts, so those keep their id. */
@@ -126,16 +135,26 @@ export async function getCampBout(boutId: string): Promise<CampBout | null> {
 /** The fighter's running bout with the earliest weigh-in. */
 export async function getCurrentBout(fighterId: string): Promise<CampBout | null> {
     if (isDemoAuthEnabled()) return (await demo()).getDemoCurrentBout(fighterId);
-    const bouts = (await listCampBouts([fighterId])).filter((bout) => isRunningPhase(bout.phase));
+    const bouts = (await listCampBouts([fighterId], RUNNING_PHASES)).filter((bout) => isRunningPhase(bout.phase));
     return bouts.sort((a, b) => (a.weighInAt < b.weighInAt ? -1 : 1))[0] ?? null;
 }
 
 export async function getWeightTrack(boutId: string, now = new Date()): Promise<WeightTrack | null> {
     if (isDemoAuthEnabled()) return (await demo()).demoWeightTrack(boutId, now);
-    const raw = await readApiTrack(boutId);
+    // The track and the bout are independent reads.
+    const [raw, bout] = await Promise.all([readApiTrack(boutId), getCampBout(boutId)]);
     if (!raw) return null;
-    const bout = await getCampBout(boutId);
-    const answerOn = new Map((await apiAnswers(boutId, raw)).map((answer) => [answer.loggedOn, answer.adherence]));
+    return apiWeightTrack(raw, bout, await apiAnswers(boutId, raw), now);
+}
+
+/** The weight track from the service's answer, the bout it belongs to, and the plan answers already read. */
+function apiWeightTrack(
+    raw: ApiTrack,
+    bout: CampBout | null,
+    answers: { loggedOn: string; adherence: PlanAdherence }[],
+    now: Date,
+): WeightTrack {
+    const answerOn = new Map(answers.map((answer) => [answer.loggedOn, answer.adherence]));
     const weighInOn = bout ? dayKey(bout.weighInAt) : (raw.latestOn ?? dayKey(now));
     return {
         limitKg: raw.limitKg ?? (bout ? boutLimitKg(bout) : null),
@@ -159,13 +178,17 @@ export async function listWeightAlerts(fighterIds: string[] | "all", now = new D
         return Promise.all(alerts.map(async (alert) => ({ ...alert, fighterName: (await getFighter(alert.bout.fighterId))?.name ?? "Fighter" })));
     }
 
+    // Every phase, not just the running ones: the coach dashboard lists the same bouts, and a render reads a path once.
     const bouts = (await listCampBouts(fighterIds)).filter((bout) => isRunningPhase(bout.phase));
+    const todayOn = dayKey(now);
+    // Two rounds per bout: its track, then (only when it alerts) the fighter's name and the plan answers together.
+    // The bout from the list already carries what the track needs, and the way-off count reuses the same answers.
     const rows = await Promise.all(
-        bouts.map(async (bout) => {
-            const track = await getWeightTrack(bout.id, now);
-            if (!track || (track.status === "ON_TRACK" || track.status === "NEUTRAL")) return null;
-            const fighterName = (await getFighter(bout.fighterId))?.name ?? "Fighter";
-            return { bout, fighterName, track, wayOff: await wayOffForBout(bout.id, dayKey(now)) };
+        bouts.map(async (bout): Promise<WeightAlert | null> => {
+            const raw = await readApiTrack(bout.id);
+            if (!raw || raw.status === "ON_TRACK" || raw.status === "NEUTRAL") return null;
+            const [fighter, answers] = await Promise.all([getFighter(bout.fighterId), apiAnswers(bout.id, raw)]);
+            return { bout, fighterName: fighter?.name ?? "Fighter", track: apiWeightTrack(raw, bout, answers, now), wayOff: wayOffCount(answers, todayOn) };
         }),
     );
     return rows.filter((row): row is WeightAlert => row !== null).sort((a, b) => STATUS_ORDER[a.track.status] - STATUS_ORDER[b.track.status]);

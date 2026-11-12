@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { TONE_TEXT } from "@/components/ui/tone";
 import type { AIModelStatus, AuditLog, BroadcastChannel, BroadcastStatus } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 /**

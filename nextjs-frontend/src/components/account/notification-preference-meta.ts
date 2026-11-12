@@ -1,5 +1,5 @@
 import type { NotificationCategory, Role } from "@/lib/domain/types";
-import { hasMessage, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { hasMessage, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 
 /** Channels a notification category can be delivered on. */
 export interface ChannelPreference {

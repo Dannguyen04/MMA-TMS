@@ -9,7 +9,7 @@ import {
     type SessionIntensityTier,
 } from "@/lib/domain/intensity-tiers";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { TRAINING_TYPE_ICONS } from "./training-type-icon";
 

@@ -1,5 +1,5 @@
 import type { Locale } from './config';
-import { createTranslator, hasMessage } from './translate';
+import { createTranslator, hasMessage } from './translate-client';
 /** Translate known interface labels. User-authored text passes through unchanged. */
 export function createDemoCopy(locale: Locale) {
     const t = createTranslator(locale);

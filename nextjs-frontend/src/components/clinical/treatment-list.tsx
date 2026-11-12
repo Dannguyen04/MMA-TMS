@@ -4,7 +4,7 @@ import { useLocale } from "@/components/i18n/locale-provider";
 import type { Treatment } from "@/lib/domain/types";
 import { formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { TreatmentStatusBadge, TreatmentTypeIcon } from "./clinical-badges";
 import { treatmentText } from "./clinical-copy";

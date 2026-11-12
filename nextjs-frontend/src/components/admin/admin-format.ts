@@ -10,7 +10,7 @@ import type {
     Role,
 } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, hasMessage, plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, hasMessage, plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { formatNumber } from "@/lib/format";
 
 /** Presentation helpers shared by the administrator screens. */

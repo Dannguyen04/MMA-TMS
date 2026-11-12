@@ -1,7 +1,7 @@
 import type { Suggestion } from "@/components/ui/suggestion-chips";
 import { ADMISSION_LIMITS, type AssessmentConclusion } from "@/lib/domain/admissions";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 
 /*
  * Starting points for the coach's entrance assessment. They only fill in what the coach would type anyway; the

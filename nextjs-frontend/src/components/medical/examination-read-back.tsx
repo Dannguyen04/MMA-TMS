@@ -6,7 +6,7 @@ import { vitalReadings } from "@/components/domain/vitals-grid";
 import { assessmentAreaLabel, EXAMINATION_TYPE_LABELS } from "@/lib/domain/labels";
 import { assessVitals, vitalAssessmentMessage } from "@/lib/domain/vitals";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import type { CurrentExamination } from "@/lib/services/medical";
 import { cn } from "@/lib/utils";
 import { localLabel } from "./examination-presets";

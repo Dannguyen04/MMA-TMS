@@ -15,7 +15,7 @@ import type { SessionType } from "@/lib/domain/medical-contract";
 import { TRAINING_TYPE_FOR } from "@/lib/domain/training-contract";
 import type { TrainingType } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 /** One distinct icon per training type, used in schedules, session lists and restrictions. */

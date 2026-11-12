@@ -1,6 +1,7 @@
 import { CalendarPlus, ClipboardPlus } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { buildCoachAttention, coachQueueMeta, COACH_QUEUES, type CoachQueue } from "@/components/dashboard/coach-attention";
 import { firstName, greetingKey } from "@/components/dashboard/dashboard-utils";
@@ -64,8 +65,16 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
     const weekEnd = new Date(Date.parse(academyDayStartIso(addDaysToKey(weekKey, 7))) - 1).toISOString();
 
     const fighterList = listFighters(user);
-    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans, weightAlerts, bouts, todo] = await Promise.all([
-
+    // Bout alerts and the to-do card take the longest (weight tracks, every running bout): they stream in on their own
+    // so the queue and today's schedule don't wait for them.
+    const fighterNamesRead = fighterList.then((list) => new Map(list.map((fighter) => [fighter.id, fighter.name])));
+    const alertsRead = Promise.all([listWeightAlerts(scope, new Date(now)), listCampBouts(scope), fighterNamesRead]);
+    // The to-do card (T-029). Without the bouts service it is left out.
+    const todoRead = Promise.all([nullIfServiceFails(getCoachTodo(scope)), fighterNamesRead]);
+    // Awaited by the streamed sections; marked handled here so a failure surfaces there, not as an unhandled rejection.
+    alertsRead.catch(() => {});
+    todoRead.catch(() => {});
+    const [fighters, roster, weekSessions, reviewQueue, missed, goalsAtRisk, settings, plans] = await Promise.all([
         fighterList,
         loadRoster(user, now, { fighters: fighterList, performance: false }),
         listSessions({ fighterIds: scope, from: weekStart, to: weekEnd }),
@@ -76,18 +85,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         getSettings(),
         // Every status, so a fighter whose only plan is a draft is told to finish it rather than start another.
         listPlans({ fighterIds: scope }),
-        listWeightAlerts(scope, new Date(now)),
-        listCampBouts(scope),
-        // The to-do card (T-029). Without the bouts service it is left out.
-        nullIfServiceFails(getCoachTodo(scope)),
-
     ]);
-    // F4: from 14 days before the documents deadline, bouts with required documents still missing.
-    const documentsDue = bouts
-        .map((bout) => ({ bout, missing: requirementsDueSoon(bout, today) }))
-        .filter((row) => row.missing.length > 0)
-        .sort((a, b) => (requirementsDueOn(a.bout) < requirementsDueOn(b.bout) ? -1 : 1));
-    const fighterNames = new Map(fighters.map((fighter) => [fighter.id, fighter.name]));
     // Without a per-analysis queue (API mode), the navigation's review count still says how many are waiting.
     const reviewCount = reviewQueue.length === 0 ? ((await getNavBadgeCounts(user)).reviewQueue ?? 0) : 0;
 
@@ -135,6 +133,63 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                 }
             />
 
+            <Suspense fallback={null}>
+                <BoutAlerts read={alertsRead} today={today} t={t} locale={locale} />
+            </Suspense>
+
+            <div className="coach-editorial-body grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
+                <QueueCard
+                    title={t("coachToday.queueTitle")}
+                    filterLabel={t("coachToday.queueFilter")}
+                    items={attention}
+                    queues={queues}
+                    meta={coachQueueMeta(t)}
+                    active={queue}
+                    hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
+                    emptyAll={{ title: t("coachToday.emptyTitle"), description: t("coachToday.emptyText") }}
+                    t={t}
+                    className="lg:col-span-2"
+                />
+
+                <div className="flex min-w-0 flex-col gap-6">
+                    <Suspense fallback={null}>
+                        <TodoSlot read={todoRead} t={t} locale={locale} />
+                    </Suspense>
+
+                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+type Translator = Awaited<ReturnType<typeof getTranslator>>["t"];
+type Locale = Awaited<ReturnType<typeof getTranslator>>["locale"];
+
+async function TodoSlot({ read, t, locale }: { read: Promise<[Awaited<ReturnType<typeof getCoachTodo>> | null, Map<string, string>]>; t: Translator; locale: Locale }) {
+    const [todo, fighterNames] = await read;
+    return todo ? <CoachTodoCard todo={todo} fighterNames={fighterNames} t={t} locale={locale} /> : null;
+}
+
+/** Weight alerts and, from 14 days before the documents deadline (F4), bouts with required documents still missing. */
+async function BoutAlerts({
+    read,
+    today,
+    t,
+    locale,
+}: {
+    read: Promise<[Awaited<ReturnType<typeof listWeightAlerts>>, Awaited<ReturnType<typeof listCampBouts>>, Map<string, string>]>;
+    today: string;
+    t: Translator;
+    locale: Locale;
+}) {
+    const [weightAlerts, bouts, fighterNames] = await read;
+    const documentsDue = bouts
+        .map((bout) => ({ bout, missing: requirementsDueSoon(bout, today) }))
+        .filter((row) => row.missing.length > 0)
+        .sort((a, b) => (requirementsDueOn(a.bout) < requirementsDueOn(b.bout) ? -1 : 1));
+    return (
+        <>
             {(weightAlerts.length > 0 || documentsDue.length > 0) && (
                 <div className="coach-editorial-alerts mb-6 grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
                     {weightAlerts.length > 0 && (
@@ -193,27 +248,6 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
                     )}
                 </div>
             )}
-
-            <div className="coach-editorial-body grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
-                <QueueCard
-                    title={t("coachToday.queueTitle")}
-                    filterLabel={t("coachToday.queueFilter")}
-                    items={attention}
-                    queues={queues}
-                    meta={coachQueueMeta(t)}
-                    active={queue}
-                    hrefFor={(next: CoachQueue | null) => hrefWith(routes.coach.dashboard, query, { queue: next })}
-                    emptyAll={{ title: t("coachToday.emptyTitle"), description: t("coachToday.emptyText") }}
-                    t={t}
-                    className="lg:col-span-2"
-                />
-
-                <div className="flex min-w-0 flex-col gap-6">
-                    {todo && <CoachTodoCard todo={todo} fighterNames={new Map(fighters.map((fighter) => [fighter.id, fighter.name]))} t={t} locale={locale} />}
-
-                    <TodaySchedule sessions={todaySessions} fighters={scheduleFighters} t={t} locale={locale} />
-                </div>
-            </div>
-        </div>
+        </>
     );
 }

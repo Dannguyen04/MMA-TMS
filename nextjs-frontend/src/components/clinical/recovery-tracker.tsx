@@ -21,7 +21,7 @@ import { advancePhaseAction, setMilestoneAction } from "@/lib/actions/clinical";
 import { recoveryProgressPct } from "@/lib/domain/rules";
 import type { RecoveryPhase, RecoveryPlan } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 interface MilestoneToggle {

@@ -1,6 +1,6 @@
 import { BODY_REGION_LABELS } from "@/lib/domain/labels";
 import type { BodyRegion, TrainingRestriction } from "@/lib/domain/types";
-import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 
 import { localLabel } from "./examination-presets";
 

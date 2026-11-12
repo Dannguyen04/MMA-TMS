@@ -9,7 +9,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { quickJumpFighters, type QuickJumpPerson } from "@/lib/actions/quick-jump";
 import { matchItems } from "@/lib/domain/quick-jump";
 import type { Role } from "@/lib/domain/types";
-import { navLabel } from "@/lib/i18n/translate";
+import { navLabel } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { NAVIGATION } from "./navigation";
 

@@ -3,7 +3,7 @@ import { computeGradedReturnSteps } from "@/lib/domain/intensity-tiers";
 import type { GradedReturn } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 export interface GradedReturnStepsProps {

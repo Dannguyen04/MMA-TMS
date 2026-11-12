@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { Tooltip } from "@/components/ui/tooltip";
 import { GLOSSARY, type GlossaryEntry, type GlossaryTerm } from "@/lib/domain/glossary";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, hasMessage } from "@/lib/i18n/translate";
+import { createTranslator, hasMessage } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 /**

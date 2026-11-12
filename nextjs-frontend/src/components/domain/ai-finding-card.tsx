@@ -20,7 +20,7 @@ import { AI_REVIEW_TERMS, isNeedsReview } from "@/lib/domain/ai-review";
 import type { AIFeedback, AIFinding, FindingCategory, FindingImpact, ReviewDecision } from "@/lib/domain/types";
 import { formatConfidence, formatDateTime, formatRelative, formatTimestamp, pluralize } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { ConfidenceMeter } from "./confidence-meter";
 import { formatMeasure } from "./domain-format";

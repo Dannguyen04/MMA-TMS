@@ -6,10 +6,13 @@ import { HEALTH_STATUS_META } from "@/components/domain/status-badges";
 import type { Tone } from "@/components/ui/tone";
 import { graphicsTier } from "@/lib/graphics-tier";
 import { cn } from "@/lib/utils";
-import { bodyModelFor } from "./body/build";
+import { bodyModelFor } from "./body/model-kind";
 import { figureParams, type FigureSource } from "./figure-params";
-import { portraitStudio, queuePaint } from "./portrait-studio";
+import type { portraitStudio as portraitStudioFn, queuePaint as queuePaintFn } from "./portrait-studio";
 import { useReducedMotion, useThemeTokens, useWebGL } from "./use-graphics";
+
+type PortraitStudio = NonNullable<ReturnType<typeof portraitStudioFn>>;
+type QueuePaint = typeof queuePaintFn;
 
 const TONE_TOKEN: Record<Tone, string> = {
     neutral: "neutral-solid",
@@ -55,97 +58,117 @@ export function FighterPortrait({ figure, className }: FighterPortraitProps) {
     useEffect(() => {
         const host = stage.current;
         const target = canvas.current;
-        const studio = webgl ? portraitStudio() : null;
-        if (!host || !target || !studio || !tokens) return;
+        if (!host || !target || !webgl || !tokens) return;
 
-        const colors = {
-            body: tokens["figure-body"],
-            rim: tokens["figure-rim"],
-            tone: tokens[TONE_TOKEN[HEALTH_STATUS_META[healthStatus].tone] as (typeof TOKENS)[number]],
-        };
-        let yaw = BASE_YAW * side;
-        let frame = 0;
-        let last = 0;
-        let spinning = false;
-        const paint = () => studio.paint(target, params, kind, colors, yaw);
+        const mount = (studio: PortraitStudio, queuePaint: QueuePaint): (() => void) => {
+            const colors = {
+                body: tokens["figure-body"],
+                rim: tokens["figure-rim"],
+                tone: tokens[TONE_TOKEN[HEALTH_STATUS_META[healthStatus].tone] as (typeof TOKENS)[number]],
+            };
+            let yaw = BASE_YAW * side;
+            let frame = 0;
+            let last = 0;
+            let spinning = false;
+            const paint = () => studio.paint(target, params, kind, colors, yaw);
 
-        const resize = () => {
-            const ratio = graphicsTier() === "lite" ? 1 : Math.min(2, window.devicePixelRatio || 1);
-            target.width = Math.round(host.clientWidth * ratio);
-            target.height = Math.round(host.clientHeight * ratio);
-            paint();
-        };
-        // Paint only once the card is on screen and its figure has loaded, in an idle slot; resizes go
-        // through the same queue.
-        let cancelPaint = () => {};
-        let shown = false;
-        let loaded = false;
-        let alive = true;
-        const schedule = () => {
-            if (!loaded || !shown) return;
-            cancelPaint();
-            cancelPaint = queuePaint(resize);
-        };
-        void studio.ready(kind).then(() => {
-            if (!alive) return;
-            loaded = true;
-            schedule();
-        });
-        const sizes = new ResizeObserver(() => schedule());
-        sizes.observe(host);
-        const seen = new IntersectionObserver(([entry]) => {
-            if (!entry.isIntersecting || shown) return;
-            shown = true;
-            schedule();
-        }, { rootMargin: "200px" });
-        seen.observe(host);
+            const resize = () => {
+                const ratio = graphicsTier() === "lite" ? 1 : Math.min(2, window.devicePixelRatio || 1);
+                target.width = Math.round(host.clientWidth * ratio);
+                target.height = Math.round(host.clientHeight * ratio);
+                paint();
+            };
+            // Paint only once the card is on screen and its figure has loaded, in an idle slot; resizes go
+            // through the same queue.
+            let cancelPaint = () => {};
+            let shown = false;
+            let loaded = false;
+            let alive = true;
+            const schedule = () => {
+                if (!loaded || !shown) return;
+                cancelPaint();
+                cancelPaint = queuePaint(resize);
+            };
+            void studio.ready(kind).then(() => {
+                if (!alive) return;
+                loaded = true;
+                schedule();
+            });
+            const sizes = new ResizeObserver(() => schedule());
+            sizes.observe(host);
+            const seen = new IntersectionObserver(([entry]) => {
+                if (!entry.isIntersecting || shown) return;
+                shown = true;
+                schedule();
+            }, { rootMargin: "200px" });
+            seen.observe(host);
 
-        // One turn, then ease back to the three-quarter view; repaint only while moving.
-        const tick = (now: number) => {
-            const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
-            last = now;
-            const rest = BASE_YAW * side;
-            if (spinning) yaw += dt * SPIN_SPEED;
-            else {
-                const turns = Math.round((yaw - rest) / (Math.PI * 2));
-                const goal = rest + turns * Math.PI * 2;
-                yaw += (goal - yaw) * Math.min(1, dt * 6);
-                if (Math.abs(goal - yaw) < 0.002) {
-                    yaw = rest;
-                    paint();
-                    frame = 0;
-                    last = 0;
-                    return;
+            // One turn, then ease back to the three-quarter view; repaint only while moving.
+            const tick = (now: number) => {
+                const dt = last ? Math.min(0.05, (now - last) / 1000) : 0;
+                last = now;
+                const rest = BASE_YAW * side;
+                if (spinning) yaw += dt * SPIN_SPEED;
+                else {
+                    const turns = Math.round((yaw - rest) / (Math.PI * 2));
+                    const goal = rest + turns * Math.PI * 2;
+                    yaw += (goal - yaw) * Math.min(1, dt * 6);
+                    if (Math.abs(goal - yaw) < 0.002) {
+                        yaw = rest;
+                        paint();
+                        frame = 0;
+                        last = 0;
+                        return;
+                    }
                 }
-            }
-            paint();
-            frame = requestAnimationFrame(tick);
-        };
-        const start = () => {
-            if (reduced || !shown || !loaded) return;
-            spinning = true;
-            if (!frame) frame = requestAnimationFrame(tick);
-        };
-        const stop = () => {
-            spinning = false;
+                paint();
+                frame = requestAnimationFrame(tick);
+            };
+            const start = () => {
+                if (reduced || !shown || !loaded) return;
+                spinning = true;
+                if (!frame) frame = requestAnimationFrame(tick);
+            };
+            const stop = () => {
+                spinning = false;
+            };
+
+            // The card's stretched link covers the stage, so listen on the card itself.
+            const card = host.closest("article") ?? host;
+            card.addEventListener("pointerenter", start);
+            card.addEventListener("pointerleave", stop);
+            card.addEventListener("focusin", start);
+            card.addEventListener("focusout", stop);
+            return () => {
+                alive = false;
+                cancelPaint();
+                sizes.disconnect();
+                seen.disconnect();
+                cancelAnimationFrame(frame);
+                card.removeEventListener("pointerenter", start);
+                card.removeEventListener("pointerleave", stop);
+                card.removeEventListener("focusin", start);
+                card.removeEventListener("focusout", stop);
+            };
         };
 
-        // The card's stretched link covers the stage, so listen on the card itself.
-        const card = host.closest("article") ?? host;
-        card.addEventListener("pointerenter", start);
-        card.addEventListener("pointerleave", stop);
-        card.addEventListener("focusin", start);
-        card.addEventListener("focusout", stop);
+        // three.js stays out of the page bundle: its module loads once the first card nears the screen.
+        let disposed = false;
+        let teardown = () => {};
+        const gate = new IntersectionObserver(([entry]) => {
+            if (!entry.isIntersecting) return;
+            gate.disconnect();
+            void import("./portrait-studio").then(({ portraitStudio, queuePaint }) => {
+                const studio = portraitStudio();
+                if (disposed || !studio) return;
+                teardown = mount(studio, queuePaint);
+            });
+        }, { rootMargin: "200px" });
+        gate.observe(host);
         return () => {
-            alive = false;
-            cancelPaint();
-            sizes.disconnect();
-            seen.disconnect();
-            cancelAnimationFrame(frame);
-            card.removeEventListener("pointerenter", start);
-            card.removeEventListener("pointerleave", stop);
-            card.removeEventListener("focusin", start);
-            card.removeEventListener("focusout", stop);
+            disposed = true;
+            gate.disconnect();
+            teardown();
         };
     }, [webgl, tokens, params, side, kind, healthStatus, reduced]);
 

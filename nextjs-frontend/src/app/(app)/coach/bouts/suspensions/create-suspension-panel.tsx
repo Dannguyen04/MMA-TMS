@@ -25,7 +25,7 @@ import type {
 } from "@/lib/domain/types";
 import { formatShortDate, isDateKey } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { routes } from "@/lib/routes";
 import { cn } from "@/lib/utils";
 

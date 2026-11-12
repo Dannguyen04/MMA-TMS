@@ -20,7 +20,7 @@ import { CLEARANCE_LEVEL_LABELS, EXAMINATION_OUTCOME_LABELS } from "@/lib/domain
 import { clearanceState, type ClearanceState } from "@/lib/domain/rules";
 import type { ClearanceLevel, ExaminationOutcome, ExaminationType, MedicalClearance } from "@/lib/domain/types";
 import { addDaysToKey, daysBetween, formatDate } from "@/lib/format";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import { routes } from "@/lib/routes";
 import { CLEARANCE_LEVEL_FOR_OUTCOME } from "./clinical-badges";
 import type { ProgressStep } from "./exam-progress";

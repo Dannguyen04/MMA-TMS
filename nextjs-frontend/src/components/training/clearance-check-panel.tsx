@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/form";
 import { Spinner } from "@/components/ui/spinner";
 import { clearanceConflictMessage, type ClearanceConflict } from "@/lib/domain/clearance-rules";
 import type { Locale } from "@/lib/i18n/config";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import type { BodyRegion } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { ClearanceBody } from "./clearance-body";

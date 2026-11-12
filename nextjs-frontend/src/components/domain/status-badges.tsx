@@ -71,7 +71,7 @@ import type { SuspensionState } from "@/lib/domain/bout-suspension-rules";
 import type { WeightStatus } from "@/lib/domain/weight-chart";
 import { daysBetweenDates } from "@/lib/domain/suspension-rules";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { formatConfidence } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

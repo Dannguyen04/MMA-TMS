@@ -3,7 +3,8 @@ import "server-only";
 import { z } from "zod";
 
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
-import type { BoutOutcome, CampBout, CompetitionRuleset, NutritionPlan, Suspension } from "@/lib/domain/bout";
+import { getCurrentUser } from "@/lib/auth/session";
+import type { BoutOutcome, BoutPhase, CampBout, CompetitionRuleset, NutritionPlan, Suspension } from "@/lib/domain/bout";
 import type { RequirementUpdate } from "@/lib/domain/bout-rules";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import { suspensionDays, type SuspensionDraft } from "@/lib/domain/bout-suspension-rules";
@@ -42,9 +43,23 @@ const idSchema = z.object({ id: z.string() }).passthrough();
 
 const path = (boutId: string, rest = "") => `/bouts/${encodeURIComponent(boutId)}${rest}`;
 
+/** Rulesets are academy-wide reference data, the same for every viewer, so a successful read is kept this long. */
+const RULESET_TTL_MS = 60_000;
+let rulesetCache: { expiresAt: number; rulesets: CompetitionRuleset[] } | null = null;
+
+/** Forgets the cached rulesets, so the next read asks the service. */
+export function clearRulesetCache(): void {
+    rulesetCache = null;
+}
+
 export async function listApiRulesets(): Promise<CompetitionRuleset[]> {
+    if (rulesetCache && rulesetCache.expiresAt > Date.now()) return structuredClone(rulesetCache.rulesets);
     const rows = await nullIfServiceFails(authenticatedApiRequest("/competition-rulesets", z.array(apiRulesetSchema)));
-    return (rows ?? []).map(toRuleset);
+    // A refusal or an outage reads as no rulesets and is never cached.
+    if (rows === null) return [];
+    const rulesets = rows.map(toRuleset);
+    rulesetCache = { expiresAt: Date.now() + RULESET_TTL_MS, rulesets: structuredClone(rulesets) };
+    return rulesets;
 }
 
 async function withRulesets(rows: z.output<typeof apiBoutSchema>[]): Promise<CampBout[]> {
@@ -58,9 +73,17 @@ const MAX_PAGES = 20;
 
 /**
  * Every page of a bouts or suspensions list. These services page as `{ data, hasNextPage, nextCursor }` and take a
- * single `fighterId`, so a roster is read one fighter at a time.
+ * single `fighterId`. A coach's fighters are read in one go without it and narrowed here: both services limit an
+ * unfiltered coach list to the coach's current assignments (`resolveListScope`), the rule they apply to each
+ * `fighterId`. Anyone else, and a single fighter, is read one fighter at a time. `statuses` (bouts only) are sent as
+ * repeated `status` parameters.
  */
-async function drainList<T extends z.ZodType>(target: string, itemSchema: T, fighterIds: string[] | "all"): Promise<z.output<T>[]> {
+async function drainList<T extends z.ZodType<{ fighterId: string }>>(
+    target: string,
+    itemSchema: T,
+    fighterIds: string[] | "all",
+    statuses: readonly string[] = [],
+): Promise<z.output<T>[]> {
     const pageSchema = z.object({ data: z.array(itemSchema), hasNextPage: z.boolean(), nextCursor: z.string().nullable() });
     const readAll = async (fighterId: string | null) => {
         const items: z.output<T>[] = [];
@@ -68,6 +91,7 @@ async function drainList<T extends z.ZodType>(target: string, itemSchema: T, fig
         for (let page = 0; page < MAX_PAGES; page += 1) {
             const params = new URLSearchParams({ limit: String(PAGE_LIMIT) });
             if (fighterId) params.set("fighterId", fighterId);
+            for (const status of statuses) params.append("status", status);
             if (cursor) params.set("cursor", cursor);
             const result = await authenticatedApiRequest(`${target}?${params.toString()}`, pageSchema);
             items.push(...result.data);
@@ -77,13 +101,19 @@ async function drainList<T extends z.ZodType>(target: string, itemSchema: T, fig
         return items;
     };
     if (fighterIds === "all") return readAll(null);
-    const pages = await Promise.all([...new Set(fighterIds)].map(readAll));
+    const unique = [...new Set(fighterIds)];
+    if (unique.length > 1 && (await getCurrentUser())?.role === "coach") {
+        const wanted = new Set(unique);
+        return (await readAll(null)).filter((item) => wanted.has(item.fighterId));
+    }
+    const pages = await Promise.all(unique.map(readAll));
     return pages.flat();
 }
 
-export async function listApiBouts(fighterIds: string[] | "all"): Promise<CampBout[]> {
+/** Bouts of the fighters in scope; `phases` narrows them on the service (all phases when empty). */
+export async function listApiBouts(fighterIds: string[] | "all", phases: readonly BoutPhase[] = []): Promise<CampBout[]> {
     if (Array.isArray(fighterIds) && fighterIds.length === 0) return [];
-    const rows = await nullIfServiceFails(drainList("/bouts", apiBoutSchema, fighterIds));
+    const rows = await nullIfServiceFails(drainList("/bouts", apiBoutSchema, fighterIds, phases));
     return withRulesets(rows ?? []);
 }
 

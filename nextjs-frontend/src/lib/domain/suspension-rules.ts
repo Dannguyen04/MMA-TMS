@@ -2,7 +2,7 @@ export type { SuspensionReason } from "./types";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { sessionTypeFor } from "./training-contract";
 import type {
     AffectedPlan,

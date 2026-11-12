@@ -15,7 +15,7 @@ import { useToast } from "@/components/ui/toast";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { submitAssessmentAction } from "@/lib/actions/admissions";
 import { ADMISSION_LIMITS, type AssessmentConclusion } from "@/lib/domain/admissions";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import { appendLine, closingLines, draftAssessmentSummary, unusedPresets, type CriterionPreset } from "./assessment-presets";
 
 interface CriterionRow {

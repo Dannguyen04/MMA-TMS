@@ -25,7 +25,7 @@ import type { ClearanceConflict } from "@/lib/domain/rules";
 import { MAX_WEEKLY_REPEATS, presetDuration, SESSION_PRESETS, suggestedSessionTitle, weeklyDates } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, TrainingType } from "@/lib/domain/types";
 import { academyDayStartIso, formatShortDate, isDateKey } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { ClearanceCheckPanel, type ClearanceCheckStatus } from "./clearance-check-panel";
 import { ExerciseBuilder } from "./exercise-builder";
 import { serializeExerciseRows, type ExerciseRow } from "./exercise-rows";

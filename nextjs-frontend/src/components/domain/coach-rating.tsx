@@ -2,7 +2,7 @@ import { Star } from "lucide-react";
 import type { CSSProperties } from "react";
 
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 /** Words for a coach rating, indexed by rating − 1. */

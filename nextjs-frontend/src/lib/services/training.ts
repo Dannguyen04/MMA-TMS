@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { ApiError, authenticatedApiRequest, authenticatedMutableApiRequest } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { getCurrentUser } from "@/lib/auth/session";
 import type { ClearanceConflict } from "@/lib/domain/rules";
 import type {
     CoachFeedback,
@@ -237,16 +238,65 @@ const exerciseCategoryFromApi: Record<BackendExercise["category"], ExerciseCateg
 };
 
 /**
- * The API filters by a single fighter, so scoped reads fan out one request per fighter and merge
- * the results by id. An empty scope reads nothing.
+ * Whether a list of several fighters can be read in one request without `fighterId`. Only for coaches: the service
+ * limits a coach's unfiltered list to their own current assignments (`TrainingAccessService.scopeListQuery`), the same
+ * rule it applies to each `fighterId`, so one read holds every fighter the per-fighter reads would. Doctors must name a
+ * fighter, and a single fighter is read as before.
  */
-async function readPerFighter<T extends { id: string }>(
+async function batchReader(fighterIds: string[]): Promise<"coach" | "doctor" | null> {
+    if (new Set(fighterIds).size < 2) return null;
+    const role = (await getCurrentUser())?.role;
+    return role === "coach" || role === "doctor" ? role : null;
+}
+
+/** The most fighters `fighterIds` takes in one list request (T-063). */
+const FIGHTER_IDS_MAX = 100;
+
+/** Which fighters a list request asks for: one (`fighterId`), several (`fighterIds`, comma-separated) or the caller's scope. */
+export interface FighterQuery {
+    fighterId?: string;
+    fighterIds?: string;
+}
+
+const isPaginationLimit = (error: unknown) => error instanceof ApiError && error.code === "PAGINATION_LIMIT_EXCEEDED";
+
+const uniqueById = <T extends { id: string }>(items: T[]): T[] => [...new Map(items.map((item) => [item.id, item])).values()];
+
+/**
+ * Reads the list for several fighters in as few requests as the service allows. A coach's roster is read once without
+ * `fighterId` and narrowed to the fighters asked for; a doctor names them with `fighterIds` (T-063), 100 at a time.
+ * Anyone else, a single fighter, or a list too long to drain fans out one request per fighter. Results merge by id, and an
+ * empty scope reads nothing. `scoped` says the endpoint supports both (sessions and plans; coach feedback has no
+ * endpoint yet).
+ */
+async function readPerFighter<T extends { id: string; fighterId: string }>(
     scope: FighterScope | undefined,
-    read: (fighterId: string | undefined) => Promise<T[]>,
+    read: (fighters: FighterQuery) => Promise<T[]>,
+    scoped = false,
 ): Promise<T[]> {
     if (Array.isArray(scope) && scope.length === 0) return [];
-    const pages = await Promise.all((Array.isArray(scope) ? scope : [undefined]).map(read));
-    return [...new Map(pages.flat().map((item) => [item.id, item])).values()];
+    const reader = scoped && Array.isArray(scope) ? await batchReader(scope) : null;
+    if (reader && Array.isArray(scope)) {
+        const ids = [...new Set(scope)];
+        const wanted = new Set(ids);
+        try {
+            const items =
+                reader === "coach"
+                    ? await read({})
+                    : (await Promise.all(chunk(ids, FIGHTER_IDS_MAX).map((part) => read({ fighterIds: part.join(",") })))).flat();
+            return uniqueById(items.filter((item) => wanted.has(item.fighterId)));
+        } catch (error) {
+            if (!isPaginationLimit(error)) throw error;
+        }
+    }
+    const pages = await Promise.all((Array.isArray(scope) ? [...new Set(scope)] : [undefined]).map((fighterId) => read({ fighterId })));
+    return uniqueById(pages.flat());
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+    const parts: T[][] = [];
+    for (let start = 0; start < items.length; start += size) parts.push(items.slice(start, start + size));
+    return parts;
 }
 
 /**
@@ -392,12 +442,13 @@ export interface PlanFilter {
 }
 
 function listBackendPlans(filter: PlanFilter): Promise<BackendPlan[]> {
-    return readPerFighter(filter.fighterIds, (fighterId) =>
+    return readPerFighter(filter.fighterIds, (fighters) =>
         drainNumberedPages("/training-plans", backendPlanSchema, {
-            fighterId,
+            ...fighters,
             coachId: filter.coachId,
             status: filter.status ? planStatusToApi[filter.status] : undefined,
         }),
+        true,
     );
 }
 
@@ -634,22 +685,24 @@ function validIso(value: string | undefined): string | undefined {
 }
 
 function listBackendSessions(filter: SessionFilter): Promise<BackendSession[]> {
-    const statuses = filter.status === undefined ? [undefined] : Array.isArray(filter.status) ? filter.status : [filter.status];
-    return readPerFighter(filter.fighterIds, async (fighterId) => {
-        const pages = await Promise.all(
-            statuses.map((status) =>
-                drainNumberedPages("/training-sessions", backendSessionSchema, {
-                    fighterId,
-                    coachId: filter.coachId,
-                    planId: filter.planId,
-                    status: status ? sessionStatusToApi[status] : undefined,
-                    fromDate: validIso(filter.from),
-                    toDate: validIso(filter.to),
-                }),
-            ),
-        );
-        return pages.flat();
-    });
+    const wanted = filter.status === undefined ? [] : [...new Set(Array.isArray(filter.status) ? filter.status : [filter.status])];
+    const fromDate = validIso(filter.from);
+    const toDate = validIso(filter.to);
+    // The service takes several statuses, comma-separated (T-063). Two interface statuses can share one service status.
+    const apiStatuses = [...new Set(wanted.map((status) => sessionStatusToApi[status]))];
+    return readPerFighter(
+        filter.fighterIds,
+        (fighters) =>
+            drainNumberedPages("/training-sessions", backendSessionSchema, {
+                ...fighters,
+                coachId: filter.coachId,
+                planId: filter.planId,
+                status: apiStatuses.length > 0 ? apiStatuses.join(",") : undefined,
+                fromDate,
+                toDate,
+            }),
+        true,
+    );
 }
 
 export async function listSessions(filter: SessionFilter = {}): Promise<TrainingSession[]> {
@@ -889,7 +942,7 @@ export interface FeedbackFilter {
 export async function listCoachFeedback(filter: FeedbackFilter = {}): Promise<CoachFeedback[]> {
     if (isDemoAuthEnabled()) return (await demoService()).listCoachFeedback(filter);
     if (!platformFeatureAvailable("coachFeedback")) return [];
-    const feedback = await readPerFighter(filter.fighterIds, (fighterId) =>
+    const feedback = await readPerFighter(filter.fighterIds, ({ fighterId }) =>
         drainNumberedPages("/coach-feedback", backendFeedbackSchema, {
             fighterId,
             coachId: filter.coachId,

@@ -26,7 +26,7 @@ import { clearanceFromExamination, RECONCILE_FIELD, suggestClearanceType, type C
 import type { GlossaryTerm } from "@/lib/domain/glossary";
 import type { MedicalClearance } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, formatDate } from "@/lib/format";
-import { plural, type MessageKey } from "@/lib/i18n/translate";
+import { plural, type MessageKey } from "@/lib/i18n/translate-client";
 import type { CurrentExamination } from "@/lib/services/medical";
 import { ExaminationReadBack } from "./examination-read-back";
 import type { ProgressStep } from "./exam-progress";

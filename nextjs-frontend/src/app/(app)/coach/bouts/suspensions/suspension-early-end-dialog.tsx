@@ -22,7 +22,7 @@ import {
 import type { MedicalExamination, Suspension } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 export interface SuspensionEarlyEndDialogProps {

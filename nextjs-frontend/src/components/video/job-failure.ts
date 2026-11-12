@@ -1,7 +1,7 @@
 /** Plain-language explanation of pipeline failures, with what the user can do about them. */
 
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 import { isAIJobErrorCode, JOB_ERROR_RETRY_HELPS, type AIJobErrorCode } from "@/lib/video/job-errors";
 
 /** Every code needs its three messages: a new code is a type error until `screens-video.*.ts` defines them. */

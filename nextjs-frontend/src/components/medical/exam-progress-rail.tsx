@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { useT } from "@/components/i18n/locale-provider";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 import { sectorPath, type ProgressStep, type StepState } from "./exam-progress";

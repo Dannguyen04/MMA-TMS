@@ -10,6 +10,7 @@ import { dashboardPath } from "@/lib/routes";
 import type { NotificationBellData } from "@/lib/services/notifications";
 import { MobileBottomBar, MobileNavDrawer } from "./mobile-nav";
 import { HubTabs } from "./hub-tabs";
+import { NavCountsSlot } from "./late-counts";
 import { NotificationBell } from "./notification-bell";
 import { QuickJump } from "./quick-jump";
 import { SidebarNav, type NavCounts } from "./sidebar-nav";
@@ -20,6 +21,8 @@ export interface AppShellProps {
     theme: ThemePreference;
     locale: Locale;
     counts: NavCounts;
+    /** Badge counts that arrive after the shell has rendered (the doctor's triage counts). */
+    lateCounts?: Promise<NavCounts>;
     /** Null when the notification service doesn't answer, which leaves the bell out. */
     notifications: NotificationBellData | null;
     now: string;
@@ -28,7 +31,7 @@ export interface AppShellProps {
     children: ReactNode;
 }
 
-export function AppShell({ user, theme, locale, counts, notifications, now, hiddenNav, children }: AppShellProps) {
+export function AppShell({ user, theme, locale, counts, lateCounts, notifications, now, hiddenNav, children }: AppShellProps) {
     const t = createTranslator(locale);
     const shellUser = { name: user.name, email: user.email, title: user.title, role: user.role };
 
@@ -48,13 +51,13 @@ export function AppShell({ user, theme, locale, counts, notifications, now, hidd
                 </Link>
                 <p className="mb-5 px-2 font-display text-[13px] font-bold tracking-[0.1em] text-rail-muted uppercase">{t("shell.workspace", { role: t(`role.${user.role}`) })}</p>
                 <div className="scrollbar-thin flex min-h-0 flex-1 flex-col overflow-y-auto py-1 pr-1 pl-3">
-                    <SidebarNav role={user.role} counts={counts} hidden={hiddenNav} />
+                    <NavCountsSlot base={counts} late={lateCounts} render={(c) => <SidebarNav role={user.role} counts={c} hidden={hiddenNav} />} />
                 </div>
             </aside>
 
             <div className="lg:pl-64 print:pl-0">
                 <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border bg-surface/90 px-3 backdrop-blur sm:px-5 print:hidden">
-                    <MobileNavDrawer role={user.role} counts={counts} hidden={hiddenNav} />
+                    <NavCountsSlot base={counts} late={lateCounts} render={(c) => <MobileNavDrawer role={user.role} counts={c} hidden={hiddenNav} />} />
                     <Link href={dashboardPath(user.role)} className="flex items-center gap-2 lg:hidden" aria-label={t("shell.home")}>
                         <LogoMark className="size-7" />
                         <span className="font-display text-[17px] font-extrabold tracking-[0.01em] italic max-sm:hidden">MMA-TMS</span>
@@ -78,7 +81,7 @@ export function AppShell({ user, theme, locale, counts, notifications, now, hidd
             </div>
 
             <div className="print:hidden">
-                <MobileBottomBar role={user.role} counts={counts} />
+                <NavCountsSlot base={counts} late={lateCounts} render={(c) => <MobileBottomBar role={user.role} counts={c} />} />
             </div>
         </div>
     );

@@ -6,7 +6,7 @@ import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Textarea } from "@/components/ui/form";
 import { daysBetweenKeys } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 
 export interface MilestoneDraft {
     key: number;

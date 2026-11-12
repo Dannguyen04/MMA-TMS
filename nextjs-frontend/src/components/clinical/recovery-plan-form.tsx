@@ -15,7 +15,7 @@ import { useActionForm } from "@/components/ui/use-action-form";
 import { createRecoveryPlanAction } from "@/lib/actions/clinical";
 import type { Injury } from "@/lib/domain/types";
 import { addDaysToKey, dayKey, daysBetweenKeys, formatDate } from "@/lib/format";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { injuryPhrase, injuryText, regionText } from "./clinical-copy";
 import { PhaseBuilder, type PhaseDraft } from "./phase-builder";

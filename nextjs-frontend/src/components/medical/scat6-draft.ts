@@ -1,7 +1,7 @@
 import { friendlyScat6Issues } from "@/lib/domain/medical-scat6";
 import { SCAT6, scat6InputSchema, type Scat6List } from "@/lib/domain/scat6";
 import { academyWallClockToIso, isDateTimeInputValue, toDateTimeInputValue } from "@/lib/format";
-import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 
 /**
  * The SCAT6 form's working state and how it becomes the record the medical service takes. Inputs keep what was typed

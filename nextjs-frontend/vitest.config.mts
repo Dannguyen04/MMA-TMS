@@ -12,6 +12,7 @@ export default defineConfig({
     test: {
         environment: "node",
         include: ["src/**/*.test.ts"],
+        setupFiles: ["./src/test/i18n-setup.ts"],
         // Tests that load the whole demo store take 5–7 s while every worker imports at once on a busy machine;
         // the 5 s default made them fail at random (T-040 C).
         testTimeout: 20_000,

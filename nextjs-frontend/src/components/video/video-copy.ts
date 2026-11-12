@@ -14,7 +14,7 @@ import type {
     Technique,
 } from "@/lib/domain/types";
 import { formatConfidence } from "@/lib/format";
-import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 
 /**
  * Viewer-language wording for the video and AI-analysis screens. English output is exactly what the
@@ -25,6 +25,12 @@ const key = (k: string) => k as MessageKey;
 
 /** Stored and pipeline labels come in English (API, older records) or as the `labels.ts` constants write them now; both map back. */
 const EN = createTranslator("en");
+
+/** Built on first use, not at import: in the browser the dictionaries arrive with `LocaleProvider`, after this module loads. */
+function lazy<T>(build: () => T): () => T {
+    let value: T | undefined;
+    return () => (value ??= build());
+}
 
 /** "87%", or "Unavailable" in the viewer's language when there is no score. */
 export function confidencePct(t: Translator, confidence: number | null): string {
@@ -91,18 +97,21 @@ export function reviewCountParts(t: Translator, counts: Partial<ReviewCounts>): 
 }
 
 /** Technique labels a reviewer can pick, mapped to their technique (correction labels are stored in English). */
-const LABEL_TECHNIQUE = new Map<string, Technique | StrikeType>(
-    [...TECHNIQUES, ...STRIKE_TYPES].flatMap((technique) => [
-        [techniqueLabel(EN, technique), technique],
-        [TECHNIQUE_LABELS[technique], technique],
-    ]),
+const LABEL_TECHNIQUE = lazy(
+    () =>
+        new Map<string, Technique | StrikeType>(
+            [...TECHNIQUES, ...STRIKE_TYPES].flatMap((technique) => [
+                [techniqueLabel(EN, technique), technique],
+                [TECHNIQUE_LABELS[technique], technique],
+            ]),
+        ),
 );
 
 /** A stored label: translated when it is one of the app's own technique / category labels, otherwise as typed. */
 export function storedLabel(t: Translator, label: string): string {
     if (label === FINDING_CATEGORY_LABELS.movement_quality || label === EN(key("screens.video.findingCategory.movement_quality")))
         return t(key("screens.video.findingCategory.movement_quality"));
-    const technique = LABEL_TECHNIQUE.get(label);
+    const technique = LABEL_TECHNIQUE().get(label);
     return technique ? techniqueLabel(t, technique) : label;
 }
 
@@ -123,13 +132,15 @@ export function reviewedStrike(t: Translator, detection: Pick<Detection, "type" 
 /* ─── Sentences the worker-result mapping composes in English (API mode) ──────── */
 
 const GUARD_DROP = /^(Right|Left) hand dropped below the chin after the (.+)$/;
-const STRIKE_BY_LOWER = new Map<string, StrikeType>(STRIKE_TYPES.flatMap((type) => [[techniqueLabel(EN, type).toLowerCase(), type], [TECHNIQUE_LABELS[type].toLowerCase(), type]]));
+const STRIKE_BY_LOWER = lazy(
+    () => new Map<string, StrikeType>(STRIKE_TYPES.flatMap((type) => [[techniqueLabel(EN, type).toLowerCase(), type], [TECHNIQUE_LABELS[type].toLowerCase(), type]])),
+);
 
 /** A movement event's detail. The pipeline writes a few fixed English sentences; demo data is already in Vietnamese. */
 export function eventDetail(t: Translator, detail: string): string {
     if (detail === "Fighter not detected in frame") return t(key("screens.video.generated.fighterNotDetected"));
     const match = GUARD_DROP.exec(detail);
-    const strike = match ? STRIKE_BY_LOWER.get(match[2]) : undefined;
+    const strike = match ? STRIKE_BY_LOWER().get(match[2]) : undefined;
     if (!match || !strike) return detail;
     return t(key(match[1] === "Right" ? "screens.video.generated.guardDropRight" : "screens.video.generated.guardDropLeft"), { strike: t(key(`screens.video.strikeInText.${strike}`)) });
 }
@@ -139,11 +150,14 @@ const SUMMARY_LOW = /^(\d+) detections fell below 60% confidence and are marked 
 const SUMMARY_NOT_ELIGIBLE = "Evidence quality or calibrated detection confidence is insufficient; a coach must verify the events before using technique findings.";
 const SUMMARY_NO_LOW = "Detections with confidence below 60% are marked for coach review.";
 const SUMMARY_MOVEMENT = /^(.+)\. (\d+) footage windows; these are not repetitions or verified strikes\. A professional must interpret the video\. No technique score or clinical conclusion is generated\.$/;
-const MOVEMENT_STATUS_BY_LABEL = new Map<string, MovementEvidence["status"]>(
-    (Object.keys(MOVEMENT_REVIEW_LABELS) as MovementEvidence["status"][]).flatMap((status) => [
-        [movementReviewLabel(EN, status), status],
-        [MOVEMENT_REVIEW_LABELS[status], status],
-    ]),
+const MOVEMENT_STATUS_BY_LABEL = lazy(
+    () =>
+        new Map<string, MovementEvidence["status"]>(
+            (Object.keys(MOVEMENT_REVIEW_LABELS) as MovementEvidence["status"][]).flatMap((status) => [
+                [movementReviewLabel(EN, status), status],
+                [MOVEMENT_REVIEW_LABELS[status], status],
+            ]),
+        ),
 );
 
 /**
@@ -153,7 +167,7 @@ const MOVEMENT_STATUS_BY_LABEL = new Map<string, MovementEvidence["status"]>(
  */
 export function analysisSummary(t: Translator, summary: string): string {
     const movement = SUMMARY_MOVEMENT.exec(summary);
-    const status = movement ? MOVEMENT_STATUS_BY_LABEL.get(movement[1]) : undefined;
+    const status = movement ? MOVEMENT_STATUS_BY_LABEL().get(movement[1]) : undefined;
     if (movement && status) return t(key("screens.video.generated.summaryMovement"), { status: movementReviewLabel(t, status), n: movement[2] });
 
     const strikes = SUMMARY_STRIKES.exec(summary);

@@ -197,17 +197,51 @@ export interface VideoDetail {
     uploadedBy: User | null;
 }
 
+type WorkerResult = z.output<typeof workerResultSchema>;
+
+/** A completed job's result never changes, and this process keeps it for this long. */
+const JOB_RESULT_TTL_MS = 10 * 60_000;
+const JOB_RESULT_CACHE_SIZE = 50;
+const jobResultCache = new Map<string, { expiresAt: number; result: WorkerResult }>();
+
+/** Forgets every cached job result, so the next read asks the service. */
+export function clearJobResultCache(): void {
+    jobResultCache.clear();
+}
+
+/**
+ * The result of a completed job, kept by job id: the service downloads it from storage on every read. Callers check
+ * that the viewer may see the video (`getVideo`) first; the cache never replaces that check. Copies go in and out, since
+ * the mapped analysis is changed in place by the review layer.
+ */
+async function readCompletedJobResult(jobId: string): Promise<WorkerResult> {
+    const now = Date.now();
+    const cached = jobResultCache.get(jobId);
+    if (cached && cached.expiresAt > now) return structuredClone(cached.result);
+    const result = await pipelineApiRequest(`/jobs/${encodeURIComponent(jobId)}/result`, workerResultSchema);
+    jobResultCache.delete(jobId);
+    for (const [key, entry] of jobResultCache) if (entry.expiresAt <= now) jobResultCache.delete(key);
+    // Oldest first: a Map keeps insertion order.
+    while (jobResultCache.size >= JOB_RESULT_CACHE_SIZE) jobResultCache.delete(jobResultCache.keys().next().value as string);
+    jobResultCache.set(jobId, { expiresAt: now + JOB_RESULT_TTL_MS, result: structuredClone(result) });
+    return result;
+}
+
 export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
     if (isDemoAuthEnabled() && (!uuidSchema.safeParse(id).success || isMockMode())) return (await demoService()).getVideoDetail(id);
+    // The access check: a video the viewer may not see ends here, before anything cached is read.
     const video = await getVideo(id);
     if (!video) return null;
-    const fighter = isDemoAuthEnabled() ? await demoFighterForBackendId(video.fighterId) : await getFighter(video.fighterId);
+    // The fighter and the job only need the video, so they are read together.
+    const [fighter, job] = await Promise.all([
+        isDemoAuthEnabled() ? demoFighterForBackendId(video.fighterId) : getFighter(video.fighterId),
+        video.jobId ? getJobProgress(video.jobId) : null,
+    ]);
     if (!fighter) return null;
     if (isDemoAuthEnabled()) video.fighterId = fighter.id;
-    const job = video.jobId ? await getJobProgress(video.jobId) : null;
     let analysis: AIAnalysis | null = null;
     if (job?.status === "completed") {
-        const result = await pipelineApiRequest(`/jobs/${encodeURIComponent(job.id)}/result`, workerResultSchema);
+        const [result, reviews] = await Promise.all([readCompletedJobResult(job.id), readReviewState(job.id)]);
         analysis = mapWorkerResult(result, {
             analysisId: `an-${job.id}`,
             videoId: video.id,
@@ -225,7 +259,7 @@ export async function getVideoDetail(id: string): Promise<VideoDetail | null> {
             resultUrl: `/api/ai-jobs/${job.id}/result`,
         });
         video.analysisId = analysis.id;
-        applyPersistedReviews(analysis, await readReviewState(job.id));
+        applyPersistedReviews(analysis, reviews);
     }
     return { video, fighter, job, analysis, alerts: [], session: null, uploadedBy: null };
 }

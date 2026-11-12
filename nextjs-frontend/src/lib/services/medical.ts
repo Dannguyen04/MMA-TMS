@@ -283,9 +283,15 @@ export async function updateHealthStatus(fighterId: string, status: HealthStatus
 
 /* ─── Overviews ───────────────────────────────────────────────────────────── */
 
-export async function getFighterHealthSummary(fighterId: string, now: string | Date = new Date()): Promise<FighterHealthSummary | null> {
+/** Starts reading several fighters' dossiers in one request for this render; the per-fighter reads then share it. */
+export function primeMedicalDossiers(fighterIds: readonly string[]): void {
+    if (isDemoAuthEnabled()) return;
+    api.primeDossiers(fighterIds);
+}
+
+export async function getFighterHealthSummary(fighterId: string, now: string | Date = new Date(), known?: Fighter): Promise<FighterHealthSummary | null> {
     if (isDemoAuthEnabled()) return (await demoService()).getFighterHealthSummary(fighterId, now);
-    return api.healthSummary(fighterId, now);
+    return api.healthSummary(fighterId, now, known);
 }
 
 export async function getDoctorOverview(fighterIds: FighterScope, now: string | Date = new Date()): Promise<DoctorOverview> {

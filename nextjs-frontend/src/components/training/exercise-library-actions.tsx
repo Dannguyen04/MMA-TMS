@@ -16,7 +16,7 @@ import { createLibraryExercise, importStarterLibrary, type StarterImportResult }
 import { exerciseCategoryLabel } from "@/lib/domain/labels";
 import { EXERCISE_CATEGORY_FOR, SERVICE_EXERCISE_CATEGORIES, type ServiceExerciseCategory } from "@/lib/domain/training-contract";
 import { formatNumber } from "@/lib/format";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import { Callout } from "./callout";
 
 const categoryOptions = (t: Translator) => SERVICE_EXERCISE_CATEGORIES.map((value) => ({ value, label: exerciseCategoryLabel(t, EXERCISE_CATEGORY_FOR[value]) }));

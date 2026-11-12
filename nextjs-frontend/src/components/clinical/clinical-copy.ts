@@ -2,7 +2,7 @@ import { formatMeasure } from "@/components/domain/domain-format";
 import { bodyRegionLabel, injuryTypeName } from "@/lib/domain/labels";
 import type { BodyJoint } from "@/lib/domain/medical-contract";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import type {
     AbnormalMovementAlert,
     BodyRegion,

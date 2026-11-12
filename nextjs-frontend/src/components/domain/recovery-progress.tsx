@@ -5,7 +5,7 @@ import { recoveryProgressPct } from "@/lib/domain/rules";
 import type { RecoveryPhase, RecoveryPhaseStatus, RecoveryPlan } from "@/lib/domain/types";
 import { daysBetween, formatDate, formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 

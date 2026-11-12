@@ -1,6 +1,6 @@
 import type { Bout, WeightFeasibility, WeightWarningStatus, WeightReminder, WeighInReminderLevel } from "./types";
 import { academyWallClockToIso, addDaysToKey, dayKey, daysBetweenKeys, isDateKey, isDateTimeInputValue } from "@/lib/format";
-import { createTranslator, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type Translator } from "@/lib/i18n/translate-client";
 
 import {
     isActivePhase,

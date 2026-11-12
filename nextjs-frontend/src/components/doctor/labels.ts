@@ -19,7 +19,7 @@ import type {
     WeightClass,
 } from "@/lib/domain/types";
 import { INTL_LOCALE, type Locale } from "@/lib/i18n/config";
-import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 
 /** Nhãn cho màn hình Bác sĩ (khoá từ điển `doctorUi.*`, hiển thị bằng `t`). Khoá là giá trị của domain frontend (chữ thường) hoặc của API y tế (chữ hoa). */
 

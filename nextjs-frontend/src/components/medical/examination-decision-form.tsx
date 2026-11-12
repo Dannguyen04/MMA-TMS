@@ -27,7 +27,7 @@ import {
 } from "@/lib/domain/medical-contract";
 import type { ExaminationType } from "@/lib/domain/types";
 import { addDaysToKey, formatDate, formatDateTime, formatRelative } from "@/lib/format";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import type { CurrentExamination } from "@/lib/services/medical";
 import { AssessmentsField, EMPTY_VITALS, ExaminationTypeField, FollowUpField, useAssessmentRows, useFollowUpDate, VitalsFields } from "./examination-details-fields";
 import { vitalsDraftFrom } from "./examination-presets";
