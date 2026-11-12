@@ -48,6 +48,62 @@ Mở `http://localhost:3000`. Không cần backend.
 
 Đăng nhập ở `http://localhost:3100/login` bằng email trên. Ở API mode không dùng mật khẩu demo `mma-demo`. Mật khẩu là mật khẩu tài khoản thật trên backend.
 
+## Chuẩn bị dữ liệu
+
+### Hai lệnh chạy seed
+
+Chạy trong thư mục `nestjs-api`:
+
+1. **Hôm trước buổi demo (chính xác ngày D−1, đúng 1 ngày trước demo):**
+   ```powershell
+   node scripts/demo-seed.mjs --stage early
+   ```
+   (hoặc bí danh `--only clearance`). Tạo các võ sĩ giai đoạn sớm (f7, f8, f9, f10). Lưu ý: phải chạy đúng ngày D−1 (không chạy sớm hơn) vì quy tắc trở lại tập luyện theo bậc (`gradedReturnFor`) chỉ áp trần cường độ ở ngày R và R+1. Không chạy `--stage early` trong khoảng 00:00 đến 00:01 giờ học viện.
+
+2. **Sáng ngày demo (trước 22:30 giờ học viện):**
+   ```powershell
+   node scripts/demo-seed.mjs
+   ```
+   Lần chạy chính. Tạo tất cả các võ sĩ còn lại và hoàn tất dữ liệu ngày demo. Thêm `--with-ai` nếu muốn tạo sẵn gợi ý chiến thuật AI cho võ sĩ 6.
+
+### Biến môi trường
+
+Cần thiết lập trước khi chạy seed thật (không áp dụng khi `--dry-run`):
+
+| Biến | Ý nghĩa | Ví dụ |
+| --- | --- | --- |
+| `DEMO_SEED_API_URL` | Địa chỉ backend API | `http://localhost:3001` |
+| `DEMO_SEED_TOKEN` | Bearer token của Admin (tuỳ chọn thay cho email/password admin) | |
+| `DEMO_SEED_ADMIN_EMAIL` | Email Admin | `admin@gmail.com` |
+| `DEMO_SEED_ADMIN_PASSWORD` | Mật khẩu Admin | |
+| `DEMO_SEED_COACH_EMAIL` | Email HLV Rafael Costa (tài khoản có sẵn) | `rafael.costa@lotus-combat.test` |
+| `DEMO_SEED_COACH_PASSWORD` | Mật khẩu HLV Rafael Costa | |
+| `DEMO_SEED_DOCTOR_EMAIL` | Email Bác sĩ Thu Lê (tài khoản có sẵn) | `thu.le@lotus-combat.test` |
+| `DEMO_SEED_DOCTOR_PASSWORD` | Mật khẩu Bác sĩ Thu Lê | |
+| `DEMO_SEED_USER_PASSWORD` | Mật khẩu khởi tạo cho các tài khoản võ sĩ demo | |
+
+### Bảng võ sĩ → Tình huống → Vai trò bấm
+
+| Võ sĩ | Tình huống | Vai trò bấm |
+| --- | --- | --- |
+| f1 An | Đang camp, cân cách quãng | HLV |
+| f2 Bình | Tuần thi đấu, cân hằng ngày | HLV |
+| f3 Cường | Vừa cân chính thức đạt hạn | HLV |
+| f4 Dũng | Đình chỉ MANDATORY_REST, có buổi tập bị dời | HLV |
+| f5 Em | Sẵn sàng, chưa có trận | HLV |
+| f6 Phong | Báo cáo sau trận, thua KO hiệp 2, phân tích hiệp và AI | HLV |
+| f7 Giang | Chờ xác nhận tập lại (đình chỉ MEDICAL 1 ngày) | HLV hoặc Bác sĩ |
+| f8 Hải | Lịch sử HLV xác nhận khi không có giấy; ngày demo xếp được PAD_WORK | HLV |
+| f9 Khoa | Lịch sử kết thúc sớm có phiếu khám; ngày demo xếp được GRAPPLING | Bác sĩ |
+| f10 Lâm | Đình chỉ DQ 1 ngày, tự hết hạn không cần xác nhận | Hệ thống |
+| f11 Mai | Bác sĩ Thu kết thúc sớm trực tiếp (HLV không thấy nút kết thúc sớm) | Bác sĩ |
+| f12 Nam | Đình chỉ MEDICAL do Ban tổ chức ban hành, gỡ theo văn bản BTC | HLV |
+| f13 Oanh | Yêu cầu khám OPEN từ HLV, bảng triage của bác sĩ có yêu cầu mở | Bác sĩ |
+| f14 Phúc | Trận AIBA hạng 71, hồ sơ MISSING; Cổng 1 chặn vào tuần thi đấu | HLV |
+| f15 Quân | Trận VMMAF hạng 70, cân mới nhất 77 kg; cảnh báo cân đỏ | HLV |
+| f16 Sơn | Trượt cân 71,2 kg, thi tiếp catchweight 72 kg | HLV |
+| f17 Tùng | Huỷ trận vì đối thủ rút | HLV |
+
 ## Trước khi bấm
 
 Backend phải đang chạy ở cổng **3001**. Frontend API mode ở cổng **3100**.
