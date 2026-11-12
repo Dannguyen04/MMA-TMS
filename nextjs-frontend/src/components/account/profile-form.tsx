@@ -39,7 +39,7 @@ export function ProfileForm({ name, phone, email, title }: ProfileFormProps) {
 
     return (
         <Card className="min-w-0 overflow-hidden">
-            <CardHeader title={t("account.profile.editTitle")} description={t("account.profile.editDescription")} icon={<UserPen />} />
+            <CardHeader title={t("account.profile.editTitle")} icon={<UserPen />} />
             <form {...form.formProps}>
                 <div className="flex flex-col gap-4 px-5 pb-5">
                     <Field label={t("account.profile.fullName")} htmlFor={nameControl.id} required error={form.error("name")}>

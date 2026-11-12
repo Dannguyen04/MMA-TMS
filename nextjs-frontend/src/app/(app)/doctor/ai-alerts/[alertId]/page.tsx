@@ -122,7 +122,6 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                             <CardHeader
                                 as="h3"
                                 title={t("doctorPages.meta.aiAlerts")}
-                                description={t("doctorPages.alert.patternDesc")}
                                 icon={<Sparkles />}
                                 action={<AIGeneratedBadge size="sm" locale={locale} />}
                             />
@@ -328,7 +327,6 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                 <Card className="overflow-hidden">
                     <CardHeader
                         title={t("doctorPages.alert.previous", { name: fighter.name })}
-                        description={t("doctorPages.alert.previousDesc")}
                         icon={<History />}
                     />
                     {history.length === 0 ? (

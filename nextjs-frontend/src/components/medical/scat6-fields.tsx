@@ -205,7 +205,7 @@ function AthleteFields({ scat6 }: { scat6: Scat6Controller }) {
     const t = useT();
     const history = draft.concussionHistory;
     return (
-        <FormSection title={t("doctorScat6.part.athlete")} info={<TermHint term="athleteBackground" />} description={t("doctorScat6.athlete.description")}>
+        <FormSection title={t("doctorScat6.part.athlete")} info={<TermHint term="athleteBackground" />}>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <Field label={t("doctorScat6.athlete.dominantHand")} htmlFor={scat6.id("athlete.dominantHand")} error={scat6.error("athlete.dominantHand")} required>
                     <Select
@@ -558,7 +558,7 @@ export function Scat6BalanceFields({ scat6 }: { scat6: Scat6Controller }) {
                 <Toggles scat6={scat6} path="delayedRecall.words" legend={t("doctorScat6.delayed.words")} values={draft.delayedRecall.words} itemLabel={t("doctorScat6.common.word")} />
             </Part>
 
-            <FormSection title={t("doctorScat6.part.conclusion")} description={t("doctorScat6.conclusion.description")}>
+            <FormSection title={t("doctorScat6.part.conclusion")}>
                 <ChoiceGroup
                     id={scat6.id("differentFromUsualSelf")}
                     name="scat6.differentFromUsualSelf"

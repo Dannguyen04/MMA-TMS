@@ -205,7 +205,6 @@ export const viTraining = {
     "training.planForm.titleEdit": "Chỉnh sửa giáo án",
     "training.planForm.descEditActive": "{name} sẽ thấy thay đổi trên giáo án đang áp dụng ngay lập tức.",
     "training.planForm.sectionObjective": "Võ sĩ & mục tiêu",
-    "training.planForm.sectionObjectiveDesc": "Giáo án dành cho ai và cần đạt được mục tiêu gì.",
     "training.planForm.fighter": "Võ sĩ",
     "training.planForm.chooseFighter": "Chọn võ sĩ…",
     "training.planForm.title": "Tiêu đề giáo án",
@@ -263,7 +262,6 @@ export const viTraining = {
 
     /* Plan Exercises */
     "training.planExercises.title": "Bài tập trong giáo án",
-    "training.planExercises.description": "Các bài tập được chỉ định xuyên suốt giáo án, theo thứ tự thực hiện.",
     "training.planExercises.add": "Thêm bài tập",
     "training.planExercises.emptyTitle": "Chưa có bài tập nào trong giáo án này",
     "training.planExercises.emptyDescCoach": "Thêm các bài tập nền tảng của giáo án này, kèm số hiệp, số lần lặp hoặc thời gian.",
@@ -339,7 +337,6 @@ export const viTraining = {
     "training.sessionForm.descEdit": "{name} sẽ nhận thông báo khi thời gian hoặc địa điểm thay đổi.{checkNotice}",
     "training.sessionForm.checkNotice": " Hệ thống sẽ kiểm tra lại cấp phép trong lúc bạn chỉnh sửa.",
     "training.sessionForm.sectionFighterPlan": "Võ sĩ & giáo án",
-    "training.sessionForm.sectionFighterPlanDesc": "Võ sĩ tham gia và giáo án tương ứng của buổi tập.",
     "training.sessionForm.fighter": "Võ sĩ",
     "training.sessionForm.chooseFighter": "Chọn võ sĩ…",
     "training.sessionForm.plan": "Giáo án tập luyện",
@@ -363,9 +360,7 @@ export const viTraining = {
     "training.sessionForm.targetRpe": "RPE mục tiêu",
     "training.sessionForm.targetRpeHint": "Mức độ gắng sức của buổi tập, thang điểm từ 1 đến 10.",
     "training.sessionForm.sectionExercises": "Bài tập",
-    "training.sessionForm.sectionExercisesDesc": "Các bài tập theo thứ tự thực hiện kèm số hiệp hoặc số lần.",
     "training.sessionForm.sectionNotes": "Ghi chú",
-    "training.sessionForm.sectionNotesDesc": "Những điều võ sĩ cần lưu ý hoặc chuẩn bị mang theo.",
     "training.sessionForm.sessionNotes": "Ghi chú buổi tập",
     "training.sessionForm.submitCreate": "Lên lịch buổi tập",
     "training.sessionForm.submitEdit": "Lưu thay đổi",
@@ -373,7 +368,7 @@ export const viTraining = {
     "training.sessionForm.submittingEdit": "Đang lưu…",
     "training.sessionForm.blockedResolve": "Hãy giải quyết các xung đột cấp phép gây chặn để lên lịch buổi tập này.",
     "training.sessionForm.blockedConfirm": "Hãy xác nhận bạn đã xem xét các cảnh báo cấp phép để tiếp tục.",
-    "training.sessionForm.serviceClearanceNotice": "Dịch vụ tập luyện sẽ kiểm tra cấp phép y tế của võ sĩ khi bạn bắt đầu buổi tập.",
+    "training.sessionForm.serviceClearanceNotice": "Cấp phép y tế của võ sĩ được kiểm tra khi bạn bắt đầu buổi tập.",
     "training.sessionForm.emptyClearanceTitle": "Cấp phép y tế",
     "training.sessionForm.emptyClearanceDesc": "Chọn võ sĩ để xem cấp phép và các giới hạn y tế.",
 
@@ -423,7 +418,6 @@ export const viTraining = {
     "training.sessionDetail.roundsCount.one": "1 hiệp",
     "training.sessionDetail.captionExercises": "Danh sách bài tập trong buổi tập này",
     "training.sessionDetail.feedbackTitle": "Nhận xét của HLV",
-    "training.sessionDetail.feedbackDesc": "Ghi chú cho buổi tập này",
     "training.sessionDetail.feedbackEmptyTitle": "Chưa có nhận xét nào",
     "training.sessionDetail.feedbackEmptyFighter": "Nhận xét từ HLV về buổi tập này sẽ hiển thị tại đây.",
     "training.sessionDetail.feedbackEmptyCoach": "Gửi lời khen, điểm cần sửa hoặc ghi chú để võ sĩ biết hướng cải thiện.",
@@ -531,12 +525,10 @@ export const viTraining = {
     /* Roster Page */
     "training.roster.metaTitle": "Võ sĩ",
     "training.roster.title": "Võ sĩ",
-    "training.roster.description": "Danh sách {count} võ sĩ của bạn — sức khỏe, cấp phép y tế, {performance}và lịch trình sắp tới.",
-    "training.roster.performanceText": "hiệu suất ",
     "training.roster.medicalClearanceAction": "Cấp phép y tế",
     "training.roster.scheduleSessionAction": "Lên lịch buổi tập",
     "training.roster.emptyTitle": "Chưa có võ sĩ nào được phân công cho bạn",
-    "training.roster.emptyDesc": "Khi quản trị viên phân công võ sĩ cho bạn, họ sẽ xuất hiện tại đây kèm theo thông tin sức khỏe, cấp phép y tế và hiệu suất.",
+    "training.roster.emptyDesc": "Võ sĩ được quản trị viên phân công cho bạn sẽ hiện ở đây.",
     "training.roster.searchLabel": "Tìm kiếm võ sĩ",
     "training.roster.searchPlaceholder": "Tìm kiếm võ sĩ",
     "training.roster.weightClassLabel": "Hạng cân",
@@ -578,7 +570,6 @@ export const viTraining = {
 
     /* Fighter Overview Page */
     "training.fighterOverview.nextMedicalFollowUp": "Tái khám y tế tiếp theo",
-    "training.fighterOverview.doctorLockNotice": "Chỉ bác sĩ thể thao mới có thể thay đổi tình trạng sức khỏe và cấp phép y tế.",
     "training.fighterOverview.trainingPlanTitle": "Giáo án tập luyện",
     "training.fighterOverview.noActivePlanTitle": "Chưa có giáo án đang áp dụng",
     "training.fighterOverview.noActivePlanDesc": "Tạo giáo án để các buổi tập của {name} hướng tới một mục tiêu thống nhất.",
@@ -611,7 +602,6 @@ export const viTraining = {
     "training.coachFighter.nothingScheduledTitle": "Chưa có lịch tập",
     "training.coachFighter.nothingScheduledDesc": "Lên lịch buổi tập tiếp theo cho {name} — hệ thống sẽ kiểm tra với cấp phép y tế của họ.",
     "training.coachFighter.recentHistory": "Lịch sử gần đây",
-    "training.coachFighter.recentHistoryDesc": "Các buổi tập hoàn thành, bỏ lỡ và đã hủy gần nhất",
     "training.coachFighter.allSessions": "Tất cả buổi tập",
     "training.coachFighter.noPastSessionsTitle": "Chưa có buổi tập nào trước đây",
     "training.coachFighter.noPastSessionsDesc": "Các buổi tập đã hoàn thành, bỏ lỡ và đã hủy sẽ hiển thị ở đây.",
@@ -650,7 +640,6 @@ export const viTraining = {
 
     /* Fighter Training Page */
     "training.fighterTraining.title": "Giáo án tập luyện",
-    "training.fighterTraining.description": "Giáo án HLV đã xây dựng cho giai đoạn này, mức độ tuân thủ của bạn và lịch sử các giáo án trước.",
     "training.fighterTraining.viewFullPlan": "Xem toàn bộ giáo án",
     "training.fighterTraining.noActivePlanTitle": "Chưa có giáo án đang áp dụng",
     "training.fighterTraining.noActivePlanDesc": "HLV chưa xuất bản giáo án cho giai đoạn này. Các buổi tập được lên lịch vẫn xuất hiện trên lịch tập của bạn.",
@@ -670,7 +659,6 @@ export const viTraining = {
 
     /* Fighter Schedule Page */
     "training.fighterSchedule.title": "Lịch tập",
-    "training.fighterSchedule.description": "Tuần tập luyện của bạn và các nội dung sắp tới. Mở một buổi tập để xem bài tập, mục tiêu và ghi chú của HLV.",
     "training.fighterSchedule.upcomingTitle": "Sắp tới",
     "training.fighterSchedule.upcomingDescNextWeek": "Tuần sau và xa hơn",
     "training.fighterSchedule.upcomingDescAfter": "Sau {range}",
@@ -685,7 +673,6 @@ export const viTraining = {
 
     /* Fighter History Page */
     "training.fighterHistory.title": "Lịch sử tập luyện",
-    "training.fighterHistory.description": "Mọi buổi tập bạn đã hoàn thành, bỏ lỡ hoặc bị hủy — kèm theo chỉ số RPE của bạn và đánh giá từ HLV.",
     "training.fighterHistory.statCompleted": "Đã hoàn thành · 30 ngày",
     "training.fighterHistory.statMissed": "Bỏ lỡ · 30 ngày",
     "training.fighterHistory.statTime": "Thời gian tập · 30 ngày",
@@ -710,7 +697,6 @@ export const viTraining = {
 
     /* Coach Sessions Page */
     "training.coachSessions.title": "Buổi tập",
-    "training.coachSessions.description": "Tất cả các buổi tập của danh sách võ sĩ — lập kế hoạch tuần, sau đó ghi nhận kết quả.",
     "training.coachSessions.scheduleSession": "Lên lịch buổi tập",
     "training.coachSessions.viewLabel": "Kiểu xem buổi tập",
     "training.coachSessions.viewWeek": "Theo tuần",
@@ -726,7 +712,6 @@ export const viTraining = {
     "training.coachSessions.awaitingCountDesc": "{n} buổi tập đã qua vẫn ở trạng thái đã lên lịch",
     "training.coachSessions.awaitingCountDesc.one": "1 buổi tập đã qua vẫn ở trạng thái đã lên lịch",
     "training.coachSessions.allCaughtUpTitle": "Đã cập nhật đầy đủ",
-    "training.coachSessions.allCaughtUpDesc": "Kết quả giúp duy trì độ chính xác của mức tuân thủ và khối lượng tập luyện cho võ sĩ và bác sĩ.",
     "training.coachSessions.allSessionsTitle": "Tất cả buổi tập",
     "training.coachSessions.noMatchingTitle": "Không có buổi tập nào khớp bộ lọc",
     "training.coachSessions.noMatchingDesc": "Thử chọn võ sĩ, loại hình, trạng thái hoặc khoảng ngày khác.",
@@ -737,9 +722,6 @@ export const viTraining = {
 
     /* Coach Training Plans Page */
     "training.coachPlans.title": "Giáo án tập luyện",
-    "training.coachPlans.description": "Giáo án cho các võ sĩ trong danh sách phân công · {count}.",
-    "training.coachPlans.activePlansCount": "{n} giáo án đang áp dụng",
-    "training.coachPlans.activePlansCount.one": "1 giáo án đang áp dụng",
     "training.coachPlans.newPlan": "Giáo án mới",
     "training.coachPlans.searchLabel": "Tìm kiếm giáo án",
     "training.coachPlans.searchPlaceholder": "Tìm tiêu đề, mục tiêu hoặc võ sĩ",
@@ -913,7 +895,7 @@ export const viTraining = {
     "training.repeat.preview": "{n} buổi: {dates}.",
     "training.repeat.weeksSkippedPreview": "Bỏ qua {n} tuần sau khi giáo án kết thúc.",
     "training.repeat.weeksSkippedPreview.one": "Bỏ qua 1 tuần sau khi giáo án kết thúc.",
-    "training.planForm.descCreateFromSource": "Bắt đầu từ mẫu, giáo án trống hoặc bản sao của giáo án bạn đã dùng. Kiểm tra cấp phép y tế của võ sĩ để giáo án hợp với các hạn chế.",
+    "training.planForm.descCreateFromSource": "Kiểm tra cấp phép y tế của võ sĩ để giáo án hợp với các hạn chế.",
     "training.planDetails.createdTitle": "Đã tạo giáo án",
     "training.planDetails.duplicate": "Nhân bản",
     "training.planDetails.exercisesFailedDesc": "Không thêm được {n} bài tập. Thêm lại từ danh sách bài tập.",

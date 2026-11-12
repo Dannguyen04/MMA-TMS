@@ -78,7 +78,6 @@ export async function NewExaminationView(props: NewExaminationViewProps) {
     if (scopedId && !preselected) notFound();
 
     const { t } = await getTranslator();
-    const description = t("doctorUi.newExam.descriptionDemo");
     const form = (
         <ExaminationForm
             // Inside the profile only this fighter is offered, so the choice can't drift to someone else.
@@ -94,7 +93,7 @@ export async function NewExaminationView(props: NewExaminationViewProps) {
 
     if (scopedId) {
         return (
-            <FormSection title={t("doctorUi.action.newExamination")} description={description}>
+            <FormSection title={t("doctorUi.action.newExamination")}>
                 {form}
             </FormSection>
         );
@@ -105,7 +104,6 @@ export async function NewExaminationView(props: NewExaminationViewProps) {
                 back={preselected ? { href: routes.doctor.fighter(preselected.id), label: preselected.name } : { href: routes.doctor.examinations, label: t("doctorUi.tab.exams") }}
                 eyebrow={t("doctorUi.tab.exams")}
                 title={t("doctorUi.newExam.title")}
-                description={description}
             />
             {form}
         </>

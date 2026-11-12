@@ -93,7 +93,6 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
     const page = paginate(sorted, param(params.page), view === "grid" ? 12 : 10);
     const hasFilters = Boolean(search || fighterId || status || phase);
     const pathname = routes.coach.plans;
-    const activeCount = plans.filter((plan) => plan.status === "active").length;
 
     const newPlanButton = (
         <ButtonLink href={routes.coach.newPlan}>
@@ -106,7 +105,6 @@ export default async function CoachPlansPage({ searchParams }: PageProps<"/coach
         <>
             <PageHeader
                 title={t("training.coachPlans.title")}
-                description={t("training.coachPlans.description", { count: plural(t, "training.coachPlans.activePlansCount", activeCount) })}
                 actions={newPlanButton}
             />
 

@@ -86,7 +86,7 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
 
             <div className="flex flex-col gap-6">
                 <Card>
-                    <CardHeader title={t("screens.admin.model.evaluation")} description={t("screens.admin.model.evaluationDescription")} icon={<BrainCircuit />} />
+                    <CardHeader title={t("screens.admin.model.evaluation")} icon={<BrainCircuit />} />
                     <CardContent className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
                         <MetricTile label={t("screens.admin.modelCard.precision")} value={formatRatio(model.precision)} hint={t("screens.admin.model.precisionHint")} locale={locale} />
                         <MetricTile label={t("screens.admin.modelCard.recall")} value={formatRatio(model.recall)} hint={t("screens.admin.model.recallHint")} locale={locale} />
@@ -178,7 +178,7 @@ export default async function AdminAIModelDetailPage({ params }: PageProps<"/adm
 
                     <div className="flex min-w-0 flex-col gap-6">
                         <Card>
-                            <CardHeader title={t("screens.admin.model.feedback")} description={t("screens.admin.model.feedbackDescription")} icon={<UserCheck />} />
+                            <CardHeader title={t("screens.admin.model.feedback")} icon={<UserCheck />} />
                             <CardContent className="flex flex-col gap-4">
                                 {model.reviewsCount === 0 ? (
                                     <p className="text-sm text-fg-muted">{t("screens.admin.model.noReviews")}</p>

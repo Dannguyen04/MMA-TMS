@@ -197,14 +197,13 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                 <DemoFillBar
                     className="xl:col-span-2"
                     title={t("doctorMedical.decision.demoTitle")}
-                    description={t("doctorMedical.issue.demoDescription")}
                     onFill={fillSample}
                     onClear={clearAll}
                 />
             )}
 
             <Card className="flex min-w-0 flex-col divide-y divide-border">
-                <FormPart prefix="iclr-" id="basis" title={t("doctorMedical.grant.basis")} description={t("doctorMedical.issue.basisDescription")}>
+                <FormPart prefix="iclr-" id="basis" title={t("doctorMedical.grant.basis")}>
                     {examinations.length > 1 ? (
                         <ChoiceGroup
                             id="issue-clearance-exam"
@@ -231,7 +230,7 @@ export function IssueClearanceForm({ fighter, examinations, activeClearances, ac
                 </FormPart>
 
                 {exam && (
-                    <FormPart prefix="iclr-" id="clearance" title={t("doctorMedical.steps.clearance")} description={t("doctorMedical.issue.clearanceDescription")}>
+                    <FormPart prefix="iclr-" id="clearance" title={t("doctorMedical.steps.clearance")}>
                         <ChoiceGroup
                             id="issue-clearance-type"
                             name="clearanceType"

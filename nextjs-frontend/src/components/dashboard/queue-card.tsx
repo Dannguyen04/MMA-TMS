@@ -3,7 +3,7 @@ import { ListTodo, type LucideIcon } from "lucide-react";
 import { AttentionList, type AttentionItem } from "@/components/medical/attention-list";
 import { Card, CardFooter, CardHeader } from "@/components/ui/card";
 import { SegmentedLinks } from "@/components/ui/segmented-links";
-import { createTranslator, plural, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 /** The unfiltered queue shows this many; picking a group shows all of it. */
@@ -60,7 +60,7 @@ export function QueueCard<Q extends string>({
             <CardHeader
                 title={title}
                 icon={<ListTodo />}
-                description={items.length > 0 ? plural(t, "queue.items", items.length) : t("queue.allClear")}
+                description={items.length > 0 ? undefined : t("queue.allClear")}
             />
             {items.length > 0 && (
                 <div className="border-t border-border px-5 py-3">

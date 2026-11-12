@@ -28,7 +28,6 @@ export const enBoutDetail = {
     "boutDetail.notice.planSaved": "Meal plan saved",
 
     /* Header */
-    "boutDetail.header.eyebrow": "Bout",
     "boutDetail.header.back": "Bouts",
     "boutDetail.header.opponentTba": "Opponent TBA",
     "boutDetail.planOpenEnded": "open",
@@ -59,7 +58,7 @@ export const enBoutDetail = {
     "boutDetail.next.fightWeek.opensOn": "Opens on {date}, {days} days before weigh-in.",
     "boutDetail.next.fightWeek.openSince": "Open since {date}. Gate 1 checks the documents first.",
     "boutDetail.next.weighIn.description": "{date}. Record the scale weight; a miss asks for a catchweight or a cancellation.",
-    "boutDetail.next.result.description": "Bout {date}. The app does nothing during the bout itself.",
+    "boutDetail.next.result.description": "Bout {date}.",
     "boutDetail.next.result.notYet": "The result can be recorded from {date}.",
     "boutDetail.next.cancelled": "Cancelled",
     "boutDetail.next.cancelledWithReason": "Cancelled: {reason}",

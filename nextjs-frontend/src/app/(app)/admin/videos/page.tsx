@@ -89,7 +89,7 @@ export default async function AdminVideosPage({ searchParams }: PageProps<"/admi
 
     return (
         <>
-            <PageHeader title={t("screens.admin.meta.videos")} description={t("screens.admin.videos.description")} />
+            <PageHeader title={t("screens.admin.meta.videos")} />
 
             <div className="flex flex-col gap-6">
                 <section aria-label={t("screens.admin.videos.summary")} className="grid grid-cols-1 gap-4 sm:grid-cols-3">

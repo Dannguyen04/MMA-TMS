@@ -9,7 +9,6 @@ export const viCoachBouts = {
 
     /* Bout list */
     "coachBouts.list.title": "Trận đấu",
-    "coachBouts.list.description": "Các trận đang theo dõi của võ sĩ bạn phụ trách, xếp theo ngày cân: võ sĩ có kịp đạt cân không, hồ sơ đã đủ chưa?",
     "coachBouts.list.loading": "Đang tải trận đấu",
     "coachBouts.list.emptyTitle": "Không có trận nào đang theo dõi",
     "coachBouts.list.emptyDescription": "Tạo trận đấu khi học viện nhận trận. Camp, theo dõi cân và hồ sơ y tế của trận bắt đầu từ đó.",
@@ -26,10 +25,8 @@ export const viCoachBouts = {
     "coachBouts.list.cancelledReason": "Đã huỷ: {reason}",
 
     /* New bout page and form */
-    "coachBouts.new.eyebrow": "Trận đấu",
     "coachBouts.new.back": "Trận đấu",
     "coachBouts.new.title": "Trận đấu mới",
-    "coachBouts.new.description": "Dùng khi học viện nhận một trận. Võ sĩ sẽ thấy trận ở trang Trận đấu của mình, và camp, theo dõi cân, hồ sơ y tế bắt đầu từ đây.",
     "coachBouts.new.loading": "Đang tải biểu mẫu trận đấu",
     "coachBouts.form.fighterAndRules": "Võ sĩ và bộ luật",
     "coachBouts.form.fighterAndRulesHint": "Bộ luật thi đấu quy định các hạng cân, hạn nộp hồ sơ và giới hạn giảm cân cấp tính.",
@@ -128,10 +125,8 @@ export const viCoachBouts = {
 
     /* Bout cards on the coach's Today page */
     "coachBouts.dashboard.weightAlerts": "Cảnh báo cân",
-    "coachBouts.dashboard.weightAlertsHint": "Các trận đang theo dõi cần xem lại, mức đỏ trước.",
     "coachBouts.dashboard.allBouts": "Tất cả trận",
     "coachBouts.dashboard.documentsDue": "Hồ sơ sắp đến hạn",
-    "coachBouts.dashboard.documentsDueHint": "Hồ sơ bắt buộc còn thiếu, trong vòng 14 ngày trước hạn nộp.",
     "coachBouts.dashboard.due": "hạn {date}",
     "coachBouts.dialog.edit.title": "Chỉnh sửa thông tin trận đấu",
     "coachBouts.dialog.edit.description": "Cập nhật thông tin giải đấu, địa điểm, đối thủ, giới hạn cân và lịch trình.",
@@ -464,7 +459,7 @@ export const viCoachBouts = {
 
     /* Consequences summary */
     "suspensions.consequences.title": "Hệ quả áp dụng tự động",
-    "suspensions.consequences.subtitle": "Hệ thống đã tự động điều chỉnh lịch tập và giáo án của võ sĩ:",
+    "suspensions.consequences.subtitle": "Lịch tập và giáo án của võ sĩ đã được điều chỉnh:",
     "suspensions.consequences.summaryCancelled": "Đã huỷ {count} buổi",
     "suspensions.consequences.summaryCancelled.one": "Đã huỷ 1 buổi",
     "suspensions.consequences.summaryRescheduled": "{count} buổi chờ xếp lại",
@@ -483,7 +478,6 @@ export const viCoachBouts = {
 
     /* Readiness screen */
     "readiness.title": "Sẵn sàng thi đấu",
-    "readiness.description": "Kiểm tra điều kiện nhận trận, tình trạng đình chỉ và khả thi cân nặng toàn đội.",
     "readiness.loading": "Đang tải dữ liệu sẵn sàng...",
     "readiness.errorTitle": "Không thể tải dữ liệu sẵn sàng",
     "readiness.errorRetry": "Thử lại",

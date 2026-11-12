@@ -205,7 +205,6 @@ export const enTraining = {
     "training.planForm.titleEdit": "Edit training plan",
     "training.planForm.descEditActive": "{name} sees your changes on the active plan straight away.",
     "training.planForm.sectionObjective": "Fighter & objective",
-    "training.planForm.sectionObjectiveDesc": "Who the plan is for and what it should achieve.",
     "training.planForm.fighter": "Fighter",
     "training.planForm.chooseFighter": "Choose a fighter…",
     "training.planForm.title": "Plan title",
@@ -263,7 +262,6 @@ export const enTraining = {
 
     /* Plan Exercises */
     "training.planExercises.title": "Plan exercises",
-    "training.planExercises.description": "Drills prescribed across the plan, in running order.",
     "training.planExercises.add": "Add exercise",
     "training.planExercises.emptyTitle": "No exercises on this plan yet",
     "training.planExercises.emptyDescCoach": "Add the drills this plan is built around, with sets, reps or time.",
@@ -339,7 +337,6 @@ export const enTraining = {
     "training.sessionForm.descEdit": "{name} is notified when the time or location changes.{checkNotice}",
     "training.sessionForm.checkNotice": " The clearance check runs again as you edit.",
     "training.sessionForm.sectionFighterPlan": "Fighter & plan",
-    "training.sessionForm.sectionFighterPlanDesc": "Who trains, and which plan the session counts towards.",
     "training.sessionForm.fighter": "Fighter",
     "training.sessionForm.chooseFighter": "Choose a fighter…",
     "training.sessionForm.plan": "Training plan",
@@ -363,9 +360,7 @@ export const enTraining = {
     "training.sessionForm.targetRpe": "Target RPE",
     "training.sessionForm.targetRpeHint": "How hard the session should feel, from 1 to 10.",
     "training.sessionForm.sectionExercises": "Exercises",
-    "training.sessionForm.sectionExercisesDesc": "Drills in running order with rounds or sets.",
     "training.sessionForm.sectionNotes": "Notes",
-    "training.sessionForm.sectionNotesDesc": "Anything the fighter should know or bring.",
     "training.sessionForm.sessionNotes": "Session notes",
     "training.sessionForm.submitCreate": "Schedule session",
     "training.sessionForm.submitEdit": "Save changes",
@@ -373,7 +368,7 @@ export const enTraining = {
     "training.sessionForm.submittingEdit": "Saving…",
     "training.sessionForm.blockedResolve": "Resolve the blocking clearance conflicts to schedule this session.",
     "training.sessionForm.blockedConfirm": "Confirm you've reviewed the clearance warnings to continue.",
-    "training.sessionForm.serviceClearanceNotice": "The training service checks the fighter's Medical Clearance when you start the session.",
+    "training.sessionForm.serviceClearanceNotice": "The fighter's Medical Clearance is checked when you start the session.",
     "training.sessionForm.emptyClearanceTitle": "Medical Clearance",
     "training.sessionForm.emptyClearanceDesc": "Choose a fighter to see their clearance and restrictions.",
 
@@ -423,7 +418,6 @@ export const enTraining = {
     "training.sessionDetail.roundsCount.one": "1 round",
     "training.sessionDetail.captionExercises": "Exercises in this session",
     "training.sessionDetail.feedbackTitle": "Coach feedback",
-    "training.sessionDetail.feedbackDesc": "Notes on this session",
     "training.sessionDetail.feedbackEmptyTitle": "No feedback yet",
     "training.sessionDetail.feedbackEmptyFighter": "Feedback from your coach about this session will appear here.",
     "training.sessionDetail.feedbackEmptyCoach": "Share praise, corrections or notes so the fighter knows what to work on.",
@@ -531,12 +525,10 @@ export const enTraining = {
     /* Roster Page */
     "training.roster.metaTitle": "Fighters",
     "training.roster.title": "Fighters",
-    "training.roster.description": "Your roster of {count} — health, Medical Clearance, {performance}and what's next.",
-    "training.roster.performanceText": "performance ",
     "training.roster.medicalClearanceAction": "Medical Clearance",
     "training.roster.scheduleSessionAction": "Schedule session",
     "training.roster.emptyTitle": "No fighters assigned to you yet",
-    "training.roster.emptyDesc": "When an administrator assigns fighters to you, they appear here with their health, Medical Clearance and performance.",
+    "training.roster.emptyDesc": "Fighters an administrator assigns to you appear here.",
     "training.roster.searchLabel": "Search fighters",
     "training.roster.searchPlaceholder": "Search fighters",
     "training.roster.weightClassLabel": "Weight class",
@@ -578,7 +570,6 @@ export const enTraining = {
 
     /* Fighter Overview Page */
     "training.fighterOverview.nextMedicalFollowUp": "Next medical follow-up",
-    "training.fighterOverview.doctorLockNotice": "Only the sports doctor can change health status and Medical Clearance.",
     "training.fighterOverview.trainingPlanTitle": "Training plan",
     "training.fighterOverview.noActivePlanTitle": "No active plan",
     "training.fighterOverview.noActivePlanDesc": "Build a plan so {name}'s sessions work toward one objective.",
@@ -611,7 +602,6 @@ export const enTraining = {
     "training.coachFighter.nothingScheduledTitle": "Nothing scheduled",
     "training.coachFighter.nothingScheduledDesc": "Schedule {name}'s next session — it's checked against their Medical Clearance.",
     "training.coachFighter.recentHistory": "Recent history",
-    "training.coachFighter.recentHistoryDesc": "Latest completed, missed and cancelled sessions",
     "training.coachFighter.allSessions": "All sessions",
     "training.coachFighter.noPastSessionsTitle": "No past sessions yet",
     "training.coachFighter.noPastSessionsDesc": "Completed, missed and cancelled sessions appear here.",
@@ -650,7 +640,6 @@ export const enTraining = {
 
     /* Fighter Training Page */
     "training.fighterTraining.title": "Training plans",
-    "training.fighterTraining.description": "The plan your coach built for this phase, how consistently you're following it, and your past plans.",
     "training.fighterTraining.viewFullPlan": "View full plan",
     "training.fighterTraining.noActivePlanTitle": "No active training plan",
     "training.fighterTraining.noActivePlanDesc": "Your coach hasn't published a plan for this phase yet. Sessions they schedule still appear on your schedule.",
@@ -670,7 +659,6 @@ export const enTraining = {
 
     /* Fighter Schedule Page */
     "training.fighterSchedule.title": "Schedule",
-    "training.fighterSchedule.description": "Your training week and what's coming up. Open a session for drills, targets and coach notes.",
     "training.fighterSchedule.upcomingTitle": "Upcoming",
     "training.fighterSchedule.upcomingDescNextWeek": "Next week and beyond",
     "training.fighterSchedule.upcomingDescAfter": "After {range}",
@@ -685,7 +673,6 @@ export const enTraining = {
 
     /* Fighter History Page */
     "training.fighterHistory.title": "Training history",
-    "training.fighterHistory.description": "Every session you've completed, missed or had cancelled — with your RPE and your coach's rating.",
     "training.fighterHistory.statCompleted": "Completed · 30 days",
     "training.fighterHistory.statMissed": "Missed · 30 days",
     "training.fighterHistory.statTime": "Training time · 30 days",
@@ -710,7 +697,6 @@ export const enTraining = {
 
     /* Coach Sessions Page */
     "training.coachSessions.title": "Sessions",
-    "training.coachSessions.description": "Every training session across your roster — plan the week, then record results.",
     "training.coachSessions.scheduleSession": "Schedule session",
     "training.coachSessions.viewLabel": "Session view",
     "training.coachSessions.viewWeek": "Week",
@@ -726,7 +712,6 @@ export const enTraining = {
     "training.coachSessions.awaitingCountDesc": "{n} past sessions still marked as scheduled",
     "training.coachSessions.awaitingCountDesc.one": "1 past session still marked as scheduled",
     "training.coachSessions.allCaughtUpTitle": "All caught up",
-    "training.coachSessions.allCaughtUpDesc": "Results keep adherence and training load accurate for fighters and doctors.",
     "training.coachSessions.allSessionsTitle": "All sessions",
     "training.coachSessions.noMatchingTitle": "No sessions match these filters",
     "training.coachSessions.noMatchingDesc": "Try another fighter, type, status or date range.",
@@ -737,9 +722,6 @@ export const enTraining = {
 
     /* Coach Training Plans Page */
     "training.coachPlans.title": "Training plans",
-    "training.coachPlans.description": "Plans for the fighters on your roster · {count}.",
-    "training.coachPlans.activePlansCount": "{n} active plans",
-    "training.coachPlans.activePlansCount.one": "1 active plan",
     "training.coachPlans.newPlan": "New plan",
     "training.coachPlans.searchLabel": "Search plans",
     "training.coachPlans.searchPlaceholder": "Search title, objective or fighter",
@@ -913,7 +895,7 @@ export const enTraining = {
     "training.repeat.preview": "{n} sessions: {dates}.",
     "training.repeat.weeksSkippedPreview": "{n} weeks after the plan ends are left out.",
     "training.repeat.weeksSkippedPreview.one": "1 week after the plan ends is left out.",
-    "training.planForm.descCreateFromSource": "Start from a template, a blank plan or a copy of one you've run. Check the fighter's Medical Clearance so the plan fits their restrictions.",
+    "training.planForm.descCreateFromSource": "Check the fighter's Medical Clearance so the plan fits their restrictions.",
     "training.planDetails.createdTitle": "Plan created",
     "training.planDetails.duplicate": "Duplicate",
     "training.planDetails.exercisesFailedDesc": "{n} exercises couldn't be added. Add them from the exercise list.",

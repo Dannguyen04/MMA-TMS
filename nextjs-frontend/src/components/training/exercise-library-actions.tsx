@@ -47,7 +47,6 @@ export function AddExerciseButton() {
                 open={open}
                 onClose={() => setOpen(false)}
                 title={t("screens.misc.library.addTitle")}
-                description={t("screens.misc.library.addDescription")}
                 action={(previous: ActionState, fd: FormData) => createLibraryExercise(previous, fd)}
                 submitLabel={t("training.exerciseBuilder.add")}
                 pendingLabel={t("training.planExercises.submittingAdd")}

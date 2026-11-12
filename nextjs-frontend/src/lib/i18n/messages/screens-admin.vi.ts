@@ -53,9 +53,9 @@ export const viScreensAdmin = {
     "screens.admin.common.addFighter": "Thêm võ sĩ",
     "screens.admin.common.inviteFighter": "Mời võ sĩ",
     "screens.admin.common.progress": "Tiến độ {id}",
-    "screens.admin.common.unavailable.platform": "Dịch vụ nền tảng chưa hỗ trợ tính năng này. Tính năng sẽ hiện ở đây khi có.",
-    "screens.admin.common.unavailable.notification": "Dịch vụ thông báo chưa hỗ trợ tính năng này. Tính năng sẽ hiện ở đây khi có.",
-    "screens.admin.common.unavailable.videoAnalysis": "Dịch vụ phân tích video chưa hỗ trợ tính năng này. Tính năng sẽ hiện ở đây khi có.",
+    "screens.admin.common.unavailable.platform": "Tính năng này chưa có.",
+    "screens.admin.common.unavailable.notification": "Tính năng này chưa có.",
+    "screens.admin.common.unavailable.videoAnalysis": "Tính năng này chưa có.",
 
     /* Counts: `{n}` is the formatted number */
     "screens.admin.count.accounts": "{n} tài khoản",
@@ -332,7 +332,6 @@ export const viScreensAdmin = {
     "screens.admin.today.pipelineUnavailableDescription": "Dịch vụ phân tích không phản hồi. Hàng chờ của bạn và các tài khoản ở trên vẫn được cập nhật.",
     "screens.admin.today.pipelineDescription": "Số tác vụ hoàn tất mỗi ngày trong 14 ngày qua",
     "screens.admin.today.throughput": "Sản lượng mỗi ngày",
-    "screens.admin.today.throughputDescription": "Tác vụ hoàn tất và thất bại, xếp chồng",
     "screens.admin.today.day": "Ngày",
     "screens.admin.today.throughputChart": "Số tác vụ AI hoàn tất và thất bại mỗi ngày trong 14 ngày qua",
     "screens.admin.today.failureRate7d": "Tỷ lệ lỗi · 7 ngày",
@@ -346,12 +345,10 @@ export const viScreensAdmin = {
     "screens.admin.today.oldest": "cũ nhất {when}",
     "screens.admin.today.nothingWaiting": "không có gì đang chờ",
     "screens.admin.today.recentActivity": "Hoạt động gần đây",
-    "screens.admin.today.recentActivityDescription": "Các mục mới nhất trong nhật ký hệ thống",
     "screens.admin.today.auditLogs": "Nhật ký hệ thống",
     "screens.admin.today.noActivityTitle": "Chưa có hoạt động",
     "screens.admin.today.noActivityDescription": "Lượt đăng nhập, thay đổi và sự kiện quy trình sẽ hiện ở đây.",
     "screens.admin.today.modelStatus": "Trạng thái mô hình",
-    "screens.admin.today.modelStatusDescription": "Mô hình đang dùng cho từng nhiệm vụ",
     "screens.admin.today.models": "Mô hình",
     "screens.admin.today.noActiveModel": "Chưa có mô hình đang dùng",
     "screens.admin.today.promoteOne": "Đưa một mô hình vào dùng",
@@ -373,7 +370,6 @@ export const viScreensAdmin = {
     "screens.admin.today.failures.emptyUpload": "Tác vụ lỗi còn cần tải video mới sẽ hiện ở đây kèm mã lỗi.",
 
     /* Admissions */
-    "screens.admin.admissions.description": "Những người đăng ký tập với tư cách võ sĩ. Phân công HLV đánh giá từng người, chấp nhận hoặc từ chối người đạt, rồi lập đội chăm sóc cho từng võ sĩ mới.",
     "screens.admin.admissions.filter": "Lọc hồ sơ",
     "screens.admin.admissions.list": "Hồ sơ đăng ký",
     "screens.admin.admissions.careTeamsUncheckedBody": "Dịch vụ võ sĩ hoặc y tế không phản hồi, nên võ sĩ đã kích hoạt hiện là đã đóng dù có thể vẫn chờ HLV hoặc bác sĩ thể thao. Hãy tải lại trang để thử lại.",
@@ -461,7 +457,6 @@ export const viScreensAdmin = {
     "screens.admin.job.starting": "Đang bắt đầu",
     "screens.admin.job.onWorker": "trên {worker}",
     "screens.admin.job.pipeline": "Quy trình",
-    "screens.admin.job.pipelineDescription": "Các bước chạy theo thứ tự cho mỗi lượt phân tích",
     "screens.admin.job.timings": "Thời gian",
     "screens.admin.job.startedLabel": "Bắt đầu",
     "screens.admin.job.notStarted": "Chưa bắt đầu",
@@ -470,7 +465,6 @@ export const viScreensAdmin = {
     "screens.admin.job.worker": "Máy xử lý",
     "screens.admin.job.notAssigned": "Chưa phân máy",
     "screens.admin.job.summary": "Tóm tắt phân tích",
-    "screens.admin.job.summaryDescription": "Chỉ số vận hành — nhận định do HLV xem xét",
     "screens.admin.job.detections": "Lượt phát hiện",
     "screens.admin.job.lowConfidence": "Độ tin cậy thấp",
     "screens.admin.job.below": "dưới {pct}",
@@ -577,7 +571,6 @@ export const viScreensAdmin = {
 
     /* AI models */
     "screens.admin.models.unavailable": "Danh mục mô hình chưa sẵn sàng",
-    "screens.admin.models.description": "Các phiên bản đang chạy trong quy trình phân tích video, kèm chỉ số đánh giá, mức đồng thuận của con người và ngưỡng tin cậy.",
     "screens.admin.models.emptyTitle": "Chưa có mô hình nào",
     "screens.admin.models.emptyDescription": "Mô hình sẽ hiện ở đây khi quy trình đăng ký chúng.",
     "screens.admin.models.task.fighter_detection": "Tìm võ sĩ trong từng khung hình và bám theo ổn định.",
@@ -596,7 +589,6 @@ export const viScreensAdmin = {
     "screens.admin.modelCard.reviewBelow": "Cần xem xét khi dưới",
     "screens.admin.model.deployed": "Triển khai {date}",
     "screens.admin.model.evaluation": "Đánh giá",
-    "screens.admin.model.evaluationDescription": "Kết quả đánh giá ngoại tuyến và số liệu xem xét thực tế của phiên bản này",
     "screens.admin.model.precisionHint": "đúng khi gắn cờ",
     "screens.admin.model.recallHint": "tỷ lệ sự kiện tìm được",
     "screens.admin.model.f1": "Điểm F1",
@@ -620,7 +612,6 @@ export const viScreensAdmin = {
     "screens.admin.model.lowConfidenceCount": "{n} độ tin cậy thấp",
     "screens.admin.model.lastUsed": "Lần dùng gần nhất",
     "screens.admin.model.feedback": "Phản hồi của người",
-    "screens.admin.model.feedbackDescription": "Quyết định xem xét của HLV và bác sĩ trên kết quả của mô hình này",
     "screens.admin.model.noReviews": "Chưa có kết quả nào của phiên bản này được xem xét.",
     "screens.admin.model.agreed": "Người xem xét đồng ý với mô hình",
     "screens.admin.model.confirmed": "Đã xác nhận",
@@ -658,7 +649,6 @@ export const viScreensAdmin = {
 
     /* Audit logs */
     "screens.admin.audit.unavailable": "Nhật ký hệ thống chưa sẵn sàng",
-    "screens.admin.audit.description": "Bản ghi chỉ thêm mới về lượt đăng nhập, thay đổi và sự kiện quy trình. Không thể sửa hay xóa các mục.",
     "screens.admin.audit.filter": "Lọc nhật ký",
     "screens.admin.audit.search": "Tìm trong nhật ký",
     "screens.admin.audit.searchPlaceholder": "Tìm theo người dùng, thao tác hoặc đối tượng",
@@ -696,7 +686,6 @@ export const viScreensAdmin = {
 
     /* Broadcasts */
     "screens.admin.broadcasts.unavailable": "Thông báo chung chưa sẵn sàng",
-    "screens.admin.broadcasts.description": "Thông báo gửi đến mọi tài khoản thuộc các vai trò đã chọn — thay đổi lịch, tin phòng tập và cập nhật nền tảng.",
     "screens.admin.broadcasts.summary": "Tóm tắt thông báo chung",
     "screens.admin.broadcasts.scheduled": "Đã lên lịch",
     "screens.admin.broadcasts.nextSends": "Lần gửi tới {when}",
@@ -739,7 +728,6 @@ export const viScreensAdmin = {
     "screens.admin.composer.sendNowTo": "Gửi ngay cho {people}",
     "screens.admin.composer.sendNow": "Gửi ngay",
     "screens.admin.composer.new": "Thông báo mới",
-    "screens.admin.composer.description": "Thông báo đến mọi người thuộc một hoặc nhiều vai trò.",
     "screens.admin.composer.scheduling": "Đang lên lịch…",
     "screens.admin.composer.sending": "Đang gửi…",
     "screens.admin.composer.scheduledToast": "Đã lên lịch thông báo",
@@ -789,7 +777,7 @@ export const viScreensAdmin = {
     "screens.admin.roles.descriptionEditable": "Quyết định mỗi vai trò được xem và làm gì. Lưu một vai trò sẽ áp dụng ngay cho mọi tài khoản có vai trò đó.",
     "screens.admin.roles.description": "Mỗi vai trò được xem và làm gì.",
     "screens.admin.roles.readOnlyTitle": "Chưa thể thay đổi quyền của vai trò ở đây",
-    "screens.admin.roles.readOnlyBody": "Dịch vụ người dùng tự quản lý quyền và không cung cấp danh sách, nên trang này hiển thị quyền mặc định của mỗi vai trò.",
+    "screens.admin.roles.readOnlyBody": "Đây là quyền mặc định của mỗi vai trò.",
     "screens.admin.roles.section": "Vai trò",
     "screens.admin.roles.clinical": "Có quyền truy cập dữ liệu lâm sàng",
     "screens.admin.roles.adminKeeps": "Luôn giữ quyền quản lý người dùng và vai trò, để có thể khôi phục quyền truy cập.",
@@ -818,9 +806,8 @@ export const viScreensAdmin = {
     "screens.admin.matrix.removesClinical": "Không vai trò nào khác được giữ quyền lâm sàng, nên sẽ không ai dùng được các quyền bạn bỏ cho đến khi chúng được khôi phục ở đây.",
 
     /* System settings */
-    "screens.admin.settings.description": "Cấu hình chung của nền tảng. Thay đổi áp dụng cho mọi tài khoản ngay khi bạn lưu và được ghi vào nhật ký hệ thống.",
     "screens.admin.settings.readOnlyTitle": "Chưa thể thay đổi cài đặt",
-    "screens.admin.settings.readOnlyBody": "Dịch vụ nền tảng chưa lưu cài đặt, nên đây là các giá trị mặc định ứng dụng đang dùng.",
+    "screens.admin.settings.readOnlyBody": "Đây là các giá trị cài đặt mặc định.",
     "screens.admin.settings.section.organization": "Tổ chức",
     "screens.admin.settings.section.security": "Bảo mật",
     "screens.admin.settings.section.video": "Lưu trữ video",
@@ -838,7 +825,7 @@ export const viScreensAdmin = {
     "screens.admin.settings.unitDays": "ngày",
     "screens.admin.settings.sessionTimeoutHint": "Người dùng bị đăng xuất sau khoảng thời gian không hoạt động này (15–1440 phút).",
     "screens.admin.settings.mfa": "Bắt buộc xác thực nhiều lớp",
-    "screens.admin.settings.mfaHint": "Dùng được khi đã kết nối dịch vụ xác thực.",
+    "screens.admin.settings.mfaHint": "Chưa khả dụng.",
     "screens.admin.settings.videoHint": "Giới hạn tải lên và thời gian lưu video.",
     "screens.admin.settings.maxSize": "Dung lượng tải lên tối đa",
     "screens.admin.settings.maxSizeHint": "Mỗi video, từ 50 đến 4096 MB.",
@@ -881,7 +868,7 @@ export const viScreensAdmin = {
     "screens.admin.users.emptyTitle": "Chưa có tài khoản",
     "screens.admin.users.emptyInvite": "Mời HLV, bác sĩ hoặc võ sĩ đầu tiên để bắt đầu.",
     "screens.admin.users.emptyAdd": "Thêm HLV, bác sĩ hoặc võ sĩ đầu tiên để bắt đầu.",
-    "screens.admin.users.emptyService": "Tài khoản tạo trong dịch vụ người dùng sẽ hiện ở đây.",
+    "screens.admin.users.emptyService": "Tài khoản mới sẽ hiện ở đây.",
     "screens.admin.users.caption": "Tài khoản người dùng",
     "screens.admin.users.user": "Người dùng",
     "screens.admin.users.title": "Chức danh",
@@ -989,7 +976,7 @@ export const viScreensAdmin = {
     "screens.admin.user.nothingRecorded": "Chưa ghi nhận gì",
     "screens.admin.user.latestActions": "{actions} gần nhất của {name}",
     "screens.admin.user.activityUnavailableTitle": "Chưa xem được hoạt động",
-    "screens.admin.user.activityUnavailableDescription": "Dịch vụ người dùng chưa chia sẻ hoạt động của tài khoản. Hoạt động sẽ hiện ở đây khi có.",
+    "screens.admin.user.activityUnavailableDescription": "Chưa xem được hoạt động của tài khoản.",
     "screens.admin.user.noActivityTitle": "Chưa ghi nhận hoạt động",
     "screens.admin.user.noActivityDescription": "Lượt đăng nhập và thay đổi của người này sẽ hiện ở đây.",
     "screens.admin.user.latestEntries": "Đang hiện các mục mới nhất",
@@ -997,7 +984,7 @@ export const viScreensAdmin = {
     "screens.admin.user.permissions": "Quyền hiện có",
     "screens.admin.user.permissionsFrom": "{permissions} từ vai trò {role}",
     "screens.admin.user.permissionsUnavailableTitle": "Chưa xem được quyền của vai trò",
-    "screens.admin.user.permissionsUnavailableDescription": "Dịch vụ người dùng chưa chia sẻ quyền của từng vai trò. Quyền sẽ hiện ở đây khi có.",
+    "screens.admin.user.permissionsUnavailableDescription": "Chưa xem được quyền của từng vai trò.",
     "screens.admin.user.perRole": "Quyền được đặt theo vai trò",
     "screens.admin.user.editRole": "Sửa vai trò",
     "screens.admin.user.pendingTitle": "Đang chờ nhận lời mời",
@@ -1057,7 +1044,6 @@ export const viScreensAdmin = {
     /* Care team card */
     "screens.admin.careTeam.updated": "Đã cập nhật đội chăm sóc.",
     "screens.admin.careTeam.title": "Đội chăm sóc",
-    "screens.admin.careTeam.description": "Ai huấn luyện {name} và chăm sóc sức khỏe cho võ sĩ",
     "screens.admin.careTeam.loadError.coach": "Không tải được danh sách HLV hiện tại: dịch vụ võ sĩ báo lỗi.",
     "screens.admin.careTeam.loadError.doctor": "Không tải được danh sách bác sĩ thể thao hiện tại: dịch vụ y tế báo lỗi.",
     "screens.admin.careTeam.assign.coach": "Phân công HLV",
@@ -1088,7 +1074,6 @@ export const viScreensAdmin = {
     "screens.admin.careTeam.noStaff.doctor": "Hiện chưa có tài khoản bác sĩ thể thao đang hoạt động để chọn.",
 
     /* Videos */
-    "screens.admin.videos.description": "Toàn bộ video tập luyện trên nền tảng, dung lượng lưu trữ và trạng thái xử lý AI.",
     "screens.admin.videos.summary": "Tóm tắt lưu trữ",
     "screens.admin.videos.storageUsed": "Dung lượng đã dùng",
     "screens.admin.videos.storageHint": "{videos} · trung bình {size}",
@@ -1132,5 +1117,4 @@ export const viScreensAdmin = {
     "screens.admin.status.attention": "{n} mục cần chú ý",
     "screens.admin.status.attention.one": "{n} mục cần chú ý",
     "screens.admin.status.normalDescription": "Quy trình AI đang xử lý bình thường, không có tác vụ lỗi, máy xử lý bị treo hay sự cố đăng nhập trong 24 giờ qua.",
-    "screens.admin.status.attentionDescription": "Hãy xem xét trước khi chúng ảnh hưởng đến HLV, bác sĩ hoặc võ sĩ.",
 } satisfies Record<keyof typeof enScreensAdmin, string>;

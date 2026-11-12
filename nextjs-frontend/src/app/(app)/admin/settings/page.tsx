@@ -27,7 +27,7 @@ export default async function AdminSettingsPage() {
 
     return (
         <>
-            <PageHeader title={t("screens.admin.meta.settings")} description={t("screens.admin.settings.description")} />
+            <PageHeader title={t("screens.admin.meta.settings")} />
             <div className="flex flex-col gap-6">
                 {!editable && (
                     <Callout tone="info" icon={Clock3} title={t("screens.admin.settings.readOnlyTitle")}>

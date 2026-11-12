@@ -10,17 +10,17 @@ export type AINoticeAudience = "coach" | "fighter" | "doctor" | "admin";
 const NOTICES: Record<AINoticeAudience, { title: string; body: string; icon: LucideIcon }> = {
     coach: {
         title: "Gợi ý của AI",
-        body: "Kết quả AI là gợi ý từ thị giác máy tính. Hãy xác nhận hoặc sửa trước khi chia sẻ với võ sĩ.",
+        body: "Kết quả AI là gợi ý. Hãy xác nhận hoặc sửa trước khi chia sẻ.",
         icon: Sparkles,
     },
     fighter: {
         title: "Ước tính của AI",
-        body: "Đây là ước tính của AI từ Video của bạn. HLV sẽ xem lại — mục chưa duyệt chỉ mang tính tham khảo.",
+        body: "Kết quả AI ước tính từ video của bạn. HLV sẽ duyệt lại.",
         icon: Sparkles,
     },
     doctor: {
         title: "Quan sát AI",
-        body: "Quan sát AI chỉ là thông tin hỗ trợ, không phải chẩn đoán y khoa và không thay thế khám lâm sàng hay đánh giá chuyên môn.",
+        body: "Quan sát của AI không phải chẩn đoán và không thay thế khám lâm sàng.",
         icon: Info,
     },
     admin: {

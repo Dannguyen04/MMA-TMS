@@ -1,4 +1,4 @@
-import { ChartLine, Info, Target } from "lucide-react";
+import { ChartLine, Target } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -44,13 +44,7 @@ export default async function FighterGoalsPage() {
                 description={
                     goals.length === 0
                         ? t("screens.performance.fighterGoals.emptyIntro")
-                        : `${plural(t, "screens.performance.goalsInProgress", active.length)}${atRisk > 0 ? t("screens.performance.fighterGoals.atRisk", { n: atRisk }) : ""}. ${t("screens.performance.fighterGoals.updates")}`
-                }
-                meta={
-                    <p className="flex items-center gap-1.5 text-[13px] text-fg-subtle">
-                        <Info aria-hidden className="size-3.5" />
-                        {t("screens.performance.fighterGoals.managed")}
-                    </p>
+                        : `${plural(t, "screens.performance.goalsInProgress", active.length)}${atRisk > 0 ? t("screens.performance.fighterGoals.atRisk", { n: atRisk }) : ""}.`
                 }
             />
             {goals.length === 0 ? (

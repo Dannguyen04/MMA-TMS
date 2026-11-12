@@ -250,7 +250,6 @@ export const viDoctorScreens = {
     "doctorUi.plan.doctor": "Bác sĩ phụ trách",
     "doctorUi.plan.open": "Mở kế hoạch",
     /* New examination and new clearance pages */
-    "doctorUi.newExam.descriptionDemo": "Ghi chỉ số sinh tồn, đánh giá và kết luận. Giấy phép được cập nhật riêng — hệ thống sẽ nhắc nếu cần.",
     "doctorUi.newExam.description": "Ghi kết quả khám và quyết định võ sĩ có được tập/thi đấu. Giấy phép được cấp ở bước tiếp theo từ phiếu khám này.",
     "doctorUi.newExam.title": "Phiếu khám mới",
     "doctorUi.newExam.titleFor": "Phiếu khám cho {name}",

@@ -1,5 +1,6 @@
-import { CalendarClock, ClipboardList, ClipboardPlus, Lock, MessageSquareText, Upload } from "lucide-react";
+import { CalendarClock, ClipboardList, ClipboardPlus, MessageSquareText, Upload } from "lucide-react";
 import type { Metadata } from "next";
+import { Suspense } from "react";
 
 import { AnalysisSummaryCard } from "@/components/dashboard/analysis-summary-card";
 import { CardLink } from "@/components/dashboard/card-link";
@@ -16,6 +17,9 @@ import { PlanCard } from "@/components/domain/plan-card";
 import { localizeJourney, type JourneyCode } from "@/lib/domain/journey";
 import { planAdherencePct } from "@/lib/domain/training-plan";
 import { ButtonLink } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import type { AIAnalysis } from "@/lib/domain/types";
+import type { Locale } from "@/lib/i18n/config";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/states";
 import { requireFighterAccess } from "@/lib/auth/access";
@@ -33,7 +37,7 @@ import { getClearanceStatus, getFighterHealthSummary, listReviewRequests } from 
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { getPlanWithSessions, listCoachFeedback, listPlans } from "@/lib/services/training";
-import { getVideoDetail, listVideoLibrary } from "@/lib/services/videos";
+import { getVideoDetail, listVideoLibrary, type VideoLibraryItem } from "@/lib/services/videos";
 import { cn } from "@/lib/utils";
 
 const UPCOMING_LIMIT = 3;
@@ -58,17 +62,19 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
     // The video service is optional here: when it's down the profile loses its video card, not the whole page
     // (as on the fighter dashboard).
     const libraryRead = nullIfServiceFails(listVideoLibrary({ fighterIds: ids })).then((library) => library ?? []);
-    const [entry, planDetail, { latest, analysis }, journey, feedback, goals, coaches, doctors, health, settings, reviewRequests, { eligibility }] = await Promise.all([
+    // The newest analysis takes three reads in a row (video, job, result), so its card streams in on its own.
+    const analysisRead = libraryRead.then(async (library) => {
+        // The library carries no analysis in API mode, so the newest finished video's analysis is read on its own.
+        const item = [...library].sort((a, b) => Date.parse(b.video.uploadedAt) - Date.parse(a.video.uploadedAt)).find((candidate) => candidate.video.status === "completed") ?? null;
+        const detail = item ? await nullIfServiceFails(getVideoDetail(item.video.id)) : null;
+        return { latest: item, analysis: detail?.analysis ?? null };
+    });
+    analysisRead.catch(() => {});
+    const [entry, planDetail, journey, feedback, goals, coaches, doctors, health, settings, reviewRequests, { eligibility }] = await Promise.all([
         loadRosterEntry(user, fighter.id),
         plansRead.then((plans) => {
             const active = plans.find((plan) => plan.status === "active");
             return active ? getPlanWithSessions(active.id) : null;
-        }),
-        libraryRead.then(async (library) => {
-            // The library carries no analysis in API mode, so the newest finished video's analysis is read on its own.
-            const item = [...library].sort((a, b) => Date.parse(b.video.uploadedAt) - Date.parse(a.video.uploadedAt)).find((candidate) => candidate.video.status === "completed") ?? null;
-            const detail = item ? await nullIfServiceFails(getVideoDetail(item.video.id)) : null;
-            return { latest: item, analysis: detail?.analysis ?? null };
         }),
         getFighterJourney(fighter.id, { viewer: "coach", plans: plansRead, videos: libraryRead.then((library) => library.map((item) => item.video)) }),
         listCoachFeedback({ fighterIds: ids }),
@@ -135,10 +141,6 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                             </span>
                         </p>
                     )}
-                    <p className="flex items-start gap-2 text-[13px] text-fg-muted">
-                        <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
-                        {t("training.fighterOverview.doctorLockNotice")}
-                    </p>
                 </HealthStatusCard>
 
                 {activePlan ? (
@@ -189,15 +191,9 @@ export default async function CoachFighterOverviewPage({ params }: PageProps<"/c
                     locale={locale}
                 />
 
-                <AnalysisSummaryCard
-                    video={latest?.video ?? null}
-                    analysis={analysis}
-                    videoHref={latest ? routes.coach.video(latest.video.id) : null}
-                    libraryHref={routes.coach.fighterVideos(fighter.id)}
-                    uploadHref={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighter.id })}
-                    now={now}
-                    locale={locale}
-                />
+                <Suspense fallback={<Skeleton className="h-72 rounded-xl" />}>
+                    <LatestAnalysisCard read={analysisRead} fighterId={fighter.id} now={now} locale={locale} />
+                </Suspense>
 
                 {platformFeatureAvailable("coachFeedback") && (
                     <Card className="min-w-0">
@@ -254,4 +250,29 @@ function journeyAction(code: JourneyCode | undefined, fighterId: string, t: Tran
         );
     }
     return undefined;
+}
+
+async function LatestAnalysisCard({
+    read,
+    fighterId,
+    now,
+    locale,
+}: {
+    read: Promise<{ latest: VideoLibraryItem | null; analysis: AIAnalysis | null }>;
+    fighterId: string;
+    now: string;
+    locale: Locale;
+}) {
+    const { latest, analysis } = await read;
+    return (
+        <AnalysisSummaryCard
+            video={latest?.video ?? null}
+            analysis={analysis}
+            videoHref={latest ? routes.coach.video(latest.video.id) : null}
+            libraryHref={routes.coach.fighterVideos(fighterId)}
+            uploadHref={hrefWith(routes.coach.uploadVideo, {}, { fighter: fighterId })}
+            now={now}
+            locale={locale}
+        />
+    );
 }

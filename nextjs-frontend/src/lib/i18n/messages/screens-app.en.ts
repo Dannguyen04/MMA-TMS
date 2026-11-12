@@ -5,7 +5,6 @@
  */
 export const enScreensApp = {
     "screens.camp.title": "Camp timeline",
-    "screens.camp.description": "Every session from the start of camp to bout day, as recorded.",
     "screens.camp.weekLabel": "Camp week",
     "screens.camp.week": "{week} of {weeks}",
     "screens.camp.countdownLabel": "Bout",

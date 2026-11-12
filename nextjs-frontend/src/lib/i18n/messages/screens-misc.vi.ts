@@ -100,7 +100,6 @@ export const viScreensMisc = {
     "screens.misc.views.noCoach": "Chưa phân công HLV",
 
     /* Coach: applicants */
-    "screens.misc.coach.description": "Những người đăng ký tập luyện tại học viện. Hãy đánh giá đầu vào từng người và ghi lại những gì bạn thấy; quản trị viên ra quyết định cuối cùng.",
     "screens.misc.coach.toAssess": "Cần đánh giá",
     "screens.misc.coach.toAssessList": "Ứng viên cần đánh giá",
     "screens.misc.coach.assessed": "Đã đánh giá",
@@ -217,7 +216,6 @@ export const viScreensMisc = {
 
     /* Exercise library actions */
     "screens.misc.library.addTitle": "Thêm bài tập",
-    "screens.misc.library.addDescription": "HLV có thể thêm ngay vào giáo án.",
     "screens.misc.library.added": "Đã thêm bài tập.",
     "screens.misc.library.name": "Tên",
     "screens.misc.library.namePlaceholder": "VD: Đánh đích jab–cross–hook",
@@ -303,7 +301,6 @@ export const viScreensMisc = {
     "screens.doctor.dashboard.urgent.reviews.one": "1 yêu cầu xem xét",
     "screens.doctor.dashboard.urgent.and": "và",
     "screens.doctor.dashboard.urgent.waiting": "đang chờ.",
-    "screens.doctor.dashboard.urgent.handleRed": "Xử lý thẻ đỏ trước buổi tập.",
     "screens.doctor.dashboard.openRequests": "Mở yêu cầu",
     "screens.doctor.dashboard.seeRed": "Xem thẻ đỏ",
     "screens.doctor.dashboard.noFighters": "Bạn chưa được giao võ sĩ nào. Khi quản trị viên giao võ sĩ, thẻ phân loại sẽ hiện ở đây.",
@@ -421,6 +418,6 @@ export const viScreensMisc = {
     "screens.doctor.examinations.partial.one": "Không đọc được phiếu khám của 1 võ sĩ. Danh sách có thể thiếu; thử tải lại sau ít phút.",
     "screens.doctor.examinations.namesUnavailable": "Không đọc được danh sách võ sĩ nên tạm ẩn tên và bộ lọc theo võ sĩ.",
     "screens.doctor.examinations.failedTitle": "Không đọc được phiếu khám",
-    "screens.doctor.examinations.failedBody": "Máy chủ y tế không trả lời. Thử lại sau ít phút.",
+    "screens.doctor.examinations.failedBody": "Không tải được các lần khám. Thử lại sau ít phút.",
     "screens.doctor.examinations.reload": "Tải lại",
 } satisfies Record<keyof typeof enScreensMisc, string>;

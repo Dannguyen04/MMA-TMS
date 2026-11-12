@@ -27,7 +27,7 @@ export default async function CoachAdmissionsPage() {
 
     return (
         <>
-            <PageHeader title={t("coachQueue.applicants")} description={t("screens.misc.coach.description")} />
+            <PageHeader title={t("coachQueue.applicants")} />
             <div className="flex flex-col gap-6">
                 <Card className="overflow-hidden">
                     <CardHeader title={t("screens.misc.coach.toAssess")} description={applicants(waiting.length)} icon={<ClipboardList />} />

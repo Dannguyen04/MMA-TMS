@@ -187,7 +187,6 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                 <DemoFillBar
                     className="xl:col-span-2"
                     title={t("doctorClinical.common.demoTitle")}
-                    description={t("doctorClinical.injuryForm.demoDescription")}
                     onFill={fillSample}
                     onClear={clearAll}
                 />
@@ -288,7 +287,7 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     )}
                 </FormPart>
 
-                <FormPart prefix="injury-" id="time" title={t("doctorClinical.injuryForm.timing")} description={t("doctorClinical.injuryForm.timingDescription")}>
+                <FormPart prefix="injury-" id="time" title={t("doctorClinical.injuryForm.timing")}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
                         <Field label={t("doctorClinical.common.occurred")} htmlFor={id("occurredAt")} error={error("occurredAt")} required hint={t("doctorClinical.common.academyTime")}>
                             <Input {...control("occurredAt", { hint: true, required: true })} type="datetime-local" value={occurredAt} max={nowInput} onChange={(event) => setOccurredAt(event.target.value)} />
@@ -363,7 +362,6 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
                     prefix="injury-"
                     id="clinical"
                     title={t("doctorClinical.common.clinicalSigns")}
-                    description={t("doctorClinical.injuryForm.clinicalDescription")}
                     aside={<DoctorsOnly>{t("doctorClinical.common.doctorsOnly")}</DoctorsOnly>}
                 >
                     <Field label={t("doctorClinical.common.description")} htmlFor={id("description")} error={error("description")} required hint={t("doctorClinical.injuryForm.clinicalHint")}>

@@ -4,7 +4,6 @@ import type { enAuth } from "./auth.en";
 export const viAuth = {
     "auth.metaTitle": "Đăng nhập",
     "auth.title": "Đăng nhập",
-    "auth.subtitle": "Chào mừng trở lại. Dùng tài khoản của học viện để tiếp tục.",
     "auth.email": "Email",
     "auth.password": "Mật khẩu",
     "auth.forgot": "Quên mật khẩu?",
@@ -43,7 +42,7 @@ export const viAuth = {
     "auth.applyDescription": "Nhập email của bạn và chúng tôi sẽ gửi mã, sau đó hãy giới thiệu về bản thân. HLV sẽ đánh giá từng người đăng ký trước khi học viện quyết định. Đã đăng ký rồi? Dùng lại email đó để tiếp tục.",
     "auth.joinMetaTitle": "Tham gia học viện",
     "auth.joinTitle": "Võ sĩ do học viện thêm vào",
-    "auth.joinDescription": "Lotus Combat Academy chỉ huấn luyện võ sĩ do huấn luyện viên đưa vào. Không có đơn đăng ký nào cần điền. Hãy đăng nhập bằng tài khoản huấn luyện viên đã cấp cho bạn.",
+    "auth.joinDescription": "Không có đơn đăng ký. Hãy đăng nhập bằng tài khoản huấn luyện viên đã cấp cho bạn.",
     "auth.sendCodePending": "Đang gửi mã…",
     "auth.sendCode": "Gửi mã cho tôi",
     "auth.code": "Mã xác thực",

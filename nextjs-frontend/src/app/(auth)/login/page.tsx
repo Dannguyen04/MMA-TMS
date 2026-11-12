@@ -40,7 +40,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         <div>
             <FlashToast notice={notice ? toast(SIGN_IN_NOTICES[notice]) : null} cleanHref={routes.login} />
             <h1 className="text-2xl font-semibold tracking-tight text-fg">{t("auth.title")}</h1>
-            <p className="mt-1.5 text-[15px] text-fg-muted">{t("auth.subtitle")}</p>
             <LoginForm next={next} />
             {isDemoAuthEnabled() && <DemoAccounts next={next} />}
         </div>

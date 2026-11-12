@@ -165,7 +165,6 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
                 <DemoFillBar
                     className="xl:col-span-2"
                     title={t("doctorClinical.recordForm.demoTitle")}
-                    description={t("doctorClinical.recordForm.demoDescription")}
                     onFill={fillSample}
                     onClear={clearAll}
                 />

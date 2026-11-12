@@ -41,9 +41,7 @@ export function SystemStatus({ items, checkedLabel, locale, className }: { items
                     <h2 id="system-status-title" className={cn("text-[15px] font-semibold", healthy ? "text-success-fg" : "text-warning-fg")}>
                         {healthy ? t("screens.admin.status.normal") : plural(t, "screens.admin.status.attention", items.length)}
                     </h2>
-                    <p className="mt-0.5 text-sm text-fg-muted">
-                        {healthy ? t("screens.admin.status.normalDescription") : t("screens.admin.status.attentionDescription")}
-                    </p>
+                    {healthy && <p className="mt-0.5 text-sm text-fg-muted">{t("screens.admin.status.normalDescription")}</p>}
                 </div>
                 <p className="w-full text-xs text-fg-subtle sm:w-auto sm:pt-1">{checkedLabel}</p>
             </div>

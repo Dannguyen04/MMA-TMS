@@ -122,7 +122,6 @@ export const enFighterToday = {
     "hero.analysis.needsReview": "Needs review · {n} low-confidence detections",
     "hero.analysis.needsReview.one": "Needs review · 1 low-confidence detection",
     "hero.analysis.awaiting": "Awaiting coach review",
-    "hero.analysis.estimates": "AI results are estimates. Your coach reviews them; treat unreviewed items as a guide.",
     "hero.analysis.open": "Open the analysis",
     "hero.analysis.lineSr": "Latest AI analysis: ",
     "hero.analyse.tag": "AI analysis",
@@ -169,7 +168,6 @@ export const enFighterToday = {
     "agenda.sessions.one": "1 session",
 
     "feed.title": "From your corner",
-    "feed.description": "Your coaches' latest notes and what the AI found in your uploads",
     "feed.allFilm": "All film",
     "feed.emptyTitle": "Nothing new from your corner",
     "feed.emptyText": "Your coaches' notes and the AI's take on your uploads show up here.",
@@ -199,7 +197,7 @@ export const enFighterToday = {
     "review.needsReview": "Needs review",
     "review.lowConfidence": "{n} low-confidence detections",
     "review.lowConfidence.one": "1 low-confidence detection",
-    "aiNotice.fighter": "These results are AI estimates from your video. Your coach reviews them — treat unreviewed items as a guide, not a verdict.",
+    "aiNotice.fighter": "AI estimates from your video. Your coach reviews them.",
     "aiGenerated": "AI-generated",
     "aiNotice.fighterTitle": "AI estimates",
 

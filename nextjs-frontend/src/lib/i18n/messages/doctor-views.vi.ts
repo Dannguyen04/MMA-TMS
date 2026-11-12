@@ -218,8 +218,6 @@ export const viDoctorViews = {
     /* New recovery plan */
     "doctorViews.newRecovery.title": "Kế hoạch phục hồi mới",
     "doctorViews.newRecovery.titleFor": "Kế hoạch phục hồi cho {name}",
-    "doctorViews.newRecovery.description": "Lập kế hoạch trở lại tập theo giai đoạn, mỗi giai đoạn có mục tiêu và các mốc.",
-    "doctorViews.newRecovery.descriptionMilestones": "Lập kế hoạch trở lại tập theo các mốc, mỗi mốc có tiêu chí đạt.",
     "doctorViews.newRecovery.noneTitle": "Không có chấn thương cần kế hoạch",
     "doctorViews.newRecovery.noneExisting": "Chấn thương đó đã có kế hoạch phục hồi đang chạy, và mọi chấn thương đang mở khác của võ sĩ bạn phụ trách cũng vậy.",
     "doctorViews.newRecovery.noneAll": "Mọi chấn thương đang mở của võ sĩ bạn phụ trách đều đã có kế hoạch. Hãy ghi chấn thương trước rồi lập kế hoạch phục hồi.",
@@ -261,7 +259,6 @@ export const viDoctorViews = {
     "doctorViews.plan.colMobility": "Vận động",
     "doctorViews.plan.colStrength": "Sức mạnh",
     "doctorViews.plan.colNote": "Ghi chú",
-    "doctorViews.plan.treatmentsSub": "Cho chấn thương này",
     "doctorViews.plan.manageContext": "điều trị trong hồ sơ chấn thương",
     "doctorViews.plan.manage": "Quản lý",
     "doctorViews.plan.noTreatments": "Chưa ghi nhận điều trị cho chấn thương này.",

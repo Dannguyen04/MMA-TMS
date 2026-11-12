@@ -165,7 +165,6 @@ export default async function CoachFighterTrainingPage({ params }: PageProps<"/c
             <Card className="overflow-hidden">
                 <CardHeader
                     title={t("training.coachFighter.recentHistory")}
-                    description={t("training.coachFighter.recentHistoryDesc")}
                     icon={<History />}
                     as="h3"
                     action={<CardLink href={hrefWith(routes.coach.sessions, {}, { view: "list", fighter: fighter.id })}>{t("training.coachFighter.allSessions")}</CardLink>}

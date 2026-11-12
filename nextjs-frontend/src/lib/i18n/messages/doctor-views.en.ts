@@ -216,8 +216,6 @@ export const enDoctorViews = {
     /* New recovery plan */
     "doctorViews.newRecovery.title": "New recovery plan",
     "doctorViews.newRecovery.titleFor": "Recovery plan for {name}",
-    "doctorViews.newRecovery.description": "Plan the return to training in phases, each with its own goal and milestones.",
-    "doctorViews.newRecovery.descriptionMilestones": "Plan the return to training in milestones, each with its own pass criteria.",
     "doctorViews.newRecovery.noneTitle": "No injuries need a plan",
     "doctorViews.newRecovery.noneExisting": "That injury already has a running recovery plan, and so does every other open injury of the fighters you look after.",
     "doctorViews.newRecovery.noneAll": "Every open injury of the fighters you look after already has a plan. Record the injury first, then create the recovery plan.",
@@ -259,7 +257,6 @@ export const enDoctorViews = {
     "doctorViews.plan.colMobility": "Mobility",
     "doctorViews.plan.colStrength": "Strength",
     "doctorViews.plan.colNote": "Notes",
-    "doctorViews.plan.treatmentsSub": "For this injury",
     "doctorViews.plan.manageContext": "treatments in the injury record",
     "doctorViews.plan.manage": "Manage",
     "doctorViews.plan.noTreatments": "No treatments recorded for this injury.",

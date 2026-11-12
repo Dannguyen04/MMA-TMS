@@ -1,4 +1,4 @@
-import { Bandage, CalendarClock, FileClock, HeartHandshake, History, MapPinned, RefreshCw, ShieldQuestion } from "lucide-react";
+import { Bandage, CalendarClock, FileClock, History, MapPinned, RefreshCw, ShieldQuestion } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
@@ -83,7 +83,6 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
     const { clearance, clearanceState } = health;
     const clearanceDoctor = clearance ? doctorNames.get(clearance.doctorId) : undefined;
     const latestDecision = clearances[0];
-    const contactDoctor = clearanceDoctor ?? careTeam.find((member) => member.role === "doctor" && member.primary)?.name ?? careTeam.find((member) => member.role === "doctor")?.name;
     const openInjuries = health.activeInjuries;
     const recovery = health.activeRecoveryPlan;
     const recoveryInjury = recovery ? injuries.find((injury) => injury.id === recovery.plan.injuryId) : undefined;
@@ -155,11 +154,6 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                         ) : (
                             <InlineNote icon={CalendarClock}>{t("fighterHealth.noFollowUpBooked")}</InlineNote>
                         )}
-                        {contactDoctor && (
-                            <InlineNote icon={HeartHandshake}>
-                                {t("fighterHealth.questionsAboutClearance", { doctor: contactDoctor })}
-                            </InlineNote>
-                        )}
                     </HealthStatusCard>
                     <CareTeamCard members={careTeam} locale={locale} />
                 </>
@@ -193,7 +187,6 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
                     <Card className="min-w-0">
                         <CardHeader
                             title={t("fighterHealth.activeInjuries")}
-                            description={openInjuries.length > 0 ? t("fighterHealth.activeInjuriesDesc") : undefined}
                             icon={<Bandage />}
                         />
                         <CardContent>
@@ -238,7 +231,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
         <TwoColumns
             main={
                 <Card className="min-w-0">
-                    <CardHeader title={t("fighterHealth.medicalHistory")} description={t("fighterHealth.medicalHistoryDesc")} icon={<FileClock />} />
+                    <CardHeader title={t("fighterHealth.medicalHistory")} icon={<FileClock />} />
                     <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                         <div className="grid flex-1 grid-cols-3 gap-2">
                             <MetricTile label={t("fighterHealth.metricExaminations")} value={examinations.length} />
@@ -274,7 +267,7 @@ export default async function FighterHealthPage({ searchParams }: PageProps<"/fi
 
     return (
         <>
-            <PageHeader title={t("fighterHealth.pageTitle")} description={t("fighterHealth.pageDesc")} />
+            <PageHeader title={t("fighterHealth.pageTitle")} />
             <Tabs
                 key={tab}
                 defaultTab={tab}

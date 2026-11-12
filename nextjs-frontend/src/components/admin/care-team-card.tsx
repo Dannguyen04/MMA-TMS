@@ -135,7 +135,6 @@ export function CareTeamCard({ fighterId, fighterName, team, staff, className }:
                         <TermHint term="careTeam" locale={locale} />
                     </span>
                 }
-                description={t("screens.admin.careTeam.description", { name: fighterName })}
                 icon={<UsersRound />}
             />
             <CardContent className="grid grid-cols-1 gap-6 lg:grid-cols-2">

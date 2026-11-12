@@ -23,7 +23,7 @@ export default async function FighterPerformancePage() {
 
     return (
         <>
-            <PageHeader title={t("screens.performance.title")} description={t("screens.performance.fighterPerformance.desc")} />
+            <PageHeader title={t("screens.performance.title")} />
             <PerformanceOverview
                 fighterId={fighterId}
                 fighterName={user.name}

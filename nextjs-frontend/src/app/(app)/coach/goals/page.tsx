@@ -97,7 +97,6 @@ export default async function CoachGoalsPage({ searchParams }: PageProps<"/coach
         <>
             <PageHeader
                 title={t("screens.performance.goals")}
-                description={t("screens.performance.coachGoals.desc")}
                 actions={goals.length > 0 && <NewGoalButton now={now} fighters={fighterOptions} />}
             />
 

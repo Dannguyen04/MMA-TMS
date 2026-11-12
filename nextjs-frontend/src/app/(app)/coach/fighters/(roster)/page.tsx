@@ -110,10 +110,6 @@ export default async function CoachFightersPage({ searchParams }: PageProps<"/co
         <>
             <PageHeader
                 title={t("training.roster.title")}
-                description={t("screens.roster.description", {
-                    count: plural(t, "training.roster.fightersCount", allFighters.length),
-                    performance: showPerformance ? t("training.roster.performanceText") : "",
-                })}
                 actions={
                     <>
                         <CsvButton

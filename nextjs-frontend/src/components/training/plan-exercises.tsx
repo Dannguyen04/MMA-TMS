@@ -69,7 +69,6 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
         <Card className="min-w-0">
             <CardHeader
                 title={t("training.planExercises.title")}
-                description={t("training.planExercises.description")}
                 icon={<Dumbbell />}
                 action={
                     editable &&

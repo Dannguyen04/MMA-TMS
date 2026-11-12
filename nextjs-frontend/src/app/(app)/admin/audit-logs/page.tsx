@@ -83,7 +83,7 @@ export default async function AdminAuditLogsPage({ searchParams }: PageProps<"/a
 
     return (
         <>
-            <PageHeader title={t("screens.admin.meta.auditLogs")} description={t("screens.admin.audit.description")} />
+            <PageHeader title={t("screens.admin.meta.auditLogs")} />
 
             <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-3">

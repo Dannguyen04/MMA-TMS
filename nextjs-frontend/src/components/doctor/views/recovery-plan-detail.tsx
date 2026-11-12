@@ -264,7 +264,6 @@ export async function RecoveryPlanDetail({ planId, query, fighterId: scopedId }:
                         <CardHeader
                             title={t("doctorViews.injuries.colTreatment")}
                             icon={<ClipboardList />}
-                            description={t("doctorViews.plan.treatmentsSub")}
                             action={
                                 injury && (
                                     <CardLink href={routes.doctor.fighterInjury(injury.fighterId, injury.id)} srContext={t("doctorViews.plan.manageContext")}>

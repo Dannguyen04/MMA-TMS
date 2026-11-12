@@ -101,7 +101,6 @@ export function BroadcastComposer({ activeCounts, minSchedule, defaultSchedule, 
                 onClose={() => setOpen(false)}
                 size="lg"
                 title={t("screens.admin.composer.new")}
-                description={t("screens.admin.composer.description")}
                 action={createBroadcastAction}
                 prepare={prepare}
                 submitLabel={submitLabel}

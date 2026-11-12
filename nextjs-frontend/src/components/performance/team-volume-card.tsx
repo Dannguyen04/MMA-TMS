@@ -44,7 +44,6 @@ export function TeamVolumeCard({ fighters, weekStarts, locale }: TeamVolumeCardP
             <CardContent>
                 <ChartFigure
                     title={summary}
-                    description={t("screens.performance.volume.figureDesc")}
                     tableCaption={t("screens.performance.volume.caption")}
                     table={{
                         columns: [t("screens.performance.week"), ...fighters.map((fighter) => fighter.name), t("screens.performance.total")],

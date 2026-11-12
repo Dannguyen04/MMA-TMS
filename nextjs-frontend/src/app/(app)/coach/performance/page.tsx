@@ -70,7 +70,7 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
     if (teamRows.length === 0) {
         return (
             <>
-                <PageHeader title={t("screens.performance.team.title")} description={t("screens.performance.team.desc")} />
+                <PageHeader title={t("screens.performance.team.title")} />
                 <EmptyState
                     icon={<ChartLine />}
                     title={t("screens.performance.team.emptyTitle")}
@@ -129,7 +129,6 @@ export default async function CoachPerformancePage({ searchParams }: PageProps<"
         <>
             <PageHeader
                 title={t("screens.performance.team.title")}
-                description={t("screens.performance.team.desc")}
                 meta={
                     <>
                         {lastWeek && (

@@ -81,7 +81,7 @@ export function MilestonePlanForm({ fighter, injuries, defaultInjuryId, today, c
                 <input type="hidden" name="fighterId" value={fighter.id} />
                 <input type="hidden" name="milestones" value={serialized} />
 
-                <FormSection title={t("doctorClinical.milestonePlan.plan")} info={<TermHint term="recoveryPlan" />} description={t("doctorClinical.milestonePlan.planDescription", { name: fighter.name })}>
+                <FormSection title={t("doctorClinical.milestonePlan.plan")} info={<TermHint term="recoveryPlan" />}>
                     <Field label={t("doctorClinical.common.injury")} htmlFor={control("injuryId").id} error={error("injuryId")} required>
                         <Select
                             {...control("injuryId", { required: true })}

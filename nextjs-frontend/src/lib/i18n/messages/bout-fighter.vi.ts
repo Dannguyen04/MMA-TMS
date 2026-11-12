@@ -26,7 +26,6 @@ export const viBoutFighter = {
 
     /* Today's weight page */
     "boutFighter.weighIn.title": "Cân nặng hôm nay",
-    "boutFighter.weighIn.description": "Ghi cân nặng sáng nay. Lưu lại trong hôm nay sẽ thay số đã ghi trước đó.",
     "boutFighter.weighIn.back": "Trận đấu",
 
     /* Weigh-in form */
@@ -42,7 +41,6 @@ export const viBoutFighter = {
 
     /* Nutrition plan form (coach) */
     "boutFighter.plan.currentPhase": "Đang áp dụng",
-    "boutFighter.plan.intro": "Viết những gì võ sĩ nên ăn trong từng giai đoạn. Ứng dụng lưu đúng những gì bạn nhập.",
     "boutFighter.plan.lastEdited": "Sửa lần cuối: {name}, {date}",
     "boutFighter.plan.writtenBy": "Người viết",
     "boutFighter.plan.writtenByHint": "Tên bạn, hoặc tên chuyên gia mà bạn chép lại.",

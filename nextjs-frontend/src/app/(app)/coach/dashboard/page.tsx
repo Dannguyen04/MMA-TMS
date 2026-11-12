@@ -196,7 +196,6 @@ async function BoutAlerts({
                         <Card className="min-w-0">
                             <CardHeader
                                 title={t("coachBouts.dashboard.weightAlerts")}
-                                description={t("coachBouts.dashboard.weightAlertsHint")}
                                 action={<CardLink href={routes.coach.bouts}>{t("coachBouts.dashboard.allBouts")}</CardLink>}
                             />
                             <CardContent>
@@ -223,7 +222,6 @@ async function BoutAlerts({
                         <Card className="min-w-0">
                             <CardHeader
                                 title={t("coachBouts.dashboard.documentsDue")}
-                                description={t("coachBouts.dashboard.documentsDueHint")}
                                 action={weightAlerts.length === 0 ? <CardLink href={routes.coach.bouts}>{t("coachBouts.dashboard.allBouts")}</CardLink> : undefined}
                             />
                             <CardContent>

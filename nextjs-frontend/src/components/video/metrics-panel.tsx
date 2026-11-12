@@ -102,7 +102,6 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
                     </TileGrid>
                     <ChartFigure
                         title={t("screens.video.metrics.strikesDetected")}
-                        description={t("screens.video.metrics.strikesDetectedDesc")}
                         table={{ columns: [t("screens.video.metrics.colStrike"), t("screens.video.metrics.colCount"), t("screens.video.metrics.colShare")], rows: countItems.map((i) => [i.label, i.value, i.hint ?? "—"]) }}
                     >
                         <HorizontalBars items={countItems} ariaLabel={t("screens.video.metrics.strikesByType")} />
@@ -238,7 +237,7 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
 
     return (
         <Card className={cn("min-w-0", className)}>
-            <CardHeader title={t("screens.video.metrics.title")} description={t("screens.video.metrics.description")} action={<AIGeneratedBadge size="sm" label={t("screens.video.metrics.aiDerived")} />} />
+            <CardHeader title={t("screens.video.metrics.title")} action={<AIGeneratedBadge size="sm" label={t("screens.video.metrics.aiDerived")} />} />
             <div className="px-5 pb-5">
                 <Tabs items={items} label={t("screens.video.metrics.groups")} />
             </div>

@@ -77,10 +77,7 @@ export default async function AIAlertsPage({ searchParams }: PageProps<"/doctor/
 
     return (
         <>
-            <PageHeader
-                title={t("doctorPages.meta.aiAlerts")}
-                description={`${t("doctorPages.alerts.description")}${reviews ? t("doctorPages.alerts.descriptionReview") : ""}`}
-            />
+            <PageHeader title={t("doctorPages.meta.aiAlerts")} />
 
             <div className="flex flex-col gap-5">
                 {/* Without a locale the notice keeps its Vietnamese wording; the dictionary words it differently. */}

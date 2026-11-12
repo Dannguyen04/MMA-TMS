@@ -24,7 +24,6 @@ export default async function FighterUploadVideoPage({ searchParams }: PageProps
             <PageHeader
                 back={{ href: routes.fighter.videos, label: t("screens.video.page.film") }}
                 title={t("screens.video.page.uploadTitle")}
-                description={t("screens.video.page.uploadDescFighter")}
             />
             <UploadWizard
                 role="fighter"

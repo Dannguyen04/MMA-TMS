@@ -131,7 +131,7 @@ export const enDoctorScat6 = {
     "doctorScat6.review.concussionDiagnosed": "Concussion diagnosed",
 
     /* Step 1: status */
-    "doctorScat6.status.description": "Record by item number, reading the questions from the official paper form. The medical service works out the scores.",
+    "doctorScat6.status.description": "Record by item number, reading the questions from the official paper form.",
     "doctorScat6.status.legend": "SCAT6 at this baseline exam",
     "doctorScat6.status.tooYoung": "Not used before age 13: the athlete is younger.",
     "doctorScat6.status.ageOk": "Athlete aged 13 or over.",
@@ -140,7 +140,6 @@ export const enDoctorScat6 = {
     "doctorScat6.status.attestation": "I am a healthcare professional and performed or supervised this SCAT6",
 
     /* Step 1: athlete */
-    "doctorScat6.athlete.description": "Details the form asks for before testing.",
     "doctorScat6.athlete.dominantHand": "Dominant hand",
     "doctorScat6.athlete.sportTeamSchool": "Sport, team or school",
     "doctorScat6.athlete.currentSchoolYear": "Current school year",
@@ -250,7 +249,6 @@ export const enDoctorScat6 = {
     "doctorScat6.delayed.earliest": "Can start from {time} (5 minutes after the last memory trial).",
     "doctorScat6.delayed.needLastTrial": "Record when the last memory trial finished first.",
     "doctorScat6.delayed.words": "Words recalled",
-    "doctorScat6.conclusion.description": "Your overall reading of the SCAT6.",
     "doctorScat6.conclusion.different": "Different from usual self?",
     "doctorScat6.conclusion.no": "No",
     "doctorScat6.conclusion.notRecorded": "Not recorded",
@@ -265,7 +263,7 @@ export const enDoctorScat6 = {
     "doctorScat6.summary.noReason": "No reason given.",
     "doctorScat6.summary.notScored": "Not scored",
     "doctorScat6.summary.notScoredNote": "Not scored: this part wasn't performed or isn't complete enough to score.",
-    "doctorScat6.summary.noScores": "The medical service hasn't scored this record yet.",
+    "doctorScat6.summary.noScores": "Not scored yet.",
     "doctorScat6.score.symptomCount": "Symptoms",
     "doctorScat6.score.symptomSeverity": "Symptom severity",
     "doctorScat6.score.orientation": "Orientation",

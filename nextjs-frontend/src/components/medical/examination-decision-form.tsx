@@ -258,14 +258,13 @@ export function ExaminationDecisionForm({
                 <DemoFillBar
                     className="xl:col-span-2"
                     title={t("doctorMedical.decision.demoTitle")}
-                    description={t("doctorMedical.decision.demoDescription")}
                     onFill={fillSample}
                     onClear={clearAll}
                 />
             )}
 
             <Card className="flex min-w-0 flex-col divide-y divide-border">
-                <FormPart prefix="exam-" id="visit" title={t("doctorMedical.progress.visit")} description={t("doctorMedical.decision.visitDescription")}>
+                <FormPart prefix="exam-" id="visit" title={t("doctorMedical.progress.visit")}>
                     <ChoiceGroup
                         id="exam-decision-scope"
                         name="scope"
@@ -362,7 +361,7 @@ export function ExaminationDecisionForm({
                     </div>
                 )}
 
-                <FormPart prefix="exam-" id="decision" title={t("doctorMedical.decision.title")} description={t("doctorMedical.decision.description")}>
+                <FormPart prefix="exam-" id="decision" title={t("doctorMedical.decision.title")}>
                     <ChoiceGroup
                         id="exam-decision-decision"
                         name="decision"

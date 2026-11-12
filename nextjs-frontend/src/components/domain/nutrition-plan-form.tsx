@@ -34,7 +34,6 @@ export function NutritionPlanForm({
     return (
         <form {...form.formProps} className="flex flex-col gap-5">
             <input type="hidden" name="boutId" value={boutId} />
-            <p className="text-sm text-fg-muted">{t("boutFighter.plan.intro")}</p>
             <FormMessage {...form.message} />
             {PHASES.map((phase) => {
                 const note = plan[phase];

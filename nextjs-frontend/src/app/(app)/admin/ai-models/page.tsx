@@ -44,7 +44,6 @@ export default async function AdminAIModelsPage() {
         <>
             <PageHeader
                 title={t("screens.admin.common.aiModels")}
-                description={t("screens.admin.models.description")}
                 meta={STATUSES.map((status) => {
                     const count = models.filter((m) => m.status === status).length;
                     return count > 0 ? (

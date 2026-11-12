@@ -67,7 +67,6 @@ export default async function FighterMedicalHistoryPage() {
                 back={{ href: routes.fighter.health, label: t("fighterHistory.backLabel") }}
                 eyebrow={t("fighterHistory.eyebrow")}
                 title={t("fighterHistory.title")}
-                description={t("fighterHistory.desc")}
             />
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-12">

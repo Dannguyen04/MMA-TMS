@@ -102,7 +102,6 @@ export const enScreensMisc = {
     "screens.misc.views.noCoach": "No coach assigned",
 
     /* Coach: applicants */
-    "screens.misc.coach.description": "People applying to train at the academy. Run each entrance assessment and record what you saw; an administrator makes the final decision.",
     "screens.misc.coach.toAssess": "To assess",
     "screens.misc.coach.toAssessList": "Applicants to assess",
     "screens.misc.coach.assessed": "Assessed",
@@ -219,7 +218,6 @@ export const enScreensMisc = {
 
     /* Exercise library actions */
     "screens.misc.library.addTitle": "Add an exercise",
-    "screens.misc.library.addDescription": "Coaches can add it to their plans straight away.",
     "screens.misc.library.added": "Exercise added.",
     "screens.misc.library.name": "Name",
     "screens.misc.library.namePlaceholder": "e.g. Jab–cross–hook pad drill",
@@ -305,7 +303,6 @@ export const enScreensMisc = {
     "screens.doctor.dashboard.urgent.reviews.one": "1 review request",
     "screens.doctor.dashboard.urgent.and": "and",
     "screens.doctor.dashboard.urgent.waiting": "waiting.",
-    "screens.doctor.dashboard.urgent.handleRed": "Handle the red cards before training.",
     "screens.doctor.dashboard.openRequests": "Open requests",
     "screens.doctor.dashboard.seeRed": "See red cards",
     "screens.doctor.dashboard.noFighters": "You have no assigned fighters yet. When an administrator assigns fighters, their triage cards appear here.",
@@ -423,6 +420,6 @@ export const enScreensMisc = {
     "screens.doctor.examinations.partial.one": "Couldn't read the examinations of 1 fighter. The list may be incomplete; try reloading in a few minutes.",
     "screens.doctor.examinations.namesUnavailable": "Couldn't read the fighter list, so names and the fighter filter are hidden for now.",
     "screens.doctor.examinations.failedTitle": "Couldn't read the examinations",
-    "screens.doctor.examinations.failedBody": "The medical service didn't answer. Try again in a few minutes.",
+    "screens.doctor.examinations.failedBody": "Examinations couldn't be loaded. Try again in a few minutes.",
     "screens.doctor.examinations.reload": "Reload",
 } as const;

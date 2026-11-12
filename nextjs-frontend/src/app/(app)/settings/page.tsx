@@ -38,7 +38,6 @@ export default async function SettingsPage() {
         <>
             <PageHeader
                 title={t("account.preferences.title")}
-                description={t("account.preferences.description")}
                 actions={
                     <ButtonLink href={routes.profile} variant="secondary">
                         <UserRound aria-hidden />
@@ -65,7 +64,7 @@ export default async function SettingsPage() {
 
                 <div className="flex min-w-0 max-w-4xl flex-col gap-6">
                     <Card id="appearance" className="scroll-mt-20">
-                        <CardHeader title={t("account.appearance.title")} icon={<Palette />} description={t("account.appearance.description")} />
+                        <CardHeader title={t("account.appearance.title")} icon={<Palette />} />
                         <CardContent>
                             <AppearanceSettings initial={theme} />
                         </CardContent>
@@ -75,7 +74,6 @@ export default async function SettingsPage() {
                         <CardHeader
                             title={t("account.notifications.title")}
                             icon={<Bell />}
-                            description={t("account.notifications.description")}
                         />
                         <div className="border-t border-border">
                             <NotificationPreferences userId={user.id} role={user.role} email={user.email} categories={categories} />
@@ -90,7 +88,7 @@ export default async function SettingsPage() {
                     </Card>
 
                     <Card id="accessibility" className="scroll-mt-20">
-                        <CardHeader title={t("account.a11y.title")} icon={<Accessibility />} description={t("account.a11y.description")} />
+                        <CardHeader title={t("account.a11y.title")} icon={<Accessibility />} />
                         <CardContent>
                             <AccessibilitySettings />
                         </CardContent>

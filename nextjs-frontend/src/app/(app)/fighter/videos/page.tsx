@@ -26,7 +26,6 @@ export default async function FighterVideosPage({ searchParams }: PageProps<"/fi
         <>
             <PageHeader
                 title={t("screens.video.page.film")}
-                description={t("screens.video.page.filmDesc")}
                 actions={
                     <ButtonLink href={routes.fighter.uploadVideo}>
                         <Upload aria-hidden />

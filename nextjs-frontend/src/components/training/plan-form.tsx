@@ -77,7 +77,7 @@ export function PlanForm({ action, fighters, clearances, defaults, now, cancelHr
         <form {...form.formProps} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
             <Card className="min-w-0 lg:col-span-2">
                 <CardContent className="pt-6">
-                    <FormSection title={t("training.planForm.sectionObjective")} description={t("training.planForm.sectionObjectiveDesc")}>
+                    <FormSection title={t("training.planForm.sectionObjective")}>
                         {fighter && (
                             <div className="flex flex-col gap-1.5">
                                 <p className="text-sm font-medium text-fg">{t("training.planForm.fighter")}</p>

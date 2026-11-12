@@ -255,14 +255,13 @@ export function GrantClearanceForm({
                 {demoFill && (
                     <DemoFillBar
                         className="xl:col-span-2"
-                        description={t("doctorMedical.grant.demoDescription")}
                         onFill={fillSample}
                         onClear={clearAll}
                     />
                 )}
 
                 <Card className="flex min-w-0 flex-col divide-y divide-border">
-                    <FormPart prefix="clr-" id="decide" title={t("doctorMedical.decision.title")} description={t("doctorMedical.grant.decideDescription")}>
+                    <FormPart prefix="clr-" id="decide" title={t("doctorMedical.decision.title")}>
                         {!fighterLocked && (
                             <Field label={t("doctorMedical.exam.fighter")} htmlFor={control("fighterId").id} error={error("fighterId")} required className="sm:max-w-sm">
                                 <Select {...control("fighterId", { required: true })} value={fighterId} onChange={(event) => changeFighter(event.target.value)}>
@@ -371,7 +370,6 @@ export function GrantClearanceForm({
                         prefix="clr-"
                         id="basis"
                         title={t("doctorMedical.grant.basis")}
-                        description={t("doctorMedical.grant.basisDescription")}
                         aside={<DoctorsOnly>{t("doctorMedical.grant.reasonDoctorsOnly")}</DoctorsOnly>}
                     >
                         <Field

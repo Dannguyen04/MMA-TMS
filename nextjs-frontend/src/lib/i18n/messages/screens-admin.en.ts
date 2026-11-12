@@ -53,9 +53,9 @@ export const enScreensAdmin = {
     "screens.admin.common.addFighter": "Add fighter",
     "screens.admin.common.inviteFighter": "Invite fighter",
     "screens.admin.common.progress": "{id} progress",
-    "screens.admin.common.unavailable.platform": "The platform service doesn't offer this yet. It will appear here once it does.",
-    "screens.admin.common.unavailable.notification": "The notification service doesn't offer this yet. It will appear here once it does.",
-    "screens.admin.common.unavailable.videoAnalysis": "The video analysis service doesn't offer this yet. It will appear here once it does.",
+    "screens.admin.common.unavailable.platform": "Not available yet.",
+    "screens.admin.common.unavailable.notification": "Not available yet.",
+    "screens.admin.common.unavailable.videoAnalysis": "Not available yet.",
 
     /* Counts: `{n}` is the formatted number */
     "screens.admin.count.accounts": "{n} accounts",
@@ -332,7 +332,6 @@ export const enScreensAdmin = {
     "screens.admin.today.pipelineUnavailableDescription": "The analysis service didn't answer. Your queue and the accounts above are up to date.",
     "screens.admin.today.pipelineDescription": "Jobs finished per day over the last 14 days",
     "screens.admin.today.throughput": "Daily throughput",
-    "screens.admin.today.throughputDescription": "Completed and failed jobs, stacked",
     "screens.admin.today.day": "Day",
     "screens.admin.today.throughputChart": "AI jobs completed and failed per day over the last 14 days",
     "screens.admin.today.failureRate7d": "Failure rate · 7 d",
@@ -346,12 +345,10 @@ export const enScreensAdmin = {
     "screens.admin.today.oldest": "oldest {when}",
     "screens.admin.today.nothingWaiting": "nothing waiting",
     "screens.admin.today.recentActivity": "Recent activity",
-    "screens.admin.today.recentActivityDescription": "Latest entries in the audit log",
     "screens.admin.today.auditLogs": "Audit logs",
     "screens.admin.today.noActivityTitle": "No activity yet",
     "screens.admin.today.noActivityDescription": "Sign-ins, changes and pipeline events will appear here.",
     "screens.admin.today.modelStatus": "Model status",
-    "screens.admin.today.modelStatusDescription": "Active model per task",
     "screens.admin.today.models": "Models",
     "screens.admin.today.noActiveModel": "No active model",
     "screens.admin.today.promoteOne": "Promote one",
@@ -373,7 +370,6 @@ export const enScreensAdmin = {
     "screens.admin.today.failures.emptyUpload": "Failed jobs that still need a new upload appear here with their error code.",
 
     /* Admissions */
-    "screens.admin.admissions.description": "People applying to train as fighters. Assign a coach to assess each one, approve or reject those who pass, then give each new fighter a care team.",
     "screens.admin.admissions.filter": "Filter applications",
     "screens.admin.admissions.list": "Applications",
     "screens.admin.admissions.careTeamsUncheckedBody": "The fighter or medical service didn't answer, so activated fighters show as closed even if they still wait for a coach or a sports doctor. Reload the page to try again.",
@@ -461,7 +457,6 @@ export const enScreensAdmin = {
     "screens.admin.job.starting": "Starting",
     "screens.admin.job.onWorker": "on {worker}",
     "screens.admin.job.pipeline": "Pipeline",
-    "screens.admin.job.pipelineDescription": "Stages run in order for every analysis",
     "screens.admin.job.timings": "Timings",
     "screens.admin.job.startedLabel": "Started",
     "screens.admin.job.notStarted": "Not started",
@@ -470,7 +465,6 @@ export const enScreensAdmin = {
     "screens.admin.job.worker": "Worker",
     "screens.admin.job.notAssigned": "Not assigned",
     "screens.admin.job.summary": "Analysis summary",
-    "screens.admin.job.summaryDescription": "Operational figures only — findings are reviewed by coaches",
     "screens.admin.job.detections": "Detections",
     "screens.admin.job.lowConfidence": "Low-confidence",
     "screens.admin.job.below": "below {pct}",
@@ -577,7 +571,6 @@ export const enScreensAdmin = {
 
     /* AI models */
     "screens.admin.models.unavailable": "The model registry isn't available yet",
-    "screens.admin.models.description": "Versions running in the video analysis pipeline, with evaluation metrics, human agreement and confidence thresholds.",
     "screens.admin.models.emptyTitle": "No models registered",
     "screens.admin.models.emptyDescription": "Models appear here once the pipeline registers them.",
     "screens.admin.models.task.fighter_detection": "Finds the fighter in each frame and keeps a steady track on them.",
@@ -596,7 +589,6 @@ export const enScreensAdmin = {
     "screens.admin.modelCard.reviewBelow": "Needs review below",
     "screens.admin.model.deployed": "Deployed {date}",
     "screens.admin.model.evaluation": "Evaluation",
-    "screens.admin.model.evaluationDescription": "Offline evaluation and live review figures for this version",
     "screens.admin.model.precisionHint": "correct when flagged",
     "screens.admin.model.recallHint": "share of events found",
     "screens.admin.model.f1": "F1 score",
@@ -620,7 +612,6 @@ export const enScreensAdmin = {
     "screens.admin.model.lowConfidenceCount": "{n} low confidence",
     "screens.admin.model.lastUsed": "Last used",
     "screens.admin.model.feedback": "Human feedback",
-    "screens.admin.model.feedbackDescription": "Coach and doctor review decisions on this model's outputs",
     "screens.admin.model.noReviews": "No outputs from this version have been reviewed yet.",
     "screens.admin.model.agreed": "Reviewers agreed with the model",
     "screens.admin.model.confirmed": "Confirmed",
@@ -658,7 +649,6 @@ export const enScreensAdmin = {
 
     /* Audit logs */
     "screens.admin.audit.unavailable": "Audit logs aren't available yet",
-    "screens.admin.audit.description": "An append-only record of sign-ins, changes and pipeline events. Entries can't be edited or deleted.",
     "screens.admin.audit.filter": "Filter audit log",
     "screens.admin.audit.search": "Search audit log",
     "screens.admin.audit.searchPlaceholder": "Search user, action or resource",
@@ -696,7 +686,6 @@ export const enScreensAdmin = {
 
     /* Broadcasts */
     "screens.admin.broadcasts.unavailable": "Broadcasts aren't available yet",
-    "screens.admin.broadcasts.description": "Announcements sent to every account in chosen roles — schedule changes, gym news and platform updates.",
     "screens.admin.broadcasts.summary": "Broadcast summary",
     "screens.admin.broadcasts.scheduled": "Scheduled",
     "screens.admin.broadcasts.nextSends": "Next sends {when}",
@@ -739,7 +728,6 @@ export const enScreensAdmin = {
     "screens.admin.composer.sendNowTo": "Send now to {people}",
     "screens.admin.composer.sendNow": "Send now",
     "screens.admin.composer.new": "New broadcast",
-    "screens.admin.composer.description": "Announce something to everyone in one or more roles.",
     "screens.admin.composer.scheduling": "Scheduling…",
     "screens.admin.composer.sending": "Sending…",
     "screens.admin.composer.scheduledToast": "Broadcast scheduled",
@@ -789,7 +777,7 @@ export const enScreensAdmin = {
     "screens.admin.roles.descriptionEditable": "Decide what each role can see and do. Saving a role applies the change to every account with that role straight away.",
     "screens.admin.roles.description": "What each role can see and do.",
     "screens.admin.roles.readOnlyTitle": "Role permissions can't be changed here yet",
-    "screens.admin.roles.readOnlyBody": "The user service manages permissions itself and doesn't list them, so this page shows each role's defaults.",
+    "screens.admin.roles.readOnlyBody": "These are each role's default permissions.",
     "screens.admin.roles.section": "Roles",
     "screens.admin.roles.clinical": "Has clinical access",
     "screens.admin.roles.adminKeeps": "Always keeps user and role management, so access can be restored.",
@@ -818,9 +806,8 @@ export const enScreensAdmin = {
     "screens.admin.matrix.removesClinical": "No other role can hold clinical permissions, so nobody will be able to use the ones you remove until they are restored here.",
 
     /* System settings */
-    "screens.admin.settings.description": "Platform-wide configuration. Changes apply to every account as soon as you save and are recorded in the audit log.",
     "screens.admin.settings.readOnlyTitle": "Settings can't be changed yet",
-    "screens.admin.settings.readOnlyBody": "The platform service doesn't store settings yet, so these are the defaults the app runs with.",
+    "screens.admin.settings.readOnlyBody": "These are the default settings.",
     "screens.admin.settings.section.organization": "Organization",
     "screens.admin.settings.section.security": "Security",
     "screens.admin.settings.section.video": "Video storage",
@@ -838,7 +825,7 @@ export const enScreensAdmin = {
     "screens.admin.settings.unitDays": "days",
     "screens.admin.settings.sessionTimeoutHint": "People are signed out after this much inactivity (15–1440 minutes).",
     "screens.admin.settings.mfa": "Require multi-factor authentication",
-    "screens.admin.settings.mfaHint": "Available when the authentication service is connected.",
+    "screens.admin.settings.mfaHint": "Not available yet.",
     "screens.admin.settings.videoHint": "Upload limits and how long footage is kept.",
     "screens.admin.settings.maxSize": "Maximum upload size",
     "screens.admin.settings.maxSizeHint": "Per video, between 50 and 4096 MB.",
@@ -881,7 +868,7 @@ export const enScreensAdmin = {
     "screens.admin.users.emptyTitle": "No accounts yet",
     "screens.admin.users.emptyInvite": "Invite the first coach, doctor or fighter to get started.",
     "screens.admin.users.emptyAdd": "Add the first coach, doctor or fighter to get started.",
-    "screens.admin.users.emptyService": "Accounts created in the user service appear here.",
+    "screens.admin.users.emptyService": "New accounts appear here.",
     "screens.admin.users.caption": "User accounts",
     "screens.admin.users.user": "User",
     "screens.admin.users.title": "Title",
@@ -989,7 +976,7 @@ export const enScreensAdmin = {
     "screens.admin.user.nothingRecorded": "Nothing recorded yet",
     "screens.admin.user.latestActions": "Latest {actions} by {name}",
     "screens.admin.user.activityUnavailableTitle": "Activity isn't available yet",
-    "screens.admin.user.activityUnavailableDescription": "The user service doesn't share an account's activity yet. It will appear here once it does.",
+    "screens.admin.user.activityUnavailableDescription": "Account activity isn't available yet.",
     "screens.admin.user.noActivityTitle": "No activity recorded",
     "screens.admin.user.noActivityDescription": "Sign-ins and changes this person makes will appear here.",
     "screens.admin.user.latestEntries": "Showing the latest entries",
@@ -997,7 +984,7 @@ export const enScreensAdmin = {
     "screens.admin.user.permissions": "Effective permissions",
     "screens.admin.user.permissionsFrom": "{permissions} from the {role} role",
     "screens.admin.user.permissionsUnavailableTitle": "Role permissions aren't available yet",
-    "screens.admin.user.permissionsUnavailableDescription": "The user service doesn't share what each role grants yet. It will appear here once it does.",
+    "screens.admin.user.permissionsUnavailableDescription": "Role permissions aren't available yet.",
     "screens.admin.user.perRole": "Permissions are set per role",
     "screens.admin.user.editRole": "Edit role",
     "screens.admin.user.pendingTitle": "Invitation pending",
@@ -1057,7 +1044,6 @@ export const enScreensAdmin = {
     /* Care team card */
     "screens.admin.careTeam.updated": "Care team updated.",
     "screens.admin.careTeam.title": "Care team",
-    "screens.admin.careTeam.description": "Who coaches {name} and looks after their health",
     "screens.admin.careTeam.loadError.coach": "The current coaches couldn't be loaded: the fighter service returned an error.",
     "screens.admin.careTeam.loadError.doctor": "The current sports doctors couldn't be loaded: the medical service returned an error.",
     "screens.admin.careTeam.assign.coach": "Assign coach",
@@ -1088,7 +1074,6 @@ export const enScreensAdmin = {
     "screens.admin.careTeam.noStaff.doctor": "There's no active sports doctor account to choose from yet.",
 
     /* Videos */
-    "screens.admin.videos.description": "All training footage on the platform, its storage footprint and AI processing status.",
     "screens.admin.videos.summary": "Storage summary",
     "screens.admin.videos.storageUsed": "Storage used",
     "screens.admin.videos.storageHint": "{videos} · {size} on average",
@@ -1132,5 +1117,4 @@ export const enScreensAdmin = {
     "screens.admin.status.attention": "{n} items need attention",
     "screens.admin.status.attention.one": "{n} item needs attention",
     "screens.admin.status.normalDescription": "The AI pipeline is processing normally, with no failed jobs, stalled workers or sign-in problems in the last 24 hours.",
-    "screens.admin.status.attentionDescription": "Review these before they affect coaches, doctors or fighters.",
 } as const;

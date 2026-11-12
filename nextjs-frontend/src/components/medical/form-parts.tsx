@@ -18,7 +18,7 @@ export function FormPart({
     prefix: string;
     id: string;
     title: string;
-    description: string;
+    description?: string;
     aside?: ReactNode;
     children: ReactNode;
 }) {
@@ -30,7 +30,7 @@ export function FormPart({
                     <h3 id={headingId} className="text-[17px] leading-snug font-bold text-fg">
                         {title}
                     </h3>
-                    <p className="mt-0.5 max-w-[62ch] text-[13.5px] text-fg-muted">{description}</p>
+                    {description && <p className="mt-0.5 max-w-[62ch] text-[13.5px] text-fg-muted">{description}</p>}
                 </div>
                 {aside && <span className="shrink-0 pt-0.5 text-[13px] font-semibold whitespace-nowrap text-fg-muted">{aside}</span>}
             </header>
@@ -48,7 +48,7 @@ export function DemoFillBar({
     className = "",
 }: {
     title?: string;
-    description: string;
+    description?: string;
     onFill: () => void;
     onClear: () => void;
     className?: string;
@@ -63,7 +63,7 @@ export function DemoFillBar({
             <WandSparkles aria-hidden className="size-5 text-primary-soft-fg" />
             <div>
                 <p className="text-sm font-semibold text-fg">{title ?? t("doctorMedical.demo.title")}</p>
-                <p className="mt-0.5 max-w-[80ch] text-[13px] text-fg-muted">{description}</p>
+                {description && <p className="mt-0.5 max-w-[80ch] text-[13px] text-fg-muted">{description}</p>}
             </div>
             <div className="col-span-2 flex gap-2 md:col-span-1">
                 <Button variant="secondary" size="sm" onClick={onClear}>

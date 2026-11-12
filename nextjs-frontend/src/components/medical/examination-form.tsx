@@ -146,14 +146,13 @@ export function ExaminationForm({
             {demoFill && (
                 <DemoFillBar
                     className="xl:col-span-2"
-                    description={t("doctorMedical.exam.demoDescription")}
                     onFill={fillSample}
                     onClear={clearAll}
                 />
             )}
 
             <Card className="flex min-w-0 flex-col divide-y divide-border">
-                <FormPart prefix="exam-" id="visit" title={t("doctorMedical.progress.visit")} description={t("doctorMedical.exam.visitDescription")}>
+                <FormPart prefix="exam-" id="visit" title={t("doctorMedical.progress.visit")}>
                     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
                         {!fighterLocked && (
                             <Field label={t("doctorMedical.exam.fighter")} htmlFor={id("fighterId")} error={error("fighterId")} required className="sm:col-span-2 sm:max-w-sm">
@@ -228,7 +227,7 @@ export function ExaminationForm({
                     </div>
                 )}
 
-                <FormPart prefix="exam-" id="decide" title={t("doctorMedical.exam.decideTitle")} description={t("doctorMedical.exam.decideDescription")}>
+                <FormPart prefix="exam-" id="decide" title={t("doctorMedical.exam.decideTitle")}>
                     <div>
                         <ChoiceGroup
                             id={id("outcome")}

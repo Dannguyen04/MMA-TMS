@@ -132,7 +132,7 @@ export const viDoctorScat6 = {
     "doctorScat6.review.concussionDiagnosed": "Chẩn đoán chấn động não",
 
     /* Step 1: status */
-    "doctorScat6.status.description": "Ghi theo số mục, đọc câu hỏi từ mẫu giấy chính thức. Dịch vụ y tế tự tính điểm.",
+    "doctorScat6.status.description": "Ghi theo số mục, đọc câu hỏi từ mẫu giấy chính thức.",
     "doctorScat6.status.legend": "SCAT6 ở lần khám nền này",
     "doctorScat6.status.tooYoung": "Không dùng trước 13 tuổi: vận động viên nhỏ tuổi hơn.",
     "doctorScat6.status.ageOk": "Vận động viên từ 13 tuổi trở lên.",
@@ -141,7 +141,6 @@ export const viDoctorScat6 = {
     "doctorScat6.status.attestation": "Tôi là nhân viên y tế và đã thực hiện hoặc giám sát lần SCAT6 này",
 
     /* Step 1: athlete */
-    "doctorScat6.athlete.description": "Thông tin mẫu yêu cầu trước khi kiểm tra.",
     "doctorScat6.athlete.dominantHand": "Tay thuận",
     "doctorScat6.athlete.sportTeamSchool": "Môn thể thao, đội hoặc trường",
     "doctorScat6.athlete.currentSchoolYear": "Năm học hiện tại",
@@ -251,7 +250,6 @@ export const viDoctorScat6 = {
     "doctorScat6.delayed.earliest": "Có thể bắt đầu từ {time} (5 phút sau lượt trí nhớ cuối).",
     "doctorScat6.delayed.needLastTrial": "Hãy ghi thời điểm kết thúc lượt trí nhớ cuối trước.",
     "doctorScat6.delayed.words": "Từ nhớ được",
-    "doctorScat6.conclusion.description": "Nhận định chung của bạn về SCAT6.",
     "doctorScat6.conclusion.different": "Khác với bình thường?",
     "doctorScat6.conclusion.no": "Không",
     "doctorScat6.conclusion.notRecorded": "Chưa ghi nhận",
@@ -266,7 +264,7 @@ export const viDoctorScat6 = {
     "doctorScat6.summary.noReason": "Chưa ghi lý do.",
     "doctorScat6.summary.notScored": "Chưa tính điểm",
     "doctorScat6.summary.notScoredNote": "Chưa tính điểm: phần này không được thực hiện hoặc chưa đủ để tính.",
-    "doctorScat6.summary.noScores": "Dịch vụ y tế chưa tính điểm hồ sơ này.",
+    "doctorScat6.summary.noScores": "Hồ sơ này chưa được tính điểm.",
     "doctorScat6.score.symptomCount": "Triệu chứng",
     "doctorScat6.score.symptomSeverity": "Mức độ triệu chứng",
     "doctorScat6.score.orientation": "Định hướng",

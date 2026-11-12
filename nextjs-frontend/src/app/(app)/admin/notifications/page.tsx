@@ -64,7 +64,6 @@ export default async function AdminNotificationsPage() {
         <>
             <PageHeader
                 title={t("screens.admin.meta.broadcasts")}
-                description={t("screens.admin.broadcasts.description")}
                 actions={
                     <BroadcastComposer
                         activeCounts={activeCounts}

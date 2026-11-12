@@ -45,7 +45,7 @@ export function RegionalSettings({ now, locale: initialLocale }: { now: string; 
 
     return (
         <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <Field label={t("account.regional.language")} htmlFor="settings-language" hint={t("account.regional.languageHint")}>
+            <Field label={t("account.regional.language")} htmlFor="settings-language">
                 <Select id="settings-language" name="language" value={locale} disabled={pending} onChange={onLanguageChange}>
                     {/* Each language keeps its own name. */}
                     <option value="en">{LOCALE_NAMES.en}</option>

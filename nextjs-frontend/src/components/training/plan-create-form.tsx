@@ -397,7 +397,7 @@ export function PlanCreateForm({
                             )}
                         </FormStep>
 
-                        <FormStep id="basics" title={t("screens.training.planCreate.step.basics")} description={t("screens.training.planCreate.basicsDesc")}>
+                        <FormStep id="basics" title={t("screens.training.planCreate.step.basics")}>
                             <div className="flex flex-col gap-5">
                                 <Field label={t("training.planForm.fighter")} htmlFor="plan-fighterId" required error={error("fighterId")} hint={t("training.planForm.hintFighter")}>
                                     <Select

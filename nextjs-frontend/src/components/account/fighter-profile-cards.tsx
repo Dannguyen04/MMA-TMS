@@ -139,7 +139,7 @@ export function CareTeamCard({ coaches, doctors, primaryCoachId, locale = "en" }
 
     return (
         <Card className="min-w-0">
-            <CardHeader title={t("account.careTeam.title")} icon={<Users />} description={t("account.careTeam.description")} />
+            <CardHeader title={t("account.careTeam.title")} icon={<Users />} />
             <CardContent className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
                 <TeamSection
                     id="care-team-coaches"

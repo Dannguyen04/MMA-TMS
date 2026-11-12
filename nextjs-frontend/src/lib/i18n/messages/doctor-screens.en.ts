@@ -249,7 +249,6 @@ export const enDoctorScreens = {
     "doctorUi.plan.doctor": "Doctor in charge",
     "doctorUi.plan.open": "Open plan",
     /* New examination and new clearance pages */
-    "doctorUi.newExam.descriptionDemo": "Record vital signs, assessments and the conclusion. The clearance is updated separately — you'll be reminded if it needs to be.",
     "doctorUi.newExam.description": "Record the examination and decide whether the fighter may train or compete. The clearance is issued from this examination in the next step.",
     "doctorUi.newExam.title": "New examination",
     "doctorUi.newExam.titleFor": "Examination for {name}",

@@ -198,7 +198,7 @@ export function RecoveryPlanForm({ injuries, defaultInjuryId, today, now, cancel
         >
             <input type="hidden" name="phases" value={serializedPhases} />
             <Card className="min-w-0 px-5 py-6 sm:px-6">
-                <FormSection title={t("doctorClinical.planForm.injuryAndPlan")} info={<TermHint term="recoveryPlan" />} description={t("doctorClinical.planForm.injuryAndPlanDescription")}>
+                <FormSection title={t("doctorClinical.planForm.injuryAndPlan")} info={<TermHint term="recoveryPlan" />}>
                     <Field
                         label={t("doctorClinical.common.injury")}
                         htmlFor={id("injuryId")}

@@ -41,7 +41,7 @@ export function CampTimeline({ model, sessionHref, locale = "en" }: { model: Cam
 
     return (
         <Card className="mb-6 min-w-0 overflow-hidden">
-            <CardHeader title={t("screens.camp.title")} description={t("screens.camp.description")} />
+            <CardHeader title={t("screens.camp.title")} />
             <dl className="flex gap-6 px-5">
                         <div>
                             <dt className="text-[11px] text-fg-subtle">{t("screens.camp.weekLabel")}</dt>

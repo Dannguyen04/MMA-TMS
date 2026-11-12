@@ -127,7 +127,6 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
         <>
             <FlashToast notice={flash ? { ...flash, tone: "success" } : null} cleanHref={routes.coach.bout(bout.id)} />
             <PageHeader
-                eyebrow={t("boutDetail.header.eyebrow")}
                 back={{ href: routes.coach.bouts, label: t("boutDetail.header.back") }}
                 title={bout.event}
                 description={`${fighterName} · ${bout.opponent ?? t("boutDetail.header.opponentTba")}`}
@@ -220,9 +219,6 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                         <div className="min-w-0">
                             <p className="text-sm font-semibold text-fg">
                                 {t(canAccessRingsideTools ? "boutAnalysis.nav.ringsideTitle" : "boutAnalysis.nav.analysisTitle")}
-                            </p>
-                            <p className="text-xs text-fg-muted">
-                                {t(canAccessRingsideTools ? "boutAnalysis.nav.ringsideDesc" : "boutAnalysis.nav.analysisDesc")}
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">

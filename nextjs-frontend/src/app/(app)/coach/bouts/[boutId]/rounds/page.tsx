@@ -72,7 +72,6 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
     return (
         <div className="flex min-w-0 flex-col gap-5">
             <PageHeader
-                eyebrow={t("boutAnalysis.rounds.eyebrow")}
                 back={{
                     href: routes.coach.bout(bout.id),
                     label: t("boutAnalysis.cornerCard.backToBout"),

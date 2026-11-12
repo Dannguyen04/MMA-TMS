@@ -37,7 +37,7 @@ export default async function FighterBoutPage({ searchParams }: PageProps<"/figh
     if (!bout) {
         return (
             <>
-                <PageHeader title={t("boutFighter.page.title")} description={t("boutFighter.page.noBout")} />
+                <PageHeader title={t("boutFighter.page.title")} />
                 {saved && <SavedNote message={saved} />}
                 <EmptyState
                     icon={<Scale />}

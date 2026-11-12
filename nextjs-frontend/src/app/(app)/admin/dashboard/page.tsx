@@ -264,7 +264,6 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                             <CardContent className="flex flex-col gap-5">
                                 <ChartFigure
                                     title={t("screens.admin.today.throughput")}
-                                    description={t("screens.admin.today.throughputDescription")}
                                     table={{
                                         columns: [t("screens.admin.today.day"), t("screens.admin.common.completed"), t("screens.admin.common.failed")],
                                         rows: stats.dailyThroughput.map((day) => [dayLabel(day.date), day.completed, day.failed]),
@@ -337,7 +336,6 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                             <Card className={showModels ? "min-w-0 overflow-hidden lg:col-span-2" : "min-w-0 overflow-hidden lg:col-span-3"}>
                                 <CardHeader
                                     title={t("screens.admin.today.recentActivity")}
-                                    description={t("screens.admin.today.recentActivityDescription")}
                                     icon={<ScrollText />}
                                     action={<CardLink href={routes.admin.auditLogs}>{t("screens.admin.today.auditLogs")}</CardLink>}
                                 />
@@ -355,7 +353,6 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                             <Card className={showActivity ? "min-w-0 overflow-hidden" : "min-w-0 overflow-hidden lg:col-span-3"}>
                                 <CardHeader
                                     title={t("screens.admin.today.modelStatus")}
-                                    description={t("screens.admin.today.modelStatusDescription")}
                                     icon={<BrainCircuit />}
                                     action={<CardLink href={routes.admin.aiModels}>{t("screens.admin.today.models")}</CardLink>}
                                 />

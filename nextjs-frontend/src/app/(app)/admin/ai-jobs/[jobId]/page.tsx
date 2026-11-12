@@ -182,7 +182,7 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                     )}
 
                     <Card>
-                        <CardHeader title={t("screens.admin.job.pipeline")} description={t("screens.admin.job.pipelineDescription")} icon={<ListChecks />} />
+                        <CardHeader title={t("screens.admin.job.pipeline")} icon={<ListChecks />} />
                         <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-[minmax(0,1fr)_15rem]">
                             <PipelineTimeline job={job} locale={locale} />
                             <div className="min-w-0 border-t border-border pt-5 md:border-t-0 md:border-l md:pt-0 md:pl-6">
@@ -212,7 +212,6 @@ export default async function AdminAIJobDetailPage({ params }: PageProps<"/admin
                         <Card>
                             <CardHeader
                                 title={t("screens.admin.job.summary")}
-                                description={t("screens.admin.job.summaryDescription")}
                                 icon={<ChartNoAxesColumn />}
                                 action={<AIGeneratedBadge size="sm" locale={locale} />}
                             />

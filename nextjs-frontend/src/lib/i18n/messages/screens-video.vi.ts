@@ -12,9 +12,6 @@ export const viScreensVideo = {
     "screens.video.page.videoAnalysis": "Phân tích video",
     "screens.video.page.uploadVideo": "Tải video lên",
     "screens.video.page.uploadTitle": "Tải video tập luyện",
-    "screens.video.page.uploadDescCoach": "Thêm video của một võ sĩ trong danh sách của bạn. AI sẽ phân tích và đưa các nhận xét vào hàng chờ duyệt của bạn.",
-    "screens.video.page.uploadDescFighter": "AI nhận diện đòn đánh, những lần hạ tay thủ và bộ pháp của bạn. Sau đó HLV sẽ cùng bạn duyệt các nhận xét.",
-    "screens.video.page.filmDesc": "Video tập luyện của bạn và những gì AI thấy trong đó — đòn đánh, thế thủ, bộ pháp — cùng nhận xét của HLV.",
     "screens.video.page.uploadForAnalysis": "Tải video lên để AI phân tích",
     "screens.video.page.liveCheck": "Kiểm tra kỹ thuật trực tiếp",
     "screens.video.page.beta": "Thử nghiệm",
@@ -231,7 +228,6 @@ export const viScreensVideo = {
 
     /* Timeline */
     "screens.video.timeline.title": "Dòng thời gian",
-    "screens.video.timeline.description": "AI nhận diện được gì và vào lúc nào. Chọn một mốc để tua đến thời điểm đó.",
     "screens.video.timeline.zoom": "Thu phóng dòng thời gian",
     "screens.video.timeline.fit": "Vừa khung",
     "screens.video.timeline.strikes": "Đòn đánh",
@@ -267,7 +263,7 @@ export const viScreensVideo = {
     /* Coach review panel */
     "screens.video.coachReview.awaiting": "Chờ HLV đánh giá",
     "screens.video.coachReview.awaitingDesc":
-        "HLV chưa đánh giá kết quả phân tích này. Bạn sẽ nhận thông báo khi có đánh giá — trong lúc chờ, hãy xem nhận xét của AI như gợi ý tham khảo.",
+        "HLV chưa xem lại phân tích này. Bạn sẽ nhận thông báo khi HLV xem xong.",
     "screens.video.coachReview.current": "Đánh giá hiện tại",
     "screens.video.coachReview.saved": "Đã lưu đánh giá của HLV",
     "screens.video.coachReview.notified": "Võ sĩ đã được thông báo.",
@@ -356,7 +352,6 @@ export const viScreensVideo = {
 
     /* Metrics panel */
     "screens.video.metrics.title": "Chỉ số thi đấu",
-    "screens.video.metrics.description": "Tính từ các nhận diện ở trên. Là ước tính để theo dõi tiến bộ, không phải số đo phòng thí nghiệm.",
     "screens.video.metrics.aiDerived": "Do AI tính",
     "screens.video.metrics.groups": "Nhóm chỉ số",
     "screens.video.metrics.body.hands": "Tay",
@@ -376,7 +371,6 @@ export const viScreensVideo = {
     "screens.video.metrics.notCalibrated": "máy phân tích chưa hiệu chỉnh",
     "screens.video.metrics.meanOfDetections": "trung bình các nhận diện",
     "screens.video.metrics.strikesDetected": "Đòn được nhận diện",
-    "screens.video.metrics.strikesDetectedDesc": "Số lượng theo loại đòn, nhiều nhất trước.",
     "screens.video.metrics.colStrike": "Đòn",
     "screens.video.metrics.colCount": "Số lượng",
     "screens.video.metrics.colShare": "Tỷ lệ",
@@ -554,7 +548,7 @@ export const viScreensVideo = {
     "screens.video.player.footageStage": "Video tập kèm lớp tư thế",
     "screens.video.player.reconstruction": "Dựng lại tư thế",
     "screens.video.player.original": "Video gốc",
-    "screens.video.player.demoNote": "Dựng lại tư thế · bản Demo không lưu Video gốc",
+    "screens.video.player.demoNote": "Dựng lại tư thế · không lưu video gốc",
     "screens.video.player.poseUnavailable": "Không tải được dữ liệu tư thế — đang hiển thị Video không có lớp phủ.",
     "screens.video.player.keyboardHint":
         "Bàn phím: phím cách để phát/tạm dừng, mũi tên trái/phải lùi/tiến một khung hình, giữ Shift kèm mũi tên để nhảy một giây, ngoặc vuông trái/phải để chuyển tới lần phát hiện trước/sau.",

@@ -84,7 +84,6 @@ export default async function FighterSchedulePage({ searchParams }: PageProps<"/
         <>
             <PageHeader
                 title={t("training.fighterSchedule.title")}
-                description={t("training.fighterSchedule.description")}
             />
 
             <div className="flex flex-col gap-6">

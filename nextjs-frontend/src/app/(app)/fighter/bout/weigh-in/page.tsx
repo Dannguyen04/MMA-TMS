@@ -22,7 +22,6 @@ export default async function WeighInPage() {
             <PageHeader
                 back={{ href: routes.fighter.bout, label: t("boutFighter.weighIn.back") }}
                 title={t("boutFighter.weighIn.title")}
-                description={t("boutFighter.weighIn.description")}
             />
             <WeighInForm />
         </>

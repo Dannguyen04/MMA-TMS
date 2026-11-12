@@ -104,7 +104,7 @@ export const viDoctorPages = {
 
     /* Medical records */
     "doctorPages.records.unavailable": "Bệnh án chưa khả dụng",
-    "doctorPages.records.description": "Nhóm máu, dị ứng, bệnh nền và tài liệu của võ sĩ được phân công. Chỉ bác sĩ thể thao được xem.",
+    "doctorPages.records.description": "Chỉ bác sĩ thể thao được xem các hồ sơ này.",
     "doctorPages.records.searchLabel": "Tìm bệnh án",
     "doctorPages.records.searchPlaceholder": "Tìm tên võ sĩ hoặc môn",
     "doctorPages.records.summary": "{n} bệnh án · {allergies} võ sĩ có dị ứng",
@@ -147,8 +147,6 @@ export const viDoctorPages = {
     "doctorPages.alerts.empty.dismissed.description": "Các quan sát bạn bỏ qua sẽ hiện ở đây.",
     "doctorPages.alerts.empty.all.title": "Chưa có quan sát AI",
     "doctorPages.alerts.empty.all.description": "Khi AI phát hiện mẫu chuyển động bất thường trong Video tập luyện, quan sát sẽ hiện ở đây để xem xét.",
-    "doctorPages.alerts.description": "Mẫu chuyển động AI đánh dấu trong Video tập luyện, so với video trước của chính võ sĩ.",
-    "doctorPages.alerts.descriptionReview": " Xem từng quan sát và ghi quyết định lâm sàng.",
     "doctorPages.alerts.filterLabel": "Lọc quan sát theo trạng thái",
     "doctorPages.alerts.sectionAria": "Quan sát: {label}",
     "doctorPages.alerts.viewAll": "Xem mọi quan sát",
@@ -159,7 +157,6 @@ export const viDoctorPages = {
     "doctorPages.alert.detected": "Phát hiện",
     "doctorPages.alert.evidence": "Bằng chứng",
     "doctorPages.alert.aiMade": "— do AI tạo",
-    "doctorPages.alert.patternDesc": "Mẫu chuyển động theo mô hình AI",
     "doctorPages.alert.confidence": "Độ tin cậy của AI",
     "doctorPages.alert.lowConfidence": "Độ tin cậy dưới ngưỡng xem lại. Hãy coi đây là gợi ý để xem kỹ, và xác nhận bằng Video rõ hơn hoặc khi khám.",
     "doctorPages.alert.metricTitle": "Số đo so với mức nền",
@@ -193,11 +190,10 @@ export const viDoctorPages = {
     "doctorPages.alert.recordInjury": "Ghi chấn thương từ quan sát này",
     "doctorPages.alert.bookExam": "Đặt lịch khám",
     "doctorPages.alert.previous": "Quan sát trước đây của {name}",
-    "doctorPages.alert.previousDesc": "Cùng vùng cơ thể trước, sau đó mới nhất",
     "doctorPages.alert.noPrevious": "Võ sĩ này chưa có quan sát AI nào trước đây.",
     "doctorPages.alert.sameRegion": "Cùng vùng",
     "doctorPages.alert.confidenceShort": "độ tin cậy {value}",
 
     /* Shared */
-    "doctorPages.featureUnavailable": "Dịch vụ medical chưa hỗ trợ mục này. Mục sẽ hiện ở đây khi có.",
+    "doctorPages.featureUnavailable": "Tính năng này chưa có.",
 } satisfies Record<keyof typeof enDoctorPages, string>;

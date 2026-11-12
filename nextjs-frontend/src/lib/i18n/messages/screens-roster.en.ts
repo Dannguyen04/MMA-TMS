@@ -10,7 +10,6 @@ export const enScreensRoster = {
     "screens.roster.daysToGo": "{n} days to go",
 
     /* Roster page */
-    "screens.roster.description": "Your roster of {count} — health, Medical Clearance, {performance}and what's next.",
     "screens.roster.trend.improving": "Improving",
     "screens.roster.trend.steady": "Steady",
     "screens.roster.trend.declining": "Declining",
@@ -32,7 +31,6 @@ export const enScreensRoster = {
     "screens.roster.table.tooEarly": "Too early",
 
     /* Profile header */
-    "screens.roster.header.eyebrow": "Fighter profile",
 
     /* Profile overview */
     "screens.roster.overview.openTraining": "Open training",

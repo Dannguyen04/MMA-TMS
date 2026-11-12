@@ -6,7 +6,6 @@ import type { enScreensApp } from "./screens-app.en";
  */
 export const viScreensApp = {
     "screens.camp.title": "Dòng thời gian camp",
-    "screens.camp.description": "Mọi buổi tập từ đầu camp tới ngày thi đấu, theo đúng những gì đã ghi.",
     "screens.camp.weekLabel": "Tuần camp",
     "screens.camp.week": "{week}/{weeks}",
     "screens.camp.countdownLabel": "Thi đấu",

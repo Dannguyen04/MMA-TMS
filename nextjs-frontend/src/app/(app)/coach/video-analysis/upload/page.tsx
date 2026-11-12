@@ -26,7 +26,6 @@ export default async function CoachUploadVideoPage({ searchParams }: PageProps<"
             <PageHeader
                 back={{ href: validFighter ? routes.coach.fighterVideos(validFighter) : routes.coach.videoAnalysis, label: validFighter ? t("screens.video.page.fighterVideos") : t("screens.video.page.filmRoom") }}
                 title={t("screens.video.page.uploadTitle")}
-                description={t("screens.video.page.uploadDescCoach")}
             />
             <UploadWizard
                 role="coach"

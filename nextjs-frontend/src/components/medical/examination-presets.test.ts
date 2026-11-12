@@ -66,7 +66,7 @@ describe("findingsSummary", () => {
             "Bình thường: Cardiovascular; Vision.",
             "Bất thường: Left knee (Mild effusion).",
             "Chưa kết luận: Respiratory.",
-            "Đã thực hiện SCAT6; dịch vụ y tế tự tính điểm.",
+            "Đã thực hiện SCAT6.",
         ]);
         expect(text).not.toMatch(/within|range|score \d|eligible/i);
     });

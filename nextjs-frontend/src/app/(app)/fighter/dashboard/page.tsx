@@ -1,12 +1,13 @@
 import { CalendarDays, CalendarSync, CircleCheck, ShieldAlert, Upload } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
 import { CardLink } from "@/components/dashboard/card-link";
 import { CornerFeed } from "@/components/dashboard/corner-feed";
 import { cornerFeedItems, headlineFinding } from "@/components/dashboard/corner-feed-items";
 import { firstName, greetingKey, weightCheck, weightGapText } from "@/components/dashboard/dashboard-utils";
-import { FightHero, isSessionLive, type HeroAnalysis, type NextUp } from "@/components/dashboard/fight-hero";
+import { FightHero, isSessionLive, type FightHeroProps, type HeroAnalysis, type NextUp } from "@/components/dashboard/fight-hero";
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { ReadinessCell, ReadinessNumber, ReadinessStrip } from "@/components/dashboard/readiness-strip";
 import { FighterJourney } from "@/components/domain/fighter-journey";
@@ -19,6 +20,7 @@ import { BeltProgress } from "@/components/ui/belt-progress";
 import { ButtonLink } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { PageHeader } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ProgressBar } from "@/components/ui/progress";
 import { requireFighterAccess } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
@@ -78,7 +80,10 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
     // separate service: when it doesn't answer, the day's training still shows and the journey marks that step unknown.
     const plansRead = listPlans({ fighterIds: ids });
     const videosRead = nullIfServiceFails(listVideoLibrary({ fighterIds: ids }));
-    const [health, upcoming, weekSessions, planDetail, videoItems, latest, journeyRead, feedback, goals, coaches, doctors, camp, suspensions] = await Promise.all([
+    // The newest analysis takes three reads after the library (video, job, result): the hero streams it in on its own.
+    const latestRead = videosRead.then(latestAnalysis);
+    latestRead.catch(() => {});
+    const [health, upcoming, weekSessions, planDetail, videoItems, journeyRead, feedback, goals, coaches, doctors, camp, suspensions] = await Promise.all([
         getFighterHealthSummary(fighter.id, now),
         getUpcomingSessions(ids, 1),
         listSessions({ fighterIds: ids, from: weekStart, to: new Date(Date.parse(nextWeekStart) - 1).toISOString() }),
@@ -87,7 +92,6 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
             return active ? getPlanWithSessions(active.id) : null;
         }),
         videosRead,
-        videosRead.then(latestAnalysis),
         getFighterJourney(fighter.id, { viewer: "fighter", plans: plansRead, videos: videosRead.then((items) => items?.map((item) => item.video) ?? null) }),
         listCoachFeedback({ fighterIds: ids }),
         listGoals({ fighterIds: ids }),
@@ -124,10 +128,22 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
         followUpDate: health.nextFollowUp?.date ?? null,
         t,
     });
-    const analysis = latest ? heroAnalysis(latest.item, latest.analysis) : null;
     // Until training can start, the journey leads the hero. Once cleared, the fight camp or the latest AI analysis leads,
-    // and any steps left (a plan, a first analysis) sit in a strip underneath.
-    const journeyInHero = !journey.complete && (journey.cleared !== true || (!bout && !analysis));
+    // and any steps left (a plan, a first analysis) sit in a strip underneath. A finished video stands for its analysis
+    // here, so the layout is settled before the analysis itself arrives.
+    const hasAnalysis = videos.some((item) => item.video.status === "completed");
+    const journeyInHero = !journey.complete && (journey.cleared !== true || (!bout && !hasAnalysis));
+    const analysisLeads = !journeyInHero && !bout && hasAnalysis;
+    const hero: Omit<FightHeroProps, "analysis"> = {
+        bout,
+        campStart: activePlan && isCampFor(activePlan, bout) ? activePlan.startDate : null,
+        plan: activePlan ? { title: activePlan.title, href: routes.fighter.plan(activePlan.id), phase: activePlan.phase, adherencePct: adherence?.pct ?? null } : null,
+        journey: journeyInHero ? journey : null,
+        next,
+        now,
+        t,
+        locale,
+    };
 
     // This week, counted from the same academy week the agenda shows. Sessions waiting to be rescheduled after a
     // suspension count on their own, outside planned and to go (T-048 F2).
@@ -170,21 +186,10 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
                 {camp.bout && <FighterWeightCard event={camp.bout.event} track={camp.track} locale={locale} />}
 
-                <FightHero
-                    bout={bout}
-                    campStart={activePlan && isCampFor(activePlan, bout) ? activePlan.startDate : null}
-                    plan={
-                        activePlan
-                            ? { title: activePlan.title, href: routes.fighter.plan(activePlan.id), phase: activePlan.phase, adherencePct: adherence?.pct ?? null }
-                            : null
-                    }
-                    journey={journeyInHero ? journey : null}
-                    analysis={analysis}
-                    next={next}
-                    now={now}
-                    t={t}
-                    locale={locale}
-                />
+                {/* The hero renders without the analysis first; where the analysis would lead it, a placeholder holds its place. */}
+                <Suspense fallback={analysisLeads ? <Skeleton className="h-64 rounded-2xl" /> : <FightHero {...hero} analysis={null} />}>
+                    <HeroWithAnalysis read={latestRead} hero={hero} />
+                </Suspense>
 
                 {!journey.complete && !journeyInHero && <FighterJourney journey={journey} variant="compact" locale={locale} />}
 
@@ -415,6 +420,11 @@ function activatedNextStep(journey: Journey, t: Translator): string {
 /* ─── AI analysis ─────────────────────────────────────────────────────────── */
 
 /** The newest finished analysis, with its findings. Null when there is none or the analysis service doesn't answer. */
+async function HeroWithAnalysis({ read, hero }: { read: Promise<{ item: VideoLibraryItem; analysis: AIAnalysis } | null>; hero: Omit<FightHeroProps, "analysis"> }) {
+    const latest = await read;
+    return <FightHero {...hero} analysis={latest ? heroAnalysis(latest.item, latest.analysis) : null} />;
+}
+
 async function latestAnalysis(items: VideoLibraryItem[] | null): Promise<{ item: VideoLibraryItem; analysis: AIAnalysis } | null> {
     const item = newestFirst(items ?? []).find((candidate) => candidate.video.status === "completed");
     if (!item) return null;

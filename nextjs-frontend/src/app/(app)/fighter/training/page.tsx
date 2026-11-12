@@ -55,7 +55,6 @@ export default async function FighterTrainingPage() {
         <>
             <PageHeader
                 title={t("training.fighterTraining.title")}
-                description={t("training.fighterTraining.description")}
             />
 
             <div className="flex flex-col gap-6">

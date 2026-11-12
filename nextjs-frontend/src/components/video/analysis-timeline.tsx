@@ -151,7 +151,7 @@ export function AnalysisTimeline({ analysis, findings, observations, onSelectFin
         <Card className={cn("min-w-0", className)}>
             <CardHeader
                 title={t("screens.video.timeline.title")}
-                description={t("screens.video.timeline.description")}
+               
                 action={<SegmentedControl label={t("screens.video.timeline.zoom")} options={zoomOptions} value={activeZoom} onChange={setZoom} />}
             />
             <div className="px-5 pb-4">

@@ -57,7 +57,6 @@ export async function NewRecoveryView(props: { query: Record<string, string | st
                 back={back}
                 eyebrow={t("doctorViews.injury.plan")}
                 title={t("doctorViews.newRecovery.title")}
-                description={t("doctorViews.newRecovery.description")}
             />
             {options.length === 0 ? (
                 <EmptyState
@@ -125,7 +124,6 @@ async function NewMilestonePlan({ query: params }: { query: Record<string, strin
                 back={back}
                 eyebrow={t("doctorViews.injury.plan")}
                 title={fighter ? t("doctorViews.newRecovery.titleFor", { name: fighter.name }) : t("doctorViews.newRecovery.title")}
-                description={t("doctorViews.newRecovery.descriptionMilestones")}
             />
             {!fighter || !dossier ? (
                 <FighterChooser

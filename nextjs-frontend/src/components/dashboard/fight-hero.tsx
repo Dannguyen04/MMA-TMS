@@ -235,7 +235,6 @@ function AnalysisLead({ analysis, now, t, locale }: { analysis: HeroAnalysis; no
                     {state.label}
                 </li>
             </ul>
-            <p className="text-[13px] text-pretty text-fg-muted">{t("hero.analysis.estimates")}</p>
             <Link href={analysis.href} className="inline-flex w-fit items-center gap-1 rounded-sm text-[14px] font-semibold text-fg underline-offset-2 hover:underline">
                 {t("hero.analysis.open")}
                 <ArrowRight aria-hidden className="size-4" />

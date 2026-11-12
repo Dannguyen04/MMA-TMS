@@ -124,7 +124,6 @@ export const viFighterToday = {
     "hero.analysis.needsReview": "Cần duyệt · {n} phát hiện độ tin cậy thấp",
     "hero.analysis.needsReview.one": "Cần duyệt · 1 phát hiện độ tin cậy thấp",
     "hero.analysis.awaiting": "Chờ HLV duyệt",
-    "hero.analysis.estimates": "Kết quả AI chỉ là ước tính. HLV sẽ duyệt; mục chưa duyệt chỉ nên dùng để tham khảo.",
     "hero.analysis.open": "Mở phân tích",
     "hero.analysis.lineSr": "Phân tích AI mới nhất: ",
     "hero.analyse.tag": "Phân tích AI",
@@ -171,7 +170,6 @@ export const viFighterToday = {
     "agenda.sessions.one": "1 buổi tập",
 
     "feed.title": "Từ góc đài",
-    "feed.description": "Nhận xét mới nhất của HLV và kết quả AI từ video bạn tải lên",
     "feed.allFilm": "Tất cả video",
     "feed.emptyTitle": "Chưa có gì mới",
     "feed.emptyText": "Nhận xét của HLV và kết quả AI từ video của bạn sẽ hiện ở đây.",
@@ -201,7 +199,7 @@ export const viFighterToday = {
     "review.needsReview": "Cần duyệt",
     "review.lowConfidence": "{n} nhận diện độ tin cậy thấp",
     "review.lowConfidence.one": "1 nhận diện độ tin cậy thấp",
-    "aiNotice.fighter": "Đây là kết quả AI ước tính từ video của bạn. HLV sẽ duyệt lại; mục chưa duyệt chỉ để tham khảo, không phải kết luận.",
+    "aiNotice.fighter": "Kết quả AI ước tính từ video của bạn. HLV sẽ duyệt lại.",
     "aiGenerated": "Do AI tạo",
     "aiNotice.fighterTitle": "Ước tính từ AI",
 

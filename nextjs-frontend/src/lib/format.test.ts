@@ -95,7 +95,7 @@ describe("formatRelative and formatNumber", () => {
     const now = "2026-09-14T05:00:00Z";
 
     it("describes relative times", () => {
-        expect(formatRelative("2026-09-14T04:59:30Z", now)).toBe("vừa xong");
+        expect(formatRelative("2026-09-14T04:59:30Z", now)).toBe("just now");
         expect(formatRelative("2026-09-14T04:55:00Z", now)).toBe("5 minutes ago");
         expect(formatRelative("2026-09-13T05:00:00Z", now)).toBe("yesterday");
         expect(formatRelative("2026-09-17T05:00:00Z", now)).toBe("in 3 days");

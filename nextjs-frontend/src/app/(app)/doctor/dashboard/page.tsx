@@ -155,13 +155,13 @@ export default async function DoctorDashboardPage() {
                                 <b>{plural(t, "screens.doctor.dashboard.urgent.blocked", blocked.length)}</b>
                                 {` ${t("screens.doctor.dashboard.urgent.and")} `}
                                 <b>{plural(t, "screens.doctor.dashboard.urgent.reviews", reviewCount)}</b>
-                                {` ${t("screens.doctor.dashboard.urgent.waiting")} ${t("screens.doctor.dashboard.urgent.handleRed")}`}
+                                {` ${t("screens.doctor.dashboard.urgent.waiting")}`}
                             </>
                         )}
                         {blocked.length > 0 && reviewCount === 0 && (
                             <>
                                 <b>{plural(t, "screens.doctor.dashboard.urgent.blocked", blocked.length)}</b>
-                                {`. ${t("screens.doctor.dashboard.urgent.handleRed")}`}
+                                .
                             </>
                         )}
                         {blocked.length === 0 && reviewCount > 0 && (

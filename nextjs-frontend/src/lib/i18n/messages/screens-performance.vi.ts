@@ -35,7 +35,7 @@ export const viScreensPerformance = {
     "screens.performance.ofN": "trên {n}",
     "screens.performance.unavailable": "Chưa có điểm hiệu suất",
     "screens.performance.goalsUnavailable": "Chưa có tính năng mục tiêu",
-    "screens.performance.unavailableDesc": "Dịch vụ tập luyện chưa hỗ trợ tính năng này. Tính năng sẽ hiện ở đây khi sẵn sàng.",
+    "screens.performance.unavailableDesc": "Tính năng này chưa có.",
     "screens.performance.completeWeeks": "{n} tuần trọn vẹn",
     "screens.performance.completeWeeks.one": "1 tuần trọn vẹn",
     "screens.performance.earlierWeeks": "{n} tuần trước đó",
@@ -193,7 +193,6 @@ export const viScreensPerformance = {
 
     /* Team performance (coach) */
     "screens.performance.team.title": "Hiệu suất đội",
-    "screens.performance.team.desc": "Điểm kỹ thuật, xu hướng và khối lượng tập của các võ sĩ bạn phụ trách.",
     "screens.performance.team.emptyTitle": "Chưa có dữ liệu hiệu suất cho các võ sĩ của bạn",
     "screens.performance.team.emptyDesc": "Điểm sẽ hiện khi video tập của võ sĩ được phân tích và các buổi tập được chấm.",
     "screens.performance.team.avgScore": "Điểm trung bình của đội",
@@ -223,13 +222,11 @@ export const viScreensPerformance = {
     "screens.performance.volume.summary": "Trung bình {avg} phút mỗi tuần · tuần nhiều nhất {max} phút",
     "screens.performance.volume.title": "Khối lượng tập hằng tuần (phút)",
     "screens.performance.volume.desc": "Số phút tập của đội · {weeks}",
-    "screens.performance.volume.figureDesc": "Chú thích của từng tuần và bảng dữ liệu chia tổng theo từng võ sĩ.",
     "screens.performance.volume.caption": "Số phút tập của từng võ sĩ mỗi tuần",
     "screens.performance.volume.aria": "Số phút tập của đội mỗi tuần. {summary}.",
     "screens.performance.volume.series": "Số phút của đội",
 
     /* Goals (coach) */
-    "screens.performance.coachGoals.desc": "Các mục tiêu đo được của võ sĩ bạn phụ trách. Ghi tiến độ mỗi khi đo — võ sĩ thấy mọi lần đo.",
     "screens.performance.coachGoals.emptyTitle": "Các võ sĩ của bạn chưa có mục tiêu nào",
     "screens.performance.coachGoals.emptyDesc":
         "Biến một điểm cần tập trung trong Hiệu suất đội thành mục tiêu có hạn chót. Võ sĩ sẽ nhận thông báo và theo dõi tiến độ trên trang Mục tiêu.",
@@ -258,11 +255,8 @@ export const viScreensPerformance = {
     "screens.performance.fighterTab.goalsEmptyDesc": "Mục tiêu biến nhận xét thành chỉ tiêu đo được có hạn chót. Hãy bắt đầu từ điểm cần tập trung ở thẻ Hiệu suất.",
 
     /* Fighter performance and goals */
-    "screens.performance.fighterPerformance.desc": "Kỹ thuật, tốc độ và khối lượng tập của bạn tiến triển ra sao qua từng tuần.",
     "screens.performance.fighterGoals.emptyIntro": "Các mục tiêu đo được mà HLV đặt cùng bạn.",
     "screens.performance.fighterGoals.atRisk": ", {n} có nguy cơ trễ",
-    "screens.performance.fighterGoals.updates": "Tiến độ cập nhật mỗi khi HLV ghi số đo mới.",
-    "screens.performance.fighterGoals.managed": "Mục tiêu do HLV quản lý — hãy trao đổi với HLV để điều chỉnh chỉ tiêu hoặc hạn chót.",
     "screens.performance.fighterGoals.emptyTitle": "Chưa có mục tiêu",
     "screens.performance.fighterGoals.emptyDesc": "HLV đặt mục tiêu dựa trên buổi tập và phân tích video của bạn. Hãy hỏi HLV về chỉ tiêu bạn muốn hướng tới.",
     "screens.performance.fighterGoals.review": "Xem hiệu suất của bạn",
@@ -270,14 +264,12 @@ export const viScreensPerformance = {
 
     /* Technique detail (fighter) */
     "screens.performance.techniqueDetail.metaTitle": "{technique} · Hiệu suất",
-    "screens.performance.techniqueDetail.desc": "Cách chấm điểm {technique} của bạn, xu hướng hiện tại và những gì AI cùng HLV nhận thấy.",
     "screens.performance.techniqueDetail.emptyTitle": "Chưa có dữ liệu {technique}",
     "screens.performance.techniqueDetail.early": "Bạn mới có {weeks} dữ liệu. Mức thay đổi 4 tuần và biểu đồ xu hướng sẽ có khi thêm tuần trọn vẹn.",
     "screens.performance.techniqueDetail.pausedTitle": "Gần đây không phát hiện {noun}",
     "screens.performance.techniqueDetail.pausedBody":
         "Video đã phân tích sau tuần từ {date} không có {noun}, nên điểm này được giữ từ tuần đó. Điểm sẽ cập nhật khi {noun} xuất hiện lại trong video tập của bạn.",
     "screens.performance.techniqueDetail.findings": "Nhận định AI gần đây",
-    "screens.performance.techniqueDetail.findingsDesc": "Quan sát về {technique} của bạn từ video đã phân tích, mới nhất trước.",
     "screens.performance.techniqueDetail.findingsEmpty": "Chưa có nhận định AI nào về {technique} của bạn",
     "screens.performance.techniqueDetail.findingsEmptyDesc": "Nhận định sẽ hiện khi video tập có điều đáng chú ý.",
     "screens.performance.techniqueDetail.relatedGoals": "Mục tiêu liên quan",
@@ -285,7 +277,6 @@ export const viScreensPerformance = {
     "screens.performance.techniqueDetail.goalsEmpty": "Chưa có mục tiêu {technique}",
     "screens.performance.techniqueDetail.goalsEmptyDesc": "HLV là người đặt mục tiêu. Hãy hỏi HLV nếu bạn muốn có chỉ tiêu cho {technique}.",
     "screens.performance.techniqueDetail.tips": "Lời khuyên của HLV",
-    "screens.performance.techniqueDetail.tipsDesc": "Nhận xét gắn {technique}",
     "screens.performance.techniqueDetail.tipsEmpty": "Chưa có lời khuyên",
     "screens.performance.techniqueDetail.tipsEmptyDesc": "Khi HLV gắn {technique} vào nhận xét, nhận xét sẽ hiện ở đây.",
     "screens.performance.techniqueDetail.coachFallback": "HLV",

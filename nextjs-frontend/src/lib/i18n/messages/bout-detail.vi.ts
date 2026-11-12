@@ -30,7 +30,6 @@ export const viBoutDetail = {
     "boutDetail.notice.planSaved": "Đã lưu kế hoạch ăn",
 
     /* Header */
-    "boutDetail.header.eyebrow": "Trận đấu",
     "boutDetail.header.back": "Trận đấu",
     "boutDetail.header.opponentTba": "Chưa có đối thủ",
     "boutDetail.planOpenEnded": "chưa có ngày kết thúc",
@@ -61,7 +60,7 @@ export const viBoutDetail = {
     "boutDetail.next.fightWeek.opensOn": "Mở từ {date}, {days} ngày trước buổi cân.",
     "boutDetail.next.fightWeek.openSince": "Đã mở từ {date}. Cổng 1 kiểm tra hồ sơ trước.",
     "boutDetail.next.weighIn.description": "{date}. Ghi số cân thực tế; nếu không đạt cân, bạn chọn mức cân thỏa thuận hoặc huỷ trận.",
-    "boutDetail.next.result.description": "Thi đấu {date}. Ứng dụng không làm gì trong lúc trận đấu diễn ra.",
+    "boutDetail.next.result.description": "Thi đấu {date}.",
     "boutDetail.next.result.notYet": "Có thể ghi kết quả từ {date}.",
     "boutDetail.next.cancelled": "Đã huỷ",
     "boutDetail.next.cancelledWithReason": "Đã huỷ: {reason}",

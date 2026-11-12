@@ -58,7 +58,7 @@ export function FighterProfileHeader({ fighter, clearanceState, back, actions, n
                 <div className={cn("flex min-w-0 items-start gap-4", figure ? "max-sm:contents sm:items-center sm:gap-6" : undefined)}>
                     {figure ? <div className="shrink-0 max-sm:order-last">{figure}</div> : <Avatar name={fighter.name} shape="octagon" size="xl" className="max-sm:size-14 max-sm:text-lg" />}
                     <div className="min-w-0">
-                        <p className="mb-1 text-xs font-semibold tracking-[0.08em] text-fg-subtle uppercase">{eyebrow ?? t("screens.roster.header.eyebrow")}</p>
+                        {eyebrow && <p className="mb-1 text-xs font-semibold tracking-[0.08em] text-fg-subtle uppercase">{eyebrow}</p>}
                         <h1 className="text-2xl leading-tight font-semibold tracking-tight text-balance text-fg sm:text-[28px]">
                             {fighter.name}
                             {fighter.nickname && <span className="ml-2 text-lg font-normal tracking-normal text-fg-muted">“{fighter.nickname}”</span>}

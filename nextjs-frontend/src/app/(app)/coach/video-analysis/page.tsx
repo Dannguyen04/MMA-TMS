@@ -33,7 +33,6 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
         <>
             <PageHeader
                 title={copy("Film room")}
-                description={copy("See what the AI found in your fighters' footage, then confirm or correct it before it shapes training.")}
                 actions={
                     <ButtonLink href={routes.coach.uploadVideo}>
                         <Upload aria-hidden />
@@ -47,7 +46,6 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
                     <div>
                         <h2 id="library-heading" className="text-lg font-semibold text-fg">
                             {copy("All footage")} </h2>
-                        <p className="mt-0.5 text-sm text-fg-muted">{copy("Analysed footage from your roster, newest first. Filter by status to include processing or failed videos.")} </p>
                     </div>
                     <VideoLibrary
                         user={user}
@@ -76,7 +74,7 @@ async function ReviewSections({ user, now }: { user: User; now: string }) {
             <ReviewQueue items={queue} now={now} />
             {attention.length > 0 && (
                 <Card>
-                    <CardHeader icon={<LoaderCircle />} title={copy("Processing and needs attention")} description={copy("Footage still being analysed, and analyses that didn't finish.")} />
+                    <CardHeader icon={<LoaderCircle />} title={copy("Processing and needs attention")} />
                     <ul className="divide-y divide-border border-t border-border">
                         {attention.map((item) => (
                             <AttentionRow key={item.video.id} item={item} />

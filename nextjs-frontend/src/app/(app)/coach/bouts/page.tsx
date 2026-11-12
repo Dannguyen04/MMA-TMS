@@ -73,7 +73,6 @@ export default async function CoachBoutsPage() {
         <>
             <PageHeader
                 title={t("coachBouts.list.title")}
-                description={t("coachBouts.list.description")}
                 actions={rows.length > 0 ? newBout : undefined}
             />
 

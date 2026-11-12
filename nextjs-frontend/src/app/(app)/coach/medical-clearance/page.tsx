@@ -1,4 +1,4 @@
-import { CalendarClock, Lock, ShieldAlert, ShieldCheck, ShieldQuestion, ShieldX } from "lucide-react";
+import { CalendarClock, ShieldAlert, ShieldCheck, ShieldQuestion, ShieldX } from "lucide-react";
 import type { Metadata } from "next";
 
 import { ClearanceSection } from "@/components/dashboard/clearance-board";
@@ -45,12 +45,6 @@ export default async function CoachMedicalClearancePage() {
             <PageHeader
                 title={t("coachClearance.pageTitle")}
                 description={t("coachClearance.pageDesc")}
-                meta={
-                    <p className="flex items-start gap-1.5 text-[13px] text-pretty text-fg-muted">
-                        <Lock aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
-                        {t("coachClearance.lockNotice")}
-                    </p>
-                }
             />
 
             {roster.length === 0 ? (

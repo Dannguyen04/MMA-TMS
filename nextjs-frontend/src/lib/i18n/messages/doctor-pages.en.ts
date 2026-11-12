@@ -102,7 +102,7 @@ export const enDoctorPages = {
 
     /* Medical records */
     "doctorPages.records.unavailable": "Medical records aren't available yet",
-    "doctorPages.records.description": "Blood type, allergies, underlying conditions and documents of your assigned fighters. Only sports doctors can see them.",
+    "doctorPages.records.description": "Only sports doctors can see these records.",
     "doctorPages.records.searchLabel": "Search medical records",
     "doctorPages.records.searchPlaceholder": "Search fighter name or discipline",
     "doctorPages.records.summary": "{n} records · {allergies} fighters with allergies",
@@ -145,8 +145,6 @@ export const enDoctorPages = {
     "doctorPages.alerts.empty.dismissed.description": "Observations you dismiss appear here.",
     "doctorPages.alerts.empty.all.title": "No AI observations yet",
     "doctorPages.alerts.empty.all.description": "When the AI spots an unusual movement pattern in a training video, the observation appears here for review.",
-    "doctorPages.alerts.description": "Movement patterns the AI flagged in training videos, compared with the fighter's own earlier videos.",
-    "doctorPages.alerts.descriptionReview": " Review each observation and record a clinical decision.",
     "doctorPages.alerts.filterLabel": "Filter observations by status",
     "doctorPages.alerts.sectionAria": "Observations: {label}",
     "doctorPages.alerts.viewAll": "View all observations",
@@ -157,7 +155,6 @@ export const enDoctorPages = {
     "doctorPages.alert.detected": "Detected",
     "doctorPages.alert.evidence": "Evidence",
     "doctorPages.alert.aiMade": "— AI-generated",
-    "doctorPages.alert.patternDesc": "Movement pattern from the AI model",
     "doctorPages.alert.confidence": "AI confidence",
     "doctorPages.alert.lowConfidence": "Confidence is below the review threshold. Treat this as a prompt to look closely, and confirm it with a clearer video or at an examination.",
     "doctorPages.alert.metricTitle": "Measurement vs baseline",
@@ -191,11 +188,10 @@ export const enDoctorPages = {
     "doctorPages.alert.recordInjury": "Record an injury from this observation",
     "doctorPages.alert.bookExam": "Book an examination",
     "doctorPages.alert.previous": "{name}'s earlier observations",
-    "doctorPages.alert.previousDesc": "Same body region first, then newest",
     "doctorPages.alert.noPrevious": "This fighter has no earlier AI observations.",
     "doctorPages.alert.sameRegion": "Same region",
     "doctorPages.alert.confidenceShort": "confidence {value}",
 
     /* Shared */
-    "doctorPages.featureUnavailable": "The medical service does not support this yet. It will appear here once it does.",
+    "doctorPages.featureUnavailable": "Not available yet.",
 } as const;

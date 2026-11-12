@@ -11,9 +11,6 @@ export const enScreensVideo = {
     "screens.video.page.videoAnalysis": "Video analysis",
     "screens.video.page.uploadVideo": "Upload video",
     "screens.video.page.uploadTitle": "Upload training video",
-    "screens.video.page.uploadDescCoach": "Add footage for a fighter on your roster. The AI analyses it and the findings land in your review queue.",
-    "screens.video.page.uploadDescFighter": "The AI detects your strikes, guard drops and footwork. Your coach then reviews the findings with you.",
-    "screens.video.page.filmDesc": "Your training footage and what the AI saw in it — strikes, guard, footwork — plus your coach's review.",
     "screens.video.page.uploadForAnalysis": "Upload a video for AI analysis",
     "screens.video.page.liveCheck": "Live form check",
     "screens.video.page.beta": "Beta",
@@ -230,7 +227,6 @@ export const enScreensVideo = {
 
     /* Timeline */
     "screens.video.timeline.title": "Timeline",
-    "screens.video.timeline.description": "What the AI detected and when. Select a marker to jump to that moment.",
     "screens.video.timeline.zoom": "Timeline zoom",
     "screens.video.timeline.fit": "Fit",
     "screens.video.timeline.strikes": "Strikes",
@@ -266,7 +262,7 @@ export const enScreensVideo = {
     /* Coach review panel */
     "screens.video.coachReview.awaiting": "Awaiting coach review",
     "screens.video.coachReview.awaitingDesc":
-        "Your coach hasn't reviewed this analysis yet. You'll get a notification when they do — until then, treat AI findings as a guide.",
+        "Your coach hasn't reviewed this analysis yet. You'll get a notification when they do.",
     "screens.video.coachReview.current": "Current review",
     "screens.video.coachReview.saved": "Coach review saved",
     "screens.video.coachReview.notified": "The fighter has been notified.",
@@ -355,7 +351,6 @@ export const enScreensVideo = {
 
     /* Metrics panel */
     "screens.video.metrics.title": "Performance metrics",
-    "screens.video.metrics.description": "Computed from the detections above. Estimates to track progress, not lab measurements.",
     "screens.video.metrics.aiDerived": "AI-derived",
     "screens.video.metrics.groups": "Metric groups",
     "screens.video.metrics.body.hands": "Hands",
@@ -375,7 +370,6 @@ export const enScreensVideo = {
     "screens.video.metrics.notCalibrated": "not calibrated by worker",
     "screens.video.metrics.meanOfDetections": "mean of detections",
     "screens.video.metrics.strikesDetected": "Strikes detected",
-    "screens.video.metrics.strikesDetectedDesc": "Count by strike type, most frequent first.",
     "screens.video.metrics.colStrike": "Strike",
     "screens.video.metrics.colCount": "Count",
     "screens.video.metrics.colShare": "Share",
@@ -553,7 +547,7 @@ export const enScreensVideo = {
     "screens.video.player.footageStage": "Training footage with pose overlay",
     "screens.video.player.reconstruction": "Pose reconstruction",
     "screens.video.player.original": "Original footage",
-    "screens.video.player.demoNote": "Pose reconstruction · original footage not stored in this demo",
+    "screens.video.player.demoNote": "Pose reconstruction · original footage not stored",
     "screens.video.player.poseUnavailable": "Pose data couldn't be loaded — showing footage without the overlay.",
     "screens.video.player.keyboardHint":
         "Keyboard: Space plays or pauses, left and right arrows step one frame, Shift with an arrow steps one second, left and right square brackets jump to the previous or next detection.",

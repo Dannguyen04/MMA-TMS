@@ -69,7 +69,7 @@ export default async function AdminAdmissionsPage({ searchParams }: PageProps<"/
 
     return (
         <>
-            <PageHeader title={t("screens.admin.common.admissions")} description={t("screens.admin.admissions.description")} />
+            <PageHeader title={t("screens.admin.common.admissions")} />
             <div className="flex flex-col gap-4">
                 <SegmentedLinks
                     label={t("screens.admin.admissions.filter")}
