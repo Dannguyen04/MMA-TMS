@@ -241,3 +241,43 @@ Số ticket dưới đây là số đề xuất; đối chiếu `docs/tickets/RE
 | 2 (backend song song) | T-065, T-069 + nâng pool, T-066 | Bớt phí xác thực khi cache nguội và hàng chờ pool; trung vị khoảng 1 s |
 | 3 | T-063, T-064 rồi frontend dùng endpoint lô; A4 | Coach dashboard < 2 s; màn bác sĩ < 1,5 s; trang hiện nội dung chính < 1 s |
 | 4 | A6, A7, A9, T-067, T-068 | Lần vào đầu nhẹ hơn khoảng 235 KB gzip; video < 2 s |
+
+## 8. Kết quả sau khi làm (12/11/2026)
+
+Chủ dự án yêu cầu làm hết trong ngày, không chờ giao ticket. Đã làm T-063 đến T-069 (backend) và A1–A7, A9 (frontend) trên `release/final-review`, các commit `e80b1c1`, `9965139`, `df73a9b`, `71c7e32`. A8 tự có nhờ T-066 (`/users/me` trả `assignmentScope`, frontend đã bỏ qua bước đọc roster).
+
+### Cách đo
+
+`next build` + `next start` cổng 3100 (`API_TIMING_LOG=1`), NestJS `node dist/main` cổng 3001, Supabase thật qua pooler 6543, máy local. Mỗi trang đọc 1 lần để làm ấm rồi đo lần 2, tính từ lúc gửi request đến khi nhận byte cuối của HTML (đã gồm phần stream sau Suspense). Byte đầu của mọi trang 0,25–0,4 s.
+
+| Màn | Trước (10/11) | Sau (12/11) | Mục tiêu |
+| --- | --- | --- | --- |
+| `/coach/dashboard` | 5–6 s | **1,8 s** | < 2 s ✓ |
+| `/coach/fighters/[id]` | 3–5 s | **2,0 s** | < 1,5 s ✗ |
+| `/coach/fighters`, `/coach/sessions`, `/coach/training-plans` | ≈ 1,5 s | **0,5–0,6 s** | < 1 s ✓ |
+| `/coach/bouts`, `/coach/video-analysis` | — | **1,1–1,3 s** | — |
+| `/doctor/dashboard`, `/doctor/recovery`, `/doctor/medical-clearance` | 3–3,8 s | **0,57–0,60 s** | < 1,5 s ✓ |
+| `/doctor/injuries` | ≈ 3,5 s | **1,1 s** | < 1,5 s ✓ |
+| `/doctor/examinations`, `/doctor/fighters` | — | **0,85 s** | — |
+| `/fighter/dashboard` | 3–4 s | **1,75 s** | < 1,5 s ✗ |
+| `/fighter/health`, `/fighter/schedule`, `/fighter/videos` | — | **0,65–0,93 s** | — |
+| `/fighter/videos/[id]` | ≈ 6 s | **1,0–1,5 s** | < 2 s ✓ |
+
+- Số request của `/coach/dashboard`: khoảng 40 → khoảng 16. Màn bác sĩ: mỗi trang 1 lệnh `GET /medical/dossiers` thay cho N lệnh `/fighters/:id/medical`.
+- Gói client: chunk 1,26 MB chứa cả hai từ điển đã mất. Từ điển của ngôn ngữ đang dùng đi riêng ở `/i18n/<locale>.js?v=<hash>` (147 KB gzip, cache vĩnh viễn theo phiên bản). HTML một trang 776 KB → 166 KB; payload RSC khi refresh hoặc sau server action 650 KB → 76 KB. Đổi ngôn ngữ tải từ điển mới tại chỗ, đã thử vi ↔ en.
+- SQL mới của T-063, T-064, T-067 chạy đúng trên dữ liệu thật (mọi lệnh 200); `test:db` không chạy được vì máy không có PostgreSQL.
+- Kiểm tra: frontend lint, typecheck, build sạch, 1395 test qua; backend lint, build sạch, test chỉ còn 26 lỗi baseline (B1/B2).
+
+### Lệch so với kế hoạch
+
+- A4 chỉ làm ở coach dashboard (thẻ cảnh báo cân/giấy tờ và thẻ to-do stream sau). Fighter dashboard không tách vì thẻ AI quyết định bố cục hero; trang video không tách vì header cần trạng thái phân tích. Thay vào đó rút thác nước (A5) và đọc trạng thái review song song với job.
+- A6 khác thiết kế ban đầu: từ điển không đi qua prop của layout (làm mỗi lần refresh nặng 650 KB) mà qua script riêng có cache; `LocaleProvider` chờ script này khi hydrate.
+- T-067 chỉ cache `coachId` và `fighterId`; doctor kiểm theo user id nên không cần `doctorId`.
+- T-064: không truyền `fighterIds` mà phạm vi quá 100 võ sĩ thì trả 400 `MEDICAL_DOSSIER_SCOPE_TOO_LARGE`.
+
+### Còn lại
+
+- `/coach/fighters/[id]` (2,0 s) và `/fighter/dashboard` (1,75 s) chưa đạt. Fighter dashboard chờ chuỗi video: danh sách video → video → job/review (khoảng 1,2 s). Hướng sửa: tách thẻ AI ra Suspense với khung giữ chỗ, hoặc endpoint "phân tích mới nhất của võ sĩ".
+- `/medical/history` vẫn đọc từng võ sĩ (màn chấn thương, phục hồi, giấy phép); cần endpoint lô tương tự T-064 nếu muốn dưới 0,6 s.
+- Sau khi trang hiện xong, `<Link>` prefetch các trang võ sĩ và buổi tập, tạo thêm request nền lên backend. Chưa ảnh hưởng thời gian tải nhưng tăng tải pool khi nhiều người dùng.
+- Nâng pool trên server thật: đặt `DATABASE_POOL_MAX` (mặc định giờ 20) theo giới hạn gói Supabase.
