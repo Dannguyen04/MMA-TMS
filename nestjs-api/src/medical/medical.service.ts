@@ -52,15 +52,18 @@ import type {
   CreateInjuryInput,
   CreateRecoveryPlanInput,
   CreateReviewRequestInput,
+  ClearanceType,
   CreateTreatmentInput,
   DoctorAssignment,
   EndDoctorAssignmentInput,
   Examination,
+  ExaminationDetails,
   ExaminationScope,
   Injury,
   IssueClearanceInput,
   ListDoctorAssignmentsQuery,
   ListExaminationsQuery,
+  ListMedicalDossiersQuery,
   ListMedicalHistoryQuery,
   ListReviewRequestsQuery,
   MedicalDossier,
@@ -78,7 +81,10 @@ import type {
   UpdateInjuryInput,
   UpdateRecoveryPlanInput,
 } from './medical.model.js';
-import { standardRecoveryMilestonesSchema } from './medical.model.js';
+import {
+  MEDICAL_DOSSIER_BATCH_MAX,
+  standardRecoveryMilestonesSchema,
+} from './medical.model.js';
 import {
   isClearanceCurrentlyValid,
   MedicalRepository,
@@ -302,6 +308,81 @@ function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+type CurrentExaminationRow = Awaited<
+  ReturnType<MedicalRepository['findCurrentExamination']>
+>;
+
+/** Only a positive current decision can have a governing clearance. */
+function examinationHasClearances(
+  exam: NonNullable<CurrentExaminationRow>,
+): boolean {
+  return exam.decision !== 'NOT_ELIGIBLE';
+}
+
+/** Everything a dossier is computed from, read either per Fighter or per batch. */
+export interface MedicalDossierSources {
+  fighterId: string;
+  activeInjuries: Injury[];
+  activeRecoveryPlans: RecoveryPlan[];
+  activeClearances: Clearance[];
+  openReviewRequests: ReviewRequest[];
+  trainingExam: CurrentExaminationRow;
+  competitionExam: CurrentExaminationRow;
+  /** Clearances of the current TRAINING examination, newest issuance first. */
+  trainingClearances: readonly ClearanceEligibilityRow[];
+  /** Clearances of the current COMPETITION examination, newest issuance first. */
+  competitionClearances: readonly ClearanceEligibilityRow[];
+  baselineOnFile: boolean;
+  supervision: 'DOCTOR' | 'NONE';
+  /** Examination details keyed by examination id (may hold other ids). */
+  details: ReadonlyMap<string, ExaminationDetails>;
+  now: Date;
+}
+
+/**
+ * Pure dossier assembly shared by `GET /fighters/:id/medical` and
+ * `GET /medical/dossiers`, so both return the same shape and eligibility.
+ */
+export function buildMedicalDossier(
+  sources: MedicalDossierSources,
+): MedicalDossier {
+  const withDetails = (exam: CurrentExaminationRow) =>
+    exam ? toExamination(exam, sources.details.get(exam.id) ?? null) : null;
+  return {
+    fighterId: sources.fighterId,
+    activeInjuries: sources.activeInjuries,
+    activeRecoveryPlans: sources.activeRecoveryPlans,
+    currentExaminations: {
+      training: withDetails(sources.trainingExam),
+      competition: withDetails(sources.competitionExam),
+    },
+    activeClearances: sources.activeClearances,
+    openReviewRequests: sources.openReviewRequests,
+    eligibility: {
+      training: evaluateEligibility({
+        scope: 'TRAINING',
+        supervision: sources.supervision,
+        openReviewRequests: sources.openReviewRequests.length,
+        baselineOnFile: sources.baselineOnFile,
+        currentExamination: sources.trainingExam,
+        clearances: sources.trainingClearances,
+        now: sources.now,
+        sessionType: undefined,
+      }),
+      competition: evaluateEligibility({
+        scope: 'COMPETITION',
+        supervision: sources.supervision,
+        openReviewRequests: 0,
+        baselineOnFile: true,
+        currentExamination: sources.competitionExam,
+        clearances: sources.competitionClearances,
+        now: sources.now,
+        sessionType: undefined,
+      }),
+    },
+  };
+}
+
 @Injectable()
 export class MedicalService {
   constructor(
@@ -464,48 +545,119 @@ export class MedicalService {
       this.repo.hasBaselineOnFile(fighterId),
       this.academySettingsRepo.getMedicalSupervision(),
     ]);
-    const [training, competition, details] = await Promise.all([
-      this.eligibilityFrom(
-        'TRAINING',
-        trainingExam,
-        openReviewRequests.length,
-        baselineOnFile,
-        now,
-        undefined,
-        undefined,
-        supervision,
-      ),
-      this.eligibilityFrom(
-        'COMPETITION',
-        competitionExam,
-        0,
-        true,
-        now,
-        undefined,
-        undefined,
-        supervision,
-      ),
-      this.repo.findExaminationDetails(
-        [trainingExam?.id, competitionExam?.id].filter(
-          (id): id is string => id !== undefined,
+    const clearancesFor = (
+      scope: ExaminationScope,
+      exam: CurrentExaminationRow,
+    ): Promise<ClearanceEligibilityRow[]> =>
+      exam && examinationHasClearances(exam)
+        ? this.repo.listClearancesForExamination(
+            exam.id,
+            CLEARANCE_TYPES_BY_SCOPE[scope],
+          )
+        : Promise.resolve([]);
+    const [trainingClearances, competitionClearances, details] =
+      await Promise.all([
+        clearancesFor('TRAINING', trainingExam),
+        clearancesFor('COMPETITION', competitionExam),
+        this.repo.findExaminationDetails(
+          [trainingExam?.id, competitionExam?.id].filter(
+            (id): id is string => id !== undefined,
+          ),
         ),
-      ),
-    ]);
-    const withDetails = (exam: typeof trainingExam) =>
-      exam ? toExamination(exam, details.get(exam.id) ?? null) : null;
+      ]);
 
-    return {
+    return buildMedicalDossier({
       fighterId,
       activeInjuries,
       activeRecoveryPlans,
-      currentExaminations: {
-        training: withDetails(trainingExam),
-        competition: withDetails(competitionExam),
-      },
       activeClearances,
       openReviewRequests,
-      eligibility: { training, competition },
+      trainingExam,
+      competitionExam,
+      trainingClearances,
+      competitionClearances,
+      baselineOnFile,
+      supervision,
+      details,
+      now,
+    });
+  }
+
+  /**
+   * Batch dossier read (T-064): the same `MedicalDossier` as `getDossier` for
+   * every requested Fighter (or the caller's whole read scope), with one scope
+   * query, one multi-row audit INSERT and one query per sub-table for the
+   * whole batch: 11 queries whatever the batch size.
+   */
+  async getDossiers(
+    actor: AuthenticatedUser,
+    query: ListMedicalDossiersQuery,
+    requestId: string,
+  ): Promise<MedicalDossier[]> {
+    const fighterIds = await this.access.authorizeClinicalBatchRead(
+      actor,
+      query.fighterIds,
+      MEDICAL_READ_VIEW.DOSSIER,
+      requestId,
+      MEDICAL_DOSSIER_BATCH_MAX,
+    );
+    if (fighterIds.length === 0) return [];
+
+    const now = new Date();
+    const [
+      injuries,
+      recoveryPlans,
+      clearances,
+      reviewRequests,
+      examinations,
+      withBaseline,
+      supervision,
+    ] = await Promise.all([
+      this.repo.listActiveInjuriesForFighters(fighterIds),
+      this.repo.listActiveRecoveryPlansForFighters(fighterIds),
+      this.repo.listActiveClearancesForFighters(fighterIds),
+      this.repo.listOpenReviewRequestsForFighters(fighterIds),
+      this.repo.findCurrentExaminationsForFighters(fighterIds),
+      this.repo.findFightersWithBaselineOnFile(fighterIds),
+      this.academySettingsRepo.getMedicalSupervision(),
+    ]);
+    const currentExams = [...examinations.values()];
+    const [clearancesByExam, details] = await Promise.all([
+      this.repo.listClearancesForExaminations(
+        currentExams.filter(examinationHasClearances).map((exam) => exam.id),
+      ),
+      this.repo.findExaminationDetails(currentExams.map((exam) => exam.id)),
+    ]);
+    const clearancesFor = (
+      scope: ExaminationScope,
+      exam: CurrentExaminationRow,
+    ): ClearanceEligibilityRow[] => {
+      if (!exam || !examinationHasClearances(exam)) return [];
+      const types: readonly ClearanceType[] = CLEARANCE_TYPES_BY_SCOPE[scope];
+      return (clearancesByExam.get(exam.id) ?? [])
+        .filter((row) => types.includes(row.clearanceType))
+        .map(({ clearanceType: _type, ...row }) => row);
     };
+
+    return fighterIds.map((fighterId) => {
+      const trainingExam = examinations.get(`${fighterId}:TRAINING`);
+      const competitionExam = examinations.get(`${fighterId}:COMPETITION`);
+      return buildMedicalDossier({
+        fighterId,
+        activeInjuries: injuries.get(fighterId) ?? [],
+        activeRecoveryPlans: recoveryPlans.get(fighterId) ?? [],
+        activeClearances: clearances.get(fighterId) ?? [],
+        openReviewRequests: reviewRequests.get(fighterId) ?? [],
+        trainingExam,
+        competitionExam,
+        trainingClearances: clearancesFor('TRAINING', trainingExam),
+        competitionClearances: clearancesFor('COMPETITION', competitionExam),
+        baselineOnFile: withBaseline.has(fighterId),
+        supervision,
+        details,
+        now,
+      });
+    });
   }
 
   async listHistory(

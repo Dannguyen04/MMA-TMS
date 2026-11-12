@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   HttpException,
   HttpStatus,
@@ -113,6 +114,16 @@ export const medicalSupervisionDisabled = () =>
     'MEDICAL_SUPERVISION_DISABLED',
     'Medical supervision is disabled; review requests and doctor workflows are not available',
   );
+
+// --- 400 ---
+
+export const medicalDossierScopeTooLarge = (max: number) =>
+  new BadRequestException({
+    statusCode: HttpStatus.BAD_REQUEST,
+    error: 'Bad Request',
+    code: 'MEDICAL_DOSSIER_SCOPE_TOO_LARGE',
+    message: `More than ${max} Fighters are in scope; pass fighterIds (at most ${max}) instead`,
+  });
 
 // --- 500 ---
 

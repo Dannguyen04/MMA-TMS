@@ -14,6 +14,7 @@ import {
   exists,
   or,
   gt,
+  type SQL,
 } from 'drizzle-orm';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import {
@@ -58,6 +59,46 @@ import {
 
 export interface TrainingListScope {
   activeCoachId?: string;
+  /**
+   * Fighters a COACH explicitly filtered by (T-067). Instead of a separate
+   * assignment query before the list, the list's count query also reports
+   * whether every one of them is assigned to `activeCoachId`
+   * (`requiredFightersAssigned`); rows of unassigned Fighters are already
+   * excluded by the assignment `EXISTS`.
+   */
+  requiredFighterIds?: readonly string[];
+}
+
+/** A list page; `requiredFightersAssigned` only when the scope asked for it. */
+export interface TrainingListResult<T> {
+  data: T[];
+  total: number;
+  requiredFightersAssigned?: boolean;
+}
+
+/** Assignment in force now, active coach profile, active non-deleted Fighter. */
+function effectiveCoachAssignmentConditions(now: Date): SQL[] {
+  return [
+    eq(coaches.isActive, true),
+    isNull(coaches.deletedAt),
+    lte(coachFighters.startsAt, now),
+    or(isNull(coachFighters.endsAt), gt(coachFighters.endsAt, now)) as SQL,
+    eq(fighters.isActive, true),
+    isNull(fighters.deletedAt),
+  ];
+}
+
+function toListResult<T>(
+  data: T[],
+  counts: { count: number; assignedCount: number | null } | undefined,
+  scope: TrainingListScope,
+): TrainingListResult<T> {
+  const result: TrainingListResult<T> = { data, total: counts?.count ?? 0 };
+  const required = new Set(scope.requiredFighterIds ?? []);
+  if (scope.activeCoachId && required.size > 0) {
+    result.requiredFightersAssigned = (counts?.assignedCount ?? 0) === required.size;
+  }
+  return result;
 }
 
 // --- Mappers ---
@@ -110,6 +151,11 @@ export interface ITrainingRepository {
     fighterId: string,
     database?: DatabaseExecutor,
   ): Promise<boolean>;
+  findDoctorAssignedFighterIds(
+    doctorUserId: string,
+    fighterIds: readonly string[],
+    database?: DatabaseExecutor,
+  ): Promise<Set<string>>;
   isCoachProfileOwnedByUser(
     userId: string,
     coachId: string,
@@ -121,7 +167,7 @@ export interface ITrainingRepository {
     query: ListPlansQuery,
     scope?: TrainingListScope,
     database?: DatabaseExecutor,
-  ): Promise<{ data: TrainingPlanEntity[]; total: number }>;
+  ): Promise<TrainingListResult<TrainingPlanEntity>>;
   findPlanById(id: string, database?: DatabaseExecutor): Promise<TrainingPlanEntity | undefined>;
   createPlan(data: CreatePlanInput, database?: DatabaseExecutor): Promise<TrainingPlanEntity>;
   updatePlan(id: string, data: UpdatePlanInput, database?: DatabaseExecutor): Promise<TrainingPlanEntity | undefined>;
@@ -142,7 +188,7 @@ export interface ITrainingRepository {
     query: ListSessionsQuery,
     scope?: TrainingListScope,
     database?: DatabaseExecutor,
-  ): Promise<{ data: TrainingSessionEntity[]; total: number }>;
+  ): Promise<TrainingListResult<TrainingSessionEntity>>;
   findScheduledSessionsByFighterId(
     fighterId: string,
     database?: DatabaseExecutor,
@@ -296,6 +342,38 @@ export class TrainingRepository implements ITrainingRepository {
     return rows.length > 0;
   }
 
+  /**
+   * Which of `fighterIds` the DOCTOR user is effectively assigned to, in one
+   * query (`fighter_id = ANY(...)`); same conditions as
+   * `isDoctorAssignedToFighter` (T-063).
+   */
+  async findDoctorAssignedFighterIds(
+    doctorUserId: string,
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Set<string>> {
+    if (fighterIds.length === 0) return new Set();
+    const now = new Date();
+    const rows = await database
+      .selectDistinct({ fighterId: doctorFighters.fighterId })
+      .from(doctorFighters)
+      .innerJoin(sportsDoctors, eq(doctorFighters.doctorId, sportsDoctors.id))
+      .innerJoin(fighters, eq(doctorFighters.fighterId, fighters.id))
+      .where(
+        and(
+          eq(sportsDoctors.userId, doctorUserId),
+          eq(sportsDoctors.isActive, true),
+          isNull(sportsDoctors.deletedAt),
+          inArray(doctorFighters.fighterId, [...fighterIds]),
+          lte(doctorFighters.startsAt, now),
+          or(isNull(doctorFighters.endsAt), gt(doctorFighters.endsAt, now)),
+          eq(fighters.isActive, true),
+          isNull(fighters.deletedAt),
+        ),
+      );
+    return new Set(rows.map((row) => row.fighterId));
+  }
+
   async isCoachProfileOwnedByUser(
     userId: string,
     coachId: string,
@@ -348,36 +426,23 @@ export class TrainingRepository implements ITrainingRepository {
     query: ListPlansQuery,
     scope: TrainingListScope = {},
     database: DatabaseExecutor = this.db,
-  ) {
+  ): Promise<TrainingListResult<TrainingPlanEntity>> {
     const conditions = [isNull(trainingPlans.deletedAt)];
     if (query.fighterId) conditions.push(eq(trainingPlans.fighterId, query.fighterId));
+    if (query.fighterIds?.length) conditions.push(inArray(trainingPlans.fighterId, [...query.fighterIds]));
     if (query.coachId) conditions.push(eq(trainingPlans.coachId, query.coachId));
-    if (query.status) conditions.push(eq(trainingPlans.status, query.status));
+    if (query.status?.length) conditions.push(inArray(trainingPlans.status, [...query.status]));
     if (query.isActive !== undefined) conditions.push(eq(trainingPlans.isActive, query.isActive));
     if (scope.activeCoachId) {
-      const now = new Date();
       conditions.push(
         exists(
-          database
-            .select({ id: coachFighters.id })
-            .from(coachFighters)
-            .innerJoin(coaches, eq(coachFighters.coachId, coaches.id))
-            .innerJoin(fighters, eq(coachFighters.fighterId, fighters.id))
-            .where(
-              and(
-                eq(coachFighters.coachId, scope.activeCoachId),
-                eq(coachFighters.fighterId, trainingPlans.fighterId),
-                eq(coaches.isActive, true),
-                isNull(coaches.deletedAt),
-                lte(coachFighters.startsAt, now),
-                or(
-                  isNull(coachFighters.endsAt),
-                  gt(coachFighters.endsAt, now),
-                ),
-                eq(fighters.isActive, true),
-                isNull(fighters.deletedAt),
-              ),
+          this.effectiveCoachAssignments(database).where(
+            and(
+              eq(coachFighters.coachId, scope.activeCoachId),
+              eq(coachFighters.fighterId, trainingPlans.fighterId),
+              ...effectiveCoachAssignmentConditions(new Date()),
             ),
+          ),
         ),
       );
     }
@@ -385,11 +450,14 @@ export class TrainingRepository implements ITrainingRepository {
     const whereClause = and(...conditions);
     const offset = (query.page - 1) * query.limit;
 
-    const [rows, countResult] = await Promise.all([
+    const [rows, [counts]] = await Promise.all([
       database.select().from(trainingPlans).where(whereClause).orderBy(desc(trainingPlans.createdAt)).limit(query.limit).offset(offset),
-      database.select({ count: sql<number>`count(*)::int` }).from(trainingPlans).where(whereClause),
+      database
+        .select(this.countColumns(database, scope))
+        .from(trainingPlans)
+        .where(whereClause),
     ]);
-    return { data: rows.map(mapToPlan), total: countResult[0]?.count ?? 0 };
+    return toListResult(rows.map(mapToPlan), counts, scope);
   }
 
   async findPlanById(id: string, database: DatabaseExecutor = this.db) {
@@ -500,39 +568,26 @@ export class TrainingRepository implements ITrainingRepository {
     query: ListSessionsQuery,
     scope: TrainingListScope = {},
     database: DatabaseExecutor = this.db,
-  ) {
+  ): Promise<TrainingListResult<TrainingSessionEntity>> {
     const conditions = [isNull(trainingSessions.deletedAt)];
     if (query.fighterId) conditions.push(eq(trainingSessions.fighterId, query.fighterId));
+    if (query.fighterIds?.length) conditions.push(inArray(trainingSessions.fighterId, [...query.fighterIds]));
     if (query.coachId) conditions.push(eq(trainingSessions.coachId, query.coachId));
     if (query.planId) conditions.push(eq(trainingSessions.planId, query.planId));
-    if (query.status) conditions.push(eq(trainingSessions.status, query.status));
+    if (query.status?.length) conditions.push(inArray(trainingSessions.status, [...query.status]));
     if (query.sessionType) conditions.push(eq(trainingSessions.sessionType, query.sessionType));
     if (query.fromDate) conditions.push(gte(trainingSessions.scheduledAt, new Date(query.fromDate)));
     if (query.toDate) conditions.push(lte(trainingSessions.scheduledAt, new Date(query.toDate)));
     if (scope.activeCoachId) {
-      const now = new Date();
       conditions.push(
         exists(
-          database
-            .select({ id: coachFighters.id })
-            .from(coachFighters)
-            .innerJoin(coaches, eq(coachFighters.coachId, coaches.id))
-            .innerJoin(fighters, eq(coachFighters.fighterId, fighters.id))
-            .where(
-              and(
-                eq(coachFighters.coachId, scope.activeCoachId),
-                eq(coachFighters.fighterId, trainingSessions.fighterId),
-                eq(coaches.isActive, true),
-                isNull(coaches.deletedAt),
-                lte(coachFighters.startsAt, now),
-                or(
-                  isNull(coachFighters.endsAt),
-                  gt(coachFighters.endsAt, now),
-                ),
-                eq(fighters.isActive, true),
-                isNull(fighters.deletedAt),
-              ),
+          this.effectiveCoachAssignments(database).where(
+            and(
+              eq(coachFighters.coachId, scope.activeCoachId),
+              eq(coachFighters.fighterId, trainingSessions.fighterId),
+              ...effectiveCoachAssignmentConditions(new Date()),
             ),
+          ),
         ),
       );
     }
@@ -540,11 +595,51 @@ export class TrainingRepository implements ITrainingRepository {
     const whereClause = and(...conditions);
     const offset = (query.page - 1) * query.limit;
 
-    const [rows, countResult] = await Promise.all([
+    const [rows, [counts]] = await Promise.all([
       database.select().from(trainingSessions).where(whereClause).orderBy(desc(trainingSessions.scheduledAt)).limit(query.limit).offset(offset),
-      database.select({ count: sql<number>`count(*)::int` }).from(trainingSessions).where(whereClause),
+      database
+        .select(this.countColumns(database, scope))
+        .from(trainingSessions)
+        .where(whereClause),
     ]);
-    return { data: rows.map(mapToSession), total: countResult[0]?.count ?? 0 };
+    return toListResult(rows.map(mapToSession), counts, scope);
+  }
+
+  /** `coach_fighters` joined to the coach and Fighter; callers add the WHERE. */
+  private effectiveCoachAssignments(
+    database: DatabaseExecutor,
+    columns: Record<string, SQL | typeof coachFighters.id> = {
+      id: coachFighters.id,
+    },
+  ) {
+    return database
+      .select(columns)
+      .from(coachFighters)
+      .innerJoin(coaches, eq(coachFighters.coachId, coaches.id))
+      .innerJoin(fighters, eq(coachFighters.fighterId, fighters.id));
+  }
+
+  /**
+   * `total`, plus — when a COACH filtered by Fighters — how many of those
+   * Fighters are effectively assigned to the coach, as a scalar subquery of
+   * the same statement (no separate assignment round trip, T-067).
+   */
+  private countColumns(database: DatabaseExecutor, scope: TrainingListScope) {
+    const total = sql<number>`count(*)::int`;
+    const required = scope.requiredFighterIds ?? [];
+    if (!scope.activeCoachId || required.length === 0) {
+      return { count: total, assignedCount: sql<number | null>`null::int` };
+    }
+    const assigned = this.effectiveCoachAssignments(database, {
+      count: sql<number>`count(distinct ${coachFighters.fighterId})::int`,
+    }).where(
+      and(
+        eq(coachFighters.coachId, scope.activeCoachId),
+        inArray(coachFighters.fighterId, [...required]),
+        ...effectiveCoachAssignmentConditions(new Date()),
+      ),
+    );
+    return { count: total, assignedCount: sql<number | null>`${assigned}` };
   }
 
   async findScheduledSessionsByFighterId(

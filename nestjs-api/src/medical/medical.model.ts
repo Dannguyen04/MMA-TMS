@@ -19,6 +19,7 @@ import {
   isoDateTimeSchema,
   nullableTrimmedTextSchema,
   trimmedTextSchema,
+  uuidListQuerySchema,
 } from '../shared/utils/zod-schema.util.js';
 import { userRoles } from '../shared/types/user.role.js';
 import { scat6InputSchema, scat6RecordSchema } from './scat6.model.js';
@@ -93,6 +94,13 @@ export const listExaminationsQuerySchema = z.strictObject({
 export const listMedicalHistoryQuerySchema = z.strictObject({
   ...paginationShape,
   recordType: z.enum(MEDICAL_HISTORY_RECORD_TYPE).optional(),
+});
+
+/** At most this many Fighters per `GET /medical/dossiers` (T-064). */
+export const MEDICAL_DOSSIER_BATCH_MAX = 100;
+
+export const listMedicalDossiersQuerySchema = z.strictObject({
+  fighterIds: uuidListQuerySchema(MEDICAL_DOSSIER_BATCH_MAX),
 });
 
 // --- Bodies ---
@@ -626,6 +634,9 @@ export type ListReviewRequestsQuery = z.infer<
 export type ListExaminationsQuery = z.infer<typeof listExaminationsQuerySchema>;
 export type ListMedicalHistoryQuery = z.infer<
   typeof listMedicalHistoryQuerySchema
+>;
+export type ListMedicalDossiersQuery = z.infer<
+  typeof listMedicalDossiersQuerySchema
 >;
 export type AssignDoctorInput = z.infer<typeof assignDoctorSchema>;
 export type EndDoctorAssignmentInput = z.infer<typeof endDoctorAssignmentSchema>;

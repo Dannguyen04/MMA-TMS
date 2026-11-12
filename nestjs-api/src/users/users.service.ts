@@ -19,6 +19,7 @@ import {
 } from './users.error.js';
 import type {
   CreateUserInput,
+  CurrentUser,
   FighterProfileInput,
   ListUsersQuery,
   PublicUser,
@@ -171,6 +172,22 @@ export class UsersService {
       : await this.usersRepository.findActiveById(id);
     if (!user) throw userNotFound();
     return user;
+  }
+
+  /**
+   * `/users/me`. A COACH or DOCTOR also gets `assignmentScope`, read alongside the user row (one extra query),
+   * so the client need not read the roster afterwards. Other roles get no `assignmentScope` field.
+   */
+  async findMe(actor: AuthenticatedUser): Promise<CurrentUser> {
+    const role = actor.role;
+    const [user, fighterIds] = await Promise.all([
+      this.findOne(actor.id, role),
+      role === USER.COACH || role === USER.DOCTOR
+        ? this.usersRepository.findAssignedFighterIds(actor.id, role)
+        : undefined,
+    ]);
+    if (fighterIds === undefined || user.role !== role) return user;
+    return { ...user, assignmentScope: { fighterIds } };
   }
 
   async list(query: ListUsersQuery): Promise<PublicUserList> {

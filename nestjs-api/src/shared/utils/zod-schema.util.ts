@@ -31,3 +31,26 @@ export const isoDateTimeSchema = z.preprocess(
   (val: unknown) => (val instanceof Date ? val.toISOString() : val),
   z.string().datetime(),
 ) as z.ZodType<string, Date | string>;
+
+/**
+ * Query values that may repeat (`?a=1&a=2`), be comma-separated (`?a=1,2`) or
+ * both, as an array of trimmed non-empty strings. Absent or blank (`?a=`) is
+ * `undefined`, i.e. no filter.
+ */
+export function splitQueryList(value: unknown): unknown {
+  if (value === undefined) return undefined;
+  const parts = Array.isArray(value) ? value : [value];
+  const items = parts.flatMap((part) =>
+    typeof part === 'string'
+      ? part
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item.length > 0)
+      : [part],
+  );
+  return items.length === 0 ? undefined : items;
+}
+
+/** A list of uuids from a query (repeated or comma-separated), 1..`max` entries. */
+export const uuidListQuerySchema = (max: number) =>
+  z.preprocess(splitQueryList, z.array(z.uuid()).min(1).max(max).optional());

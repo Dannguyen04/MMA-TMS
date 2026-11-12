@@ -42,13 +42,15 @@ export class TrainingPlanService {
   ) {}
 
   async listPlans(actor: AuthenticatedUser, query: ListPlansQuery) {
-    const { scopedQuery, activeCoachId } = await this.access.scopeListQuery(
+    const { scopedQuery, listScope } = await this.access.scopeListQuery(
       actor,
       query,
     );
 
     try {
-      const result = await this.repo.findPlans(scopedQuery, { activeCoachId });
+      const result = this.access.assertListScope(
+        await this.repo.findPlans(scopedQuery, listScope),
+      );
       return {
         ...result,
         hasNextPage: scopedQuery.page * scopedQuery.limit < result.total,

@@ -27,6 +27,7 @@ import { VideosService } from '../videos/videos.service.js';
 import { VideoAccessService } from '../videos/video-access.service.js';
 import { CreateJobDto } from './dto/create-job.dto.js';
 import { UpdateJobStatusDto } from './dto/update-job-status.dto.js';
+import { JobResultCache } from './job-result-cache.js';
 
 const workerResultBoundarySchema = z
   .object({
@@ -47,6 +48,8 @@ const workerResultBoundarySchema = z
 export class JobsService {
   private readonly resultBucket: string;
   private readonly supabaseOrigin: string;
+  /** Finished results by job id; read only after the caller passed `getJobForActor`. */
+  private readonly resultCache = new JobResultCache();
 
   constructor(
     @InjectQueue('video-analysis') private readonly queue: Queue,
@@ -194,6 +197,8 @@ export class JobsService {
         code: 'JOB_RESULT_NOT_FOUND',
         message: 'Analysis result not found',
       });
+    const cached = this.resultCache.get(job.id, job.resultUrl);
+    if (cached !== undefined) return cached;
     const storageKey = this.resultStorageKey(job.resultUrl);
     const { data, error } = await this.supabase.storage
       .from(this.resultBucket)
@@ -223,6 +228,7 @@ export class JobsService {
         code: 'JOB_RESULT_INVALID',
         message: 'The analysis result does not match the worker contract',
       });
+    this.resultCache.set(job.id, job.resultUrl, parsed.data, data.size);
     return parsed.data;
   }
 
@@ -262,6 +268,8 @@ export class JobsService {
         current.resultUrl === dto.resultUrl && (current.score ?? null) === (dto.score ?? null)) {
       return current;
     }
+    // Any other state change (a re-run of the job included) makes a cached result stale.
+    this.resultCache.delete(id);
     if (current.status === 'DONE' || current.status === 'FAILED') {
       throw new ConflictException({
         code: 'JOB_TERMINAL',

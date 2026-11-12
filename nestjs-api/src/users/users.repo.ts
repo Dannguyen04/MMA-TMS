@@ -9,6 +9,7 @@ import {
   isNotNull,
   isNull,
   or,
+  sql,
   type SQL,
 } from 'drizzle-orm';
 import {
@@ -96,6 +97,54 @@ const activeDoctorProfile = and(
   eq(sportsDoctors.isActive, true),
   isNull(sportsDoctors.deletedAt),
 );
+
+/**
+ * One statement listing the Fighters a COACH or DOCTOR user is currently assigned to, with the rules of
+ * `FightersRepository.findAllForCoach` (behind `GET /fighters`) and `MedicalRepository.findFightersForDoctor`
+ * (behind `GET /doctors/:id/fighters`): exactly one active, undeleted role profile for the user (as
+ * `findActiveCoachIdByUserId` / `findActiveDoctorIdByUserId` require), an assignment with `starts_at <= now()`
+ * and no end or an end in the future, and an active, undeleted Fighter. Newest Fighter first, like the roster.
+ */
+export function assignedFighterIdsQuery(
+  userId: string,
+  role: typeof USER.COACH | typeof USER.DOCTOR,
+): SQL {
+  const assignment =
+    role === USER.COACH
+      ? sql`
+        WITH profile AS (
+          SELECT p.id FROM public.coaches p
+          WHERE p.user_id = ${userId} AND p.is_active = true AND p.deleted_at IS NULL
+          LIMIT 2
+        )
+        SELECT f.id FROM public.fighters f
+        WHERE f.deleted_at IS NULL AND f.is_active = true
+          AND (SELECT count(*) FROM profile) = 1
+          AND EXISTS (
+            SELECT 1 FROM public.coach_fighters a
+            WHERE a.coach_id IN (SELECT id FROM profile)
+              AND a.fighter_id = f.id
+              AND a.starts_at <= now()
+              AND (a.ends_at IS NULL OR a.ends_at > now())
+          )`
+      : sql`
+        WITH profile AS (
+          SELECT p.id FROM public.sports_doctors p
+          WHERE p.user_id = ${userId} AND p.is_active = true AND p.deleted_at IS NULL
+          LIMIT 2
+        )
+        SELECT f.id FROM public.fighters f
+        WHERE f.deleted_at IS NULL AND f.is_active = true
+          AND (SELECT count(*) FROM profile) = 1
+          AND EXISTS (
+            SELECT 1 FROM public.doctor_fighters a
+            WHERE a.doctor_id IN (SELECT id FROM profile)
+              AND a.fighter_id = f.id
+              AND a.starts_at <= now()
+              AND (a.ends_at IS NULL OR a.ends_at > now())
+          )`;
+  return sql`${assignment} ORDER BY f.created_at DESC`;
+}
 
 @Injectable()
 export class UsersRepository {
@@ -344,6 +393,18 @@ export class UsersRepository {
 
     await database.update(users).set(state).where(eq(users.id, user.id));
     invalidateAuthCache();
+  }
+
+  /** Fighter ids under the user's current assignments; empty without exactly one active role profile. */
+  async findAssignedFighterIds(
+    userId: string,
+    role: typeof USER.COACH | typeof USER.DOCTOR,
+    database: DatabaseExecutor = this.db,
+  ): Promise<string[]> {
+    const result = await database.execute(
+      assignedFighterIdsQuery(userId, role),
+    );
+    return (result.rows as Array<{ id: string }>).map((row) => row.id);
   }
 
   private async findProfile(

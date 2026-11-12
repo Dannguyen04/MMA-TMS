@@ -5,7 +5,10 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
 import type { Transaction } from '../shared/utils/audit-context.util.js';
 import type { MedicalReadView } from './medical.constants.js';
-import { medicalOperationFailed } from './medical.error.js';
+import {
+  medicalDossierScopeTooLarge,
+  medicalOperationFailed,
+} from './medical.error.js';
 import { MedicalRepository } from './medical.repo.js';
 
 interface FighterRef {
@@ -82,6 +85,52 @@ export class MedicalAccessService {
     } catch {
       throw medicalOperationFailed();
     }
+  }
+
+  /**
+   * Batch clinical read (T-064): one scope query and one multi-row audit
+   * INSERT for the whole batch. With `fighterIds` every id must exist (else
+   * 404 FIGHTER_NOT_FOUND) and be readable (else 403 MEDICAL_ACCESS_DENIED for
+   * the whole call, nothing audited). Without, the batch is every Fighter the
+   * actor may read; more than `maxFighters` is a 400. Returns the ids in
+   * request order (de-duplicated), or the resolved scope.
+   */
+  async authorizeClinicalBatchRead(
+    actor: AuthenticatedUser,
+    fighterIds: readonly string[] | undefined,
+    view: MedicalReadView,
+    requestId: string,
+    maxFighters: number,
+  ): Promise<string[]> {
+    const requested =
+      fighterIds && fighterIds.length > 0 ? [...new Set(fighterIds)] : undefined;
+    const rows = await this.repo.findFightersInMedicalReadScope(
+      actor,
+      requested,
+      maxFighters + 1,
+    );
+
+    let ids: string[];
+    if (requested) {
+      const byId = new Map(rows.map((row) => [row.id, row.inScope]));
+      if (requested.some((id) => !byId.has(id))) throw fighterNotFound();
+      if (requested.some((id) => byId.get(id) !== true)) {
+        throw medicalAccessDenied();
+      }
+      ids = requested;
+    } else {
+      if (rows.length > maxFighters) {
+        throw medicalDossierScopeTooLarge(maxFighters);
+      }
+      ids = rows.map((row) => row.id);
+    }
+
+    try {
+      await this.repo.insertMedicalReadAudits(actor.id, ids, view, requestId);
+    } catch {
+      throw medicalOperationFailed();
+    }
+    return ids;
   }
 
   /**

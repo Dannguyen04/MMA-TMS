@@ -62,13 +62,19 @@ import type {
   ResetPasswordInput,
   ResetPasswordResponse,
 } from './auth.model.js';
-import { TtlCache, jwtExpiryMs } from './auth-cache.js';
+import {
+  IDENTITY_CACHE_TTL_MS,
+  TtlCache,
+  jwtExpiryMs,
+} from './auth-cache.js';
 import { AuthRepository } from './auth.repo.js';
 
 @Injectable()
 export class AuthService implements AuthAccessService, RecoveryEmailService {
   private readonly logger = new Logger(AuthService.name);
-  private readonly identityCache = new TtlCache<AuthenticatedUser>();
+  private readonly identityCache = new TtlCache<AuthenticatedUser>(
+    IDENTITY_CACHE_TTL_MS,
+  );
   private readonly permissionCache = new TtlCache<Map<string, boolean>>();
 
   constructor(
@@ -445,26 +451,29 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
 
   async authenticate(accessToken: string): Promise<AuthenticatedUser> {
     const cacheKey = createHash('sha256').update(accessToken).digest('hex');
-    const cached = this.identityCache.get(cacheKey);
-    if (cached) return cached;
     try {
-      const { data, error } = await this.supabase.auth.getUser(accessToken);
-      if (error || !data.user?.id) throw authenticationRequired();
-
-      const user = await this.authRepository.findActiveUserBySubject(
-        data.user.id,
-      );
-      if (!user) throw authenticationRequired();
-      this.identityCache.set(
+      return await this.identityCache.getOrLoad(
         cacheKey,
-        user,
+        () => this.lookUpIdentity(accessToken),
         jwtExpiryMs(accessToken) ?? undefined,
       );
-      return user;
     } catch (error) {
       if (error instanceof HttpException) throw error;
       throw authenticationRequired();
     }
+  }
+
+  private async lookUpIdentity(
+    accessToken: string,
+  ): Promise<AuthenticatedUser> {
+    const { data, error } = await this.supabase.auth.getUser(accessToken);
+    if (error || !data.user?.id) throw authenticationRequired();
+
+    const user = await this.authRepository.findActiveUserBySubject(
+      data.user.id,
+    );
+    if (!user) throw authenticationRequired();
+    return user;
   }
 
   async hasPermissions(
@@ -477,15 +486,9 @@ export class AuthService implements AuthAccessService, RecoveryEmailService {
 
     const requested = [...new Set([...allOf, ...anyOf])];
     const permissionKey = `${user.id}:${user.role}:${[...requested].sort().join(',')}`;
-    let resolved = this.permissionCache.get(permissionKey);
-    if (!resolved) {
-      resolved = await this.authRepository.resolvePermissions(
-        user.id,
-        user.role,
-        requested,
-      );
-      this.permissionCache.set(permissionKey, resolved);
-    }
+    const resolved = await this.permissionCache.getOrLoad(permissionKey, () =>
+      this.authRepository.resolvePermissions(user.id, user.role, requested),
+    );
 
     return allOf.length > 0
       ? allOf.every((code) => resolved.get(code) === true)

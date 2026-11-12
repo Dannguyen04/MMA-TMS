@@ -279,6 +279,7 @@ describe('OpenAPI document (e2e)', () => {
     const document = createOpenApiDocument(app);
     const medicalRoutes: Record<string, readonly string[]> = {
       '/fighters/{id}/medical': ['get'],
+      '/medical/dossiers': ['get'],
       '/fighters/{id}/medical/history': ['get'],
       '/fighters/{id}/medical-examinations': ['get', 'post'],
       '/fighters/{id}/medical-review-requests': ['get', 'post'],

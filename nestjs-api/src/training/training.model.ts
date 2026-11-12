@@ -4,6 +4,8 @@ import {
   isoDateTimeSchema,
   trimmedTextSchema,
   nullableTrimmedTextSchema,
+  splitQueryList,
+  uuidListQuerySchema,
 } from '../shared/utils/zod-schema.util.js';
 
 // --- Enums ---
@@ -176,11 +178,29 @@ const paginationSchema = {
   limit: z.coerce.number().int().positive().max(100).default(20),
 };
 
+/** At most this many Fighters in one `fighterIds` list filter (T-063). */
+export const TRAINING_LIST_FIGHTER_IDS_MAX = 100;
+
+/**
+ * A status filter that may repeat (`?status=A&status=B`) or be
+ * comma-separated (`?status=A,B`); same idea as `listBoutsQuerySchema`.
+ */
+const statusListQuerySchema = <T extends z.ZodEnum>(statuses: T) =>
+  z.preprocess(
+    splitQueryList,
+    z
+      .array(statuses)
+      .min(1)
+      .max(statuses.options.length)
+      .optional(),
+  );
+
 export const listPlansQuerySchema = z.strictObject({
   ...paginationSchema,
   fighterId: z.string().uuid().optional(),
+  fighterIds: uuidListQuerySchema(TRAINING_LIST_FIGHTER_IDS_MAX),
   coachId: z.string().uuid().optional(),
-  status: TrainingPlanStatus.optional(),
+  status: statusListQuerySchema(TrainingPlanStatus),
   isActive: z
     .preprocess(
       (value) => (value === 'true' ? true : value === 'false' ? false : value),
@@ -193,9 +213,10 @@ export type ListPlansQuery = z.infer<typeof listPlansQuerySchema>;
 export const listSessionsQuerySchema = z.strictObject({
   ...paginationSchema,
   fighterId: z.string().uuid().optional(),
+  fighterIds: uuidListQuerySchema(TRAINING_LIST_FIGHTER_IDS_MAX),
   coachId: z.string().uuid().optional(),
   planId: z.string().uuid().optional(),
-  status: SessionStatus.optional(),
+  status: statusListQuerySchema(SessionStatus),
   sessionType: SessionType.optional(),
   fromDate: isoDateTimeSchema.optional(),
   toDate: isoDateTimeSchema.optional(),

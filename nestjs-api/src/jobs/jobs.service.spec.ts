@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { BadGatewayException } from '@nestjs/common';
+import { BadGatewayException, ForbiddenException } from '@nestjs/common';
 import { JobsService } from './jobs.service.js';
 
 function service() {
@@ -82,5 +82,66 @@ describe('assigned exercise job context', () => {
     await f.jobs.createJob(actor, { videoId: 'video' });
     expect(f.db.select).not.toHaveBeenCalled();
     expect(f.queue.add.mock.calls[0][1].exerciseContext).toEqual({ exerciseId: null, protocolId: 'whole_body_v1', purpose: 'training' });
+  });
+});
+
+describe('JobsService.getResult cache (T-068)', () => {
+  const actor = { id: 'actor', authSubject: 'auth', email: 'coach@test.invalid', role: 'COACH' as const };
+  const resultUrl =
+    'https://project.supabase.co/storage/v1/object/public/analysis-results/results/job/result.json';
+  const result = { meta: { fps: 30, totalFrames: 1, durationMs: 33 }, frames: [], kicks: [] };
+
+  function fixture() {
+    let job: Record<string, unknown> = { id: 'job', fighterId: 'fighter', status: 'DONE', resultUrl, videoId: null };
+    const chain: any = {};
+    for (const name of ['from', 'where']) chain[name] = vi.fn(() => chain);
+    chain.limit = vi.fn(async () => [job]);
+    const updateChain: any = {};
+    updateChain.set = vi.fn(() => updateChain);
+    updateChain.where = vi.fn(() => updateChain);
+    updateChain.returning = vi.fn(async () => [job]);
+    const db: any = { select: vi.fn(() => chain), update: vi.fn(() => updateChain) };
+    const download = vi.fn(async () => ({ data: new Blob([JSON.stringify(result)]), error: null }));
+    const supabase = { storage: { from: vi.fn(() => ({ download })) } };
+    const videoAccess = { assertFighterAccess: vi.fn().mockResolvedValue(undefined) };
+    const jobs = new JobsService({ add: vi.fn() } as never, db, supabase as never,
+      { get: (_key: string, fallback: unknown) => fallback, getOrThrow: () => 'https://project.supabase.co' } as never,
+      { markStatus: vi.fn() } as never, videoAccess as never);
+    return { jobs, download, videoAccess, setJob: (next: Record<string, unknown>) => { job = next; } };
+  }
+
+  it('downloads a finished result once and serves the second read from memory', async () => {
+    const f = fixture();
+    await expect(f.jobs.getResult(actor, 'job')).resolves.toEqual(result);
+    await expect(f.jobs.getResult(actor, 'job')).resolves.toEqual(result);
+    expect(f.download).toHaveBeenCalledTimes(1);
+    expect(f.videoAccess.assertFighterAccess).toHaveBeenCalledTimes(2);
+  });
+
+  it('still answers 403 to an actor without access when the result is cached', async () => {
+    const f = fixture();
+    await f.jobs.getResult(actor, 'job');
+    f.videoAccess.assertFighterAccess.mockRejectedValueOnce(new ForbiddenException({ code: 'FORBIDDEN' }));
+    await expect(f.jobs.getResult({ ...actor, id: 'other' }, 'job')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(f.download).toHaveBeenCalledTimes(1);
+  });
+
+  it('drops the cached result when the job is run again', async () => {
+    const f = fixture();
+    await f.jobs.getResult(actor, 'job');
+    // The worker reports a new run: the job leaves DONE and comes back with a fresh result.
+    f.setJob({ id: 'job', fighterId: 'fighter', status: 'PROCESSING', resultUrl: null, videoId: null });
+    await f.jobs.updateJobStatus('job', { status: 'DONE', resultUrl } as never);
+    f.setJob({ id: 'job', fighterId: 'fighter', status: 'DONE', resultUrl, videoId: null });
+    await f.jobs.getResult(actor, 'job');
+    expect(f.download).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reuse a cached result when the job points at another result file', async () => {
+    const f = fixture();
+    await f.jobs.getResult(actor, 'job');
+    f.setJob({ id: 'job', fighterId: 'fighter', status: 'DONE', resultUrl: resultUrl.replace('result.json', 'result-2.json'), videoId: null });
+    await f.jobs.getResult(actor, 'job');
+    expect(f.download).toHaveBeenCalledTimes(2);
   });
 });

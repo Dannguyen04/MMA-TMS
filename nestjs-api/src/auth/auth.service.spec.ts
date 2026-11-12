@@ -553,6 +553,106 @@ describe('AuthService', () => {
     expect(repository.resolvePermissions).toHaveBeenCalledTimes(1);
   });
 
+  it('calls Supabase getUser once for 50 concurrent requests with the same token', async () => {
+    const { service, publicClient, repository } = dependencies();
+
+    const users = await Promise.all(
+      Array.from({ length: 50 }, () => service.authenticate('burst-token')),
+    );
+
+    expect(users).toHaveLength(50);
+    expect(users.every((user) => user.id === authenticatedUser.id)).toBe(true);
+    expect(publicClient.auth.getUser).toHaveBeenCalledTimes(1);
+    expect(repository.findActiveUserBySubject).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries after a failed lookup instead of keeping the failure', async () => {
+    const { service, publicClient } = dependencies();
+    publicClient.auth.getUser.mockRejectedValueOnce(new Error('network down'));
+
+    const failed = await Promise.allSettled([
+      service.authenticate('flaky-token'),
+      service.authenticate('flaky-token'),
+    ]);
+    expect(failed.map((result) => result.status)).toEqual([
+      'rejected',
+      'rejected',
+    ]);
+    const reason = (failed[0] as PromiseRejectedResult).reason as HttpException;
+    expect(reason).toBeInstanceOf(HttpException);
+    expect(reason.getStatus()).toBe(401);
+
+    await expect(service.authenticate('flaky-token')).resolves.toMatchObject({
+      id: authenticatedUser.id,
+    });
+    expect(publicClient.auth.getUser).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps an identity for 60 seconds and looks it up again afterwards', async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, publicClient, repository } = dependencies();
+
+      await service.authenticate('ttl-token');
+      vi.advanceTimersByTime(59_000);
+      await service.authenticate('ttl-token');
+      expect(publicClient.auth.getUser).toHaveBeenCalledTimes(1);
+
+      repository.findActiveUserBySubject.mockResolvedValueOnce(null);
+      vi.advanceTimersByTime(1_001);
+      await expect(service.authenticate('ttl-token')).rejects.toBeInstanceOf(
+        HttpException,
+      );
+      expect(publicClient.auth.getUser).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('never keeps an identity past the token expiry', async () => {
+    vi.useFakeTimers();
+    try {
+      const { service, publicClient } = dependencies();
+      const exp = Math.floor(Date.now() / 1000) + 10;
+      const payload = Buffer.from(JSON.stringify({ exp })).toString('base64url');
+      const token = 'h.' + payload + '.s';
+
+      await service.authenticate(token);
+      vi.advanceTimersByTime(10_001);
+      await service.authenticate(token);
+
+      expect(publicClient.auth.getUser).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('resolves concurrent identical permission checks with one query', async () => {
+    const { service, repository } = dependencies();
+
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () =>
+        service.hasPermissions(authenticatedUser, { allOf: ['users.read'] }),
+      ),
+    );
+
+    expect(results.every(Boolean)).toBe(true);
+    expect(repository.resolvePermissions).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries a permission query that failed', async () => {
+    const { service, repository } = dependencies();
+    repository.resolvePermissions.mockRejectedValueOnce(new Error('db down'));
+
+    await expect(
+      service.hasPermissions(authenticatedUser, { allOf: ['users.read'] }),
+    ).rejects.toThrow('db down');
+    await expect(
+      service.hasPermissions(authenticatedUser, { allOf: ['users.read'] }),
+    ).resolves.toBe(true);
+    expect(repository.resolvePermissions).toHaveBeenCalledTimes(2);
+  });
+
   it('reports activation ready when password was already set', async () => {
     const { service, admissionActivation } = dependencies();
     admissionActivation.claimPendingActivation.mockResolvedValueOnce({

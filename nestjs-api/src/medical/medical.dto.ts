@@ -15,6 +15,7 @@ import {
   issueClearanceSchema,
   listDoctorAssignmentsQuerySchema,
   listExaminationsQuerySchema,
+  listMedicalDossiersQuerySchema,
   listMedicalHistoryQuerySchema,
   listReviewRequestsQuerySchema,
   medicalDossierSchema,
@@ -44,6 +45,10 @@ export class ListExaminationsQueryDto extends createZodDto(
 ) {}
 export class ListMedicalHistoryQueryDto extends createZodDto(
   listMedicalHistoryQuerySchema,
+) {}
+
+export class ListMedicalDossiersQueryDto extends createZodDto(
+  listMedicalDossiersQuerySchema,
 ) {}
 
 export class AssignDoctorDto extends createZodDto(assignDoctorSchema) {}
