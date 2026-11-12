@@ -272,8 +272,11 @@ function snapshots<T extends z.ZodType>(entries: z.output<typeof historyEntrySch
     });
 }
 
+/** The fighters a list covers. Their dossiers are requested together right away, since every list reads them. */
 async function fighterIdsIn(scope: FighterScope | undefined): Promise<string[]> {
-    return scope && scope !== "all" ? scope : listScopedFighterIds();
+    const ids = scope && scope !== "all" ? scope : await listScopedFighterIds();
+    primeDossiers(ids);
+    return ids;
 }
 
 /* ─── Adapters ────────────────────────────────────────────────────────────── */
