@@ -42,18 +42,17 @@ Nếu Render cấp URL khác `mma-tms-api.onrender.com`, sửa `API_URL` và `NE
 
 ## Worker AI trên máy Dan
 
-Trong `python-worker/.env` (giữ bản cũ để chạy local):
+Cấu hình demo nằm ngoài repo, ở `D:\test\ai-worktrees\secrets\worker-demo.env`: `REDIS_URL` (External URL của `mma-tms-redis`), `NESTJS_API_URL=https://mma-tms-api.onrender.com`, `WORKER_SECRET_TOKEN` (giống trên Render), `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `POLL_INTERVAL_S=3`. `python-worker/.env` giữ nguyên để chạy local.
 
-```env
-REDIS_URL=<External Key Value URL của mma-tms-redis trên Render, dạng rediss://...>
-NESTJS_API_URL=https://mma-tms-api.onrender.com
-WORKER_SECRET_TOKEN=<giống trên Render>
-SUPABASE_URL=...
-SUPABASE_SERVICE_KEY=...
-POLL_INTERVAL_S=3
+Chạy:
+
+```powershell
+pwsh -File D:\test\ai-worktrees\secrets\start-demo-worker.ps1
 ```
 
-Chạy `python-worker\.venv\Scripts\python.exe python-worker\worker.py`, thấy dòng `Đang lắng nghe queue 'video-analysis'` là được.
+Thấy dòng `Đang lắng nghe queue 'video-analysis'` là được. Log của worker in cả chuỗi Redis có mật khẩu, đừng chiếu cửa sổ này lên màn hình.
+
+Khi nhập biến lên Render, bỏ dấu ngoặc kép bao quanh giá trị (các file `.env` của repo có ngoặc kép). Lần deploy đầu ngày 14/11 hỏng vì `DATABASE_URL` dính ngoặc kép (log: `getaddrinfo ENOTFOUND base`).
 
 ## Ngày demo: làm trước 30 phút
 
