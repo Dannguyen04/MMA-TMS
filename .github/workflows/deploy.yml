@@ -1,0 +1,98 @@
+name: Deploy
+
+# Every push to the demo branch: run the CI checks, deploy the API to Render, wait until it is live,
+# then build and deploy the web app to Vercel. Setup and secrets: docs/DEPLOY-DEMO.md.
+on:
+  push:
+    branches: [release/final-review]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# One deploy at a time; a newer push waits instead of cancelling a deploy halfway.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  api:
+    name: Deploy API (Render)
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+      RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+      API_URL: ${{ vars.API_URL }}
+    steps:
+      - name: Start a Render deploy of this commit
+        id: start
+        run: |
+          set -euo pipefail
+          response=$(curl -fsS -X POST "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -H "Accept: application/json" -H "Content-Type: application/json" \
+            -d "{\"commitId\":\"$GITHUB_SHA\",\"clearCache\":\"do_not_clear\"}")
+          deploy_id=$(echo "$response" | jq -r '.id')
+          echo "Render deploy $deploy_id for $GITHUB_SHA"
+          echo "deploy_id=$deploy_id" >> "$GITHUB_OUTPUT"
+
+      - name: Wait until the deploy is live
+        env:
+          DEPLOY_ID: ${{ steps.start.outputs.deploy_id }}
+        run: |
+          set -euo pipefail
+          # Free instances build slowly; allow 25 minutes.
+          for _ in $(seq 1 100); do
+            status=$(curl -fsS "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys/$DEPLOY_ID" \
+              -H "Authorization: Bearer $RENDER_API_KEY" -H "Accept: application/json" | jq -r '.status')
+            echo "status: $status"
+            case "$status" in
+              live) exit 0 ;;
+              build_failed|update_failed|pre_deploy_failed|canceled|deactivated)
+                echo "::error::Render deploy $DEPLOY_ID ended as $status. Logs: Render dashboard > mma-tms-api > Events."
+                exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "::error::Render deploy $DEPLOY_ID did not go live within 25 minutes."
+          exit 1
+
+      - name: API health check
+        run: |
+          set -euo pipefail
+          curl -fsS --retry 6 --retry-delay 10 --retry-all-errors --max-time 60 "$API_URL/health"
+
+  web:
+    name: Deploy web (Vercel)
+    needs: api
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      WEB_URL: ${{ vars.WEB_URL }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+      - name: Install the Vercel CLI
+        run: npm install --global vercel@65.9.0
+      - name: Pull the production settings and variables
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+      - name: Build
+        run: vercel build --prod --token="$VERCEL_TOKEN"
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token="$VERCEL_TOKEN"
+      - name: Web smoke check
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null -w "login page: %{http_code}\n" --retry 5 --retry-delay 10 --retry-all-errors "$WEB_URL/login"

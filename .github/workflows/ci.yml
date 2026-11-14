@@ -4,6 +4,8 @@ on:
   pull_request:
   push:
     branches: [main]
+  # deploy.yml runs these same checks before every deploy.
+  workflow_call:
 
 permissions:
   contents: read

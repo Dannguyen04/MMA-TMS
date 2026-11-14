@@ -1,0 +1,35 @@
+# Render Blueprint for the demo API. GitHub Actions (.github/workflows/deploy.yml) triggers each deploy
+# after CI passes, so Render's own auto-deploy is off. Setup: docs/DEPLOY-DEMO.md.
+services:
+  - type: web
+    name: mma-tms-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: release/final-review
+    dockerfilePath: ./nestjs-api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: "off"
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: WORKER_SECRET_TOKEN
+        generateValue: true
+      # Values below are entered in the Render dashboard when the Blueprint is created.
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_BOUT_MODEL
+        sync: false
