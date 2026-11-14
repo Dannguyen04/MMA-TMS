@@ -1,5 +1,5 @@
-# Render Blueprint for the demo API. GitHub Actions (.github/workflows/deploy.yml) triggers each deploy
-# after CI passes, so Render's own auto-deploy is off. Setup: docs/DEPLOY-DEMO.md.
+# Render Blueprint for the demo API and its Redis queue (free plans). Render deploys each push to
+# release/final-review once the GitHub CI checks on that commit pass. Setup: docs/DEPLOY-DEMO.md.
 services:
   - type: web
     name: mma-tms-api
@@ -10,16 +10,28 @@ services:
     dockerfilePath: ./nestjs-api/Dockerfile
     dockerContext: .
     healthCheckPath: /health
-    autoDeployTrigger: "off"
+    autoDeployTrigger: checksPass
+    buildFilter:
+      paths:
+        - nestjs-api/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - render.yaml
     envVars:
       - key: NODE_ENV
         value: production
-      - key: WORKER_SECRET_TOKEN
-        generateValue: true
-      # Values below are entered in the Render dashboard when the Blueprint is created.
-      - key: DATABASE_URL
-        sync: false
+      - key: FRONTEND_URL
+        value: https://mma-tms-demo.vercel.app
       - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: mma-tms-redis
+          property: connectionString
+      # Values below are entered in the Render dashboard when the Blueprint is created.
+      - key: WORKER_SECRET_TOKEN
+        sync: false
+      - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
         sync: false
@@ -27,9 +39,17 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
-      - key: FRONTEND_URL
-        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_BOUT_MODEL
         sync: false
+
+  # Video analysis queue. The worker runs on Dan's PC and connects from outside Render.
+  - type: keyvalue
+    name: mma-tms-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: video worker outside Render
