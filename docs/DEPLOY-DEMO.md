@@ -25,7 +25,9 @@ Cập nhật 14/11/2026. Mục tiêu: một bản chạy trên mạng để cả
 Nhánh được deploy: `release/final-review`. Mỗi lần push lên nhánh này:
 
 - **GitHub Actions** chạy [CI](../.github/workflows/ci.yml): lint, typecheck, test, build frontend; lint, build backend; quét secret.
-- **Render** chờ CI của commit đó xanh rồi mới build và deploy backend (`autoDeployTrigger: checksPass` trong [render.yaml](../render.yaml)). CI đỏ thì backend giữ bản cũ. Chỉ deploy khi commit có đổi `nestjs-api/`, lockfile hoặc `render.yaml`.
+- **Render** build và deploy backend khi commit có đổi `nestjs-api/`, lockfile hoặc `render.yaml`. Render tự kiểm tra `/health`: bản mới không lên được thì bản cũ vẫn chạy.
+
+  **Tạm thời (14/11):** GitHub Actions không chạy job nào vì tài khoản GitHub bị khoá thanh toán ("account is locked due to a billing issue"), nên Render đang deploy theo mỗi commit (`autoDeployTrigger: commit`), không chờ CI. Gỡ khoá ở GitHub > Settings > Billing xong thì đổi thành `checksPass` trong [render.yaml](../render.yaml) để Render chỉ deploy khi CI xanh. Trong lúc chờ, chạy các lệnh CI ở máy trước khi push.
 - **Vercel** build frontend ngay khi có push và gắn bản mới vào `mma-tms-demo.vercel.app`. Các nhánh khác bị bỏ qua (Ignored Build Step trong cài đặt project).
 
 Vercel không chờ CI, nên trong vài phút sau push frontend mới có thể chạy với backend cũ. Với demo một buổi thì chấp nhận được: đừng push ngay trước giờ demo.

@@ -1,5 +1,5 @@
 # Render Blueprint for the demo API and its Redis queue (free plans). Render deploys each push to
-# release/final-review once the GitHub CI checks on that commit pass. Setup: docs/DEPLOY-DEMO.md.
+# release/final-review that touches the API. Setup: docs/DEPLOY-DEMO.md.
 services:
   - type: web
     name: mma-tms-api
@@ -10,7 +10,8 @@ services:
     dockerfilePath: ./nestjs-api/Dockerfile
     dockerContext: .
     healthCheckPath: /health
-    autoDeployTrigger: checksPass
+    # checksPass once GitHub Actions runs again (account billing lock, 14/11); until then every commit deploys.
+    autoDeployTrigger: commit
     buildFilter:
       paths:
         - nestjs-api/**
