@@ -36,8 +36,8 @@ export interface FighterPortraitProps {
 }
 
 /**
- * The fighter's own 3D figure standing straight on the card (transparent canvas): the scanned model
- * for men, the A-pose mannequin otherwise, scaled to their height and build, rim-lit in their health
+ * The fighter's own 3D figure standing straight on the card (transparent canvas): the female model for
+ * women, the male scan otherwise, scaled to their height and build, rim-lit in their health
  * tone. Decorative (the card states every fact in text). Turns once round while its card is
  * hovered; still under reduced motion. Without WebGL the stage stays empty.
  */

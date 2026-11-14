@@ -80,6 +80,7 @@ function conflictText(conflict: ClearanceConflict, session: LabPlannedSession): 
 export function BodyViewer({ look }: { look: BodyLook }) {
     const [layer, setLayer] = useState<Layer>("injuries");
     const [selected, setSelected] = useState<BodyRegion | null>(null);
+    const [figure, setFigure] = useState<"muscular" | "female">("muscular");
     const [sessionType, setSessionType] = useState<LabPlannedSession["type"]>("sparring");
     const session = LAB_SESSIONS.find((s) => s.type === sessionType) ?? LAB_SESSIONS[0];
     const conflicts = useMemo(() => conflictsFor(session), [session]);
@@ -99,7 +100,8 @@ export function BodyViewer({ look }: { look: BodyLook }) {
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
             <BodyStage
                 look={look}
-                model="muscular"
+                key={figure}
+                model={figure}
                 highlights={highlights}
                 selected={selected}
                 onSelect={setSelected}
@@ -120,6 +122,17 @@ export function BodyViewer({ look }: { look: BodyLook }) {
             </BodyStage>
 
             <div className="flex min-w-0 flex-col gap-4">
+                <SegmentedControl<"muscular" | "female">
+                    label="Hình cơ thể"
+                    size="md"
+                    value={figure}
+                    onChange={setFigure}
+                    options={[
+                        { value: "muscular", label: "Nam" },
+                        { value: "female", label: "Nữ" },
+                    ]}
+                    className="self-start"
+                />
                 <SegmentedControl<Layer>
                     label="Lớp dữ liệu trên cơ thể"
                     size="md"

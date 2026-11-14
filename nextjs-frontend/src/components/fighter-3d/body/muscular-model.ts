@@ -1,6 +1,7 @@
-import * as THREE from "three";
+import type * as THREE from "three";
 
-import { MODEL_HEIGHT, pair, spot, v, type BodyModel, type RegionSpot } from "./regions";
+import { pair, spot, v, type BodyModel, type RegionSpot } from "./regions";
+import { scannedModelFrom } from "./scanned-model";
 
 /**
  * The scanned anatomy model ("Male base muscular anatomy", Harshit Prajapati, CC BY 4.0; see
@@ -13,6 +14,8 @@ import { MODEL_HEIGHT, pair, spot, v, type BodyModel, type RegionSpot } from "./
  */
 
 export const MUSCULAR_MODEL_URL = "/models/fighter-body.glb";
+/** The wireframe: edges of the model simplified to 5k triangles, into the model's vertex order (Uint16 pairs). */
+export const MUSCULAR_WIRE_URL = "/models/fighter-body.wire.bin";
 
 export const MUSCULAR_SPOTS: RegionSpot[] = [
     spot("head", v(0, 1.6, -0.019), 0.16, v(0, 0.3, 1)),
@@ -31,60 +34,6 @@ export const MUSCULAR_SPOTS: RegionSpot[] = [
     ...pair("left_ankle", "right_ankle", v(0.226, 0.085, -0.012), 0.075, v(1, 0, 0.4)),
 ];
 
-/**
- * Rebuilds the first mesh of a loaded glTF scene in app space with plain float positions and
- * normals (the file's are quantised integers, which cannot hold the rescaled values).
- */
 export function muscularModelFrom(root: THREE.Object3D): BodyModel {
-    root.updateMatrixWorld(true);
-    let source: THREE.Mesh | null = null;
-    root.traverse((object) => {
-        if (!source && (object as THREE.Mesh).isMesh) source = object as THREE.Mesh;
-    });
-    if (!source) throw new Error("The body model has no mesh.");
-    const mesh: THREE.Mesh = source;
-    const positions = mesh.geometry.getAttribute("position");
-    const normals = mesh.geometry.getAttribute("normal");
-    const matrix = mesh.matrixWorld;
-    const normalMatrix = new THREE.Matrix3().getNormalMatrix(matrix);
-
-    const count = positions.count;
-    const out = new Float32Array(count * 3);
-    const point = new THREE.Vector3();
-    let minY = Infinity;
-    let maxY = -Infinity;
-    let sumX = 0;
-    let sumZ = 0;
-    for (let i = 0; i < count; i++) {
-        point.fromBufferAttribute(positions, i).applyMatrix4(matrix);
-        out.set([point.x, point.y, point.z], i * 3);
-        minY = Math.min(minY, point.y);
-        maxY = Math.max(maxY, point.y);
-        sumX += point.x;
-        sumZ += point.z;
-    }
-    const scale = MODEL_HEIGHT / (maxY - minY);
-    const meanX = sumX / count;
-    const meanZ = sumZ / count;
-    for (let i = 0; i < count; i++) {
-        out[i * 3] = (out[i * 3] - meanX) * scale;
-        out[i * 3 + 1] = (out[i * 3 + 1] - minY) * scale;
-        out[i * 3 + 2] = (out[i * 3 + 2] - meanZ) * scale;
-    }
-
-    const outNormals = new Float32Array(count * 3);
-    const normal = new THREE.Vector3();
-    for (let i = 0; i < count; i++) {
-        normal.fromBufferAttribute(normals, i).applyMatrix3(normalMatrix).normalize();
-        outNormals.set([normal.x, normal.y, normal.z], i * 3);
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(out, 3));
-    geometry.setAttribute("normal", new THREE.BufferAttribute(outNormals, 3));
-    const index = mesh.geometry.getIndex();
-    if (index) geometry.setIndex(index.clone());
-    geometry.computeBoundingSphere();
-    geometry.computeBoundingBox();
-    return { kind: "muscular", geometry, spots: MUSCULAR_SPOTS };
+    return scannedModelFrom(root, "muscular", MUSCULAR_SPOTS);
 }
