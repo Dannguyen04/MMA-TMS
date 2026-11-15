@@ -41,7 +41,7 @@ export async function NewInjuryView({ query: params, scoped = false }: { query: 
         const cancelHref = preselected ? routes.doctor.fighter(preselected.id) : routes.doctor.injuries;
         const recordForm = (
                 <InjuryRecordForm
-                    fighters={fighters.map((fighter) => ({ id: fighter.id, name: fighter.name })).sort((a, b) => a.name.localeCompare(b.name))}
+                    fighters={fighters.map((fighter) => ({ id: fighter.id, name: fighter.name, sex: fighter.sex })).sort((a, b) => a.name.localeCompare(b.name))}
                     defaultFighterId={preselected?.id ?? ""}
                     nowInput={toDateTimeInputValue(now)}
                     cancelHref={scoped && preselected ? routes.doctor.fighterInjuries(preselected.id) : cancelHref}
@@ -111,6 +111,7 @@ export async function NewInjuryView({ query: params, scoped = false }: { query: 
                     stance: fighter.stance,
                     level: fighter.level,
                     healthStatus: fighter.healthStatus,
+                    sex: fighter.sex,
                 }))}
                 alerts={alertOptions}
                 defaultFighterId={defaultFighterId}

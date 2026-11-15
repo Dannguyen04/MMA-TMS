@@ -41,8 +41,6 @@ export interface BodySceneProps {
     labels: RefObject<HTMLDivElement | null>;
     ariaLabel: string;
     compact?: boolean;
-    /** Which model is on screen once it has loaded (the mannequin stands in if a model fails). */
-    onModel?: (kind: BodyModelKind) => void;
     /** The scene puts its "draw a frame" function here, for the stage to call when it turns the body. */
     wakeRef?: RefObject<(() => void) | null>;
 }
@@ -123,7 +121,6 @@ function Figure({
     animate,
     labels,
     compact,
-    onModel,
     wakeRef,
     lite,
     wireUrl,
@@ -149,10 +146,6 @@ function Figure({
             wakeRef.current = null;
         };
     }, [wakeRef, invalidate]);
-
-    useEffect(() => {
-        onModel?.(body.kind);
-    }, [body.kind, onModel]);
 
     useEffect(() => {
         rig.setLook(look, palette.base, palette.rim);

@@ -210,7 +210,6 @@ export const viDoctorScreens = {
     "doctorUi.body.excluded": "Loại trừ khi tập",
     "doctorUi.body.aria": "Mô hình cơ thể 3D. Kéo ngang để xoay. {rows}",
     "doctorUi.body.turn": "Có vùng phía sau · xoay",
-    "doctorUi.body.credit": "Mô hình “{title}”",
     "doctorUi.body.noRegion": "Chưa chọn vùng",
     "doctorUi.body.unmapped": " — mô hình 3D chưa có vùng này, hãy xem mô tả",
     "doctorUi.body.marked": "Vùng được đánh dấu",

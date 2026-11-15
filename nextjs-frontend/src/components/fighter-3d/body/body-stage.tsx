@@ -2,7 +2,7 @@
 
 import { RotateCcw, ScanLine } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { BodyMap } from "@/components/domain/body-map";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
@@ -18,9 +18,6 @@ import styles from "./body.module.css";
 import type { BodyModelKind } from "./regions";
 
 const BodyScene = dynamic(() => import("./body-scene"), { ssr: false });
-
-/** Author of the scanned model, credited under every body that shows it (CC BY 4.0). */
-const MODEL_AUTHOR = "Harshit Prajapati";
 
 export interface StageHighlight {
     region: BodyRegion;
@@ -114,8 +111,6 @@ export function BodyStage({
     const [visible, setVisible] = useState(false);
     const [facingBack, setFacingBack] = useState(false);
     const [narrow, setNarrow] = useState(false);
-    const [shown, setShown] = useState<BodyModelKind | null>(null);
-    const onModel = useCallback((kind: BodyModelKind) => setShown(kind), []);
 
     useEffect(() => {
         const el = root.current;
@@ -248,7 +243,6 @@ export function BodyStage({
                         labels={labels}
                         ariaLabel={ariaLabel}
                         compact={compact || narrow}
-                        onModel={onModel}
                         wakeRef={wake}
                     />
                 </div>
@@ -308,21 +302,8 @@ export function BodyStage({
                             </button>
                         </div>
                     </div>
-                    {shown === "muscular" && <ModelCredit />}
-                </div>
-            )}
-
-            {bare && shown === "muscular" && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-1">
-                    <ModelCredit />
                 </div>
             )}
         </div>
     );
-}
-
-/** CC BY 4.0 credit for the scanned model, under the figure where it never covers the body. */
-function ModelCredit() {
-    const t = useT();
-    return <p className="pointer-events-none text-right text-[10px] leading-none text-fg-subtle">{t("figure3d.credit", { author: MODEL_AUTHOR })}</p>;
 }

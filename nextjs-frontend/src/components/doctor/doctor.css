@@ -309,7 +309,6 @@
 .hs-body .b3-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 12.5px; color: var(--b3-mute); }
 .hs-body .b3-legend li { display: flex; align-items: center; gap: 6px; }
 .hs-body .b3-legend i { width: 10px; height: 10px; border-radius: 50%; }
-.hs-body .b3-credit { font-size: 11.5px; color: var(--b3-mute); margin-top: 6px; }
 .b3-frame { position: relative; border-radius: 12px; overflow: hidden; background: var(--b3-bg, var(--chip)); cursor: grab; touch-action: pan-y; }
 .b3-frame canvas { display: block; }
 .b3-skel { position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / .07) 50%, transparent 70%) 0 0 / 200% 100%; animation: yt-sh 1.2s linear infinite; }
@@ -600,7 +599,6 @@
 
 /* Region model (3D chọn vùng) */
 .rm { display: flex; flex-direction: column; gap: 6px; width: 100%; }
-.rm .b3-credit { display: none; }
 .rm-caption { margin: 0; text-align: center; font-size: 12.5px; font-weight: 600; color: var(--ink, inherit); }
 .rm-caption small { font-weight: 400; opacity: .7; }
 
@@ -610,7 +608,6 @@
 .rm .b3-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; margin-top: 10px; font-size: 12.5px; color: var(--mute); }
 .rm .b3-legend li { display: flex; align-items: center; gap: 6px; }
 .rm .b3-legend i { width: 10px; height: 10px; border-radius: 50%; }
-.hs-body .b3-credit, .rm .b3-credit { font-size: 11px; }
 
 /* Vòng tiến độ của phiếu khám: nảy lên một lần khi một mục vừa hoàn tất. */
 @keyframes pie-pop { 0% { transform: none; } 40% { transform: translateY(-5px) scale(1.22); } 70% { transform: scale(.94); } 100% { transform: none; } }

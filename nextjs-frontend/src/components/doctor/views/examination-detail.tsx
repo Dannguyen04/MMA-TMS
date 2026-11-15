@@ -324,7 +324,7 @@ export async function ExaminationDetail({ examId, query, fighterId: scopedId }: 
                         </Card>
 
                         <Panel title={t("doctorViews.exam.bodyMap")} aside={fighterInjuries.length === 0 ? t("doctorViews.exam.noInjuries") : plural(t, "doctorViews.exam.injuryCount", fighterInjuries.length)} tone="plate" id="ban-do-co-the">
-                            <BodyPanel injuries={fighterInjuries} excluded={[]} height={340} />
+                            <BodyPanel injuries={fighterInjuries} excluded={[]} height={340} sex={fighter.sex} />
                         </Panel>
 
                         <Card>

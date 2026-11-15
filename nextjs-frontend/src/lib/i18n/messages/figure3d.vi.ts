@@ -13,7 +13,6 @@ export const viFigure3d = {
     "figure3d.clearance.clash": "Bị chặn, buổi này lại tác động vào",
     "figure3d.clearance.protected": "Bác sĩ hạn chế",
     "figure3d.clearance.loaded": "Buổi này tác động",
-    "figure3d.credit": "Mô hình 3D: {author}, CC BY 4.0",
     "figure3d.bodyAria": "Bản đồ cơ thể 3D. {summary}",
     "figure3d.bodyAria.none": "Chưa đánh dấu vùng nào.",
     "figure3d.profile.aria": "Hình của {name}, dựng theo hồ sơ: {facts}",

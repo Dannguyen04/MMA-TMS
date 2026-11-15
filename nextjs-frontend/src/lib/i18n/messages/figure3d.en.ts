@@ -11,7 +11,6 @@ export const enFigure3d = {
     "figure3d.clearance.clash": "Blocked, and this session loads it",
     "figure3d.clearance.protected": "Protected by the doctor",
     "figure3d.clearance.loaded": "Loaded by this session",
-    "figure3d.credit": "3D model: {author}, CC BY 4.0",
     "figure3d.bodyAria": "3D body map. {summary}",
     "figure3d.bodyAria.none": "No regions marked.",
     "figure3d.profile.aria": "{name}'s figure, built from the profile: {facts}",

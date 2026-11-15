@@ -236,7 +236,7 @@ export default async function AIAlertDetailPage({ params }: PageProps<"/doctor/a
                         <Card>
                             <CardHeader as="h3" title={t("doctorPages.alert.region")} description={regionText(t, alert.bodyRegion)} icon={<Ruler />} />
                             <CardContent>
-                                <RegionModel targets={[{ region: alert.bodyRegion }]} label={t("doctorPages.alert.regionModel")} status="RECOVERING" height={300} legend={false} />
+                                <RegionModel targets={[{ region: alert.bodyRegion }]} label={t("doctorPages.alert.regionModel")} status="RECOVERING" height={300} legend={false} sex={fighter.sex} />
                             </CardContent>
                         </Card>
 

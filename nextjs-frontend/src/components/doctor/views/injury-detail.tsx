@@ -256,7 +256,7 @@ export async function InjuryDetail({ injuryId, query, fighterId: scopedId }: { i
                         <Card>
                             <CardHeader title={t("doctorViews.injuries.colPlace")} icon={<MapPin />} />
                             <CardContent>
-                                <RegionModel targets={[{ joint: injury.joint, region: injury.bodyRegion }]} label={`${t(`injurySeverity.${injury.severity}`)} · ${t(STATUS_TEXT[injury.status]).toLowerCase()}`} status={injury.status === "active" ? "ACTIVE" : injury.status === "recovering" ? "RECOVERING" : "RESOLVED"} height={380} />
+                                <RegionModel targets={[{ joint: injury.joint, region: injury.bodyRegion }]} label={`${t(`injurySeverity.${injury.severity}`)} · ${t(STATUS_TEXT[injury.status]).toLowerCase()}`} status={injury.status === "active" ? "ACTIVE" : injury.status === "recovering" ? "RECOVERING" : "RESOLVED"} height={380} sex={fighter.sex} />
                             </CardContent>
                         </Card>
 

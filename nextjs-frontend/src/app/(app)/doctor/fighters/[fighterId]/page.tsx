@@ -117,7 +117,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
 
             <div className="hs-grid">
                 <Panel title={t("screens.doctor.fighter.bodyMap")} id="body3d" tone="plate" aside={<span className="yt-drag-hint">{t("screens.doctor.fighter.dragToRotate")}</span>}>
-                    <BodyPanel injuries={shownInjuries} excluded={excluded} height={500} abnormalHead={abnormalHead} />
+                    <BodyPanel injuries={shownInjuries} excluded={excluded} height={500} abnormalHead={abnormalHead} sex={fighter.sex} />
                 </Panel>
                 <div className="hs-col">
                     <Panel

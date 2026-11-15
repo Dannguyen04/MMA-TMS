@@ -6,8 +6,8 @@ import { Component, useCallback, useEffect, useMemo, useRef, useState, type Reac
 
 import { BodyMap, type BodyMapHighlight } from "@/components/domain/body-map";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
-import type { BodyRegion } from "@/lib/domain/types";
-import { BODY_MODEL_CREDIT } from "./model";
+import type { BodyRegion, Sex } from "@/lib/domain/types";
+import { doctorBodyFor } from "./model";
 import { EXCLUDED_COLOR, STATUS_COLOR, STATUS_TEXT, buildJointRows, paintExcluded, paintRegions, type PaintStatus } from "./regions";
 import type { ViewState } from "./types";
 
@@ -31,8 +31,10 @@ const TONE: Record<PaintStatus, BodyMapHighlight["tone"]> = { injury: "danger", 
 
 export type BodyInjury = { affectedJoint: string; status: string; injuryType: string; severity: string };
 
-export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { injuries: readonly BodyInjury[]; excludedJoints?: readonly string[]; height?: number }) {
+/** The fighter's sex picks the body: the female model for women, the male one otherwise (unknown included). */
+export function BodyModel({ injuries, excludedJoints = [], height = 460, sex }: { injuries: readonly BodyInjury[]; excludedJoints?: readonly string[]; height?: number; sex?: Sex | null }) {
   const t = useT();
+  const model = doctorBodyFor(sex);
   const locale = useLocale();
   const rows = useMemo(() => buildJointRows(t, injuries, [], (s) => s, (s) => s), [t, injuries]);
   const paint = useMemo(() => paintExcluded(paintRegions(rows), excludedJoints), [rows, excludedJoints]);
@@ -107,7 +109,7 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
       >
         {mode === "3d" && (
           <GlBoundary onError={fail}>
-            <BodyCanvas paint={paint} view={view} light={light} background={bg} pulse onReady={onReady} />
+            <BodyCanvas key={model.url} model={model} paint={paint} view={view} light={light} background={bg} pulse onReady={onReady} />
           </GlBoundary>
         )}
         {!ready && <span className="b3-skel" aria-hidden />}
@@ -118,7 +120,6 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
         )}
       </div>
       {legend}
-      <p className="b3-credit">{t("doctorUi.body.credit", { title: BODY_MODEL_CREDIT.title })} · {BODY_MODEL_CREDIT.author} · {BODY_MODEL_CREDIT.license}</p>
     </div>
   );
 }

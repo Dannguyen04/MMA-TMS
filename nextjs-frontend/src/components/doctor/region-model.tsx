@@ -2,7 +2,7 @@
 
 import type { BodyJoint } from "@/lib/domain/medical-contract";
 import { useT } from "@/components/i18n/locale-provider";
-import type { BodyRegion } from "@/lib/domain/types";
+import type { BodyRegion, Sex } from "@/lib/domain/types";
 import { BodyModel, type BodyInjury } from "./body3d/body-model";
 import { isMappedJoint } from "./body3d/regions";
 import { BODY_REGION, JOINT, jointOf } from "./labels";
@@ -13,7 +13,7 @@ type Target = { joint?: BodyJoint | ""; region?: BodyRegion | "" };
  * Mô hình 3D cho một vùng đang chọn (biểu mẫu ghi chấn thương, quan sát AI, phiếu khám…).
  * Chọn vùng trong danh sách là vùng đó sáng lên; 2D chỉ dùng khi giảm chuyển động hoặc lỗi WebGL.
  */
-export function RegionModel({ targets, label, status = "ACTIVE", height = 340, emptyText, legend = true }: { targets: Target[]; label?: string; status?: "ACTIVE" | "RECOVERING" | "RESOLVED"; height?: number; emptyText?: string; legend?: boolean }) {
+export function RegionModel({ targets, label, status = "ACTIVE", height = 340, emptyText, legend = true, sex }: { targets: Target[]; label?: string; status?: "ACTIVE" | "RECOVERING" | "RESOLVED"; height?: number; emptyText?: string; legend?: boolean; sex?: Sex | null }) {
     const t = useT();
     const items = targets
         .filter((x) => x.joint || x.region)
@@ -26,7 +26,7 @@ export function RegionModel({ targets, label, status = "ACTIVE", height = 340, e
     const unmapped = items.filter((i) => !i.mapped);
     return (
         <div className="rm" data-legend={legend} aria-live="polite">
-            <BodyModel injuries={body} height={height} />
+            <BodyModel injuries={body} height={height} sex={sex} />
             <p className="rm-caption">
                 {items.length === 0 ? (emptyText ?? t("doctorUi.body.noRegion")) : items.map((i) => i.name).join(" · ")}
                 {unmapped.length > 0 && <small>{t("doctorUi.body.unmapped")}</small>}

@@ -209,7 +209,6 @@ export const enDoctorScreens = {
     "doctorUi.body.excluded": "Excluded from training",
     "doctorUi.body.aria": "3D body model. Drag sideways to rotate. {rows}",
     "doctorUi.body.turn": "Regions on the back · rotate",
-    "doctorUi.body.credit": "Model “{title}”",
     "doctorUi.body.noRegion": "No region selected",
     "doctorUi.body.unmapped": " — the 3D model doesn't have this region yet, see the description",
     "doctorUi.body.marked": "Marked regions",

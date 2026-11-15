@@ -16,7 +16,7 @@ import { Field, FormMessage, Input, Select, Textarea } from "@/components/ui/for
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createInjuryAction } from "@/lib/actions/clinical";
 import { INJURY_MECHANISM_LABELS, INJURY_SEVERITY_LABELS, INJURY_TYPE_LABELS } from "@/lib/domain/labels";
-import type { AbnormalMovementAlert, BodyRegion, InjuryMechanism, InjurySeverity, InjuryType } from "@/lib/domain/types";
+import type { AbnormalMovementAlert, BodyRegion, InjuryMechanism, InjurySeverity, InjuryType, Sex } from "@/lib/domain/types";
 import { addDaysToKey, daysBetweenKeys, formatShortDate } from "@/lib/format";
 import { plural } from "@/lib/i18n/translate-client";
 import {
@@ -35,6 +35,8 @@ import { DemoFillBar, DoctorsOnly, FormPart, useWideLayout } from "@/components/
 
 export interface InjuryFighterOption extends FighterIdentityData {
     id: string;
+    /** Picks the body the 3D region model shows. */
+    sex?: Sex | null;
 }
 
 export interface InjuryAlertOption {
@@ -155,7 +157,8 @@ export function InjuryForm({ fighters, alerts, defaultFighterId, defaultAlertId,
 
     // One 3D model only (each is a WebGL context): in the side column on wide screens, in the form otherwise.
     const wide = useWideLayout();
-    const model = <RegionModel targets={[{ region: bodyRegion }]} label={type ? injuryTypeText(t, type) : t("doctorClinical.injuryForm.selectedRegion")} height={300} legend={false} />;
+    const sex = fighters.find((f) => f.id === fighterId)?.sex;
+    const model = <RegionModel sex={sex} targets={[{ region: bodyRegion }]} label={type ? injuryTypeText(t, type) : t("doctorClinical.injuryForm.selectedRegion")} height={300} legend={false} />;
 
     /** Demo only: a plausible sample injury the doctor can still edit; "Xóa hết" empties the form again. */
     const fillSample = () => {

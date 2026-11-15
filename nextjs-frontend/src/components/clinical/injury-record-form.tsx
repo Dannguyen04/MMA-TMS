@@ -15,7 +15,7 @@ import { SuggestionChips } from "@/components/ui/suggestion-chips";
 import { useActionForm, type ActionForm } from "@/components/ui/use-action-form";
 import { recordInjuryAction } from "@/lib/actions/medical-contract";
 import { API_INJURY_SEVERITIES, MEDICAL_TEXT_LIMITS, type ApiInjurySeverity, type BodyJoint } from "@/lib/domain/medical-contract";
-import type { InjurySeverity } from "@/lib/domain/types";
+import type { InjurySeverity, Sex } from "@/lib/domain/types";
 import type { MessageKey } from "@/lib/i18n/translate";
 import { addDaysToKey, toDateTimeInputValue } from "@/lib/format";
 import type { ProgressStep } from "@/components/medical/exam-progress";
@@ -24,7 +24,8 @@ import { DemoFillBar, DoctorsOnly, FormPart, useWideLayout } from "@/components/
 import { INJURY_SEVERITY_DESCRIPTIONS, jointText, severityText } from "./clinical-copy";
 
 export interface InjuryRecordFormProps {
-    fighters: { id: string; name: string }[];
+    /** `sex` picks the body the 3D region model shows. */
+    fighters: { id: string; name: string; sex?: Sex | null }[];
     defaultFighterId: string;
     /** YYYY-MM-DDTHH:mm in the academy timezone. */
     nowInput: string;
@@ -141,7 +142,8 @@ export function InjuryRecordForm({ fighters, defaultFighterId, nowInput, cancelH
 
     // One 3D model only (each is a WebGL context): in the side column on wide screens, in the form otherwise.
     const wide = useWideLayout();
-    const model = <RegionModel targets={[{ joint }]} label={injuryType || undefined} height={300} emptyText={t("doctorClinical.recordForm.noJoint")} legend={false} />;
+    const sex = fighters.find((f) => f.id === fighterId)?.sex;
+    const model = <RegionModel sex={sex} targets={[{ joint }]} label={injuryType || undefined} height={300} emptyText={t("doctorClinical.recordForm.noJoint")} legend={false} />;
 
     /** Development only: a plausible sample injury the doctor can still edit; "Xóa hết" empties the form again. */
     const fillSample = () => {
