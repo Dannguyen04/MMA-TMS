@@ -12,9 +12,9 @@ import type {
 } from "./bout";
 import type { Gate1Reason } from "./bout-rules";
 import type { SuspensionState } from "./bout-suspension-rules";
-import type { MessageKey, Translator } from "@/lib/i18n/translate";
+import type { MessageKey, Translator } from "@/lib/i18n/translate-client";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 
 import { EXAMINATION_SCOPE_LABELS, type SessionType } from "./medical-contract";
 import { TRAINING_TYPE_FOR } from "./training-contract";
@@ -579,7 +579,8 @@ export const CLEARANCE_LEVEL_LABELS: Record<ClearanceLevel, string> = {
 };
 
 export const CLEARANCE_STATUS_LABELS: Record<ClearanceStatus, string> = {
-    active: "Đang điều trị",
+    active: "Đang hiệu lực",
+    scheduled: "Chưa đến ngày hiệu lực",
     expired: "Hết hạn",
     revoked: "Đã thu hồi",
     superseded: "Đã thay thế",

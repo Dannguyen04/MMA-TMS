@@ -16,7 +16,7 @@ import { useConfirmAction } from "@/components/ui/use-confirm-action";
 import { deleteGoal, logGoalProgress, updateGoal } from "@/lib/actions/goals";
 import type { Goal } from "@/lib/domain/types";
 import { formatWeekdayDate } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { GoalForm } from "./goal-form";
 

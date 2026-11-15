@@ -12,20 +12,23 @@ import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getNotificationBell } from "@/lib/services/notifications";
 import { getNavBadgeCounts } from "@/lib/services/shell";
 
-/** Nav badges; the doctor's come from the triage board (blocked fighters, open reviews, new AI alerts). */
-async function navCounts(user: User): Promise<NavCounts> {
-    const counts = await getNavBadgeCounts(user);
-    if (user.role !== "doctor") return counts;
+/**
+ * The doctor's badges come from the triage board (blocked fighters, open reviews, new AI alerts).
+ * Reading the board takes a read per fighter, so the shell renders without it and the badges follow.
+ */
+async function doctorBadgeCounts(user: User): Promise<NavCounts> {
     const board = await doctorShellCounts(user);
-    return { ...counts, blockedFighters: board.blocked, openReviews: board.reviews, newAlerts: board.alerts };
+    return { blockedFighters: board.blocked, openReviews: board.reviews, newAlerts: board.alerts };
 }
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
     const user = await requireUser();
+    // Started before the awaits below, not awaited here: the shell streams in first.
+    const lateCounts = user.role === "doctor" ? doctorBadgeCounts(user) : undefined;
     const [store, locale, counts, notifications] = await Promise.all([
         cookies(),
         getLocale(),
-        navCounts(user),
+        getNavBadgeCounts(user),
         getNotificationBell({ id: user.id, role: user.role }),
     ]);
     const theme = parseTheme(store.get(THEME_COOKIE)?.value);
@@ -38,6 +41,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             theme={theme}
             locale={locale}
             counts={counts}
+            lateCounts={lateCounts}
             notifications={notifications}
             now={new Date().toISOString()}
             hiddenNav={hiddenNav}

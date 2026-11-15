@@ -4,6 +4,7 @@ import { WeightChart } from "@/components/domain/weight-chart";
 import { WeightStatusBadge } from "@/components/domain/status-badges";
 import { Callout } from "@/components/training/callout";
 import { ButtonLink } from "@/components/ui/button";
+import { TermHint } from "@/components/domain/term-hint";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { adherenceAlertLine } from "@/lib/domain/nutrition";
 import { weightChartWindow } from "@/lib/domain/weight-chart";
@@ -25,9 +26,14 @@ export async function CampWeightCard({ track, wayOff, logHref, locale }: { track
     return (
         <Card>
             <CardHeader
-                title={t("boutFighter.weight.title")}
+                title={
+                    <span className="inline-flex items-center gap-1">
+                        {t("boutFighter.weight.title")}
+                        <TermHint term="acuteWeightLoss" locale={lang} />
+                    </span>
+                }
                 description={[latest, remaining].filter(Boolean).join(" · ")}
-                action={<WeightStatusBadge status={track.status} locale={lang} />}
+                action={track.status === "NEUTRAL" ? undefined : <WeightStatusBadge status={track.status} locale={lang} />}
             />
             <CardContent className="flex flex-col gap-4">
                 {track.status === "OVER_LIMIT" && (
@@ -36,11 +42,8 @@ export async function CampWeightCard({ track, wayOff, logHref, locale }: { track
                     </Callout>
                 )}
                 {track.status === "ABOVE_TARGET" && showAdherence && <p className="text-sm text-fg-muted">{adherenceAlertLine(wayOff, t)}</p>}
-                {window && track.points.length > 0 ? (
-                    <WeightChart track={track} from={window.from} to={window.to} />
-                ) : (
-                    <p className="text-sm text-fg-muted">{t("boutFighter.weight.noWeightsInCamp")}</p>
-                )}
+                {/* With no weight yet the header already says so. */}
+                {window && track.points.length > 0 && <WeightChart track={track} from={window.from} to={window.to} />}
                 {logHref && (
                     <ButtonLink href={logHref} size="lg" className="w-full sm:w-auto">
                         {t("boutFighter.weight.logWeight")}

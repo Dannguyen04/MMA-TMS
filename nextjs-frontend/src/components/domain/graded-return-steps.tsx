@@ -3,7 +3,7 @@ import { computeGradedReturnSteps } from "@/lib/domain/intensity-tiers";
 import type { GradedReturn } from "@/lib/domain/types";
 import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 export interface GradedReturnStepsProps {
@@ -43,9 +43,9 @@ export function GradedReturnSteps({
                                     aria-current={step.status === "current" ? "step" : undefined}
                                     className={cn(
                                         "flex size-7 items-center justify-center rounded-full text-xs font-semibold",
-                                        step.status === "passed" && "bg-success-solid text-white",
+                                        step.status === "passed" && "bg-success-solid text-primary-fg",
                                         step.status === "current" &&
-                                            "bg-info-solid text-white ring-2 ring-info-solid ring-offset-2 ring-offset-surface",
+                                            "bg-info-solid text-primary-fg ring-2 ring-info-solid ring-offset-2 ring-offset-surface",
                                         step.status === "upcoming" &&
                                             "bg-surface-muted text-neutral-fg border border-border-strong",
                                     )}

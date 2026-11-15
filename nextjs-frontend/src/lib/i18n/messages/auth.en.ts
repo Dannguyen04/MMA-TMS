@@ -2,7 +2,6 @@
 export const enAuth = {
     "auth.metaTitle": "Sign in",
     "auth.title": "Sign in",
-    "auth.subtitle": "Welcome back. Use your academy account to continue.",
     "auth.email": "Email",
     "auth.password": "Password",
     "auth.forgot": "Forgot password?",
@@ -41,7 +40,7 @@ export const enAuth = {
     "auth.applyDescription": "Enter your email and we'll send you a code, then tell us about yourself. A coach assesses every applicant before the academy decides. Already applied? Use the same email to continue.",
     "auth.joinMetaTitle": "Joining the academy",
     "auth.joinTitle": "Fighters are added by the academy",
-    "auth.joinDescription": "Lotus Combat Academy trains fighters a coach has already brought in. There is no application to fill in. Sign in with the account your coach gave you.",
+    "auth.joinDescription": "There is no sign-up form. Sign in with the account your coach gave you.",
     "auth.sendCodePending": "Sending code…",
     "auth.sendCode": "Send me a code",
     "auth.code": "Code",

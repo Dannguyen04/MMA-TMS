@@ -3,6 +3,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { ApiExceptionFilter } from './shared/filters/api-exception.filter.js';
 import { ApiResponseInterceptor } from './shared/interceptors/api-response.interceptor.js';
+import {
+  API_TIMING_LOG_ENV,
+  RequestTimingInterceptor,
+  isApiTimingLogEnabled,
+} from './shared/interceptors/request-timing.interceptor.js';
 import { AppValidationPipe } from './shared/pipes/app-validation.pipe.js';
 import { createOpenApiDocument } from './shared/utils/openapi.util.js';
 import { ConfigService } from '@nestjs/config';
@@ -45,7 +50,14 @@ async function bootstrap() {
 
   app.useGlobalPipes(new AppValidationPipe());
   app.useGlobalFilters(new ApiExceptionFilter());
-  app.useGlobalInterceptors(new ApiResponseInterceptor(app.get(Reflector)));
+  // API_TIMING_LOG=1 logs each request's duration; first in the chain so it wraps the envelope too.
+  const timing = isApiTimingLogEnabled(env.get<string>(API_TIMING_LOG_ENV))
+    ? [new RequestTimingInterceptor()]
+    : [];
+  app.useGlobalInterceptors(
+    ...timing,
+    new ApiResponseInterceptor(app.get(Reflector)),
+  );
 
   // Cấu hình Swagger API Documentation UI
   const config = new DocumentBuilder()

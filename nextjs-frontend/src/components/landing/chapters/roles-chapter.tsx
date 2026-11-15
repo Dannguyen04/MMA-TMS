@@ -25,7 +25,7 @@ export async function RolesChapter() {
                             <li key={role.id} data-role-card>
                                 <Panel className="h-full p-5">
                                     <span aria-hidden className="block h-1 w-10 rounded-full" style={{ backgroundColor: role.color, boxShadow: `0 0 18px ${role.color}` }} />
-                                    <p className="mt-5 text-lg font-semibold text-white">{t(role.roleKey)}</p>
+                                    <p className="mt-5 text-lg font-semibold text-nav-fg-active">{t(role.roleKey)}</p>
                                     <p className="mt-1.5 text-[13px] leading-5 text-nav-fg">{t(role.textKey)}</p>
                                 </Panel>
                             </li>

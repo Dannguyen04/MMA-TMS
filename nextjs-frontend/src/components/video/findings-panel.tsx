@@ -4,11 +4,13 @@ import { Check, PenLine, UserX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { AIFindingCard } from "@/components/domain/ai-finding-card";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/states";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { AI_REVIEW_TERMS, isNeedsReview } from "@/lib/domain/ai-review";
+import { isNeedsReview } from "@/lib/domain/ai-review";
 import type { AIFinding, ReviewDecision } from "@/lib/domain/types";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 import { usePlaybackStore } from "./playback-store";
 import { useReview } from "./review-context";
@@ -16,11 +18,11 @@ import { ReviewDialog } from "./review-dialog";
 
 export type FindingFilter = "all" | "unreviewed" | "low_confidence" | "reviewed";
 
-const FILTERS: { id: FindingFilter; label: string; match: (finding: AIFinding) => boolean }[] = [
-    { id: "all", label: "All", match: () => true },
-    { id: "unreviewed", label: AI_REVIEW_TERMS.unreviewed, match: (f) => f.review === null },
-    { id: "low_confidence", label: AI_REVIEW_TERMS.lowConfidence, match: isNeedsReview },
-    { id: "reviewed", label: "Reviewed", match: (f) => f.review !== null },
+const FILTERS: { id: FindingFilter; label: MessageKey; match: (finding: AIFinding) => boolean }[] = [
+    { id: "all", label: "screens.video.findings.all" as MessageKey, match: () => true },
+    { id: "unreviewed", label: "screens.video.reviewTerm.unreviewed" as MessageKey, match: (f) => f.review === null },
+    { id: "low_confidence", label: "screens.video.reviewTerm.lowConfidence" as MessageKey, match: isNeedsReview },
+    { id: "reviewed", label: "screens.video.findings.reviewed" as MessageKey, match: (f) => f.review !== null },
 ];
 
 export function matchesFindingFilter(finding: AIFinding, filter: FindingFilter): boolean {
@@ -40,6 +42,8 @@ export interface FindingsPanelProps {
 export function FindingsPanel({ findings, now, filter, onFilterChange, highlightedId }: FindingsPanelProps) {
     const store = usePlaybackStore();
     const review = useReview();
+    const t = useT();
+    const locale = useLocale();
     const filtersRef = useRef<HTMLDivElement>(null);
     const listRef = useRef<HTMLUListElement>(null);
     const [dialog, setDialog] = useState<{ finding: AIFinding; decision: ReviewDecision } | null>(null);
@@ -73,7 +77,7 @@ export function FindingsPanel({ findings, now, filter, onFilterChange, highlight
 
     return (
         <div className="flex flex-col gap-3 pt-3">
-            <div ref={filtersRef} role="group" aria-label="Filter findings" className="flex flex-wrap gap-1.5">
+            <div ref={filtersRef} role="group" aria-label={t("screens.video.findings.filter")} className="flex flex-wrap gap-1.5">
                 {FILTERS.map((option) => {
                     const count = findings.filter(option.match).length;
                     const selected = filter === option.id;
@@ -88,7 +92,7 @@ export function FindingsPanel({ findings, now, filter, onFilterChange, highlight
                                 selected ? "border-primary bg-primary-soft text-primary-soft-fg" : "border-border bg-surface text-fg-muted hover:text-fg",
                             )}
                         >
-                            {option.label}
+                            {t(option.label)}
                             <span className={cn("rounded-full px-1.5 text-[11px] tabular-nums", selected ? "bg-surface/70" : "bg-surface-hover")}>{count}</span>
                         </button>
                     );
@@ -98,12 +102,12 @@ export function FindingsPanel({ findings, now, filter, onFilterChange, highlight
             {visible.length === 0 ? (
                 <EmptyState
                     compact
-                    title={findings.length === 0 ? "No findings for this clip" : "No findings match this filter"}
-                    description={findings.length === 0 ? "The AI didn't produce findings for this footage." : "Try another filter to see the rest."}
+                    title={findings.length === 0 ? t("screens.video.findings.noneForClip") : t("screens.video.findings.noneMatch")}
+                    description={findings.length === 0 ? t("screens.video.findings.noneForClipDesc") : t("screens.video.findings.noneMatchDesc")}
                     action={
                         findings.length > 0 && (
                             <Button variant="secondary" size="sm" onClick={() => onFilterChange("all")}>
-                                Show all findings
+                                {t("screens.video.findings.showAll")}
                             </Button>
                         )
                     }
@@ -116,6 +120,7 @@ export function FindingsPanel({ findings, now, filter, onFilterChange, highlight
                                 finding={finding}
                                 now={now}
                                 onSeek={seek}
+                                locale={locale}
                                 className={cn(finding.id === highlightedId && "ring-2 ring-primary")}
                                 actions={
                                     review.canReview
@@ -127,16 +132,16 @@ export function FindingsPanel({ findings, now, filter, onFilterChange, highlight
                                                       <input type="hidden" name="decision" value="confirmed" />
                                                       <SubmitButton size="sm" variant="secondary" disabled={finding.review?.decision === "confirmed"} aria-describedby={headingId}>
                                                           <Check aria-hidden />
-                                                          {finding.review?.decision === "confirmed" ? "Confirmed" : "Confirm"}
+                                                          {finding.review?.decision === "confirmed" ? t("screens.video.confirmed") : t("screens.video.confirm")}
                                                       </SubmitButton>
                                                   </form>
                                                   <Button size="sm" variant="ghost" onClick={() => setDialog({ finding, decision: "corrected" })} aria-describedby={headingId}>
                                                       <PenLine aria-hidden />
-                                                      Correct
+                                                      {t("screens.video.correct")}
                                                   </Button>
                                                   <Button size="sm" variant="ghost" onClick={() => setDialog({ finding, decision: "rejected" })} aria-describedby={headingId}>
                                                       <UserX aria-hidden />
-                                                      Reject
+                                                      {t("screens.video.reject")}
                                                   </Button>
                                               </>
                                           )

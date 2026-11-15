@@ -1,11 +1,14 @@
-import { CalendarClock, CheckCircle2, CircleSlash, ClipboardList, FileText, Info, ShieldAlert, ShieldCheck, Swords } from "lucide-react";
+import { CalendarClock, CheckCircle2, CircleSlash, ClipboardList, FileText, Info, ShieldAlert, ShieldCheck, Swords, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { cache, type ReactNode } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { CampTimeline } from "@/components/domain/camp-timeline";
 import { CampWeightCard } from "@/components/domain/camp-weight-card";
+import { CsvButton, PrintButton } from "@/components/feedback/export-buttons";
+import { TermHint } from "@/components/domain/term-hint";
 import { NutritionPlanForm } from "@/components/domain/nutrition-plan-form";
 import { BoutPhaseBadge, Gate1Badge, SuspensionStateBadge, WeightStatusBadge } from "@/components/domain/status-badges";
 import { FlashToast } from "@/components/medical/flash-toast";
@@ -14,7 +17,6 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import { PageHeader } from "@/components/ui/page-header";
 import { canAccessFighter } from "@/lib/auth/access";
-import { isDemoAuthEnabled } from "@/lib/auth/constants";
 import { requireRole } from "@/lib/auth/session";
 import { boutLimitKg, isRunningPhase, type CampBout, type Suspension } from "@/lib/domain/bout";
 import {
@@ -30,17 +32,18 @@ import {
     requirementsOverdue,
     weighInOn,
 } from "@/lib/domain/bout-rules";
-import { weighInCountdown } from "@/lib/domain/nutrition";
+import { campTimeline } from "@/lib/domain/camp-timeline";
+import { nutritionPhaseFor, weighInCountdown } from "@/lib/domain/nutrition";
 import { describeRule, suggestSuspension, suspensionReasonFor, suspensionState } from "@/lib/domain/bout-suspension-rules";
 import { kgLabel } from "@/lib/domain/weight-input";
-import { dayKey, daysBetweenKeys, formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { academyDayStartIso, dayKey, daysBetweenKeys, formatDate, formatDateTime, formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
 import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { getCampBout, getRuleset, getWeightTrack, knockoutHistory, listSuspensions, wayOffForBout } from "@/lib/services/bouts";
 import { getFighter } from "@/lib/services/people";
-import { getPlan, listPlans } from "@/lib/services/training";
+import { getPlan, listPlans, listSessions } from "@/lib/services/training";
 import { param } from "@/lib/utils";
 import { CancelBoutButton, EditBoutButton, EnterFightWeekForm, LinkCampButton, ResultButton, WeighInButton } from "./bout-actions";
 import { MedicalChecklist } from "./medical-checklist";
@@ -77,7 +80,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
     const { t, locale } = await getTranslator();
     const now = new Date();
     const todayOn = dayKey(now);
-    const [track, fighter, wayOff, ruleset, plans, linkedPlan, suspensions, priorKnockouts] = await Promise.all([
+    const [track, fighter, wayOff, ruleset, plans, linkedPlan, suspensions, priorKnockouts, campSessions] = await Promise.all([
         getWeightTrack(bout.id, now),
         getFighter(bout.fighterId),
         wayOffForBout(bout.id, todayOn),
@@ -86,6 +89,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
         bout.trainingPlanId ? getPlan(bout.trainingPlanId) : null,
         listSuspensions([bout.fighterId]),
         knockoutHistory(bout.fighterId),
+        bout.phase === "CANCELLED" ? [] : listSessions({ fighterIds: [bout.fighterId], from: academyDayStartIso(bout.campStartedOn), to: bout.boutAt }),
     ]);
     const fighterName = fighter?.name ?? t("boutDetail.fighterFallback");
     const gate = boutGate1(bout);
@@ -103,6 +107,18 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
             period: `${formatDate(plan.startDate, locale)} – ${plan.endDate ? formatDate(plan.endDate, locale) : t("boutDetail.planOpenEnded")}`,
         }));
     const boutSuspensions = suspensions.filter((item) => item.boutId === bout.id);
+    const timeline =
+        bout.phase === "CANCELLED"
+            ? null
+            : campTimeline({
+                  startOn: bout.campStartedOn,
+                  weighInOn: dayKey(bout.weighInAt),
+                  boutOn: dayKey(bout.boutAt),
+                  todayOn,
+                  fightWeekDays: bout.fightWeekDays,
+                  sessions: campSessions.map((session) => ({ id: session.id, title: session.title, type: session.type, status: session.status, on: dayKey(session.scheduledAt) })),
+                  suspensions: suspensions.map((item) => ({ id: item.id, from: item.startsOn, to: item.endsOn })),
+              });
     const lang: Lang = { t, locale };
 
     const canAccessRingsideTools = bout.phase === "WEIGHED_IN" || bout.phase === "COMPLETED";
@@ -111,23 +127,28 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
         <>
             <FlashToast notice={flash ? { ...flash, tone: "success" } : null} cleanHref={routes.coach.bout(bout.id)} />
             <PageHeader
-                eyebrow={t("boutDetail.header.eyebrow")}
                 back={{ href: routes.coach.bouts, label: t("boutDetail.header.back") }}
                 title={bout.event}
                 description={`${fighterName} · ${bout.opponent ?? t("boutDetail.header.opponentTba")}`}
                 meta={
                     <>
                         <BoutPhaseBadge phase={bout.phase} locale={locale} />
-                        {track && isRunningPhase(bout.phase) && <WeightStatusBadge status={track.status} locale={locale} />}
+                        {track && track.status !== "NEUTRAL" && isRunningPhase(bout.phase) && <WeightStatusBadge status={track.status} locale={locale} />}
                     </>
                 }
                 actions={
-                    (canEditSchedule(bout.phase) || canCancel(bout.phase)) && (
-                        <>
-                            {canEditSchedule(bout.phase) && <EditBoutButton bout={bout} ruleset={ruleset} todayOn={todayOn} />}
-                            {canCancel(bout.phase) && <CancelBoutButton bout={bout} />}
-                        </>
-                    )
+                    <>
+                        <PrintButton />
+                        {track && (
+                            <CsvButton
+                                filename={`can-nang-${bout.id}.csv`}
+                                header={[t("ux.export.col.date"), t("ux.export.col.weightKg"), t("ux.export.col.planAnswer")]}
+                                rows={track.points.map((point) => [point.date, point.kg, point.adherence ? t(`boutLabel.adherence.${point.adherence}`) : null])}
+                            />
+                        )}
+                        {canEditSchedule(bout.phase) && <EditBoutButton bout={bout} ruleset={ruleset} todayOn={todayOn} />}
+                        {canCancel(bout.phase) && <CancelBoutButton bout={bout} />}
+                    </>
                 }
             />
 
@@ -190,15 +211,14 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                 </CardContent>
             </Card>
 
+            {timeline && <CampTimeline model={timeline} sessionHref={routes.coach.session} locale={locale} />}
+
             {bout.phase !== "CANCELLED" && (
                 <Card className="mb-6 min-w-0">
                     <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
                             <p className="text-sm font-semibold text-fg">
                                 {t(canAccessRingsideTools ? "boutAnalysis.nav.ringsideTitle" : "boutAnalysis.nav.analysisTitle")}
-                            </p>
-                            <p className="text-xs text-fg-muted">
-                                {t(canAccessRingsideTools ? "boutAnalysis.nav.ringsideDesc" : "boutAnalysis.nav.analysisDesc")}
                             </p>
                         </div>
                         <div className="flex flex-wrap items-center gap-2">
@@ -219,6 +239,15 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                                         <span>{t("boutAnalysis.nav.rounds")}</span>
                                     </Link>
                                 </>
+                            )}
+                            {bout.phase === "COMPLETED" && (
+                                <Link
+                                    href={`${routes.coach.bout(bout.id)}/report`}
+                                    className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-surface px-3.5 text-xs font-semibold text-fg transition hover:bg-surface-muted"
+                                >
+                                    <Trophy aria-hidden className="size-3.5 shrink-0" />
+                                    <span>{t("boutAnalysis.nav.report")}</span>
+                                </Link>
                             )}
                             <Link
                                 href={`${routes.coach.bout(bout.id)}/opponent-analysis`}
@@ -249,9 +278,9 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                     />
                     {isRunningPhase(bout.phase) && (
                         <Card>
-                            <CardHeader title={t("boutDetail.mealPlan.title")} description={t("boutDetail.mealPlan.description")} />
+                            <CardHeader title={t("boutDetail.mealPlan.title")} />
                             <CardContent>
-                                <NutritionPlanForm boutId={bout.id} plan={bout.nutritionPlan} authorName={user.name} />
+                                <NutritionPlanForm boutId={bout.id} plan={bout.nutritionPlan} authorName={user.name} currentPhase={nutritionPhaseFor(bout.phase)} />
                             </CardContent>
                         </Card>
                     )}
@@ -304,7 +333,12 @@ function NextStepCard({
         return (
             <Card>
                 <CardHeader
-                    title={t("boutDetail.next.fightWeek.title")}
+                    title={
+                        <span className="inline-flex items-center gap-1">
+                            {t("boutDetail.next.fightWeek.title")}
+                            <TermHint term="fightWeek" locale={locale} />
+                        </span>
+                    }
                     description={
                         early
                             ? t("boutDetail.next.fightWeek.opensOn", { date: formatDate(opensOn, locale), days: bout.fightWeekDays })
@@ -335,7 +369,7 @@ function NextStepCard({
                 <CardHeader title={t("boutDetail.common.result")} description={t("boutDetail.next.result.description", { date: formatDateTime(bout.boutAt, locale) })} />
                 <CardContent>
                     {check.ok ? (
-                        <ResultButton bout={bout} asksSuspensionDays={!isDemoAuthEnabled()} />
+                        <ResultButton bout={bout} />
                     ) : (
                         <InlineNote icon={CalendarClock}>{t("boutDetail.next.result.notYet", { date: formatDate(bout.boutAt, locale) })}</InlineNote>
                     )}
@@ -477,7 +511,12 @@ function SuspensionCard({
     return (
         <Card>
             <CardHeader
-                title={t("boutDetail.suspension.title")}
+                title={
+                    <span className="inline-flex items-center gap-1">
+                        {t("boutDetail.suspension.title")}
+                        <TermHint term="suspension" locale={locale} />
+                    </span>
+                }
                 description={
                     needsConfirmation
                         ? suggestion

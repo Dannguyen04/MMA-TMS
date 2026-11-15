@@ -9,6 +9,8 @@ import { requireRole } from "@/lib/auth/session";
 import { routes } from "@/lib/routes";
 import { listClearances, listExaminations, listInjuries, listRecoveryPlans, listReviewRequests } from "@/lib/services/medical";
 import { listFighters } from "@/lib/services/people";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type MessageKey } from "@/lib/i18n/translate";
 import { param } from "@/lib/utils";
 
 type Kind = "exam" | "injury" | "plan" | "clearance" | "request";
@@ -22,11 +24,18 @@ interface Ev {
     href?: string;
     tone?: Tone;
 }
-const KIND: Record<Kind, string> = { exam: "Phiếu khám", injury: "Chấn thương", plan: "Phục hồi", clearance: "Giấy phép", request: "Yêu cầu" };
+const KIND: Record<Kind, MessageKey> = {
+    exam: "doctorViews.history.kind.exam",
+    injury: "doctorViews.history.kind.injury",
+    plan: "doctorViews.history.kind.plan",
+    clearance: "doctorViews.history.kind.clearance",
+    request: "doctorViews.history.kind.request",
+};
 
 /** Lịch sử y tế: dòng thời gian dựng lại từ các danh sách đã có (khám, chấn thương, kế hoạch, giấy phép, yêu cầu xem xét). */
 export async function HistoryView({ query, fighterId: scopedId }: { query: Record<string, string | string[] | undefined>; fighterId?: string }) {
     const user = await requireRole("doctor");
+    const { t, locale } = await getTranslator();
     const requested = scopedId ?? param(query.fighter);
     const fighterId = requested && canAccessFighter(user, requested) ? requested : undefined;
     const kind = (Object.keys(KIND) as Kind[]).find((k) => k === param(query.kind));
@@ -41,19 +50,24 @@ export async function HistoryView({ query, fighterId: scopedId }: { query: Recor
     ]);
     const nameOf = new Map(fighters.map((f) => [f.id, f.name]));
     const events: Ev[] = [
-        ...exams.map<Ev>((e) => ({ id: e.id, at: e.date, kind: "exam", fighterId: e.fighterId, title: e.type ? EXAM_TYPE[e.type] : "Phiếu khám", detail: e.outcome ? OUTCOME[e.outcome].label : "Chưa kết luận", tone: e.outcome ? OUTCOME[e.outcome].tone : "neutral", href: routes.doctor.fighterExamination(e.fighterId, e.id) })),
-        ...injuries.map<Ev>((i) => ({ id: i.id, at: i.occurredAt, kind: "injury", fighterId: i.fighterId, title: `${injuryName(i)} · ${injuryPlace(i)}`, detail: INJURY_STATUS[i.status].label, tone: INJURY_STATUS[i.status].tone, href: routes.doctor.fighterInjury(i.fighterId, i.id) })),
-        ...plans.map<Ev>((p) => ({ id: p.id, at: p.startDate, kind: "plan", fighterId: p.fighterId, title: p.title, detail: PLAN_STATUS[p.status].label, tone: PLAN_STATUS[p.status].tone, href: routes.doctor.fighterRecoveryPlan(p.fighterId, p.id) })),
+        ...exams.map<Ev>((e) => ({ id: e.id, at: e.date, kind: "exam", fighterId: e.fighterId, title: t(e.type ? EXAM_TYPE[e.type] : "doctorViews.history.kind.exam"), detail: e.outcome ? t(OUTCOME[e.outcome].label) : t("doctorViews.history.noOutcome"), tone: e.outcome ? OUTCOME[e.outcome].tone : "neutral", href: routes.doctor.fighterExamination(e.fighterId, e.id) })),
+        ...injuries.map<Ev>((i) => ({ id: i.id, at: i.occurredAt, kind: "injury", fighterId: i.fighterId, title: `${injuryName(t, i)} · ${injuryPlace(t, i)}`, detail: t(INJURY_STATUS[i.status].label), tone: INJURY_STATUS[i.status].tone, href: routes.doctor.fighterInjury(i.fighterId, i.id) })),
+        ...plans.map<Ev>((p) => ({ id: p.id, at: p.startDate, kind: "plan", fighterId: p.fighterId, title: p.title, detail: t(PLAN_STATUS[p.status].label), tone: PLAN_STATUS[p.status].tone, href: routes.doctor.fighterRecoveryPlan(p.fighterId, p.id) })),
         ...clearances.map<Ev>((c) => ({
             id: c.id,
             at: c.issuedAt,
             kind: "clearance",
             fighterId: c.fighterId,
-            title: c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level],
-            detail: c.status === "revoked" ? `Thu hồi ${fmtDate(c.revokedAt)}` : c.validUntil ? `Đến ${fmtDate(c.validUntil)}` : "Không thời hạn",
+            title: t(c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]),
+            detail:
+                c.status === "revoked"
+                    ? t("doctorViews.history.revokedOn", { date: fmtDate(c.revokedAt, locale) })
+                    : c.validUntil
+                      ? t("doctorViews.history.until", { date: fmtDate(c.validUntil, locale) })
+                      : t("doctorViews.history.noEnd"),
             tone: c.status === "revoked" ? "red" : c.status === "active" ? "green" : "neutral",
         })),
-        ...requests.map<Ev>((r) => ({ id: r.id, at: r.requestedAt, kind: "request", fighterId: r.fighterId, title: r.reason, detail: `${REQUESTER_ROLE[r.requesterRole]} · ${r.status === "OPEN" ? "Đang mở" : "Đã xử lý"}`, tone: r.status === "OPEN" ? "amber" : "neutral" })),
+        ...requests.map<Ev>((r) => ({ id: r.id, at: r.requestedAt, kind: "request", fighterId: r.fighterId, title: r.reason, detail: `${t(REQUESTER_ROLE[r.requesterRole])} · ${t(r.status === "OPEN" ? "doctorViews.history.open" : "doctorViews.history.handled")}`, tone: r.status === "OPEN" ? "amber" : "neutral" })),
     ]
         .filter((e) => !kind || e.kind === kind)
         .sort((a, b) => b.at.localeCompare(a.at));
@@ -64,25 +78,25 @@ export async function HistoryView({ query, fighterId: scopedId }: { query: Recor
 
     return (
         <>
-            <ListHead scoped={!!scopedId} title="Lịch sử y tế" sub={`${events.length} sự kiện`} />
+            <ListHead scoped={!!scopedId} title={t("doctorViews.history.title")} sub={plural(t, "doctorViews.history.count", events.length)} />
             <div className="yt-filters">
-                <nav className="yt-segs" aria-label="Loại sự kiện">
+                <nav className="yt-segs" aria-label={t("doctorViews.history.kinds")}>
                     <Link href={href()} aria-current={!kind ? "page" : undefined}>
-                        Tất cả
+                        {t("doctorViews.history.all")}
                     </Link>
                     {(Object.keys(KIND) as Kind[]).map((k) => (
                         <Link key={k} href={href(k)} aria-current={kind === k ? "page" : undefined}>
-                            {KIND[k]}
+                            {t(KIND[k])}
                         </Link>
                     ))}
                 </nav>
             </div>
-            {!scopedId && <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ kind }} />}
+            {!scopedId && <FighterFilter base={base} fighters={fighters} current={fighterId} extra={{ kind }} t={t} />}
             {events.length ? (
                 [...days].map(([day, list]) => (
                     <section key={day} className="yt-panel" data-shot={`day-${day}`}>
                         <header className="yt-panel-head">
-                            <h2>{fmtDate(`${day}T12:00:00+07:00`)}</h2>
+                            <h2>{fmtDate(`${day}T12:00:00+07:00`, locale)}</h2>
                         </header>
                         <div className="yt-tablewrap">
                             <table className="yt-table" style={{ tableLayout: "fixed" }}>
@@ -90,7 +104,7 @@ export async function HistoryView({ query, fighterId: scopedId }: { query: Recor
                                     {list.map((e) => (
                                         <tr key={`${e.kind}-${e.id}`}>
                                             <td style={{ width: 120 }}>
-                                                <Pill>{KIND[e.kind]}</Pill>
+                                                <Pill>{t(KIND[e.kind])}</Pill>
                                             </td>
                                             <td>
                                                 {e.href ? (
@@ -104,7 +118,7 @@ export async function HistoryView({ query, fighterId: scopedId }: { query: Recor
                                             {!scopedId && (
                                                 <td className="yt-hide-sm" style={{ width: "22%" }}>
                                                     <Link className="yt-sublink" href={routes.doctor.fighter(e.fighterId)}>
-                                                        {nameOf.get(e.fighterId) ?? "Võ sĩ"}
+                                                        {nameOf.get(e.fighterId) ?? t("doctorViews.common.fighter")}
                                                     </Link>
                                                 </td>
                                             )}
@@ -117,7 +131,7 @@ export async function HistoryView({ query, fighterId: scopedId }: { query: Recor
                     </section>
                 ))
             ) : (
-                <Empty title="Chưa có sự kiện y tế" />
+                <Empty title={t("doctorViews.history.empty")} />
             )}
         </>
     );

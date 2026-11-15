@@ -34,7 +34,7 @@ export default async function ApplyPage({ searchParams }: PageProps<"/apply">) {
     const latestClosed = closed[0] ?? null;
 
     return (
-        <>
+        <div className="workspace-editorial">
             <FlashToast notice={passwordSet ? { tone: "success", title: t("screens.misc.apply.passwordSetTitle"), description: t("screens.misc.apply.passwordSetBody") } : null} cleanHref={routes.apply} />
             <PageHeader eyebrow="Lotus Combat Academy" title={t("applicant.applyTitle")} description={t("applicant.applyDescription")} />
             <div className="flex flex-col gap-6">
@@ -75,6 +75,6 @@ export default async function ApplyPage({ searchParams }: PageProps<"/apply">) {
                     </Card>
                 )}
             </div>
-        </>
+        </div>
     );
 }

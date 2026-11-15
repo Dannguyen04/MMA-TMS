@@ -90,9 +90,10 @@ export const backendFighterSchema = z.object({
     isActive: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    // Migration 034; null while unknown.
+    sex: z.enum(["MALE", "FEMALE"]).nullish(),
     // Not in the API yet.
     nickname: z.string().nullable().optional(),
-    sex: z.enum(["MALE", "FEMALE"]).optional(),
     weightKg: z.number().optional(),
     bodyFatPct: z.number().optional(),
     restingHeartRate: z.number().int().optional(),
@@ -116,6 +117,7 @@ const ownFighterProfileSchema = z.object({
     heightCm: z.number().nullish(),
     reachCm: z.number().nullish(),
     dominantStance: stanceSchema.nullish(),
+    sex: z.enum(["MALE", "FEMALE"]).nullish(),
 });
 
 /** `GET /fighters/:id/medical-summary`, which a fighter may read about themselves. */
@@ -273,7 +275,7 @@ export function accountProfileOf(record: Pick<BackendUser, "role" | "profile">):
         case "FIGHTER": {
             const parsed = ownFighterProfileSchema.safeParse(record.profile);
             if (!parsed.success) return null;
-            const { firstName, lastName, dateOfBirth, weightClass, dominantStance, nationality } = parsed.data;
+            const { firstName, lastName, dateOfBirth, weightClass, dominantStance, nationality, sex } = parsed.data;
             return {
                 role: "fighter",
                 profile: {
@@ -283,6 +285,7 @@ export function accountProfileOf(record: Pick<BackendUser, "role" | "profile">):
                     weightClass: weightClass.toLowerCase() as WeightClass,
                     dominantStance: dominantStance ? (dominantStance.toLowerCase() as Stance) : null,
                     nationality: nationality ?? null,
+                    sex: sex ? (sex.toLowerCase() as Sex) : null,
                 },
             };
         }
@@ -337,25 +340,44 @@ export async function listFighters(user: User, filter: FighterFilter = {}): Prom
 /** Đọc một hồ sơ võ sĩ; lỗi 404 được giữ tương thích dưới dạng null. */
 export async function getFighter(id: string): Promise<Fighter | null> {
     if (isDemoAuthEnabled()) return (await demoDb()).fighters.find((fighter) => fighter.id === id) ?? null;
+    return readApiFighter(id);
+}
+
+/**
+ * Whether the caller may read a fighter's measurements and coach assignments. The service grants
+ * `fighter.measurement:read` and `fighter.coach:read` to coaches (migration 010) and administrators (007) only: for a
+ * fighter or a sports doctor those reads can only answer 403, so they aren't sent.
+ */
+function readsCoachesAndMeasurements(user: Pick<User, "role"> | null): boolean {
+    return user?.role === "coach" || user?.role === "admin";
+}
+
+/**
+ * Read once per request, so a page and the services it calls (the health summary, each injury's detail) share one
+ * profile read instead of repeating it.
+ */
+const readApiFighter = cache(async (id: string): Promise<Fighter | null> => {
+    const user = await getCurrentUser();
+    const staffReads = readsCoachesAndMeasurements(user);
+    // The latest weigh-in and the current care team only fill fields the profile doesn't carry: when one of those
+    // reads fails, the profile still loads without them. The profile itself stays required.
     const [profile, measurement, coaches, doctors] = await Promise.all([
-        readFighterProfile(id),
-        latestMeasurement(id),
-        coachAssignmentsFor(id),
-        doctorAssignmentsFor(id),
+        readFighterProfile(id, user),
+        staffReads ? nullIfServiceFails(latestMeasurement(id)) : null,
+        staffReads ? nullIfServiceFails(coachAssignmentsFor(id)) : null,
+        nullIfServiceFails(doctorAssignmentsFor(id)),
     ]);
     if (!profile) return null;
     const fighter = adaptBackendFighter(profile);
-    // One profile read is worth the extra requests: the latest weigh-in and the current care team fill fields
-    // the profile itself doesn't carry.
     return {
         ...fighter,
         weightKg: fighter.weightKg ?? measurement?.weightKg ?? null,
         heightCm: fighter.heightCm ?? measurement?.heightCm ?? null,
         reachCm: fighter.reachCm ?? measurement?.reachCm ?? null,
-        coachIds: fighter.coachIds.length > 0 ? fighter.coachIds : [...new Set(coaches.filter(isCurrent).map((a) => a.coachId))],
-        doctorIds: fighter.doctorIds.length > 0 ? fighter.doctorIds : [...new Set(doctors.filter(isCurrent).map((a) => a.doctorId))],
+        coachIds: fighter.coachIds.length > 0 ? fighter.coachIds : [...new Set((coaches ?? []).filter(isCurrent).map((a) => a.coachId))],
+        doctorIds: fighter.doctorIds.length > 0 ? fighter.doctorIds : [...new Set((doctors ?? []).filter(isCurrent).map((a) => a.doctorId))],
     };
-}
+});
 
 /** A doctor's assigned fighters, read once per request. */
 const assignedFighters = cache((rosterPath: string) => drainNumberedPages(rosterPath, backendFighterSchema));
@@ -365,8 +387,7 @@ const assignedFighters = cache((rosterPath: string) => drainNumberedPages(roster
  * doctors nor fighters have the fighter-directory permission behind `GET /fighters/:id`: a doctor's fighters come
  * from their assigned roster, and a fighter's own profile from `/users/me`.
  */
-async function readFighterProfile(id: string): Promise<BackendFighter | null> {
-    const user = await getCurrentUser();
+async function readFighterProfile(id: string, user: User | null): Promise<BackendFighter | null> {
     if (user?.role === "doctor") return (await assignedFighters(fighterRosterPath(user))).find((fighter) => fighter.id === id) ?? null;
     if (user?.role === "fighter") return user.profileId === id ? ownFighterProfile() : null;
     return nullIfNotFound(authenticatedApiRequest(`/fighters/${encodeURIComponent(id)}`, backendFighterSchema));
@@ -388,6 +409,7 @@ async function ownFighterProfile(): Promise<BackendFighter | null> {
         heightCm: profile.data.heightCm ?? null,
         reachCm: profile.data.reachCm ?? null,
         dominantStance: profile.data.dominantStance ?? null,
+        sex: profile.data.sex ?? null,
         currentMedicalStatus,
         isActive: account.isActive,
         createdAt: account.createdAt,
@@ -478,7 +500,8 @@ const scopedStaff = cache(async (): Promise<{ coaches: Coach[]; doctors: Doctor[
     const [ids, user] = await Promise.all([listScopedFighterIds(), getCurrentUser()]);
     const lists = <T>(read: (fighterId: string) => Promise<T[]>) => Promise.all(ids.map(async (id) => (await nullIfServiceFails(read(id))) ?? []));
     const [coachLists, doctorLists, self] = await Promise.all([
-        lists(coachAssignmentsFor),
+        // Fighters and sports doctors may not read coach assignments (see `readsCoachesAndMeasurements`): they get no coach names.
+        readsCoachesAndMeasurements(user) ? lists(coachAssignmentsFor) : [],
         lists(doctorAssignmentsFor),
         user?.role === "coach" ? getCoachByUserId(user.id) : null,
     ]);

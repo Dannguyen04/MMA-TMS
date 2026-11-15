@@ -1,5 +1,5 @@
 import { trimToNull } from "@/lib/utils";
-import type { Role, Stance, WeightClass } from "./types";
+import type { Role, Sex, Stance, WeightClass } from "./types";
 
 /**
  * Accounts as the user service creates and edits them: each role's profile, and the request bodies built from
@@ -14,6 +14,8 @@ export interface FighterProfileFields {
     weightClass: WeightClass;
     dominantStance: Stance | null;
     nationality: string | null;
+    /** Picks the 3D body (female or male); null when not recorded. */
+    sex: Sex | null;
 }
 
 export interface CoachProfileFields {
@@ -57,6 +59,7 @@ function profileBody(account: AccountProfile): Record<string, unknown> | null {
                 weightClass: account.profile.weightClass.toUpperCase(),
                 dominantStance: account.profile.dominantStance?.toUpperCase() ?? null,
                 nationality: trimToNull(account.profile.nationality),
+                sex: account.profile.sex?.toUpperCase() ?? null,
             };
         case "coach":
             return { ...names, specialization: trimToNull(account.profile.specialization), isHeadCoach: account.profile.isHeadCoach };

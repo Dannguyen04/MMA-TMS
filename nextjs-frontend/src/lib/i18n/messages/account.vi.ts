@@ -6,7 +6,6 @@ import type { enAccount } from "./account.en";
 export const viAccount: Record<keyof typeof enAccount, string> = {
     /* Preferences */
     "account.preferences.title": "Tùy chọn",
-    "account.preferences.description": "Tùy chỉnh giao diện MMA-TMS, các thông báo bạn nhận và cách hiển thị ngày giờ.",
     "account.preferences.profileButton": "Hồ sơ",
     "account.preferences.sectionsNav": "Các mục tùy chọn",
     "account.preferences.nav.appearance": "Giao diện",
@@ -17,7 +16,6 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
 
     /* Appearance */
     "account.appearance.title": "Giao diện",
-    "account.appearance.description": "Sáng, tối hoặc theo thiết bị của bạn.",
     "account.appearance.systemDesc": "Theo thiết bị của bạn{status}. Áp dụng ngay và được lưu trên trình duyệt này.",
     "account.appearance.deviceDark": " — hiện là tối",
     "account.appearance.deviceLight": " — hiện là sáng",
@@ -27,7 +25,6 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
     "account.regional.title": "Ngôn ngữ & vùng",
     "account.regional.description": "Ngày và giờ luôn tính theo giờ học viện.",
     "account.regional.language": "Ngôn ngữ",
-    "account.regional.languageHint": "Tiếng Việt hiện đã khả dụng.",
     "account.regional.timezone": "Múi giờ",
     "account.regional.timezoneHint": "Do học viện thiết lập để giờ tập hiển thị thống nhất cho mọi người, dù đăng nhập từ đâu.",
     "account.regional.formatTitle": "Định dạng ngày và giờ",
@@ -41,7 +38,6 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
 
     /* Accessibility */
     "account.a11y.title": "Trợ năng",
-    "account.a11y.description": "Chuyển động và phím tắt.",
     "account.a11y.reduceMotion": "Giảm chuyển động",
     "account.a11y.reduceMotionDesc": "Theo hệ điều hành của bạn. Khi bật, hoạt ảnh, chuyển cảnh tiến trình và hiệu ứng biểu đồ được giảm tối đa. Bạn có thể đổi trong cài đặt thiết bị — trên Windows tại Trợ năng › Hiệu ứng hình ảnh › Hiệu ứng hoạt ảnh, trên macOS và iOS tại Trợ năng › Chuyển động.",
     "account.a11y.checking": "Đang kiểm tra…",
@@ -77,7 +73,6 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
 
     /* Notification preferences */
     "account.notifications.title": "Thông báo",
-    "account.notifications.description": "Chọn cập nhật nào hiển thị trong ứng dụng và cập nhật nào gửi thêm qua email.",
     "account.notifications.tableCaption": "Kênh nhận thông báo theo danh mục",
     "account.notifications.thCategory": "Danh mục",
     "account.notifications.thInApp": "Trong ứng dụng",
@@ -93,7 +88,6 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
 
     /* Profile page & Identity */
     "account.profile.title": "Hồ sơ",
-    "account.profile.description": "Chi tiết tài khoản của bạn và cách hiển thị với toàn học viện.",
     "account.profile.loading": "Đang tải hồ sơ",
     "account.profile.email": "Email",
     "account.profile.phone": "Số điện thoại",
@@ -102,7 +96,6 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
     "account.profile.lastActive": "Hoạt động lần cuối",
     "account.profile.notSignedInYet": "Chưa đăng nhập lần nào",
     "account.profile.editTitle": "Chỉnh sửa hồ sơ",
-    "account.profile.editDescription": "Cách tên và thông tin liên hệ của bạn hiển thị với đội ngũ.",
     "account.profile.fullName": "Họ và tên",
     "account.profile.phoneHint": "Bao gồm mã quốc gia, ví dụ +84 90 123 4567. Huấn luyện viên và bác sĩ có thể nhìn thấy số này.",
     "account.profile.accountHint": "Email và chức danh do quản trị viên học viện quản lý.",
@@ -169,7 +162,6 @@ export const viAccount: Record<keyof typeof enAccount, string> = {
 
     /* Care team */
     "account.careTeam.title": "Đội ngũ chăm sóc",
-    "account.careTeam.description": "Các huấn luyện viên và bác sĩ thể thao được phân công cho bạn.",
     "account.careTeam.coaches": "Huấn luyện viên",
     "account.careTeam.noCoaches": "Chưa có huấn luyện viên nào được phân công. Học viện sẽ chỉ định huấn luyện viên trưởng.",
     "account.careTeam.primaryCoach": "Huấn luyện viên chính",

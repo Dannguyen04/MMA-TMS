@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { Logo } from "@/components/brand/logo";
-import { buttonClasses } from "@/components/ui/button";
 import { getTranslator } from "@/lib/i18n/server";
 import { CHAPTER_NAV } from "./landing-data";
 
@@ -15,18 +14,11 @@ export async function LandingHeader({ primaryHref, primaryLabel }: { primaryHref
                 </Link>
                 <nav aria-label={t("landing.header.navAria")} className="flex items-center gap-1 sm:gap-2">
                     {CHAPTER_NAV.slice(0, 4).map((chapter) => (
-                        <Link key={chapter.id} href={`#${chapter.id}`} className="hidden rounded-lg px-3 py-2 text-sm font-medium text-nav-fg transition-colors hover:text-white lg:inline-flex">
+                        <Link key={chapter.id} href={`#${chapter.id}`} className="hidden rounded-lg px-3 py-2 text-sm font-medium text-nav-fg transition-colors hover:text-nav-fg-active lg:inline-flex">
                             {t(chapter.labelKey)}
                         </Link>
                     ))}
-                    <Link
-                        href={primaryHref}
-                        className={buttonClasses({
-                            variant: "secondary",
-                            size: "sm",
-                            className: "ml-2 border-white/15 bg-white/8 text-white shadow-none backdrop-blur-md hover:bg-white/14 hover:text-white",
-                        })}
-                    >
+                    <Link href={primaryHref} className="landing-header-cta ml-2">
                         {primaryLabel}
                     </Link>
                 </nav>

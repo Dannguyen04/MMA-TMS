@@ -12,7 +12,6 @@ export const viScreensRoster = {
     "screens.roster.daysToGo": "Còn {n} ngày",
 
     /* Roster page */
-    "screens.roster.description": "Danh sách {count} của bạn — sức khỏe, cấp phép y tế, {performance}và lịch trình sắp tới.",
     "screens.roster.trend.improving": "Đang tiến bộ",
     "screens.roster.trend.steady": "Ổn định",
     "screens.roster.trend.declining": "Đang giảm",
@@ -34,7 +33,6 @@ export const viScreensRoster = {
     "screens.roster.table.tooEarly": "Còn quá sớm",
 
     /* Profile header */
-    "screens.roster.header.eyebrow": "Hồ sơ võ sĩ",
 
     /* Profile overview */
     "screens.roster.overview.openTraining": "Mở tập luyện",

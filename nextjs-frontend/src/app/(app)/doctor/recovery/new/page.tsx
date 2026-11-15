@@ -5,11 +5,15 @@ import { injuryOwner } from "@/components/doctor/views/injury-detail";
 import { NewRecoveryView } from "@/components/doctor/views/new-recovery-view";
 import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
+import { getTranslator } from "@/lib/i18n/server";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { param } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Kế hoạch phục hồi mới" };
+export async function generateMetadata(): Promise<Metadata> {
+    const { t } = await getTranslator();
+    return { title: t("doctorPages.meta.newRecoveryPlan") };
+}
 
 /** For a known fighter (named, or the owner of the injury) the form opens inside their profile. */
 export default async function NewRecoveryPlanPage({ searchParams }: PageProps<"/doctor/recovery/new">) {

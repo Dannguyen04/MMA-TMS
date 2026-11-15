@@ -2,7 +2,7 @@ export type { SuspensionReason } from "./types";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { sessionTypeFor } from "./training-contract";
 import type {
     AffectedPlan,
@@ -771,7 +771,7 @@ export function suspensionReasonLabel(rawReason: string, t?: Translator): string
  * suspensions without graded return (active/blocking) take precedence over graded returns;
  * within the same group, the one with the latest endsOn is chosen.
  */
-export function pickPrimarySuspension(suspensions: readonly TrainingBlockingSuspension[]): TrainingBlockingSuspension | null {
+export function pickPrimarySuspension<T extends TrainingBlockingSuspension>(suspensions: readonly T[]): T | null {
     if (suspensions.length === 0) return null;
     if (suspensions.length === 1) return suspensions[0];
 

@@ -104,7 +104,6 @@ export default async function FighterHistoryPage({ searchParams }: PageProps<"/f
         <>
             <PageHeader
                 title={t("training.fighterHistory.title")}
-                description={t("training.fighterHistory.description")}
             />
 
             <div className="flex flex-col gap-6">

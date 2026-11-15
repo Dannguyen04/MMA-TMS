@@ -118,6 +118,8 @@ export const enBoutMessages = {
     "boutMsg.api.resultInvalid": "The service didn't accept this result. Check the fields and try again.",
     "boutMsg.api.stateChanged": "The bout has just moved on. Reload the page.",
     "boutMsg.api.suspensionDaysRequired": "This bout's ruleset suggests no suspension length. Enter the days the event rules set, then save again.",
+    "boutMsg.api.suspensionDaysDiffer": "This bout's ruleset suggests {days} days of suspension. Leave the days empty to use them, or enter {days}.",
+    "boutMsg.api.suspensionDaysDifferFromRuleset": "The ruleset suggests a different number of days. Leave the days empty to use its suggestion.",
     "boutMsg.api.suspensionAlreadyCleared": "The fighter was already cleared to train. Reload the page.",
     "boutMsg.api.missedOnService": "The weigh-in was saved as a miss. Choose a catchweight or cancel the bout.",
     "boutMsg.action.catchweightNote": "Note what was agreed, such as a purse penalty.",

@@ -7,17 +7,19 @@ import { AIGeneratedBadge, ReviewStateBadge } from "@/components/domain/status-b
 import { ConfidenceMeter } from "@/components/domain/confidence-meter";
 import { MetricTile } from "@/components/domain/metric-tile";
 import { TechniqueChip } from "@/components/domain/technique-chip";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { FINDING_IMPACT_LABELS, LIMB_LABELS, MOVEMENT_EVENT_LABELS, REVIEW_DECISION_LABELS } from "@/lib/domain/labels";
 import type { AIAnalysis, AIFinding, Detection, MovementEvent } from "@/lib/domain/types";
-import { formatConfidence, formatNumber, formatTimestamp } from "@/lib/format";
+import { formatNumber, formatTimestamp } from "@/lib/format";
+import type { Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
-import { byStart, detectionAt, eventsAt, findingsCiting, nextDetection, previousDetection, strikeObservation } from "@/lib/video/analysis-nav";
+import { byStart, detectionAt, eventsAt, findingsCiting, nextDetection, previousDetection } from "@/lib/video/analysis-nav";
 import { usePlayback, usePlaybackStore } from "./playback-store";
 import { useReview } from "./review-context";
 import { ReviewDialog } from "./review-dialog";
+import { combinationLabel, confidencePct, eventDetail, findingImpactLabel, limbLabel, movementEventLabel, possibleStrike, reviewDecisionLabel, splitPlaceholder, storedLabel, strikeWord } from "./video-copy";
 
 export interface MomentPanelProps {
     analysis: AIAnalysis;
@@ -32,6 +34,7 @@ export interface MomentPanelProps {
  */
 export function MomentPanel({ analysis, findings, onSelectFinding, className }: MomentPanelProps) {
     const store = usePlaybackStore();
+    const t = useT();
     const detections = useMemo(() => byStart(analysis.detections), [analysis.detections]);
     const detectionId = usePlayback((s) => detectionAt(detections, s.timeMs)?.id ?? null);
     const playing = usePlayback((s) => s.playing);
@@ -49,25 +52,29 @@ export function MomentPanel({ analysis, findings, onSelectFinding, className }: 
     return (
         <Card className={cn("min-w-0", className)}>
             <div className="flex items-center justify-between gap-3 px-4 pt-3.5 pb-2">
-                <h2 className="text-[15px] font-semibold text-fg">At this moment</h2>
+                <h2 className="text-[15px] font-semibold text-fg">{t("screens.video.moment.title")}</h2>
                 <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon-sm" onClick={() => jump("previous")} aria-label="Previous detection">
+                    <Button variant="ghost" size="icon-sm" onClick={() => jump("previous")} aria-label={t("screens.video.moment.previousDetection")}>
                         <ChevronLeft />
                     </Button>
                     <PlayheadClock />
-                    <Button variant="ghost" size="icon-sm" onClick={() => jump("next")} aria-label="Next detection">
+                    <Button variant="ghost" size="icon-sm" onClick={() => jump("next")} aria-label={t("screens.video.moment.nextDetection")}>
                         <ChevronRight />
                     </Button>
                 </div>
             </div>
             <p aria-live="polite" className="sr-only">
-                {playing ? "" : detection ? `${strikeObservation(detection.type)} at ${formatTimestamp(detection.peakMs)}, confidence: ${formatConfidence(detection.confidence)}.` : "No strike at the playhead."}
+                {playing
+                    ? ""
+                    : detection
+                      ? t("screens.video.moment.liveDetection", { strike: possibleStrike(t, detection.type), time: formatTimestamp(detection.peakMs), confidence: confidencePct(t, detection.confidence) })
+                      : t("screens.video.moment.noStrike")}
             </p>
             <div className="px-4 pb-4">
                 {detection ? (
-                    <DetectionMoment key={detection.id} detection={detection} analysis={analysis} findings={findings} onSelectFinding={onSelectFinding} />
+                    <DetectionMoment key={detection.id} detection={detection} analysis={analysis} findings={findings} onSelectFinding={onSelectFinding} t={t} />
                 ) : (
-                    <NoStrikeMoment events={analysis.movementEvents} onJump={jump} />
+                    <NoStrikeMoment events={analysis.movementEvents} onJump={jump} t={t} />
                 )}
             </div>
         </Card>
@@ -80,28 +87,28 @@ function PlayheadClock() {
     return <span className="min-w-14 text-center text-sm font-medium text-fg tabular-nums">{formatTimestamp(tenth * 100)}</span>;
 }
 
-function NoStrikeMoment({ events, onJump }: { events: MovementEvent[]; onJump: (direction: "previous" | "next") => void }) {
+function NoStrikeMoment({ events, onJump, t }: { events: MovementEvent[]; onJump: (direction: "previous" | "next") => void; t: Translator }) {
     const eventId = usePlayback((s) => eventsAt(events, s.timeMs)[0]?.id ?? null);
     const event = eventId ? (events.find((e) => e.id === eventId) ?? null) : null;
     return (
         <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center">
-            <p className="text-sm font-medium text-fg">No strike at the playhead</p>
+            <p className="text-sm font-medium text-fg">{t("screens.video.moment.noStrikeTitle")}</p>
             <p className="mt-1 text-[13px] text-fg-muted">
                 {event ? (
                     <>
-                        <span className="font-medium text-fg">{MOVEMENT_EVENT_LABELS[event.type]}</span> · {event.detail}
+                        <span className="font-medium text-fg">{movementEventLabel(t, event.type)}</span> · {eventDetail(t, event.detail)}
                     </>
                 ) : (
-                    "Play the clip or pick a marker on the timeline to see what the AI detected."
+                    t("screens.video.moment.noStrikeHint")
                 )}
             </p>
             <div className="mt-3 flex justify-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => onJump("previous")}>
                     <ChevronLeft aria-hidden />
-                    Previous strike
+                    {t("screens.video.moment.previousStrike")}
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => onJump("next")}>
-                    Next strike
+                    {t("screens.video.moment.nextStrike")}
                     <ChevronRight aria-hidden />
                 </Button>
             </div>
@@ -114,72 +121,78 @@ const DetectionMoment = memo(function DetectionMoment({
     analysis,
     findings,
     onSelectFinding,
+    t,
 }: {
     detection: Detection;
     analysis: AIAnalysis;
     findings: AIFinding[];
     onSelectFinding: (findingId: string) => void;
+    t: Translator;
 }) {
     const review = useReview();
+    const locale = useLocale();
     const titleId = useId();
     const [dialogOpen, setDialogOpen] = useState(false);
     const cited = findingsCiting(findings, detection.id);
     const combination = detection.combinationId ? analysis.combinations.find((c) => c.id === detection.combinationId) : null;
     const isKick = detection.type === "kick";
+    const [comboBefore, comboAfter] = splitPlaceholder(t("screens.video.moment.partOfCombination"), "label");
 
     return (
         <div className="flex flex-col gap-3">
             <div className="flex flex-wrap items-center gap-2">
                 <TechniqueChip technique={detection.type} />
                 <p id={titleId} tabIndex={-1} className="text-base font-semibold text-fg">
-                    {strikeObservation(detection.type)}
+                    {possibleStrike(t, detection.type)}
                 </p>
-                <span className="text-[13px] text-fg-muted">{LIMB_LABELS[detection.limb]}</span>
+                <span className="text-[13px] text-fg-muted">{limbLabel(t, detection.limb)}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-                <AIGeneratedBadge size="sm" label="AI detection" />
-                <ReviewStateBadge review={detection.review} confidence={detection.confidence} size="sm" />
+                <AIGeneratedBadge size="sm" label={t("screens.video.moment.aiDetection")} />
+                <ReviewStateBadge review={detection.review} confidence={detection.confidence} size="sm" locale={locale} />
             </div>
-            <ConfidenceMeter confidence={detection.confidence} label={`AI confidence for this ${detection.type}`} />
+            <ConfidenceMeter confidence={detection.confidence} label={t("screens.video.moment.confidenceFor", { strike: strikeWord(t, detection.type) })} locale={locale} />
 
             <div className="grid grid-cols-2 gap-2">
-                <MetricTile label="Peak speed (est.)" value={formatNumber(detection.peakSpeed, 1)} unit="m/s" />
-                <MetricTile label="Acceleration proxy" value={formatNumber(detection.accelerationProxy, 1)} unit="/ 10" />
-                <MetricTile label={isKick ? "Knee extension at peak" : "Elbow angle at peak"} value={`${detection.jointAngleDeg}°`} />
-                <MetricTile label="Hip rotation at peak" value={`${detection.hipRotationDeg}°`} />
+                <MetricTile label={t("screens.video.moment.peakSpeed")} value={formatNumber(detection.peakSpeed, 1)} unit="m/s" />
+                <MetricTile label={t("screens.video.moment.accelerationProxy")} value={formatNumber(detection.accelerationProxy, 1)} unit="/ 10" />
+                <MetricTile label={isKick ? t("screens.video.moment.kneeExtension") : t("screens.video.moment.elbowAngle")} value={`${detection.jointAngleDeg}°`} />
+                <MetricTile label={t("screens.video.moment.hipRotation")} value={`${detection.hipRotationDeg}°`} />
                 <div className="col-span-2 flex items-center justify-between gap-2 rounded-lg bg-surface-muted px-3 py-2 text-[13px]">
-                    <span className="text-fg-muted">Guard maintained</span>
+                    <span className="text-fg-muted">{t("screens.video.moment.guardMaintained")}</span>
                     {detection.guardMaintained ? (
                         <span className="inline-flex items-center gap-1 font-medium text-success-fg">
                             <CircleCheck aria-hidden className="size-4" />
-                            Yes
+                            {t("screens.video.moment.yes")}
                         </span>
                     ) : (
                         <span className="inline-flex items-center gap-1 font-medium text-warning-fg">
                             <CircleX aria-hidden className="size-4" />
-                            No — guard appears to drop
+                            {t("screens.video.moment.guardDrops")}
                         </span>
                     )}
                 </div>
             </div>
             {combination && (
                 <p className="text-[13px] text-fg-muted">
-                    Part of combination <span className="font-medium text-fg">{combination.label}</span>
+                    {comboBefore}
+                    <span className="font-medium text-fg">{combinationLabel(t, combination.label)}</span>
+                    {comboAfter}
                 </p>
             )}
 
             <div>
-                <h3 className="mb-2 text-xs font-semibold tracking-wide text-fg-subtle uppercase">Evidence chain</h3>
+                <h3 className="mb-2 text-xs font-semibold tracking-wide text-fg-subtle uppercase">{t("screens.video.moment.evidenceChain")}</h3>
                 <ol className="flex flex-col gap-2">
-                    <ChainStep icon={Crosshair} label="Detection" done>
-                        {strikeObservation(detection.type)} at {formatTimestamp(detection.peakMs)}
+                    <ChainStep icon={Crosshair} label={t("screens.video.moment.detection")} done>
+                        {t("screens.video.moment.detectionAt", { strike: possibleStrike(t, detection.type), time: formatTimestamp(detection.peakMs) })}
                     </ChainStep>
-                    <ChainStep icon={Gauge} label="Metrics" done>
-                        {formatNumber(detection.peakSpeed, 1)} m/s · {detection.jointAngleDeg}° · {detection.guardMaintained ? "guard kept" : "guard dropped"}
+                    <ChainStep icon={Gauge} label={t("screens.video.moment.metrics")} done>
+                        {formatNumber(detection.peakSpeed, 1)} m/s · {detection.jointAngleDeg}° · {detection.guardMaintained ? t("screens.video.moment.guardKept") : t("screens.video.moment.guardDropped")}
                     </ChainStep>
-                    <ChainStep icon={Sparkles} label="Findings" done={cited.length > 0}>
+                    <ChainStep icon={Sparkles} label={t("screens.video.moment.findings")} done={cited.length > 0}>
                         {cited.length === 0 ? (
-                            <span className="text-fg-muted">No finding cites this strike.</span>
+                            <span className="text-fg-muted">{t("screens.video.moment.noFinding")}</span>
                         ) : (
                             <ul className="mt-1 flex flex-col gap-1">
                                 {cited.map((finding) => (
@@ -191,7 +204,7 @@ const DetectionMoment = memo(function DetectionMoment({
                                         >
                                             <span className="min-w-0 flex-1">
                                                 <span className="block text-[13px] font-medium text-fg group-hover:underline">{finding.title}</span>
-                                                <span className="text-xs text-fg-muted">{FINDING_IMPACT_LABELS[finding.impact]}</span>
+                                                <span className="text-xs text-fg-muted">{findingImpactLabel(t, finding.impact)}</span>
                                             </span>
                                             <ArrowRight aria-hidden className="mt-0.5 size-3.5 shrink-0 text-fg-subtle" />
                                         </button>
@@ -200,15 +213,15 @@ const DetectionMoment = memo(function DetectionMoment({
                             </ul>
                         )}
                     </ChainStep>
-                    <ChainStep icon={UserCheck} label="Human review" done={detection.review !== null} last>
+                    <ChainStep icon={UserCheck} label={t("screens.video.moment.humanReview")} done={detection.review !== null} last>
                         {detection.review ? (
                             <>
-                                {REVIEW_DECISION_LABELS[detection.review.decision]} by {detection.review.reviewerName}
-                                {detection.review.correctedLabel && <> → “{detection.review.correctedLabel}”</>}
+                                {t("screens.video.moment.decisionBy", { decision: reviewDecisionLabel(t, detection.review.decision), name: detection.review.reviewerName })}
+                                {detection.review.correctedLabel && <> → “{storedLabel(t, detection.review.correctedLabel)}”</>}
                                 {detection.review.note && <span className="block text-fg-muted">“{detection.review.note}”</span>}
                             </>
                         ) : (
-                            <span className="text-fg-muted">Not reviewed yet</span>
+                            <span className="text-fg-muted">{t("screens.video.moment.notReviewed")}</span>
                         )}
                     </ChainStep>
                 </ol>
@@ -228,11 +241,11 @@ const DetectionMoment = memo(function DetectionMoment({
                         <input type="hidden" name="decision" value="confirmed" />
                         <SubmitButton size="sm" variant="secondary" disabled={detection.review?.decision === "confirmed"}>
                             <CircleCheck aria-hidden />
-                            {detection.review?.decision === "confirmed" ? "Confirmed" : "Confirm detection"}
+                            {detection.review?.decision === "confirmed" ? t("screens.video.confirmed") : t("screens.video.moment.confirmDetection")}
                         </SubmitButton>
                     </form>
                     <Button size="sm" variant="ghost" onClick={() => setDialogOpen(true)}>
-                        Correct or reject…
+                        {t("screens.video.moment.correctOrReject")}
                     </Button>
                 </div>
             )}

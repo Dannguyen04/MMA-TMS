@@ -37,6 +37,7 @@ export const migrationNames = [
   '031_bout_ai_suggestions.sql',
   '032_session_status_pending.sql',
   '033_suspension_early_end.sql',
+  '034_fighter_sex.sql',
 ];
 export function readVerifiedMigrations() {
   const manifest = JSON.parse(

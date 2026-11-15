@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 
 import type { Role } from "@/lib/domain/types";
 import { useT } from "@/components/i18n/locale-provider";
-import { navLabel } from "@/lib/i18n/translate";
+import { navLabel } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { BADGE_LABELS, URGENT_BADGES, isNavItemActive, navSectionsFor, type NavBadgeKey, type NavItem, type NavSection } from "./navigation";
 

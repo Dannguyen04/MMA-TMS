@@ -26,7 +26,6 @@ export const viBoutFighter = {
 
     /* Today's weight page */
     "boutFighter.weighIn.title": "Cân nặng hôm nay",
-    "boutFighter.weighIn.description": "Ghi cân nặng sáng nay. Lưu lại trong hôm nay sẽ thay số đã ghi trước đó.",
     "boutFighter.weighIn.back": "Trận đấu",
 
     /* Weigh-in form */
@@ -41,10 +40,9 @@ export const viBoutFighter = {
     "boutFighter.form.save": "Lưu",
 
     /* Nutrition plan form (coach) */
-    "boutFighter.plan.intro": "Viết những gì võ sĩ nên ăn trong từng giai đoạn. Ứng dụng lưu đúng những gì bạn nhập.",
+    "boutFighter.plan.currentPhase": "Đang áp dụng",
     "boutFighter.plan.lastEdited": "Sửa lần cuối: {name}, {date}",
     "boutFighter.plan.writtenBy": "Người viết",
-    "boutFighter.plan.writtenByHint": "Tên bạn, hoặc tên chuyên gia mà bạn chép lại.",
     "boutFighter.plan.saving": "Đang lưu",
     "boutFighter.plan.save": "Lưu kế hoạch",
 
@@ -66,7 +64,6 @@ export const viBoutFighter = {
     "boutFighter.weight.title": "Cân nặng",
     "boutFighter.weight.noWeight": "Chưa ghi cân",
     "boutFighter.weight.remaining": "Còn {pct}% cần giảm",
-    "boutFighter.weight.noWeightsInCamp": "Chưa ghi cân lần nào trong camp này.",
     "boutFighter.weight.logWeight": "Ghi cân",
     "boutFighter.weight.noBout": "Chưa có trận sắp tới",
     "boutFighter.weight.noWeightYet": "Chưa ghi cân",

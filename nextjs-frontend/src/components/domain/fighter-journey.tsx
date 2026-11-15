@@ -73,10 +73,10 @@ export function FighterJourney({ journey, variant = "full", ground, title, headi
                 <div className="flex flex-col gap-3 @3xl:flex-row @3xl:items-center @3xl:gap-6">
                     <Heading
                         id={headingId}
-                        className={cn("shrink-0 font-display text-[16px] font-bold tracking-[0.06em] uppercase", onHero ? "text-white" : "text-fg")}
+                        className={cn("shrink-0 font-display text-[16px] font-bold tracking-[0.06em] uppercase", onHero ? "text-primary-fg" : "text-fg")}
                     >
                         {heading}{" "}
-                        <span className={onHero ? "text-white/80" : "text-fg-muted"}>
+                        <span className={onHero ? "text-primary-fg/80" : "text-fg-muted"}>
                             <span aria-hidden>
                                 {journey.doneCount}/{total}
                             </span>
@@ -108,7 +108,7 @@ export function FighterJourney({ journey, variant = "full", ground, title, headi
                 </CornerTag>
                 <Heading
                     id={headingId}
-                    className={cn("font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]", onHero ? "text-white" : "text-fg")}
+                    className={cn("font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]", onHero ? "text-primary-fg" : "text-fg")}
                 >
                     {heading}
                 </Heading>
@@ -143,13 +143,13 @@ function FullStep({
         <li aria-current={isActive(step) ? "step" : undefined} className="flex min-w-0 items-start gap-3 @md:flex-col @md:items-stretch @md:gap-2">
             <span className="flex items-center gap-2">
                 <StatusIcon step={step} onHero={onHero} size="md" />
-                {!last && <span aria-hidden className={cn("hidden h-px flex-1 @xl:block", onHero ? "bg-white/35" : "bg-border-strong")} />}
+                {!last && <span aria-hidden className={cn("hidden h-px flex-1 @xl:block", onHero ? "bg-primary-fg/35" : "bg-border-strong")} />}
             </span>
             <span className="min-w-0">
                 <span className="sr-only">{statusLabel(step, t)}: </span>
                 <span className={cn("flex items-center gap-0.5 text-[13px] leading-snug", labelClass(step, onHero))}>
                     {step.label}
-                    {term && <TermHint term={term} locale={locale} className={onHero ? "text-white/80 hover:text-white" : undefined} />}
+                    {term && <TermHint term={term} locale={locale} className={onHero ? "text-primary-fg/80 hover:text-primary-fg" : undefined} />}
                 </span>
                 <span className={cn("mt-0.5 block text-[12px] leading-snug break-words", subClass(step, onHero))}>{stepSubline(step, journey, t)}</span>
             </span>
@@ -197,12 +197,12 @@ function NextAction({
 }) {
     const owner = step.status === "current" ? null : journeyOwnerLabel(step.owner, journey.viewer, t ?? undefined);
     return (
-        <div className={cn("flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between", onHero ? "border-white/20" : "border-border")}>
-            <p className={cn("flex min-w-0 items-start gap-1.5 text-[13px] text-pretty", onHero ? "text-white/80" : "text-fg-muted")}>
-                {step.attention && <ShieldAlert aria-hidden className={cn("mt-0.5 size-3.5 shrink-0", onHero ? "text-white" : "text-danger-fg")} />}
+        <div className={cn("flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-center sm:justify-between", onHero ? "border-primary-fg/20" : "border-border")}>
+            <p className={cn("flex min-w-0 items-start gap-1.5 text-[13px] text-pretty", onHero ? "text-primary-fg/80" : "text-fg-muted")}>
+                {step.attention && <ShieldAlert aria-hidden className={cn("mt-0.5 size-3.5 shrink-0", onHero ? "text-primary-fg" : "text-danger-fg")} />}
                 <span>
                     <span className="sr-only">{t ? t("screens.shared.journey.next") : "Next:"} </span>
-                    <span className={cn("font-medium", onHero ? "text-white" : "text-fg")}>{step.detail}</span>
+                    <span className={cn("font-medium", onHero ? "text-primary-fg" : "text-fg")}>{step.detail}</span>
                     {owner && <span> · {owner}</span>}
                 </span>
             </p>
@@ -233,7 +233,7 @@ function StatusIcon({ step, onHero, size }: { step: JourneyStep; onHero: boolean
                 className={cn(
                     "flex shrink-0 items-center justify-center rounded-full",
                     size === "sm" ? "size-5" : "size-7",
-                    onHero ? "bg-white text-hero-bg" : step.attention ? "bg-danger-soft text-danger-fg ring-1 ring-danger-border ring-inset" : "bg-primary text-primary-fg",
+                    onHero ? "bg-primary-fg text-hero-bg" : step.attention ? "bg-danger-soft text-danger-fg ring-1 ring-danger-border ring-inset" : "bg-primary text-primary-fg",
                 )}
             >
                 <Icon className={size === "sm" ? "size-3.5" : "size-4"} strokeWidth={2.25} />
@@ -241,7 +241,7 @@ function StatusIcon({ step, onHero, size }: { step: JourneyStep; onHero: boolean
         );
     }
     const tone =
-        step.status === "done" ? (onHero ? "text-white" : "text-success-fg") : onHero ? "text-white/80" : "text-fg-subtle";
+        step.status === "done" ? (onHero ? "text-primary-fg" : "text-success-fg") : onHero ? "text-primary-fg/80" : "text-fg-subtle";
     return (
         <span aria-hidden className={cn("flex shrink-0 items-center justify-center", size === "md" && "size-7")}>
             <Icon className={cn(glyph, tone)} strokeWidth={2} />
@@ -250,12 +250,12 @@ function StatusIcon({ step, onHero, size }: { step: JourneyStep; onHero: boolean
 }
 
 function labelClass(step: JourneyStep, onHero: boolean): string {
-    if (isActive(step)) return cn("font-semibold", onHero ? "text-white" : "text-fg");
-    if (step.status === "done") return onHero ? "font-medium text-white" : "text-fg-muted";
-    return onHero ? "text-white/80" : "text-fg-muted";
+    if (isActive(step)) return cn("font-semibold", onHero ? "text-primary-fg" : "text-fg");
+    if (step.status === "done") return onHero ? "font-medium text-primary-fg" : "text-fg-muted";
+    return onHero ? "text-primary-fg/80" : "text-fg-muted";
 }
 
 function subClass(step: JourneyStep, onHero: boolean): string {
-    if (isActive(step)) return onHero ? "text-white" : "text-fg";
-    return onHero ? "text-white/80" : "text-fg-subtle";
+    if (isActive(step)) return onHero ? "text-primary-fg" : "text-fg";
+    return onHero ? "text-primary-fg/80" : "text-fg-subtle";
 }

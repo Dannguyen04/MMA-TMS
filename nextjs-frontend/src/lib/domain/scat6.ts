@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { MessageKey } from "@/lib/i18n/translate";
+
 /**
  * The SCAT6 baseline record a BASELINE examination carries (official English form, adolescents 13+ and adults), as the
  * medical service takes it. Items are recorded by their position on the official form, never by its wording: the form's
@@ -340,19 +342,19 @@ export const scat6RecordSchema = z.object({
 });
 export type Scat6Record = z.infer<typeof scat6RecordSchema>;
 
-/** Scores worth reading at a glance, with the form's maximum where it has one. */
-export const SCAT6_SCORE_ROWS: { key: Exclude<keyof Scat6Scores, "complete" | "glasgowComaScale" | "immediateMemoryTrials">; label: string; max: number | null; unit?: "s" }[] = [
-    { key: "symptomCount", label: "Triệu chứng", max: SCAT6.SYMPTOMS },
-    { key: "symptomSeverity", label: "Mức độ triệu chứng", max: SCAT6.SYMPTOMS * SCAT6.SYMPTOM_MAX_RATING },
-    { key: "orientation", label: "Định hướng", max: SCAT6.ORIENTATION_QUESTIONS },
-    { key: "immediateMemory", label: "Trí nhớ tức thời", max: SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS },
-    { key: "concentration", label: "Tập trung", max: SCAT6.DIGIT_STRING_LENGTHS + 1 },
-    { key: "delayedRecall", label: "Nhớ lại có trì hoãn", max: SCAT6.WORDS_PER_LIST },
-    { key: "cognitiveTotal", label: "Tổng điểm nhận thức", max: SCAT6.ORIENTATION_QUESTIONS + SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS + SCAT6.DIGIT_STRING_LENGTHS + 1 + SCAT6.WORDS_PER_LIST },
-    { key: "maddocks", label: "Maddocks", max: SCAT6.MADDOCKS_QUESTIONS },
-    { key: "mbessFirmTotal", label: "Lỗi mBESS, nền cứng", max: SCAT6.MBESS_MAX_ERRORS * 3 },
-    { key: "mbessFoamTotal", label: "Lỗi mBESS, đệm xốp", max: SCAT6.MBESS_MAX_ERRORS * 3 },
-    { key: "tandemGaitFastestSeconds", label: "Đi nối gót, nhanh nhất", max: null, unit: "s" },
-    { key: "tandemGaitAverageSeconds", label: "Đi nối gót, trung bình", max: null, unit: "s" },
-    { key: "dualTaskGaitFastestSeconds", label: "Đi nhiệm vụ kép, nhanh nhất", max: null, unit: "s" },
+/** Scores worth reading at a glance, with the form's maximum where it has one. `label` is a message key (render `t(label)`). */
+export const SCAT6_SCORE_ROWS: { key: Exclude<keyof Scat6Scores, "complete" | "glasgowComaScale" | "immediateMemoryTrials">; label: MessageKey; max: number | null; unit?: "s" }[] = [
+    { key: "symptomCount", label: "doctorScat6.score.symptomCount", max: SCAT6.SYMPTOMS },
+    { key: "symptomSeverity", label: "doctorScat6.score.symptomSeverity", max: SCAT6.SYMPTOMS * SCAT6.SYMPTOM_MAX_RATING },
+    { key: "orientation", label: "doctorScat6.score.orientation", max: SCAT6.ORIENTATION_QUESTIONS },
+    { key: "immediateMemory", label: "doctorScat6.score.immediateMemory", max: SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS },
+    { key: "concentration", label: "doctorScat6.score.concentration", max: SCAT6.DIGIT_STRING_LENGTHS + 1 },
+    { key: "delayedRecall", label: "doctorScat6.score.delayedRecall", max: SCAT6.WORDS_PER_LIST },
+    { key: "cognitiveTotal", label: "doctorScat6.score.cognitiveTotal", max: SCAT6.ORIENTATION_QUESTIONS + SCAT6.WORDS_PER_LIST * SCAT6.MEMORY_TRIALS + SCAT6.DIGIT_STRING_LENGTHS + 1 + SCAT6.WORDS_PER_LIST },
+    { key: "maddocks", label: "doctorScat6.score.maddocks", max: SCAT6.MADDOCKS_QUESTIONS },
+    { key: "mbessFirmTotal", label: "doctorScat6.score.mbessFirmTotal", max: SCAT6.MBESS_MAX_ERRORS * 3 },
+    { key: "mbessFoamTotal", label: "doctorScat6.score.mbessFoamTotal", max: SCAT6.MBESS_MAX_ERRORS * 3 },
+    { key: "tandemGaitFastestSeconds", label: "doctorScat6.score.tandemGaitFastest", max: null, unit: "s" },
+    { key: "tandemGaitAverageSeconds", label: "doctorScat6.score.tandemGaitAverage", max: null, unit: "s" },
+    { key: "dualTaskGaitFastestSeconds", label: "doctorScat6.score.dualTaskGaitFastest", max: null, unit: "s" },
 ];

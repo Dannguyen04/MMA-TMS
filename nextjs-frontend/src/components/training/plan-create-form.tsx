@@ -5,7 +5,7 @@ import { useState, useTransition, type ReactNode } from "react";
 
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
-import { Term, TermHint } from "@/components/domain/term-hint";
+import { glossaryEntry, Term, TermHint } from "@/components/domain/term-hint";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChoiceGroup } from "@/components/ui/choice-group";
@@ -19,7 +19,7 @@ import { appendSuggestion, SuggestionChips } from "@/components/ui/suggestion-ch
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { loadPlanCopy } from "@/lib/actions/training";
-import { GLOSSARY, type GlossaryTerm } from "@/lib/domain/glossary";
+import type { GlossaryTerm } from "@/lib/domain/glossary";
 import { planStatusLabel, techniqueLabel, trainingPhaseLabel } from "@/lib/domain/labels";
 import {
     PHASE_OBJECTIVE_SUGGESTIONS,
@@ -33,7 +33,7 @@ import {
 } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, Technique, TrainingPhase } from "@/lib/domain/types";
 import { addDaysToKey, formatDate, academyDayStartIso, isDateKey } from "@/lib/format";
-import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { Callout } from "./callout";
 import { draftsFromPlanExercises, draftsFromTemplate, sentDrafts, serializePlanExerciseDrafts, type PlanCopy, type PlanExerciseDraft } from "./plan-drafts";
@@ -104,13 +104,22 @@ const STEP_NAMES: Record<string, MessageKey> = {
 
 const PHASES: TrainingPhase[] = ["base", "build", "fight_camp", "taper", "rehab", "maintenance"];
 
-/** A template's card copy in the viewer's language; the template file keeps the English that fills the form. */
+/** A template's copy in the viewer's language: its card and the title, objective and notes it fills in. */
 function templateLabel(t: Translator, template: PlanTemplate): string {
     return t(`screens.training.template.${template.id}.label` as MessageKey);
 }
 
 function templateSummary(t: Translator, template: PlanTemplate): string {
     return t(`screens.training.template.${template.id}.summary` as MessageKey);
+}
+
+function templateText(t: Translator, template: PlanTemplate, field: "objective" | "notes"): string {
+    return t(`screens.training.template.${template.id}.${field}` as MessageKey);
+}
+
+/** The phase's objective chips in the viewer's language (`PHASE_OBJECTIVE_SUGGESTIONS` keeps the English). */
+function objectiveSuggestions(t: Translator, phase: TrainingPhase): string[] {
+    return PHASE_OBJECTIVE_SUGGESTIONS[phase].map((_, index) => t(`screens.training.objectiveSuggestion.${phase}.${index}` as MessageKey));
 }
 
 /** "Fight camp template", or "Template" when the template is gone. */
@@ -225,11 +234,11 @@ export function PlanCreateForm({
         applied(
             { kind: "template", id: template.id },
             {
-                title: template.label,
+                title: templateLabel(t, template),
                 phase: template.phase,
                 endDate: planEndKey(isDateKey(values.startDate) ? values.startDate : today, template.weeks),
-                objective: template.objective,
-                notes: template.notes,
+                objective: templateText(t, template, "objective"),
+                notes: templateText(t, template, "notes"),
             },
             draftsFromTemplate(template, library, t),
         );
@@ -388,7 +397,7 @@ export function PlanCreateForm({
                             )}
                         </FormStep>
 
-                        <FormStep id="basics" title={t("screens.training.planCreate.step.basics")} description={t("screens.training.planCreate.basicsDesc")}>
+                        <FormStep id="basics" title={t("screens.training.planCreate.step.basics")}>
                             <div className="flex flex-col gap-5">
                                 <Field label={t("training.planForm.fighter")} htmlFor="plan-fighterId" required error={error("fighterId")} hint={t("training.planForm.hintFighter")}>
                                     <Select
@@ -427,7 +436,7 @@ export function PlanCreateForm({
                                     options={phaseOptions}
                                     value={values.phase}
                                     onChange={(next) => set("phase", next)}
-                                    hint={GLOSSARY[PHASE_TERM[values.phase]].definition}
+                                    hint={glossaryEntry(PHASE_TERM[values.phase], locale).definition}
                                     error={error("phase")}
                                 />
 
@@ -525,7 +534,7 @@ export function PlanCreateForm({
                                     </Field>
                                     <SuggestionChips
                                         label={t("screens.training.planCreate.ideas")}
-                                        suggestions={PHASE_OBJECTIVE_SUGGESTIONS[values.phase].map((suggestion) => ({ label: suggestion }))}
+                                        suggestions={objectiveSuggestions(t, values.phase).map((suggestion) => ({ label: suggestion }))}
                                         onPick={(value) => set("objective", appendSuggestion(values.objective, value))}
                                     />
                                 </div>

@@ -20,7 +20,7 @@ import { addPlanExercises, removePlanExercise, updatePlanExercise, type AddPlanE
 import type { GlossaryTerm } from "@/lib/domain/glossary";
 import { exerciseCategoryLabel } from "@/lib/domain/labels";
 import type { Exercise, PlanExercise } from "@/lib/domain/types";
-import { plural, type Translator } from "@/lib/i18n/translate";
+import { plural, type Translator } from "@/lib/i18n/translate-client";
 import { sentDrafts, serializePlanExerciseDrafts, type PlanExerciseDraft } from "./plan-drafts";
 import { PlanExerciseRows } from "./plan-exercise-rows";
 
@@ -69,7 +69,6 @@ export function PlanExercisesCard({ planId, items, library, editable }: PlanExer
         <Card className="min-w-0">
             <CardHeader
                 title={t("training.planExercises.title")}
-                description={t("training.planExercises.description")}
                 icon={<Dumbbell />}
                 action={
                     editable &&

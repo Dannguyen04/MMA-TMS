@@ -5,11 +5,13 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { preconnect } from "react-dom";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useT } from "@/components/i18n/locale-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { Spinner } from "@/components/ui/spinner";
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
 import { cn } from "@/lib/utils";
 
 /* ─── MediaPipe Pose (loaded on demand from the CDN) ──────────────────────── */
@@ -47,14 +49,14 @@ function preconnectPoseCdn() {
     preconnect(new URL(POSE_CDN).origin, { crossOrigin: "anonymous" });
 }
 
-function loadPoseScript(): Promise<void> {
+function loadPoseScript(downloadFailed: string): Promise<void> {
     if (window.Pose) return Promise.resolve();
     return new Promise((resolve, reject) => {
         const src = `${POSE_CDN}/pose.js`;
         const existing = document.querySelector<HTMLScriptElement>(`script[src="${src}"]`);
         const script = existing ?? document.createElement("script");
         script.addEventListener("load", () => resolve(), { once: true });
-        script.addEventListener("error", () => reject(new Error("The pose model couldn't be downloaded.")), { once: true });
+        script.addEventListener("error", () => reject(new Error(downloadFailed)), { once: true });
         if (!existing) {
             script.src = src;
             script.crossOrigin = "anonymous";
@@ -68,9 +70,9 @@ function loadPoseScript(): Promise<void> {
 type KickPhase = "guard" | "chambering" | "extending" | "recovering";
 type KickingLeg = "right" | "left";
 
-const LEG_OPTIONS: { value: KickingLeg; label: string }[] = [
-    { value: "right", label: "Right leg" },
-    { value: "left", label: "Left leg" },
+const LEG_OPTIONS: { value: KickingLeg; label: MessageKey }[] = [
+    { value: "right", label: "screens.video.live.rightLeg" as MessageKey },
+    { value: "left", label: "screens.video.live.leftLeg" as MessageKey },
 ];
 
 /** Overlay colours from design tokens. Read once per theme instead of on every pose frame. */
@@ -84,12 +86,6 @@ function readOverlayPalette(element: Element): OverlayPalette {
     return { bone: styles.getPropertyValue("--nav-fg-active").trim(), limb: styles.getPropertyValue("--chart-4").trim() };
 }
 
-const PHASE_LABELS: Record<KickPhase, string> = {
-    guard: "Guard",
-    chambering: "Chambering the knee",
-    extending: "Extending the kick",
-    recovering: "Recovering to stance",
-};
 
 /** MediaPipe landmark indices: hip, knee, ankle. */
 const LEG_LANDMARKS: Record<KickingLeg, [number, number, number]> = { right: [24, 26, 28], left: [23, 25, 27] };
@@ -97,7 +93,7 @@ const LEG_LANDMARKS: Record<KickingLeg, [number, number, number]> = { right: [24
 interface KickResult {
     id: number;
     score: number;
-    grade: string;
+    grade: Grade;
     chamberDeg: number;
     extensionDeg: number;
     fast: boolean;
@@ -109,11 +105,17 @@ function angleDeg(a: Landmark, b: Landmark, c: Landmark): number {
     return angle > 180 ? 360 - angle : angle;
 }
 
-function grade(score: number): string {
-    if (score >= 90) return "Excellent";
-    if (score >= 75) return "Good";
-    if (score >= 55) return "Fair";
-    return "Needs work";
+type Grade = "excellent" | "good" | "fair" | "needsWork";
+
+function grade(score: number): Grade {
+    if (score >= 90) return "excellent";
+    if (score >= 75) return "good";
+    if (score >= 55) return "fair";
+    return "needsWork";
+}
+
+function gradeLabel(t: Translator, value: Grade): string {
+    return t(`screens.video.live.grade.${value}`);
 }
 
 type CameraState =
@@ -139,11 +141,13 @@ export function LiveFormCheck() {
     const paletteRef = useRef<OverlayPalette | null>(null);
     /** Updated on every pose frame; the HUD repaints from it at most ten times a second. */
     const kneeAngleRef = useRef<number | null>(null);
+    const t = useT();
+    const legOptions = LEG_OPTIONS.map((option) => ({ ...option, label: t(option.label) }));
 
     const [camera, setCamera] = useState<CameraState>({ status: "idle" });
     const [leg, setLeg] = useState<KickingLeg>("right");
     const [phase, setPhase] = useState<KickPhase>("guard");
-    const [feedback, setFeedback] = useState("Stand side-on to the camera with your whole body in frame, then throw a roundhouse kick.");
+    const [feedback, setFeedback] = useState(() => t("screens.video.live.intro"));
     const [history, setHistory] = useState<KickResult[]>([]);
 
     const stop = () => {
@@ -195,14 +199,14 @@ export function LiveFormCheck() {
         if (machine.phase === "guard" && angle < 120) {
             Object.assign(machine, { phase: "chambering", minChamber: angle, maxExtension: 0, peakSpeed: 0 });
             setPhase("chambering");
-            setFeedback("Knee coming up…");
+            setFeedback(t("screens.video.live.kneeUp"));
         }
         if (machine.phase === "chambering") {
             machine.minChamber = Math.min(machine.minChamber, angle);
             if (angle > machine.minChamber + 15 && speed > 0.4) {
                 machine.phase = "extending";
                 setPhase("extending");
-                setFeedback("Extending…");
+                setFeedback(t("screens.video.live.extending"));
             } else if (angle > 165) {
                 machine.phase = "guard";
                 setPhase("guard");
@@ -217,23 +221,24 @@ export function LiveFormCheck() {
                 const notes: string[] = [];
                 if (machine.minChamber > 75) {
                     score -= 25;
-                    notes.push(`chamber the knee tighter (${Math.round(machine.minChamber)}°, aim under 75°)`);
+                    notes.push(t("screens.video.live.noteChamber", { deg: Math.round(machine.minChamber) }));
                 }
                 if (machine.maxExtension < 140) {
                     score -= 30;
-                    notes.push(`extend the leg further (${Math.round(machine.maxExtension)}°, aim over 140°)`);
+                    notes.push(t("screens.video.live.noteExtend", { deg: Math.round(machine.maxExtension) }));
                 }
                 const fast = machine.peakSpeed >= 0.8;
                 if (!fast) {
                     score -= 20;
-                    notes.push("snap the kick faster");
+                    notes.push(t("screens.video.live.noteFaster"));
                 }
                 score = Math.max(0, score);
                 kickCounter.current += 1;
                 setHistory((items) =>
                     [{ id: kickCounter.current, score, grade: grade(score), chamberDeg: Math.round(machine.minChamber), extensionDeg: Math.round(machine.maxExtension), fast }, ...items].slice(0, 5),
                 );
-                setFeedback(notes.length === 0 ? `${grade(score)} kick — ${score}/100. Tight chamber, full extension, good speed.` : `${grade(score)} kick — ${score}/100. Try to ${notes.join(", ")}.`);
+                const kick = { grade: gradeLabel(t, grade(score)), score };
+                setFeedback(notes.length === 0 ? t("screens.video.live.kickPerfect", kick) : t("screens.video.live.kickNotes", { ...kick, notes: notes.join(", ") }));
             }
         }
         if (machine.phase === "recovering" && (angle > 155 || angle < 60)) {
@@ -304,11 +309,11 @@ export function LiveFormCheck() {
 
     const start = async () => {
         if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-            setCamera({ status: "error", title: "Camera not available here", message: "Live form check needs a secure (https) connection and a browser with camera access." });
+            setCamera({ status: "error", title: t("screens.video.live.noCameraTitle"), message: t("screens.video.live.noCameraDesc") });
             return;
         }
         try {
-            setCamera({ status: "starting", message: "Asking for camera permission…" });
+            setCamera({ status: "starting", message: t("screens.video.live.askingPermission") });
             const stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user" }, audio: false });
             streamRef.current = stream;
             const video = videoRef.current;
@@ -316,9 +321,9 @@ export function LiveFormCheck() {
             video.srcObject = stream;
             await video.play();
 
-            setCamera({ status: "starting", message: "Loading the pose model (first time only)…" });
-            await loadPoseScript();
-            if (!window.Pose) throw new Error("The pose model couldn't be started.");
+            setCamera({ status: "starting", message: t("screens.video.live.loadingModel") });
+            await loadPoseScript(t("screens.video.live.poseDownloadFailed"));
+            if (!window.Pose) throw new Error(t("screens.video.live.poseStartFailed"));
             const pose = new window.Pose({ locateFile: (file) => `${POSE_CDN}/${file}` });
             pose.setOptions({ modelComplexity: 1, smoothLandmarks: true, enableSegmentation: false, minDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
             pose.onResults(draw);
@@ -340,13 +345,13 @@ export function LiveFormCheck() {
             stop();
             const name = error instanceof DOMException ? error.name : "";
             if (name === "NotAllowedError") {
-                setCamera({ status: "error", title: "Camera permission was blocked", message: "Allow camera access for this site in your browser settings, then start the camera again." });
+                setCamera({ status: "error", title: t("screens.video.live.blockedTitle"), message: t("screens.video.live.blockedDesc") });
             } else if (name === "NotFoundError" || name === "OverconstrainedError") {
-                setCamera({ status: "error", title: "No camera found", message: "Connect a webcam or use a device with a camera, then try again." });
+                setCamera({ status: "error", title: t("screens.video.live.notFoundTitle"), message: t("screens.video.live.notFoundDesc") });
             } else if (name === "NotReadableError") {
-                setCamera({ status: "error", title: "The camera is busy", message: "Another app is using the camera. Close it and try again." });
+                setCamera({ status: "error", title: t("screens.video.live.busyTitle"), message: t("screens.video.live.busyDesc") });
             } else {
-                setCamera({ status: "error", title: "Live form check couldn't start", message: error instanceof Error ? error.message : "Something went wrong. Try again." });
+                setCamera({ status: "error", title: t("screens.video.live.failedTitle"), message: error instanceof Error ? error.message : t("screens.video.live.failedDesc") });
             }
         }
     };
@@ -363,7 +368,7 @@ export function LiveFormCheck() {
 
     return (
         <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <section aria-label="Camera" className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-card">
+            <section aria-label={t("screens.video.live.camera")} className="min-w-0 overflow-hidden rounded-xl border border-border bg-surface shadow-card">
                 <div className="relative aspect-video w-full bg-nav-bg">
                     <video ref={videoRef} playsInline muted className="hidden" />
                     <canvas ref={canvasRef} aria-hidden className={cn("absolute inset-0 size-full -scale-x-100 object-contain", !running && "invisible")} />
@@ -384,7 +389,7 @@ export function LiveFormCheck() {
                                     <p className="text-sm text-nav-fg">{camera.message}</p>
                                     <Button onClick={start} onPointerEnter={preconnectPoseCdn} onFocus={preconnectPoseCdn}>
                                         <Camera aria-hidden />
-                                        Try again
+                                        {t("screens.video.tryAgain")}
                                     </Button>
                                 </div>
                             ) : (
@@ -392,11 +397,11 @@ export function LiveFormCheck() {
                                     <span aria-hidden className="octagon flex size-14 items-center justify-center bg-nav-surface text-nav-fg-active">
                                         <Camera className="size-6" />
                                     </span>
-                                    <p className="text-base font-semibold text-nav-fg-active">Check your kick form live</p>
-                                    <p className="text-sm text-nav-fg">The camera only starts when you press the button. Video stays on this device.</p>
+                                    <p className="text-base font-semibold text-nav-fg-active">{t("screens.video.live.checkTitle")}</p>
+                                    <p className="text-sm text-nav-fg">{t("screens.video.live.checkDesc")}</p>
                                     <Button size="lg" onClick={start} onPointerEnter={preconnectPoseCdn} onFocus={preconnectPoseCdn}>
                                         <Camera aria-hidden />
-                                        Start camera
+                                        {t("screens.video.live.startCamera")}
                                     </Button>
                                 </div>
                             )}
@@ -407,9 +412,9 @@ export function LiveFormCheck() {
                         <>
                             <span aria-live="polite" className={cn("absolute top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-md px-3 py-1.5 text-sm font-semibold ring-1", phaseTone)}>
                                 <span aria-hidden className="size-2 rounded-full bg-current" />
-                                {PHASE_LABELS[phase]}
+                                {t(`screens.video.live.phase.${phase}`)}
                             </span>
-                            <KneeReadout angleRef={kneeAngleRef} />
+                            <KneeReadout angleRef={kneeAngleRef} label={t("screens.video.live.knee")} />
                             <p className="absolute inset-x-3 bottom-3 mx-auto w-fit max-w-[92%] rounded-md bg-nav-surface/90 px-3 py-2 text-center text-sm text-nav-fg-active ring-1 ring-nav-border">
                                 {feedback}
                             </p>
@@ -417,15 +422,15 @@ export function LiveFormCheck() {
                     )}
                 </div>
                 <div className="flex flex-wrap items-center gap-3 border-t border-border px-4 py-3">
-                    <SegmentedControl label="Kicking leg" options={LEG_OPTIONS} value={leg} onChange={setLeg} size="md" />
+                    <SegmentedControl label={t("screens.video.live.kickingLeg")} options={legOptions} value={leg} onChange={setLeg} size="md" />
                     <p className="flex items-center gap-1.5 text-[13px] text-fg-muted">
                         <ShieldCheck aria-hidden className="size-4 text-success-fg" />
-                        Runs on this device — nothing is uploaded
+                        {t("screens.video.live.onDevice")}
                     </p>
                     {running && (
                         <Button variant="secondary" className="ml-auto" onClick={stopCamera}>
                             <CircleStop aria-hidden />
-                            Stop camera
+                            {t("screens.video.live.stopCamera")}
                         </Button>
                     )}
                 </div>
@@ -433,20 +438,32 @@ export function LiveFormCheck() {
 
             <div className="flex min-w-0 flex-col gap-4">
                 <Card>
-                    <CardHeader title="Kick history" description="Your last five kicks this session." action={<Badge tone="info" icon={FlaskConical} size="sm">Beta</Badge>} />
+                    <CardHeader
+                        title={t("screens.video.live.history")}
+                        description={t("screens.video.live.historyDesc")}
+                        action={
+                            <Badge tone="info" icon={FlaskConical} size="sm">
+                                {t("screens.video.page.beta")}
+                            </Badge>
+                        }
+                    />
                     <CardContent>
                         {history.length === 0 ? (
-                            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-fg-muted">Scored kicks appear here.</p>
+                            <p className="rounded-lg border border-dashed border-border px-3 py-6 text-center text-sm text-fg-muted">{t("screens.video.live.historyEmpty")}</p>
                         ) : (
                             <ol className="flex flex-col divide-y divide-border" aria-live="polite">
                                 {history.map((kick) => (
                                     <li key={kick.id} className="flex items-center justify-between gap-3 py-2.5">
                                         <div className="min-w-0">
                                             <p className="text-sm font-medium text-fg">
-                                                Kick {kick.id} · {kick.grade}
+                                                {t("screens.video.live.kick", { id: kick.id, grade: gradeLabel(t, kick.grade) })}
                                             </p>
                                             <p className="text-xs text-fg-muted">
-                                                Chamber {kick.chamberDeg}° · Extension {kick.extensionDeg}° · {kick.fast ? "good speed" : "slow"}
+                                                {t("screens.video.live.kickFacts", {
+                                                    chamber: kick.chamberDeg,
+                                                    extension: kick.extensionDeg,
+                                                    speed: kick.fast ? t("screens.video.live.goodSpeed") : t("screens.video.live.slow"),
+                                                })}
                                             </p>
                                         </div>
                                         <span className="text-lg font-semibold text-fg tabular-nums">{kick.score}</span>
@@ -457,7 +474,7 @@ export function LiveFormCheck() {
                     </CardContent>
                 </Card>
                 <InlineNote icon={TriangleAlert} tone="warning">
-                    Beta tool for technique practice only. Scores are rough estimates from a single camera and aren&apos;t saved to your analysis history.
+                    {t("screens.video.live.betaNote")}
                 </InlineNote>
             </div>
         </div>
@@ -465,7 +482,7 @@ export function LiveFormCheck() {
 }
 
 /** Knee angle HUD. Reads the pose loop's ref ten times a second so camera frames never re-render the page. */
-function KneeReadout({ angleRef }: { angleRef: RefObject<number | null> }) {
+function KneeReadout({ angleRef, label }: { angleRef: RefObject<number | null>; label: string }) {
     const [angle, setAngle] = useState<number | null>(null);
 
     useEffect(() => {
@@ -475,7 +492,7 @@ function KneeReadout({ angleRef }: { angleRef: RefObject<number | null> }) {
 
     return (
         <div className="absolute top-1/2 left-3 -translate-y-1/2 rounded-lg bg-nav-surface/90 px-3 py-2 text-center ring-1 ring-nav-border">
-            <p className="text-[11px] font-medium tracking-wide text-nav-fg uppercase">Knee</p>
+            <p className="text-[11px] font-medium tracking-wide text-nav-fg uppercase">{label}</p>
             <p className="text-2xl font-semibold text-nav-fg-active tabular-nums">{angle === null ? "—" : `${angle}°`}</p>
         </div>
     );

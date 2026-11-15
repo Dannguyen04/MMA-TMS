@@ -1,4 +1,4 @@
-import { FileText, TriangleAlert } from "lucide-react";
+import { FileText, TriangleAlert, Trophy } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -72,7 +72,6 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
     return (
         <div className="flex min-w-0 flex-col gap-5">
             <PageHeader
-                eyebrow={t("boutAnalysis.rounds.eyebrow")}
                 back={{
                     href: routes.coach.bout(bout.id),
                     label: t("boutAnalysis.cornerCard.backToBout"),
@@ -84,10 +83,18 @@ export default async function CoachBoutRoundsPage({ params }: PageProps) {
                     rounds: scheduledRounds ?? 0,
                 })}
                 actions={
-                    <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary">
-                        <FileText aria-hidden />
-                        {t("boutAnalysis.nav.cornerCard")}
-                    </ButtonLink>
+                    <>
+                        {bout.phase === "COMPLETED" && (
+                            <ButtonLink href={`${routes.coach.bout(bout.id)}/report`} className="min-h-11">
+                                <Trophy aria-hidden />
+                                {t("boutAnalysis.nav.report")}
+                            </ButtonLink>
+                        )}
+                        <ButtonLink href={`${routes.coach.bout(bout.id)}/corner-card`} variant="secondary" className="min-h-11">
+                            <FileText aria-hidden />
+                            {t("boutAnalysis.nav.cornerCard")}
+                        </ButtonLink>
+                    </>
                 }
             />
 

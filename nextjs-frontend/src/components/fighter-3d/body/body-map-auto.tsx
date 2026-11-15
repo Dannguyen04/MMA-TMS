@@ -6,7 +6,7 @@ import { BodyMap, type BodyMapProps } from "@/components/domain/body-map";
 import { TONE_SOLID } from "@/components/ui/tone";
 import { bodyRegionLabel } from "@/lib/domain/labels";
 import type { BodyRegion } from "@/lib/domain/types";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { figureParams, type FigureSource } from "../figure-params";
 import { useWebGL } from "../use-graphics";

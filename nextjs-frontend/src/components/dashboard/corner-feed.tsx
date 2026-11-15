@@ -40,7 +40,6 @@ export function CornerFeed({ items, coachNames, sessionHref, videoHref, filmHref
         <Card className={cn("min-w-0", className)}>
             <CardHeader
                 title={t("feed.title")}
-                description={t("feed.description")}
                 icon={<MessageSquareText />}
                 action={<CardLink href={filmHref}>{t("feed.allFilm")}</CardLink>}
             />

@@ -11,7 +11,7 @@ import { formatShortDate } from "@/lib/format";
 import { getSettings } from "./admin";
 import { listAlerts } from "./ai";
 import { nullIfServiceFails } from "./api-helpers";
-import { getClearanceStatus, getClinicalDossier, getFighterHealthSummary, type ClinicalDossier, type FighterHealthSummary } from "./medical";
+import { getClearanceStatus, getClinicalDossier, getFighterHealthSummary, primeMedicalDossiers, type ClinicalDossier, type FighterHealthSummary } from "./medical";
 import { medicalFeatureAvailable } from "./medical-features";
 import { listFighters } from "./people";
 import { listSuspensions } from "./suspensions";
@@ -175,7 +175,7 @@ async function loadRow(
     now: string,
     suspensions: readonly Suspension[] = [],
 ): Promise<BoardRow | null> {
-    const [summary, status, dossier] = await Promise.all([getFighterHealthSummary(fighter.id, now), getClearanceStatus(fighter.id, now), getClinicalDossier(fighter.id)]);
+    const [summary, status, dossier] = await Promise.all([getFighterHealthSummary(fighter.id, now, fighter), getClearanceStatus(fighter.id, now), getClinicalDossier(fighter.id)]);
     if (!summary) return null;
     const today = academyDateOf(now);
     const training = dossier?.eligibility.TRAINING ?? status.eligibility;
@@ -213,6 +213,7 @@ export const loadDoctorBoard = cache(async function loadDoctorBoard(user: User):
             else byFighter.set(s.fighterId, [s]);
         }
     }
+    primeMedicalDossiers(fighters.map((fighter) => fighter.id));
     const rows = (await Promise.all(fighters.map((fighter) => loadRow(fighter, warningDays, now, byFighter.get(fighter.id) ?? [])))).filter((row): row is BoardRow => row !== null);
     const visible = alerts ?? [];
     return {

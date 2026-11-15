@@ -5,17 +5,16 @@ import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { femaleModelFrom } from "./female-model";
 import { createMannequinModel } from "./mannequin";
 import { muscularModelFrom } from "./muscular-model";
 import { MODEL_HEIGHT, SPOT_REGIONS, regionAnchors, regionAt, type BodyModel } from "./regions";
 
-const GLB = fileURLToPath(new URL("../../../../public/models/fighter-body.glb", import.meta.url));
-
-async function loadMuscular(): Promise<BodyModel> {
-    const file = readFileSync(GLB);
-    const buffer = file.buffer.slice(file.byteOffset, file.byteOffset + file.byteLength);
+async function loadScan(file: string, from: (root: THREE.Object3D) => BodyModel): Promise<BodyModel> {
+    const bytes = readFileSync(fileURLToPath(new URL(`../../../../public/models/${file}`, import.meta.url)));
+    const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
     const gltf = await new GLTFLoader().parseAsync(buffer, "");
-    return muscularModelFrom(gltf.scene);
+    return from(gltf.scene);
 }
 
 function vertices(model: BodyModel): THREE.Vector3[] {
@@ -45,7 +44,8 @@ function closestOnSurface(model: BodyModel, surface: THREE.Vector3[], target: TH
 
 describe.each([
     ["mannequin", async () => createMannequinModel()],
-    ["muscular", loadMuscular],
+    ["muscular", () => loadScan("fighter-body.glb", muscularModelFrom)],
+    ["female", () => loadScan("fighter-body-female.glb", femaleModelFrom)],
 ] as const)("%s body model", (_name, load) => {
     let model: BodyModel;
     let surface: THREE.Vector3[];
@@ -85,5 +85,20 @@ describe.each([
             expect(closest.distanceTo(anchor.center), `${region} reaches the surface`).toBeLessThan(anchor.radius * 0.6);
             expect(regionAt(model.spots, closest), `${region} picked back`).toBe(region);
         }
+    });
+});
+
+describe.each([
+    ["muscular", "fighter-body.glb", "fighter-body.wire.bin", muscularModelFrom],
+    ["female", "fighter-body-female.glb", "fighter-body-female.wire.bin", femaleModelFrom],
+] as const)("%s wireframe", (_name, modelFile, wireFile, from) => {
+    it("joins the model's own vertices, two per edge", async () => {
+        const model = await loadScan(modelFile, from);
+        const bytes = readFileSync(fileURLToPath(new URL(`../../../../public/models/${wireFile}`, import.meta.url)));
+        const edges = new Uint16Array(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+        const count = model.geometry.getAttribute("position").count;
+        expect(edges.length % 2).toBe(0);
+        expect(edges.length / 2).toBeGreaterThan(5000);
+        expect(Math.max(...edges)).toBeLessThan(count);
     });
 });

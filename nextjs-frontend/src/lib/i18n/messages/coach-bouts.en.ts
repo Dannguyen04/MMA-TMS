@@ -10,7 +10,6 @@ export const enCoachBouts = {
 
     /* Bout list */
     "coachBouts.list.title": "Bouts",
-    "coachBouts.list.description": "Running bouts on your roster, by weigh-in date: can each fighter make weight, and are the documents in?",
     "coachBouts.list.loading": "Loading bouts",
     "coachBouts.list.emptyTitle": "No running bouts",
     "coachBouts.list.emptyDescription": "Create a bout when the club accepts one. Its camp, weight and medical checklist start from there.",
@@ -27,10 +26,8 @@ export const enCoachBouts = {
     "coachBouts.list.cancelledReason": "Cancelled: {reason}",
 
     /* New bout page and form */
-    "coachBouts.new.eyebrow": "Bout",
     "coachBouts.new.back": "Bouts",
     "coachBouts.new.title": "New bout",
-    "coachBouts.new.description": "When the club accepts a bout. The fighter sees it on their Bout page, and the camp, weight and checklist start from here.",
     "coachBouts.new.loading": "Loading the bout form",
     "coachBouts.form.fighterAndRules": "Fighter and rules",
     "coachBouts.form.fighterAndRulesHint": "The ruleset sets the weight classes, the documents deadline and the acute-loss limits.",
@@ -129,10 +126,8 @@ export const enCoachBouts = {
 
     /* Bout cards on the coach's Today page */
     "coachBouts.dashboard.weightAlerts": "Weight alerts",
-    "coachBouts.dashboard.weightAlertsHint": "Running bouts that need a look, red first.",
     "coachBouts.dashboard.allBouts": "All bouts",
     "coachBouts.dashboard.documentsDue": "Documents due",
-    "coachBouts.dashboard.documentsDueHint": "Required documents still missing within 14 days of the deadline.",
     "coachBouts.dashboard.due": "due {date}",
     "coachBouts.dialog.edit.title": "Edit bout details",
     "coachBouts.dialog.edit.description": "Update tournament information, venue, opponent, weight limit and schedule.",
@@ -465,7 +460,7 @@ export const enCoachBouts = {
 
     /* Consequences summary */
     "suspensions.consequences.title": "Automatic side effects applied",
-    "suspensions.consequences.subtitle": "The system automatically updated the fighter's schedule and plans:",
+    "suspensions.consequences.subtitle": "The fighter's schedule and plans were updated:",
     "suspensions.consequences.summaryCancelled": "Cancelled {count} sessions",
     "suspensions.consequences.summaryCancelled.one": "Cancelled 1 session",
     "suspensions.consequences.summaryRescheduled": "{count} sessions to reschedule",
@@ -484,7 +479,6 @@ export const enCoachBouts = {
 
     /* Readiness screen */
     "readiness.title": "Roster Readiness",
-    "readiness.description": "Check bout eligibility, suspension status, and weight feasibility across the academy roster.",
     "readiness.loading": "Loading readiness...",
     "readiness.errorTitle": "Failed to load readiness",
     "readiness.errorRetry": "Try again",

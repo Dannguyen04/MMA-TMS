@@ -42,7 +42,8 @@ const signInRole = (account: SessionAccount): SignInRole => (account.kind === "u
 const TOO_MANY_ATTEMPTS = "Too many attempts in a short time. Wait a minute, then try again.";
 
 function loginError(error: unknown): ActionState {
-    if (error instanceof ApiError && (error.status === 400 || error.status === 401)) {
+    // 422: the backend rejects a password under 8 characters before checking it, which is still a wrong password.
+    if (error instanceof ApiError && (error.status === 400 || error.status === 401 || error.status === 422)) {
         return actionError("That email and password combination is incorrect.");
     }
     if (error instanceof ApiError && error.status === 429) return actionError(TOO_MANY_ATTEMPTS);

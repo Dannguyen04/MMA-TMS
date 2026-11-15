@@ -4,7 +4,7 @@ import type { Vitals } from "@/lib/domain/types";
 import { assessVitals, vitalAssessmentMessage, type VitalAssessment, type VitalKey } from "@/lib/domain/vitals";
 import { formatNumber } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 export interface VitalReading {

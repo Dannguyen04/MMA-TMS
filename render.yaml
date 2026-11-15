@@ -1,0 +1,56 @@
+# Render Blueprint for the demo API and its Redis queue (free plans). Render deploys each push to
+# release/final-review that touches the API. Setup: docs/DEPLOY-DEMO.md.
+services:
+  - type: web
+    name: mma-tms-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: release/final-review
+    dockerfilePath: ./nestjs-api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    # checksPass once GitHub Actions runs again (account billing lock, 14/11); until then every commit deploys.
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - nestjs-api/**
+        - package.json
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - render.yaml
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: FRONTEND_URL
+        value: https://mma-tms-demo.vercel.app
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: mma-tms-redis
+          property: connectionString
+      # Values below are entered in the Render dashboard when the Blueprint is created.
+      - key: WORKER_SECRET_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_BOUT_MODEL
+        sync: false
+
+  # Video analysis queue. The worker runs on Dan's PC and connects from outside Render.
+  - type: keyvalue
+    name: mma-tms-redis
+    plan: free
+    region: singapore
+    maxmemoryPolicy: noeviction
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: video worker outside Render

@@ -3,6 +3,7 @@
 import { CalendarCheck, CircleCheck, RefreshCw, RotateCcw, TriangleAlert } from "lucide-react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { useToast } from "@/components/ui/toast";
@@ -32,27 +33,28 @@ const TARGET_STATUS: Record<Transition, InjuryStatus> = { recovering: "recoverin
 /** Moves an injury through active → recovering → resolved (or reopens it), each behind a confirmation. */
 export function InjuryStatusActions({ injuryId, fighterId, status, fighterName, canReopen, openPlanTitle, todayLabel }: InjuryStatusActionsProps) {
     const toast = useToast();
+    const t = useT();
     const transition = useConfirmAction((next: Transition) => updateInjuryAction(IDLE, toFormData({ injuryId, fighterId, status: TARGET_STATUS[next] })), {
-        onSuccess: (state) => toast({ title: "Đã cập nhật chấn thương", description: state.message }),
+        onSuccess: (state) => toast({ title: t("doctorClinical.statusActions.updated"), description: state.message }),
     });
 
     const copy: Record<Transition, { title: string; description: string; confirmLabel: string }> = {
         recovering: {
-            title: "Chuyển chấn thương sang đang phục hồi?",
-            description: `${fighterName} ra khỏi giai đoạn cấp. Tình trạng sức khỏe được tính lại — thường là Phục hồi — và HLV vẫn chỉ thấy giấy phép.`,
-            confirmLabel: "Chuyển sang đang phục hồi",
+            title: t("doctorClinical.statusActions.recoveringTitle"),
+            description: t("doctorClinical.statusActions.recoveringDescription", { name: fighterName }),
+            confirmLabel: t("doctorClinical.statusActions.toRecovering"),
         },
         resolved: {
-            title: "Đánh dấu chấn thương đã khỏi?",
+            title: t("doctorClinical.statusActions.resolvedTitle"),
             description: canReopen
-                ? `Hồ sơ chấn thương sẽ được đóng. Tình trạng sức khỏe của ${fighterName} được tính lại từ giấy phép và các chấn thương đang mở khác; võ sĩ và HLV được thông báo. Giấy phép không thay đổi — hãy xem lại riêng.`
-                : `Hồ sơ chấn thương được đóng hẳn: nếu tái phát, hãy ghi chấn thương mới. Giấy phép không thay đổi — hãy xem lại riêng.`,
-            confirmLabel: "Đánh dấu đã khỏi",
+                ? t("doctorClinical.statusActions.resolvedDescription", { name: fighterName })
+                : t("doctorClinical.statusActions.resolvedFinalDescription"),
+            confirmLabel: t("doctorClinical.statusActions.markResolved"),
         },
         reopen: {
-            title: "Mở lại chấn thương này?",
-            description: `Chấn thương quay về Đang phục hồi và ngày khỏi bị xóa. Tình trạng sức khỏe của ${fighterName} được tính lại.`,
-            confirmLabel: "Mở lại chấn thương",
+            title: t("doctorClinical.statusActions.reopenTitle"),
+            description: t("doctorClinical.statusActions.reopenDescription", { name: fighterName }),
+            confirmLabel: t("doctorClinical.statusActions.reopen"),
         },
     };
 
@@ -63,19 +65,19 @@ export function InjuryStatusActions({ injuryId, fighterId, status, fighterName, 
             {status === "active" && (
                 <Button variant="secondary" onClick={() => transition.request("recovering")}>
                     <RefreshCw aria-hidden />
-                    Chuyển sang đang phục hồi
+                    {t("doctorClinical.statusActions.toRecovering")}
                 </Button>
             )}
             {status !== "resolved" && (
                 <Button variant="secondary" onClick={() => transition.request("resolved")}>
                     <CircleCheck aria-hidden />
-                    Đánh dấu đã khỏi
+                    {t("doctorClinical.statusActions.markResolved")}
                 </Button>
             )}
             {status === "resolved" && canReopen && (
                 <Button variant="secondary" onClick={() => transition.request("reopen")}>
                     <RotateCcw aria-hidden />
-                    Mở lại chấn thương
+                    {t("doctorClinical.statusActions.reopen")}
                 </Button>
             )}
 
@@ -89,11 +91,12 @@ export function InjuryStatusActions({ injuryId, fighterId, status, fighterName, 
                 {transition.payload === "resolved" && (
                     <div className="flex flex-col gap-3">
                         <InlineNote icon={CalendarCheck}>
-                            Ngày khỏi: <span className="font-medium text-fg">{todayLabel}</span> (hôm nay — ghi khi bạn xác nhận)
+                            {t("doctorClinical.statusActions.resolvedOn")} <span className="font-medium text-fg">{todayLabel}</span>{" "}
+                            {t("doctorClinical.statusActions.resolvedOnNote")}
                         </InlineNote>
                         {openPlanTitle && (
                             <InlineNote icon={TriangleAlert} tone="warning">
-                                Kế hoạch phục hồi “{openPlanTitle}” vẫn đang thực hiện và giữ mở cho đến khi hoàn tất giai đoạn cuối.
+                                {t("doctorClinical.statusActions.openPlan", { title: openPlanTitle })}
                             </InlineNote>
                         )}
                     </div>

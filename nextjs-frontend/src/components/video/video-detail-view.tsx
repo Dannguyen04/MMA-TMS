@@ -16,11 +16,14 @@ import { PageHeader } from "@/components/ui/page-header";
 import { EmptyState } from "@/components/ui/states";
 import { canAccessFighter } from "@/lib/auth/access";
 import { hasPermission } from "@/lib/auth/session";
-import { formatReviewCounts, reviewCounts } from "@/lib/domain/ai-review";
-import { CAMERA_ANGLE_LABELS, TRAINING_TYPE_LABELS } from "@/lib/domain/labels";
+import { reviewCounts } from "@/lib/domain/ai-review";
+import { trainingTypeLabel } from "@/lib/domain/labels";
 import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/domain/rules";
 import type { AIAnalysis, User } from "@/lib/domain/types";
-import { formatClock, formatConfidence, formatDateTime, formatFileSize, formatNumber, formatPercent, formatRelative, pluralize } from "@/lib/format";
+import { formatClock, formatConfidence, formatDateTime, formatFileSize, formatNumber, formatPercent, formatRelative } from "@/lib/format";
+import type { Locale } from "@/lib/i18n/config";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type Translator } from "@/lib/i18n/translate";
 import { type SearchParams } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
@@ -30,6 +33,7 @@ import { AnalysisFailed } from "./analysis-failed";
 import { AnalysisWorkspace } from "./analysis-workspace";
 import { PipelineProgress } from "./pipeline-progress";
 import { CoachReviewStateBadge } from "./video-badges";
+import { analysisSummary, cameraAngleLabel, confidencePct, reviewCountParts, splitPlaceholder } from "./video-copy";
 
 export interface VideoDetailViewProps {
     user: User;
@@ -43,7 +47,7 @@ export const loadVideoDetail = cache(getVideoDetail);
 
 /** Shared server view for a video: header, then the analysis workspace or the processing / failed state. */
 export async function VideoDetailView({ user, videoId, role, searchParams }: VideoDetailViewProps) {
-    const detail = await loadVideoDetail(videoId);
+    const [detail, { t, locale }] = await Promise.all([loadVideoDetail(videoId), getTranslator()]);
     if (!detail || !canAccessFighter(user, detail.fighter.id)) notFound();
 
     const { video, fighter, job, analysis, session } = detail;
@@ -60,11 +64,15 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
     return (
         <>
             <PageHeader
-                back={role === "fighter" ? { href: routes.fighter.videos, label: "Film" } : { href: routes.coach.videoAnalysis, label: "Film room" }}
+                back={
+                    role === "fighter"
+                        ? { href: routes.fighter.videos, label: t("screens.video.page.film") }
+                        : { href: routes.coach.videoAnalysis, label: t("screens.video.page.filmRoom") }
+                }
                 eyebrow={
                     <span className="inline-flex items-center gap-1.5">
                         <TrainingTypeIcon type={video.trainingType} className="size-3.5" />
-                        {TRAINING_TYPE_LABELS[video.trainingType]}
+                        {trainingTypeLabel(t, video.trainingType)}
                     </span>
                 }
                 title={video.title}
@@ -73,13 +81,13 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
                         {role === "coach" && (
                             <FighterIdentity fighter={fighter} size="sm" href={routes.coach.fighter(fighter.id)} showMeta={false} className="mr-2" />
                         )}
-                        <VideoStatusBadge status={video.status} />
-                        {analysis && <CoachReviewStateBadge reviewed={analysis.coachReview !== null} />}
+                        <VideoStatusBadge status={video.status} locale={locale} />
+                        {analysis && <CoachReviewStateBadge reviewed={analysis.coachReview !== null} locale={locale} />}
                         <MetaItem icon={<CalendarDays />}>
-                            <time dateTime={video.uploadedAt}>{formatDateTime(video.uploadedAt)}</time>
+                            <time dateTime={video.uploadedAt}>{formatDateTime(video.uploadedAt, locale)}</time>
                         </MetaItem>
                         <MetaItem icon={<Timer />}>{formatClock(video.durationSec)}</MetaItem>
-                        <MetaItem icon={<Camera />}>{CAMERA_ANGLE_LABELS[video.cameraAngle]} camera</MetaItem>
+                        <MetaItem icon={<Camera />}>{t("screens.video.detail.cameraMeta", { angle: cameraAngleLabel(t, video.cameraAngle) })}</MetaItem>
                         {session && sessionHref && (
                             <MetaItem icon={<ClipboardList />}>
                                 <Link href={sessionHref} className="underline-offset-2 hover:text-fg hover:underline">
@@ -93,12 +101,12 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
                     role === "coach" ? (
                         <ButtonLink variant="secondary" href={routes.coach.fighterVideos(fighter.id)}>
                             <Users aria-hidden />
-                            All videos of {fighter.name.split(" ")[0]}
+                            {t("screens.video.detail.allVideosOf", { name: fighter.name.split(" ")[0] })}
                         </ButtonLink>
                     ) : (
                         <ButtonLink variant="secondary" href={routes.fighter.uploadVideo}>
                             <Upload aria-hidden />
-                            Upload another
+                            {t("screens.video.detail.uploadAnother")}
                         </ButtonLink>
                     )
                 }
@@ -114,7 +122,7 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
                     canReview={canReview}
                     initialMs={initialMs}
                     now={now}
-                    summary={<AnalysisSummary analysis={analysis} role={role} />}
+                    summary={<AnalysisSummary analysis={analysis} role={role} t={t} locale={locale} />}
                 />
             ) : (
                 <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -123,20 +131,16 @@ export async function VideoDetailView({ user, videoId, role, searchParams }: Vid
                             <AnalysisFailed videoId={video.id} errorCode={job.errorCode} errorMessage={job.errorMessage} attempts={job.attempts} canRetry={canRetry} />
                         ) : job && (video.status === "queued" || video.status === "processing") ? (
                             <Card>
-                                <CardHeader
-                                    icon={<Sparkles />}
-                                    title="AI analysis in progress"
-                                    description="This page updates by itself. You can leave — you'll get a notification when the analysis is ready."
-                                />
+                                <CardHeader icon={<Sparkles />} title={t("screens.video.aiAnalysisInProgress")} description={t("screens.video.detail.inProgressDesc")} />
                                 <CardContent>
                                     <PipelineProgress jobId={job.id} initialJob={job} now={now} refreshOnSettle />
                                 </CardContent>
                             </Card>
                         ) : (
-                            <EmptyState icon={<Film />} title="Upload still in progress" description="The footage hasn't finished uploading yet. Check back in a moment." />
+                            <EmptyState icon={<Film />} title={t("screens.video.detail.uploadPending")} description={t("screens.video.detail.uploadPendingDesc")} />
                         )}
                     </div>
-                    <FootageCard detail={detail} now={now} />
+                    <FootageCard detail={detail} now={now} t={t} locale={locale} />
                 </div>
             )}
         </>
@@ -154,40 +158,45 @@ function MetaItem({ icon, children }: { icon: ReactNode; children: ReactNode }) 
     );
 }
 
-function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "fighter" | "coach" }) {
+function AnalysisSummary({ analysis, role, t, locale }: { analysis: AIAnalysis; role: "fighter" | "coach"; t: Translator; locale: Locale }) {
     const counts = reviewCounts(analysis);
-    const [unreviewed] = formatReviewCounts({ unreviewedFindings: counts.unreviewedFindings });
+    const [unreviewed] = reviewCountParts(t, { unreviewedFindings: counts.unreviewedFindings });
     const confidenceAvailable = analysis.confidenceAvailable !== false;
     const coachingEligible = analysis.coachingEligible !== false;
     const lowOverall = !confidenceAvailable || analysis.overallConfidence === null || analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
     const observations = analysis.alertIds.length;
+    const [beforeLink, afterLink] = splitPlaceholder(t("screens.video.summary.observationsBody"), "link");
 
     const stats = analysis.movementEvidence ? [
-        { label: "Review windows", value: formatNumber(analysis.movementEvidence.windows.length), hint: "not repetitions" },
-        { label: "Usable frames", value: `${analysis.movementEvidence.coverage.usableFrames} / ${analysis.movementEvidence.coverage.totalFrames}`, hint: "visibility checks only" },
+        { label: t("screens.video.summary.reviewWindows"), value: formatNumber(analysis.movementEvidence.windows.length), hint: t("screens.video.summary.notRepetitions") },
+        { label: t("screens.video.summary.usableFrames"), value: `${analysis.movementEvidence.coverage.usableFrames} / ${analysis.movementEvidence.coverage.totalFrames}`, hint: t("screens.video.summary.visibilityOnly") },
     ] : [
-        { label: "Strike candidates", value: formatNumber(analysis.detections.length) },
-        { label: "Findings", value: formatNumber(analysis.findings.length), hint: unreviewed ?? "all reviewed" },
+        { label: t("screens.video.summary.strikeCandidates"), value: formatNumber(analysis.detections.length) },
+        { label: t("screens.video.summary.findings"), value: formatNumber(analysis.findings.length), hint: unreviewed ?? t("screens.video.summary.allReviewed") },
         {
-            label: "Low-confidence detections",
+            label: t("screens.video.summary.lowConfidenceDetections"),
             value: formatNumber(counts.lowConfidenceDetections),
-            hint: `unreviewed, below ${formatPercent(LOW_CONFIDENCE_THRESHOLD * 100)}`,
+            hint: t("screens.video.summary.unreviewedBelow", { pct: formatPercent(LOW_CONFIDENCE_THRESHOLD * 100) }),
         },
-        { label: "Frames tracked", value: formatConfidence(analysis.trackingQuality), hint: "not action accuracy" },
+        { label: t("screens.video.summary.framesTracked"), value: formatConfidence(analysis.trackingQuality), hint: t("screens.video.summary.notAccuracy") },
         ...(analysis.poseConfidence !== undefined
-            ? [{ label: "Mean pose confidence", value: analysis.poseConfidence === null ? "Unavailable" : formatConfidence(analysis.poseConfidence) }]
+            ? [{ label: t("screens.video.summary.poseConfidence"), value: analysis.poseConfidence === null ? t("screens.video.unavailable") : formatConfidence(analysis.poseConfidence) }]
             : []),
     ];
 
     return (
-        <section aria-label="AI summary" className="flex flex-col gap-3">
+        <section aria-label={t("screens.video.summary.label")} className="flex flex-col gap-3">
             <Card className={cn("flex flex-col gap-4 px-5 py-4", stats.length <= 4 && "lg:flex-row lg:items-center lg:gap-8")}>
                 <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                        <AIGeneratedBadge size="sm" label="AI summary" />
-                        {confidenceAvailable ? <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" /> : <span className="text-xs font-semibold text-warning">Detection confidence unavailable</span>}
+                        <AIGeneratedBadge size="sm" label={t("screens.video.summary.label")} />
+                        {confidenceAvailable ? (
+                            <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" locale={locale} />
+                        ) : (
+                            <span className="text-xs font-semibold text-warning">{t("screens.video.summary.confidenceUnavailable")}</span>
+                        )}
                     </div>
-                    <p className="mt-2 text-sm text-pretty text-fg">{analysis.summary}</p>
+                    <p className="mt-2 text-sm text-pretty text-fg">{analysisSummary(t, analysis.summary)}</p>
                 </div>
                 <dl className={cn("grid shrink-0 grid-cols-2 gap-x-6 gap-y-3 lg:gap-x-8", stats.length <= 4 ? "sm:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5")}>
                     {stats.map((stat) => (
@@ -202,30 +211,31 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
                 </dl>
             </Card>
             <div className={cn("grid grid-cols-1 gap-3", (lowOverall || (role === "coach" && observations > 0)) && "lg:grid-cols-2")}>
-                <AINotice audience={role} compact />
+                <AINotice audience={role} compact locale={locale} />
                 {!coachingEligible && (
                     <InlineNote icon={TriangleAlert} tone="warning">
-                        <span className="font-semibold">Not cleared for autonomous coaching.</span>{" "}
-                        Evidence quality is {analysis.evidenceQuality ?? "unknown"}. Detected events and technique findings require coach verification before they are used for training decisions.
+                        <span className="font-semibold">{t("screens.video.summary.notEligibleTitle")}</span>{" "}
+                        {t("screens.video.summary.notEligibleBody", { quality: t(`screens.video.evidenceQuality.${analysis.evidenceQuality ?? "unknown"}`) })}
                     </InlineNote>
                 )}
                 {lowOverall && (
                     <InlineNote icon={TriangleAlert} tone="warning">
-                        <span className="font-semibold">Several detections need manual review.</span> {confidenceAvailable ? `Overall detection confidence is ${formatConfidence(analysis.overallConfidence)}.` : "The worker did not provide calibrated detection confidence."} Low light, the camera angle
-                        or a second person in frame can reduce accuracy.{" "}
-                        {role === "coach" ? "Confirm or correct the flagged items before sharing." : "Your coach will check the flagged items."}
+                        <span className="font-semibold">{t("screens.video.summary.lowTitle")}</span>{" "}
+                        {t("screens.video.summary.lowBody", {
+                            confidence: confidenceAvailable
+                                ? t("screens.video.summary.overallConfidence", { pct: confidencePct(t, analysis.overallConfidence) })
+                                : t("screens.video.summary.noCalibration"),
+                            next: role === "coach" ? t("screens.video.summary.coachNext") : t("screens.video.summary.fighterNext"),
+                        })}
                     </InlineNote>
                 )}
                 {role === "coach" && observations > 0 && (
                     <InlineNote icon={Stethoscope} tone="info">
-                        <span className="font-semibold">
-                            {pluralize(observations, "movement observation")} {observations === 1 ? "was" : "were"} shared with the sports doctor.
-                        </span>{" "}
-                        The medical team reviews it; check the{" "}
+                        <span className="font-semibold">{plural(t, "screens.video.summary.observations", observations)}</span> {beforeLink}
                         <Link href={routes.coach.clearance} className="font-medium underline underline-offset-2">
-                            Medical Clearance
-                        </Link>{" "}
-                        before planning intensive sessions.
+                            {t("screens.video.summary.medicalClearance")}
+                        </Link>
+                        {afterLink}
                     </InlineNote>
                 )}
             </div>
@@ -233,23 +243,26 @@ function AnalysisSummary({ analysis, role }: { analysis: AIAnalysis; role: "figh
     );
 }
 
-function FootageCard({ detail, now }: { detail: VideoDetail; now: string }) {
+function FootageCard({ detail, now, t, locale }: { detail: VideoDetail; now: string; t: Translator; locale: Locale }) {
     const { video, uploadedBy, job } = detail;
     return (
         <Card className="min-w-0">
-            <CardHeader title="Footage" icon={<Film />} />
+            <CardHeader title={t("screens.video.footage.title")} icon={<Film />} />
             <CardContent>
                 <DescriptionList
                     columns={1}
                     items={[
-                        { label: "File", value: video.fileName },
-                        { label: "Size", value: formatFileSize(video.fileSizeMb) },
-                        { label: "Length", value: formatClock(video.durationSec) },
-                        { label: "Resolution", value: formatVideoResolution(video) },
-                        { label: "Camera angle", value: CAMERA_ANGLE_LABELS[video.cameraAngle] },
-                        { label: "Uploaded", value: `${formatRelative(video.uploadedAt, now)} by ${uploadedBy?.name ?? "a team member"}` },
-                        ...(job ? [{ label: "Job", value: `${job.id} · attempt ${job.attempts}` }] : []),
-                        ...(video.notes ? [{ label: "Notes", value: video.notes }] : []),
+                        { label: t("screens.video.fileLabel"), value: video.fileName },
+                        { label: t("screens.video.footage.size"), value: formatFileSize(video.fileSizeMb) },
+                        { label: t("screens.video.footage.length"), value: formatClock(video.durationSec) },
+                        { label: t("screens.video.footage.resolution"), value: formatVideoResolution(video) },
+                        { label: t("screens.video.cameraAngle"), value: cameraAngleLabel(t, video.cameraAngle) },
+                        {
+                            label: t("screens.video.footage.uploaded"),
+                            value: t("screens.video.footage.uploadedBy", { when: formatRelative(video.uploadedAt, now, locale), name: uploadedBy?.name ?? t("screens.video.footage.teamMember") }),
+                        },
+                        ...(job ? [{ label: t("screens.video.job"), value: t("screens.video.footage.jobAttempt", { id: job.id, n: job.attempts }) }] : []),
+                        ...(video.notes ? [{ label: t("screens.video.footage.notes"), value: video.notes }] : []),
                     ]}
                 />
             </CardContent>

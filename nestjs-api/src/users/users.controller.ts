@@ -37,6 +37,7 @@ import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { appZodValidationPipe } from '../shared/pipes/zod-validation.pipe.js';
 import {
   CreateUserDto,
+  CurrentUserDto,
   ListUsersQueryDto,
   PublicUserDto,
   PublicUserListDto,
@@ -107,19 +108,18 @@ export class UsersController {
   @ApiOperation({
     summary: 'Get current user profile',
     description:
-      'Retrieves the currently authenticated user and profile. Any active authenticated user may read their own profile; no permission is required.',
+      'Retrieves the currently authenticated user and profile. Any active authenticated user may read their own profile; no permission is required. For a COACH or DOCTOR, assignmentScope.fighterIds lists the Fighters under a currently effective assignment (the same set as GET /fighters for a COACH and GET /doctors/:id/fighters for a DOCTOR, empty without an active role profile); other roles have no assignmentScope.',
   })
   @ResponseMessage('Get current user successfully')
   @ApiSuccessEnvelope({
     status: HttpStatus.OK,
     message: 'Get current user successfully',
-    model: PublicUserDto,
+    model: CurrentUserDto,
   })
   @ApiUnauthorizedEnvelope()
   @ApiNotFoundEnvelope('USER_NOT_FOUND', 'User not found')
   async findMe(@CurrentUser() actor: AuthenticatedUser | undefined) {
-    const currentActor = this.actor(actor);
-    return this.usersService.findOne(currentActor.id, currentActor.role);
+    return this.usersService.findMe(this.actor(actor));
   }
 
   @Get(':id')

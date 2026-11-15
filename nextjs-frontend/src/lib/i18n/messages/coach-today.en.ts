@@ -35,8 +35,6 @@ export const enCoachToday = {
     "sessionType.RECOVERY": "Recovery",
     "sessionType.PHYSICAL_THERAPY": "Physical therapy",
 
-    "queue.items": "{n} items, most urgent first",
-    "queue.items.one": "1 item, most urgent first",
     "queue.allClear": "All clear — nothing needs you right now",
     "queue.all": "All",
     "queue.forFighter": "for {name}",

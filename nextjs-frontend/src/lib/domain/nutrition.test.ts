@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { NutritionPlan } from "./bout";
-import { adherenceAlertLine, nutritionPhaseFor, planForPhase, readPlanAnswer, RED_WEIGHT_RECOMMENDATION, savedWeightMessage, wayOffCount, weighInCountdown } from "./nutrition";
+import { adherenceAlertLine, nextNutritionPlan, nutritionPhaseFor, planForPhase, readPlanAnswer, RED_WEIGHT_RECOMMENDATION, savedWeightMessage, wayOffCount, weighInCountdown } from "./nutrition";
 
 const plan: NutritionPlan = {
     camp: { text: "Camp meals", authorName: "Rafael Costa", updatedAt: "2026-10-01T01:00:00.000Z" },
@@ -75,5 +75,18 @@ describe("saved weight notice", () => {
         expect(savedWeightMessage("999", "OVER_LIMIT")).toBeNull();
         expect(savedWeightMessage("66.55", "OVER_LIMIT")).toBeNull();
         expect(savedWeightMessage("66.5", "BLUE")).toBe("Saved 66.5 kg.");
+    });
+});
+
+describe("saving the plan (T-009 B1)", () => {
+    const now = new Date("2026-10-20T02:00:00.000Z");
+
+    it("stamps changed boxes, keeps unchanged ones and clears blank ones", () => {
+        const next = nextNutritionPlan(plan, { camp: "Camp meals", fightWeek: "  Less salt  ", postWeighIn: " " }, "Lan", now);
+        expect(next).toEqual({
+            camp: plan.camp,
+            fightWeek: { text: "Less salt", authorName: "Lan", updatedAt: "2026-10-20T02:00:00.000Z" },
+            postWeighIn: null,
+        });
     });
 });

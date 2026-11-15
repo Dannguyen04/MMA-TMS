@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { z } from "zod";
 
 import { ACCESS_EXPIRES_COOKIE, ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/lib/auth/constants";
@@ -72,11 +73,15 @@ export interface DrainCursorOptions extends ApiRequestOptions {
 
 const successEnvelopeSchema = z.object({ success: z.literal(true), message: z.string(), data: z.unknown() });
 
+/** `API_TIMING_LOG=1` prints each backend call's path, status and time on the server, to find slow pages in API mode. */
+const timingLog = process.env.API_TIMING_LOG === "1";
+
 /** Gọi API nội bộ, không cache và luôn kiểm tra cả envelope lẫn dữ liệu. */
 export async function apiRequest<T extends z.ZodType>(path: string, dataSchema: T, options: ApiRequestOptions = {}): Promise<z.output<T>> {
     const { accessToken, timeoutMs = defaultTimeoutMs, headers, ...init } = options;
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = timingLog ? performance.now() : 0;
     let response: Response;
 
     try {
@@ -99,6 +104,7 @@ export async function apiRequest<T extends z.ZodType>(path: string, dataSchema: 
     } finally {
         clearTimeout(timer);
     }
+    if (timingLog) console.log(`[api] ${init.method ?? "GET"} ${path} ${response.status} ${Math.round(performance.now() - startedAt)}ms`);
 
     const raw: unknown = await response.json().catch(() => null);
     if (!response.ok) {
@@ -112,24 +118,33 @@ export async function apiRequest<T extends z.ZodType>(path: string, dataSchema: 
     }
 
     const envelope = successEnvelopeSchema.safeParse(raw);
-    const parsed = envelope.success ? dataSchema.safeParse(envelope.data.data) : null;
-    if (!parsed?.success) {
-        throw new ApiError({
-            message: "The service sent an unexpected response.",
-            kind: "invalid_response",
-            status: response.status,
-            code: "INVALID_API_RESPONSE",
-            details: parsed?.error.flatten(),
-        });
-    }
+    if (!envelope.success) throw invalidResponse(response.status);
+    return parseData(envelope.data.data, dataSchema, response.status);
+}
+
+function invalidResponse(status: number, details?: unknown): ApiError {
+    return new ApiError({ message: "The service sent an unexpected response.", kind: "invalid_response", status, code: "INVALID_API_RESPONSE", details });
+}
+
+function parseData<T extends z.ZodType>(data: unknown, dataSchema: T, status: number): z.output<T> {
+    const parsed = dataSchema.safeParse(data);
+    if (!parsed.success) throw invalidResponse(status, parsed.error.flatten());
     return parsed.data;
 }
+
+/**
+ * One plain GET per path and session for the length of a server render. A layout and its page, or two parts of one
+ * page, often read the same list (a fighter's bouts, the rulesets); in API mode each extra call queues behind the
+ * others on the service's database pool. Outside a render (server actions, tests) React's `cache` doesn't memoize.
+ */
+const renderScopedGet = cache((path: string, accessToken: string) => apiRequest(path, z.unknown(), { accessToken }));
 
 /** Gọi endpoint bằng access token HTTP-only của phiên hiện tại. */
 export async function authenticatedApiRequest<T extends z.ZodType>(path: string, dataSchema: T, options: ApiRequestOptions = {}) {
     const store = await cookies();
     const token = store.get(ACCESS_TOKEN_COOKIE)?.value;
     if (!token) throw sessionExpiredError();
+    if (Object.keys(options).length === 0) return parseData(await renderScopedGet(path, token), dataSchema, 200);
     return apiRequest(path, dataSchema, { ...options, accessToken: token });
 }
 

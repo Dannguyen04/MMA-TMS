@@ -33,7 +33,7 @@ export const enScreensPerformance = {
     "screens.performance.ofN": "of {n}",
     "screens.performance.unavailable": "Performance scores aren't available yet",
     "screens.performance.goalsUnavailable": "Goals aren't available yet",
-    "screens.performance.unavailableDesc": "The training service doesn't offer this yet. It will appear here once it does.",
+    "screens.performance.unavailableDesc": "Not available yet.",
     "screens.performance.completeWeeks": "{n} complete weeks",
     "screens.performance.completeWeeks.one": "1 complete week",
     "screens.performance.earlierWeeks": "{n} earlier weeks",
@@ -191,7 +191,6 @@ export const enScreensPerformance = {
 
     /* Team performance (coach) */
     "screens.performance.team.title": "Team performance",
-    "screens.performance.team.desc": "Technique scores, trends and training volume across your roster.",
     "screens.performance.team.emptyTitle": "No performance data for your roster yet",
     "screens.performance.team.emptyDesc": "Scores appear once your fighters' training videos are analysed and sessions are rated.",
     "screens.performance.team.avgScore": "Team average score",
@@ -221,13 +220,11 @@ export const enScreensPerformance = {
     "screens.performance.volume.summary": "{avg} min a week on average · busiest week {max} min",
     "screens.performance.volume.title": "Weekly training volume (min)",
     "screens.performance.volume.desc": "Team training minutes · {weeks}",
-    "screens.performance.volume.figureDesc": "Each week's tooltip and the data table split the total by fighter.",
     "screens.performance.volume.caption": "Training minutes per fighter per week",
     "screens.performance.volume.aria": "Team training minutes per week. {summary}.",
     "screens.performance.volume.series": "Team minutes",
 
     /* Goals (coach) */
-    "screens.performance.coachGoals.desc": "Measurable targets across your roster. Log progress as you measure it — fighters see every check-in.",
     "screens.performance.coachGoals.emptyTitle": "No goals across your roster yet",
     "screens.performance.coachGoals.emptyDesc":
         "Turn a focus area from Team performance into a target with a due date. Fighters are notified and follow progress on their Goals page.",
@@ -256,11 +253,8 @@ export const enScreensPerformance = {
     "screens.performance.fighterTab.goalsEmptyDesc": "Goals turn feedback into a measurable target with a due date. Start from the focus area on the Performance tab.",
 
     /* Fighter performance and goals */
-    "screens.performance.fighterPerformance.desc": "How your technique, speed and training load are developing week by week.",
     "screens.performance.fighterGoals.emptyIntro": "Measurable targets your coaches set with you.",
     "screens.performance.fighterGoals.atRisk": ", {n} at risk",
-    "screens.performance.fighterGoals.updates": "Progress updates each time your coach logs a new measurement.",
-    "screens.performance.fighterGoals.managed": "Goals are managed by your coaches — talk to them to adjust a target or due date.",
     "screens.performance.fighterGoals.emptyTitle": "No goals yet",
     "screens.performance.fighterGoals.emptyDesc": "Your coaches set goals from your training and video analysis. Ask them about a target you'd like to work towards.",
     "screens.performance.fighterGoals.review": "Review your performance",
@@ -268,14 +262,12 @@ export const enScreensPerformance = {
 
     /* Technique detail (fighter) */
     "screens.performance.techniqueDetail.metaTitle": "{technique} · Performance",
-    "screens.performance.techniqueDetail.desc": "How your {technique} is scored, how it's trending and what the AI and your coaches noticed.",
     "screens.performance.techniqueDetail.emptyTitle": "No {technique} data yet",
     "screens.performance.techniqueDetail.early": "You have {weeks} of data so far. The 4-week change and trend charts fill in as more weeks are completed.",
     "screens.performance.techniqueDetail.pausedTitle": "No {noun} detected recently",
     "screens.performance.techniqueDetail.pausedBody":
         "Your analysed footage after the week of {date} shows no {noun}, so this score is carried over from that week. It updates once {noun} are back in your training videos.",
     "screens.performance.techniqueDetail.findings": "Recent AI findings",
-    "screens.performance.techniqueDetail.findingsDesc": "Observations about your {technique} from analysed videos, newest first.",
     "screens.performance.techniqueDetail.findingsEmpty": "No AI findings about your {technique} yet",
     "screens.performance.techniqueDetail.findingsEmptyDesc": "Findings appear when a training video shows something worth your attention.",
     "screens.performance.techniqueDetail.relatedGoals": "Related goals",
@@ -283,7 +275,6 @@ export const enScreensPerformance = {
     "screens.performance.techniqueDetail.goalsEmpty": "No {technique} goals",
     "screens.performance.techniqueDetail.goalsEmptyDesc": "Your coaches set goals. Ask them if you'd like a target for your {technique}.",
     "screens.performance.techniqueDetail.tips": "Coach tips",
-    "screens.performance.techniqueDetail.tipsDesc": "Feedback tagged {technique}",
     "screens.performance.techniqueDetail.tipsEmpty": "No tips yet",
     "screens.performance.techniqueDetail.tipsEmptyDesc": "When your coaches tag feedback with {technique}, it shows up here.",
     "screens.performance.techniqueDetail.coachFallback": "Coach",

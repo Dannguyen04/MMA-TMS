@@ -6,7 +6,7 @@ import { injuryTitle } from "@/components/clinical/clinical-copy";
 import type { Injury } from "@/lib/domain/types";
 import { daysBetween, formatDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 import { InjurySeverityBadge, InjuryStatusBadge } from "./status-badges";

@@ -3,13 +3,15 @@ import Link from "next/link";
 
 import type { MedicalEligibility } from "@/lib/domain/medical-contract";
 import type { Fighter } from "@/lib/domain/types";
+import { getTranslator } from "@/lib/i18n/server";
+import { createTranslator, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import type { BoardItem, Triage } from "@/lib/services/doctor-board";
 import { FighterActions, FighterTabs } from "./fighter-nav";
 import { fmeta } from "./labels";
 import { reasonsText } from "./ui";
 
-const WORD: Record<Triage, string> = { red: "Chặn", amber: "Theo dõi", green: "Thông qua" };
+const WORD: Record<Triage, MessageKey> = { red: "doctorUi.head.word.red", amber: "doctorUi.head.word.amber", green: "doctorUi.head.word.green" };
 
 export type GateTone = "ok" | "block" | "warn";
 
@@ -24,13 +26,13 @@ export interface HeaderGate {
  * Dòng điều kiện ở đầu hồ sơ: tập luyện, thi đấu, và đình chỉ khi còn cần xử lý.
  * Màu đình chỉ lấy từ cùng quy tắc với thẻ phân loại, nên đầu hồ sơ không bao giờ trái với màu thẻ.
  */
-export function headerGates(training: MedicalEligibility | null, competition: MedicalEligibility | null, items: readonly BoardItem[] = []): HeaderGate[] {
+export function headerGates(training: MedicalEligibility | null, competition: MedicalEligibility | null, items: readonly BoardItem[] = [], t: Translator = createTranslator("vi")): HeaderGate[] {
     const gates: HeaderGate[] = [];
-    for (const [key, label, e] of [["training", "Tập luyện", training], ["competition", "Thi đấu", competition]] as const) {
-        if (e) gates.push({ key, label, tone: e.eligible ? "ok" : "block", text: e.eligible ? "Đủ điều kiện" : reasonsText(e).join(" · ") });
+    for (const [key, label, e] of [["training", t("doctorUi.head.training"), training], ["competition", t("doctorUi.head.competition"), competition]] as const) {
+        if (e) gates.push({ key, label, tone: e.eligible ? "ok" : "block", text: e.eligible ? t("doctorUi.head.eligible") : reasonsText(t, e).join(" · ") });
     }
     const suspension = items.find((item) => item.kind === "suspension");
-    if (suspension) gates.push({ key: "suspension", label: "Đình chỉ", tone: suspension.tone === "red" ? "block" : "warn", text: suspension.text });
+    if (suspension) gates.push({ key: "suspension", label: t("doctorUi.head.suspension"), tone: suspension.tone === "red" ? "block" : "warn", text: suspension.text });
     return gates;
 }
 
@@ -42,7 +44,7 @@ export { fighterTabs, type FighterSection, type FighterTab } from "./fighter-sec
  * The fighter's header: card, name and gates are rendered once by the profile layout; the tabs and form buttons are
  * small client components that only follow the URL.
  */
-export function FighterHead({
+export async function FighterHead({
     fighter,
     training,
     competition,
@@ -56,26 +58,27 @@ export function FighterHead({
     /** Việc mở của võ sĩ trên bảng phân loại; dùng để hiện đình chỉ. */
     items?: readonly BoardItem[];
 }) {
-    const gates = headerGates(training, competition, items);
+    const { t } = await getTranslator();
+    const gates = headerGates(training, competition, items, t);
     return (
         <>
             <Link href={routes.doctor.fighters} className="yt-back">
                 <ArrowLeft aria-hidden />
-                Võ sĩ
+                {t("doctorUi.head.back")}
             </Link>
             <div className="hs-top" data-shot="header">
                 <div className="hs-id">
-                    <div className="hs-tag" data-tag={tag} role="img" aria-label={`Thẻ ${WORD[tag]}`}>
+                    <div className="hs-tag" data-tag={tag} role="img" aria-label={t("doctorUi.head.cardAria", { word: t(WORD[tag]) })}>
                         <span className="yt-hole" aria-hidden />
-                        <b>{WORD[tag]}</b>
-                        <small>Thẻ hôm nay</small>
+                        <b>{t(WORD[tag])}</b>
+                        <small>{t("doctorUi.head.cardToday")}</small>
                     </div>
                     <div>
                         <h1>{fighter.name}</h1>
                         <p>
-                            {fmeta(fighter)}
+                            {fmeta(t, fighter)}
                             {fighter.heightCm ? ` · ${fighter.heightCm} cm` : ""}
-                            {fighter.reachCm ? ` · sải tay ${fighter.reachCm} cm` : ""}
+                            {fighter.reachCm ? t("doctorUi.head.reach", { cm: fighter.reachCm }) : ""}
                         </p>
                         {gates.length > 0 && (
                             <ul className="hs-gates">

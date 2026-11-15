@@ -22,7 +22,16 @@ import { enScreens } from "./screens.en";
 import { enScreensRoster } from "./screens-roster.en";
 import { enScreensPerformance } from "./screens-performance.en";
 import { enScreensTraining } from "./screens-training.en";
+import { enScreensApp } from "./screens-app.en";
+import { enScreensVideo } from "./screens-video.en";
+import { enScreensAdmin } from "./screens-admin.en";
 import { enScreensMisc } from "./screens-misc.en";
+import { enDoctorScreens } from "./doctor-screens.en";
+import { enDoctorViews } from "./doctor-views.en";
+import { enDoctorMedical } from "./doctor-medical.en";
+import { enDoctorScat6 } from "./doctor-scat6.en";
+import { enDoctorClinical } from "./doctor-clinical.en";
+import { enDoctorPages } from "./doctor-pages.en";
 
 export const en = {
     ...enDemoFlow,
@@ -44,7 +53,16 @@ export const en = {
     ...enScreensRoster,
     ...enScreensPerformance,
     ...enScreensTraining,
+    ...enScreensApp,
+    ...enScreensVideo,
+    ...enScreensAdmin,
     ...enScreensMisc,
+    ...enDoctorScreens,
+    ...enDoctorViews,
+    ...enDoctorMedical,
+    ...enDoctorScat6,
+    ...enDoctorClinical,
+    ...enDoctorPages,
     /* Navigation: keyed by the English label in `navigation.ts`. */
     "nav.Today": "Today",
     "nav.Bout": "Bout",
@@ -77,6 +95,8 @@ export const en = {
     "nav.Clearances": "Clearances",
     "nav.Medical history": "Medical history",
     "nav.Medical records": "Medical records",
+    "nav.Requests": "Requests",
+    "nav.Recovery": "Recovery",
     "nav.Dashboard": "Dashboard",
     "nav.Access": "Access",
     "nav.People": "People",
@@ -118,6 +138,53 @@ export const en = {
     "shell.profile": "Profile",
     "shell.preferences": "Preferences",
     "shell.signOut": "Sign out",
+    "doctor.hub.triage": "Triage",
+    "doctor.hub.fighters": "Fighters",
+    "doctor.hub.clinical": "Clinical",
+    "doctor.hub.observations": "Observations",
+    "doctor.tab.examinations": "Examinations",
+    "doctor.tab.injuries": "Injuries",
+    "doctor.tab.recovery": "Recovery",
+    "doctor.tab.clearance": "Clearance",
+    "doctor.tab.history": "History",
+    "doctor.tab.records": "Medical records",
+    "doctor.tab.reviews": "Review requests",
+    "doctor.tab.alerts": "AI observations",
+    "doctor.badge.blocked": "fighters blocked",
+    "doctor.badge.attention": "{reviews} open requests, {alerts} new alerts",
+    "doctor.brandHome": "MMA-TMS, medical, back to Today",
+    "doctor.nav.skip": "Skip navigation",
+    "doctor.nav.daily": "Daily",
+    "doctor.nav.chart": "Medical chart",
+    "doctor.nav.today": "Today",
+    "doctor.nav.role": "Sports medicine doctor",
+    "doctor.nav.profile": "My profile",
+    "doctor.nav.theme": "Switch light and dark",
+    "doctor.nav.themeOn": "Switch light and dark, currently {mode}",
+    "doctor.nav.light": "Light",
+    "doctor.nav.dark": "Dark",
+    "doctor.nav.expand": "Expand sidebar",
+    "doctor.nav.collapse": "Collapse sidebar",
+    "doctor.nav.expandShort": "Expand",
+    "doctor.nav.collapseShort": "Collapse",
+    "doctor.nav.notifications": "Notifications",
+    "doctor.nav.notificationsUnread": "Notifications: {n} unread",
+    "doctor.badge.reviews": "open requests",
+    "doctor.badge.alerts": "new alerts",
+    "doctor.dashboard.title": "Triage today",
+    "doctor.fighters.title": "Fighters",
+    "doctor.examinations.title": "Examinations",
+    "doctor.injuries.title": "Injuries",
+    "doctor.recovery.title": "Recovery plans",
+    "doctor.clearance.title": "Clearance",
+    "doctor.history.title": "Medical history",
+    "doctor.reviews.title": "Review requests",
+    "doctor.alerts.title": "AI observations",
+    "shell.logoSubtitle": "Training and health",
+    "shell.meta.title": "MMA-TMS — Fighter training and health",
+    "shell.meta.description": "MMA fighter training, AI-assisted video analysis, performance tracking and sports medicine in one platform.",
+    "shell.error.body": "Something went wrong while loading this data. Try again — if it keeps happening, contact your administrator.",
+    "shell.error.reference": "Reference",
     "theme.light": "Light",
     "theme.dark": "Dark",
     "theme.system": "System",
@@ -126,6 +193,7 @@ export const en = {
     "role.fighter": "Fighter",
     "role.coach": "Coach",
     "role.doctor": "Sports doctor",
+    "role.applicant": "Applicant",
     "role.admin": "Administrator",
 
     /* Bout and weight vocabulary */

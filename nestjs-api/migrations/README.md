@@ -1,4 +1,20 @@
-# Migrations 003–033 — Backend, Database & API Permissions
+# Migrations 003–034 — Backend, Database & API Permissions
+
+## Áp dụng migration 034 (Giới tính võ sĩ, 15/11/2026)
+
+034 chỉ yêu cầu ledger 003 (`mma_private.migration_history`) và bảng `public.fighters`; không yêu cầu 004–033.
+Nội dung:
+- Enum `public.fighter_sex` (`MALE`, `FEMALE`).
+- Cột `fighters.sex` (có thể NULL; dòng có sẵn nhận NULL, web hiểu là chưa rõ và vẽ hình nam như trước).
+- Không thêm quyền, trigger, bảng hay RLS. Trigger `updated_at` và audit có sẵn ghi cột mới.
+- Ledger version 34, advisory lock `(20260916, 34)`, checksum trong `manifest.json`.
+
+**Áp 034 trước khi deploy backend có cột `sex`:** code mới đọc mọi cột của `fighters`, nên chạy trên database chưa có cột sẽ lỗi.
+
+```sh
+pnpm db:check
+pnpm db:migrate:034
+```
 
 ## Áp dụng migration 033 (Nguồn đình chỉ và kết thúc sớm có căn cứ — T-050)
 

@@ -25,7 +25,7 @@ import type { ClearanceConflict } from "@/lib/domain/rules";
 import { MAX_WEEKLY_REPEATS, presetDuration, SESSION_PRESETS, suggestedSessionTitle, weeklyDates } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, TrainingType } from "@/lib/domain/types";
 import { academyDayStartIso, formatShortDate, isDateKey } from "@/lib/format";
-import { plural } from "@/lib/i18n/translate";
+import { plural } from "@/lib/i18n/translate-client";
 import { ClearanceCheckPanel, type ClearanceCheckStatus } from "./clearance-check-panel";
 import { ExerciseBuilder } from "./exercise-builder";
 import { serializeExerciseRows, type ExerciseRow } from "./exercise-rows";
@@ -229,7 +229,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
 
             <Card className="min-w-0 lg:col-span-2">
                 <CardContent className="pt-6">
-                    <FormSection title={t("training.sessionForm.sectionFighterPlan")} description={t("training.sessionForm.sectionFighterPlanDesc")}>
+                    <FormSection title={t("training.sessionForm.sectionFighterPlan")}>
                         {mode === "create" ? (
                             <Field label={t("training.sessionForm.fighter")} htmlFor="session-fighterId" required error={error("fighterId")}>
                                 <Select {...input("fighterId", { required: true })} value={values.fighterId} onChange={(event) => changeFighter(event.target.value)}>
@@ -408,7 +408,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                                 />
                             </FormSection>
 
-                            <FormSection title={t("training.sessionForm.sectionExercises")} description={t("training.sessionForm.sectionExercisesDesc")}>
+                            <FormSection title={t("training.sessionForm.sectionExercises")}>
                                 <ExerciseBuilder
                                     library={library}
                                     rows={values.exercises}
@@ -422,7 +422,7 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                         </>
                     )}
 
-                    <FormSection title={t("training.sessionForm.sectionNotes")} description={t("training.sessionForm.sectionNotesDesc")}>
+                    <FormSection title={t("training.sessionForm.sectionNotes")}>
                         <div className="flex flex-col gap-2">
                             <Field label={t("training.sessionForm.sessionNotes")} htmlFor="session-notes" optional error={error("notes")}>
                                 <Textarea {...input("notes")} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
@@ -469,6 +469,10 @@ export function SessionForm({ mode, action, fighters, plans, library, clearances
                             fighterName={fighter?.name}
                             acknowledged={acknowledged}
                             onAcknowledgedChange={(value) => setAcknowledgedFor(value ? warningsKey : null)}
+                            body={{
+                                blocked: restrictions.flatMap((r) => r.blockedRegions),
+                                loads: values.exercises.flatMap((row) => libraryById[row.exerciseId]?.loadsRegions ?? []),
+                            }}
                         />
                     )}
                     <Card className="flex flex-col gap-3 p-4">

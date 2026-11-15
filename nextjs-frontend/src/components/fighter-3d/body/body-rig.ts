@@ -1,7 +1,7 @@
 import * as THREE from "three";
 
 import type { BodyRegion } from "@/lib/domain/types";
-import { createBodyMaterial, type BodyLook, type BodyUniforms } from "./body-material";
+import { createBodyMaterials, type BodyLook, type BodyMaterials, type BodyUniforms } from "./body-material";
 import { MODEL_HEIGHT, regionAnchors, regionAt, type BodyModel, type RegionSpot } from "./regions";
 
 export interface RigHighlight {
@@ -32,8 +32,16 @@ export interface RigFrame {
     yaw: number;
     dim: number;
     animate: boolean;
+    /** Breathing and the idle light along the lattice; off under reduced motion, on lite and off screen. */
+    idle: boolean;
     focus: BodyRegion | null;
     distance: number;
+}
+
+/** Eases `value` toward `target` with time constant 1 / `rate` seconds; snaps when close. */
+function approach(value: number, target: number, rate: number, delta: number): number {
+    const next = value + (target - value) * Math.min(1, delta * rate);
+    return Math.abs(target - next) < 0.002 ? target : next;
 }
 
 /**
@@ -44,7 +52,10 @@ export class BodyRig {
     readonly geometry: THREE.BufferGeometry;
     private readonly spots: readonly RegionSpot[];
     private readonly anchors: Map<BodyRegion, RegionSpot>;
-    private readonly shader: { material: THREE.ShaderMaterial; uniforms: BodyUniforms };
+    private readonly shader: BodyMaterials;
+    /** What the highlights and the hover ring are easing toward, per spot. */
+    private readonly targetAmp: number[];
+    private readonly targetFocus: number[];
     private build: FigureBuild = NEUTRAL_BUILD;
     private scanStart: number | null = null;
     private readonly lookAt = new THREE.Vector3(0, 0.92, 0);
@@ -55,11 +66,14 @@ export class BodyRig {
         this.geometry = model.geometry;
         this.spots = model.spots;
         this.anchors = regionAnchors(model.spots);
-        this.shader = createBodyMaterial(model.spots);
+        this.shader = createBodyMaterials(model.spots);
+        this.targetAmp = model.spots.map(() => 0);
+        this.targetFocus = model.spots.map(() => 0);
     }
 
-    get material(): THREE.ShaderMaterial {
-        return this.shader.material;
+    /** The see-through body's three draws, in drawing order (see `body-material.ts`). */
+    get materials(): Pick<BodyMaterials, "depth" | "occluded" | "body" | "wire"> {
+        return this.shader;
     }
 
     private get u(): BodyUniforms {
@@ -73,6 +87,11 @@ export class BodyRig {
 
     anchor(region: BodyRegion): RegionSpot | undefined {
         return this.anchors.get(region);
+    }
+
+    /** 0–1: how far the scan band has passed height `y` (model space), as the shader reveals a region. */
+    revealAt(y: number): number {
+        return THREE.MathUtils.smoothstep(-this.u.uScan.value, -(y + 0.04), -(y - 0.04));
     }
 
     setLook(look: BodyLook, base: string, rim: string) {
@@ -90,7 +109,7 @@ export class BodyRig {
         this.pulsing = highlights.some((h) => h.pulse && h.strength > 0);
         this.spots.forEach((s, i) => {
             const h = byRegion.get(s.region);
-            this.u.uSpotAmp.value[i] = h ? h.strength : 0;
+            this.targetAmp[i] = h ? h.strength : 0;
             this.u.uSpotPulse.value[i] = h?.pulse ? 1 : 0;
             if (h) this.u.uSpotColor.value[i].setStyle(h.color);
         });
@@ -98,24 +117,49 @@ export class BodyRig {
 
     setFocus(regions: (BodyRegion | null)[]) {
         this.spots.forEach((s, i) => {
-            this.u.uSpotFocus.value[i] = regions.includes(s.region) ? 1 : 0;
+            this.targetFocus[i] = regions.includes(s.region) ? 1 : 0;
         });
     }
 
     /** Runs the head-to-toe scan again; without animation the body shows fully at once. */
     restartScan(animate: boolean) {
         this.scanStart = animate ? null : -1;
+        if (!animate) this.settle();
+    }
+
+    /** Puts every eased value at its target (reduced motion, or a frame drawn without animation). */
+    private settle() {
+        this.targetAmp.forEach((t, i) => (this.u.uSpotAmp.value[i] = t));
+        this.targetFocus.forEach((t, i) => (this.u.uSpotFocus.value[i] = t));
     }
 
     /**
-     * Advances one frame. Returns whether anything is still moving (the scan, a turn, the camera, a
-     * pulsing region), so the scene only asks for another frame while it is: a still body costs nothing.
+     * Advances one frame. `moving`: something still changes every frame (the scan, a turn, the camera, a
+     * pulsing region, a fading highlight), so the scene asks for the next frame; a still body costs
+     * nothing. `idling`: only the slow idle motion runs, which the scene draws at a lower frame rate.
      */
-    update(frame: RigFrame, group: THREE.Group, camera: THREE.Camera): boolean {
+    update(frame: RigFrame, group: THREE.Group, camera: THREE.Camera): { moving: boolean; idling: boolean } {
         const { time, delta } = frame;
         const { height, width } = this.build;
         this.u.uTime.value = time;
         this.u.uDim.value += (frame.dim - this.u.uDim.value) * Math.min(1, delta * 4);
+
+        // Highlights fade in and out (~250 ms), the hover ring grows and shrinks (~120 ms).
+        let easing = false;
+        if (frame.animate) {
+            for (let i = 0; i < this.targetAmp.length; i++) {
+                const amp = approach(this.u.uSpotAmp.value[i], this.targetAmp[i], 7, delta);
+                const ring = approach(this.u.uSpotFocus.value[i], this.targetFocus[i], 14, delta);
+                easing ||= amp !== this.targetAmp[i] || ring !== this.targetFocus[i];
+                this.u.uSpotAmp.value[i] = amp;
+                this.u.uSpotFocus.value[i] = ring;
+            }
+        } else {
+            this.settle();
+        }
+        const idleTarget = frame.idle && frame.animate ? 1 : 0;
+        this.u.uIdle.value = frame.animate ? approach(this.u.uIdle.value, idleTarget, 2, delta) : idleTarget;
+        const idling = this.u.uIdle.value > 0;
 
         if (this.scanStart === null) this.scanStart = time;
         const progress = this.scanStart < 0 ? 1 : Math.min(1, (time - this.scanStart) / SCAN_SECONDS);
@@ -146,11 +190,14 @@ export class BodyRig {
         this.lookAt.lerp(wantLook, k);
         camera.position.lerp(wantPos, k);
         camera.lookAt(this.lookAt);
-        return progress < 1 || turning || flying || this.pulsing;
+        return { moving: progress < 1 || turning || flying || this.pulsing || easing, idling };
     }
 
     dispose() {
         this.geometry.dispose();
-        this.shader.material.dispose();
+        this.shader.depth.dispose();
+        this.shader.occluded.dispose();
+        this.shader.body.dispose();
+        this.shader.wire.dispose();
     }
 }

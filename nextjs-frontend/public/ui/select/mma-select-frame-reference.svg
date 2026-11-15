@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Reference composition 280x40 (do not stretch: for documentation/Figma only). Uses CSS custom properties with preview fallbacks. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="40" viewBox="0 0 280 40" aria-hidden="true" focusable="false">
+  <path d="M6,0 H272 A8,8 0 0 1 280,8 V34 L274,40 H8 A8,8 0 0 1 0,32 V6 Z" style="fill:var(--color-surface,#FFFFFF)"/>
+  <path d="M6.5,0.5 H271.5 A7.5,7.5 0 0 1 279.5,8 V33.5 L273.5,39.5 H8 A7.5,7.5 0 0 1 0.5,32 V6.5 Z" fill="none" style="stroke:var(--color-border,#C9D1DC)" stroke-width="1"/>
+  <path d="M252,17 L256,21 L260,17" fill="none" style="stroke:var(--color-fg-muted,#4A5868)" stroke-width="1.75" stroke-linecap="square"/>
+</svg>

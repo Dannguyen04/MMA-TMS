@@ -1,3 +1,5 @@
+import type { MessageKey, Translator } from "@/lib/i18n/translate";
+
 import { jointLabel } from "../labels";
 
 /** Bản sao từ reactnative-mobile/src/components/body3d/regions.ts (giữ nguyên bảng cấu hình). */
@@ -37,7 +39,7 @@ export const EXTRA_REGIONS: Record<string, ExtraCfg> = {
   CHEST: { region: "CHEST", centres: [[0.0085, -0.027, 0.011], [-0.0085, -0.027, 0.011]], R: 0.011 },
   RIBS: { region: "RIBS", centres: [[0.0155, -0.046, 0.007], [-0.0155, -0.046, 0.007]], R: 0.0095 },
 };
-const EXTRA_VI: Record<string, string> = { HEAD: "Đầu", NECK: "Cổ", CHEST: "Ngực", RIBS: "Xương sườn" };
+const EXTRA_LABEL: Record<string, MessageKey> = { HEAD: "doctorUi.region.head", NECK: "doctorUi.region.neck", CHEST: "doctorUi.region.chest", RIBS: "doctorUi.region.ribs" };
 export const isMappedJoint = (j: string) => j in JOINT_REGIONS || j in EXTRA_REGIONS;
 
 /** Thông số tô (Bản 6). */
@@ -56,7 +58,7 @@ export type PaintStatus = "injury" | "recovering" | "healed";
 export const STATUS_COLOR: Record<PaintStatus, string> = { injury: "#FF6B7A", recovering: "#5CC8F0", healed: "#6EE07A" };
 const RANK: Record<PaintStatus, number> = { healed: 1, recovering: 2, injury: 3 };
 
-export const STATUS_TEXT: Record<PaintStatus, string> = { injury: "Chấn thương", recovering: "Đang phục hồi", healed: "Đã khỏi" };
+export const STATUS_TEXT: Record<PaintStatus, MessageKey> = { injury: "doctorUi.body.injury", recovering: "doctorUi.body.recovering", healed: "doctorUi.body.healed" };
 
 export type JointRow = {
   joint: string;
@@ -74,11 +76,11 @@ export function humaniseCode(code: string): string {
   return code.replace(/[_-]+/g, " ").trim().toLowerCase();
 }
 
-export function jointLabelVi(code: string): string {
-  if (code === "SPINE_CORE") return "Cột sống";
-  if (EXTRA_VI[code]) return EXTRA_VI[code]!;
-  const j = jointLabel(code);
-  return j !== code ? j : `Vùng khác (${humaniseCode(code)})`;
+export function jointLabelVi(t: Translator, code: string): string {
+  if (code === "SPINE_CORE") return t("doctorUi.body.spine");
+  if (EXTRA_LABEL[code]) return t(EXTRA_LABEL[code]!);
+  const j = jointLabel(t, code);
+  return j !== code ? j : t("doctorUi.body.otherRegion", { code: humaniseCode(code) });
 }
 
 function injuryStatus(s: string): PaintStatus | null {
@@ -94,6 +96,7 @@ function injuryStatus(s: string): PaintStatus | null {
  * Trạng thái khớp: CONFIRMED_IMPAIRMENT → đỏ; SUSPECTED* → không tô (mô hình chỉ có 3 màu), chỉ liệt kê.
  */
 export function buildJointRows(
+  t: Translator,
   injuries: readonly { affectedJoint: string; status: string; injuryType: string; severity: string }[],
   jointStates: readonly Pick<MedicalJointState, "joint" | "currentState">[],
   stateText: (s: string) => string = (s) => s,
@@ -104,11 +107,11 @@ export function buildJointRows(
     const prev = map.get(joint);
     const better = !prev || (status && (!prev.status || RANK[status] > RANK[prev.status]));
     if (!better) return;
-    map.set(joint, { joint, label: jointLabelVi(joint), status, statusText, mapped: isMappedJoint(joint), detail });
+    map.set(joint, { joint, label: jointLabelVi(t, joint), status, statusText, mapped: isMappedJoint(joint), detail });
   };
   for (const i of injuries) {
     const st = injuryStatus(i.status);
-    put(i.affectedJoint, st, st ? STATUS_TEXT[st] : stateText(i.status), [i.injuryType, severityText(i.severity)].filter(Boolean).join(" · "));
+    put(i.affectedJoint, st, st ? t(STATUS_TEXT[st]) : stateText(i.status), [i.injuryType, severityText(i.severity)].filter(Boolean).join(" · "));
   }
   for (const s of jointStates) {
     if (s.currentState === "HEALTHY") continue;

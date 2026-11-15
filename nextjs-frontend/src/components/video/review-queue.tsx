@@ -22,7 +22,6 @@ export async function ReviewQueue({ items, now }: { items: ReviewQueueItem[]; no
             <CardHeader
                 icon={<Sparkles />}
                 title={copy("Review queue")}
-                description={copy("Completed AI analyses waiting for your review. Confirm or correct findings before fighters rely on them.")}
                 action={
                     items.length > 0 && (
                         <Badge tone="warning" size="md" className="max-sm:hidden">

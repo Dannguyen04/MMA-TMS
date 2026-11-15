@@ -146,7 +146,6 @@ export function SessionDetail({
                     <Card>
                         <CardHeader
                             title={t("training.sessionDetail.feedbackTitle")}
-                            description={t("training.sessionDetail.feedbackDesc")}
                             icon={<MessageSquare />}
                             action={feedbackAction}
                         />

@@ -11,8 +11,9 @@ import { graphicsTier } from "@/lib/graphics-tier";
 import type { BodyRegion } from "@/lib/domain/types";
 import type { BodyLook } from "./body-material";
 import { BodyRig, type FigureBuild, type RigHighlight } from "./body-rig";
+import { FEMALE_MODEL_URL, FEMALE_WIRE_URL, femaleModelFrom } from "./female-model";
 import { createMannequinModel } from "./mannequin";
-import { MUSCULAR_MODEL_URL, muscularModelFrom } from "./muscular-model";
+import { MUSCULAR_MODEL_URL, MUSCULAR_WIRE_URL, muscularModelFrom } from "./muscular-model";
 import type { BodyModel, BodyModelKind } from "./regions";
 
 /** A region lit on the body: colour resolved from the theme tokens, strength 0–1. */
@@ -40,20 +41,21 @@ export interface BodySceneProps {
     labels: RefObject<HTMLDivElement | null>;
     ariaLabel: string;
     compact?: boolean;
-    /** Which model is on screen once it has loaded (the mannequin stands in if the scan fails). */
-    onModel?: (kind: BodyModelKind) => void;
     /** The scene puts its "draw a frame" function here, for the stage to call when it turns the body. */
     wakeRef?: RefObject<(() => void) | null>;
 }
 
 /**
  * The body on a transparent canvas: the figure stands straight on the page. Lite devices draw at
- * pixel ratio 1 without antialiasing (see `lib/graphics-tier.ts`).
+ * pixel ratio 1 without antialiasing, skip the far-side regions seen through the body, and never
+ * breathe (see `lib/graphics-tier.ts`).
  */
 export default function BodyScene(props: BodySceneProps) {
     const [lite] = useState(() => graphicsTier() === "lite");
+    const figure = { ...props, lite };
     return (
         <Canvas
+            role="img"
             aria-label={props.ariaLabel}
             dpr={lite ? 1 : [1, 1.6]}
             gl={{ antialias: !lite, alpha: true, powerPreference: "high-performance" }}
@@ -61,27 +63,37 @@ export default function BodyScene(props: BodySceneProps) {
             frameloop="demand"
             style={{ touchAction: "pan-y" }}
         >
-            <ModelBoundary fallback={<MannequinFigure {...props} />}>
-                <Suspense fallback={null}>{props.model === "muscular" ? <MuscularFigure {...props} /> : <MannequinFigure {...props} />}</Suspense>
-            </ModelBoundary>
+            <Boundary fallback={<MannequinFigure {...figure} />}>
+                <Suspense fallback={null}>
+                    {props.model === "muscular" ? <MuscularFigure {...figure} /> : props.model === "female" ? <FemaleFigure {...figure} /> : <MannequinFigure {...figure} />}
+                </Suspense>
+            </Boundary>
             <Floor look={props.look} rim={props.palette.rim} />
         </Canvas>
     );
 }
 
-function MuscularFigure(props: BodySceneProps) {
+type FigureProps = BodySceneProps & { lite: boolean };
+
+function MuscularFigure(props: FigureProps) {
     const gltf = useLoader(GLTFLoader, MUSCULAR_MODEL_URL);
     const [model] = useState(() => muscularModelFrom(gltf.scene));
-    return <Figure {...props} body={model} />;
+    return <Figure {...props} body={model} wireUrl={MUSCULAR_WIRE_URL} />;
 }
 
-function MannequinFigure(props: BodySceneProps) {
+function FemaleFigure(props: FigureProps) {
+    const gltf = useLoader(GLTFLoader, FEMALE_MODEL_URL);
+    const [model] = useState(() => femaleModelFrom(gltf.scene));
+    return <Figure {...props} body={model} wireUrl={FEMALE_WIRE_URL} />;
+}
+
+function MannequinFigure(props: FigureProps) {
     const [model] = useState(createMannequinModel);
     return <Figure {...props} body={model} />;
 }
 
-/** Shows the mannequin when the scanned model cannot be fetched or parsed. */
-class ModelBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+/** Shows `fallback` when a file cannot be fetched or parsed: the mannequin for a model, nothing for a wire. */
+class Boundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
     state = { failed: false };
 
     static getDerivedStateFromError() {
@@ -109,15 +121,23 @@ function Figure({
     animate,
     labels,
     compact,
-    onModel,
     wakeRef,
-}: BodySceneProps & { body: BodyModel }) {
+    lite,
+    wireUrl,
+}: FigureProps & { body: BodyModel; wireUrl?: string }) {
     const group = useRef<THREE.Group>(null);
     const mesh = useRef<THREE.Mesh>(null);
+    const idleTimer = useRef<number | null>(null);
     const { invalidate, size } = useThree();
     const [rig] = useState(() => new BodyRig(body));
 
-    useEffect(() => () => rig.dispose(), [rig]);
+    useEffect(
+        () => () => {
+            rig.dispose();
+            if (idleTimer.current !== null) window.clearTimeout(idleTimer.current);
+        },
+        [rig],
+    );
 
     useEffect(() => {
         if (!wakeRef) return;
@@ -126,10 +146,6 @@ function Figure({
             wakeRef.current = null;
         };
     }, [wakeRef, invalidate]);
-
-    useEffect(() => {
-        onModel?.(body.kind);
-    }, [body.kind, onModel]);
 
     useEffect(() => {
         rig.setLook(look, palette.base, palette.rim);
@@ -157,13 +173,25 @@ function Figure({
     }, [rig, scanKey, animate, invalidate]);
 
     // Rendered on demand: a frame is drawn only while the rig reports movement (and, under reduced
-    // motion or off screen, only when something changes).
+    // motion or off screen, only when something changes). Breathing alone runs at about 30 frames a
+    // second: it is slow, and the page should not pay full rate for it.
     useFrame((state, delta) => {
         const g = group.current;
         if (!g) return;
-        const moving = rig.update({ time: state.clock.elapsedTime, delta: Math.min(delta, 0.1), yaw: yaw.current ?? 0, dim, animate, focus, distance: compact ? 4.7 : 4.05 }, g, state.camera);
+        const { moving, idling } = rig.update(
+            { time: state.clock.elapsedTime, delta: Math.min(delta, 0.1), yaw: yaw.current ?? 0, dim, animate, idle: animate && !lite, focus, distance: compact ? 4.7 : 4.05 },
+            g,
+            state.camera,
+        );
         placeLabels(rig, labels.current, g, state.camera, size.width, size.height);
-        if (moving && animate) state.invalidate();
+        if (!animate) return;
+        if (moving) state.invalidate();
+        else if (idling && idleTimer.current === null) {
+            idleTimer.current = window.setTimeout(() => {
+                idleTimer.current = null;
+                state.invalidate();
+            }, 33);
+        }
     });
 
     const regionFromEvent = (event: ThreeEvent<PointerEvent | MouseEvent>) => {
@@ -172,12 +200,17 @@ function Figure({
         return rig.regionAt(m.worldToLocal(event.point.clone()));
     };
 
+    const { depth, occluded, body: surface, wire } = rig.materials;
     return (
         <group ref={group}>
+            {/* Depth only, then the far side's regions through the body, then the body (see body-material.ts). */}
+            <mesh geometry={rig.geometry} material={depth} renderOrder={0} raycast={noRaycast} />
+            {!lite && <mesh geometry={rig.geometry} material={occluded} renderOrder={1} raycast={noRaycast} />}
             <mesh
                 ref={mesh}
                 geometry={rig.geometry}
-                material={rig.material}
+                material={surface}
+                renderOrder={2}
                 onPointerMove={(e) => {
                     e.stopPropagation();
                     onHover(regionFromEvent(e));
@@ -188,9 +221,40 @@ function Figure({
                     onSelect(regionFromEvent(e));
                 }}
             />
+            {wireUrl && look === "hologram" && (
+                <Boundary fallback={null}>
+                    <Suspense fallback={null}>
+                        <Wire url={wireUrl} surface={rig.geometry} material={wire} onReady={invalidate} />
+                    </Suspense>
+                </Boundary>
+            )}
         </group>
     );
 }
+
+/**
+ * The wireframe over the body: the model's own vertices joined by the edges of a simplified copy (see
+ * the model files). An enhancement: if the file cannot load the body shows without it.
+ */
+function Wire({ url, surface, material, onReady }: { url: string; surface: THREE.BufferGeometry; material: THREE.Material; onReady: () => void }) {
+    const buffer = useLoader(THREE.FileLoader, url, (loader) => loader.setResponseType("arraybuffer")) as unknown as ArrayBuffer;
+    const [geometry] = useState(() => {
+        const g = new THREE.BufferGeometry();
+        g.setAttribute("position", surface.getAttribute("position"));
+        g.setAttribute("normal", surface.getAttribute("normal"));
+        g.setIndex(new THREE.Uint16BufferAttribute(new Uint16Array(buffer), 1));
+        g.boundingSphere = surface.boundingSphere;
+        return g;
+    });
+    useEffect(() => {
+        onReady();
+        return () => geometry.dispose();
+    }, [geometry, onReady]);
+    return <lineSegments geometry={geometry} material={material} renderOrder={3} raycast={noRaycast} />;
+}
+
+/** The depth, far-side and wire passes are not picked: the pointer hits the body mesh only. */
+function noRaycast() {}
 
 const scratch = new THREE.Vector3();
 const scratchNormal = new THREE.Vector3();
@@ -215,7 +279,8 @@ function placeLabels(rig: BodyRig, layer: HTMLDivElement | null, group: THREE.Gr
         const side = screen.x < 0 ? "left" : "right";
         if (el.dataset.side !== side) el.dataset.side = side;
         el.style.transform = `translate3d(${x.toFixed(1)}px, ${y.toFixed(1)}px, 0)`;
-        el.style.opacity = String(THREE.MathUtils.smoothstep(facing, -0.25, 0.2));
+        // A pin appears as the scan band reaches its region, and fades when that side turns away.
+        el.style.opacity = String(THREE.MathUtils.smoothstep(facing, -0.25, 0.2) * rig.revealAt(anchor.center.y));
     }
 }
 
@@ -241,16 +306,17 @@ function Floor({ look, rim }: { look: BodyLook; rim: string }) {
 
     return (
         <group>
-            <mesh rotation-x={-Math.PI / 2} position-y={0.001} scale={look === "hologram" ? 1.9 : 0.95}>
+            {/* Drawn before the body (render order −1) so the glow shows through the see-through figure. */}
+            <mesh rotation-x={-Math.PI / 2} position-y={0.001} scale={look === "hologram" ? 1.9 : 0.95} renderOrder={-1}>
                 <planeGeometry args={[1, 1]} />
                 <meshBasicMaterial map={shadow} transparent depthWrite={false} toneMapped={false} />
             </mesh>
             {look === "hologram" && (
                 <>
-                    <lineLoop geometry={outline}>
+                    <lineLoop geometry={outline} renderOrder={-1}>
                         <lineBasicMaterial color={rim} transparent opacity={0.7} toneMapped={false} />
                     </lineLoop>
-                    <lineLoop geometry={inner}>
+                    <lineLoop geometry={inner} renderOrder={-1}>
                         <lineBasicMaterial color={rim} transparent opacity={0.25} toneMapped={false} />
                     </lineLoop>
                 </>

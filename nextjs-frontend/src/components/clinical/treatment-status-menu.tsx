@@ -3,14 +3,16 @@
 import { Ellipsis } from "lucide-react";
 import { useTransition } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Popover } from "@/components/ui/popover";
 import { useToast } from "@/components/ui/toast";
 import { updateTreatmentStatusAction } from "@/lib/actions/clinical";
-import { TREATMENT_STATUS_LABELS, TREATMENT_TYPE_LABELS } from "@/lib/domain/labels";
+import { TREATMENT_STATUS_LABELS } from "@/lib/domain/labels";
 import type { TreatmentStatus, TreatmentType } from "@/lib/domain/types";
 import { cn } from "@/lib/utils";
 import { TREATMENT_STATUS_META } from "./clinical-badges";
+import { treatmentTypeText } from "./clinical-copy";
 
 const STATUSES = Object.keys(TREATMENT_STATUS_LABELS) as TreatmentStatus[];
 
@@ -25,6 +27,8 @@ export interface TreatmentStatusMenuProps {
 export function TreatmentStatusMenu({ injuryId, treatmentId, type, status }: TreatmentStatusMenuProps) {
     const [pending, startTransition] = useTransition();
     const toast = useToast();
+    const t = useT();
+    const changeLabel = t("doctorClinical.treatmentMenu.changeStatusOf", { type: treatmentTypeText(t, type) });
 
     const change = (next: TreatmentStatus, close: () => void) => {
         close();
@@ -32,18 +36,18 @@ export function TreatmentStatusMenu({ injuryId, treatmentId, type, status }: Tre
             const result = await updateTreatmentStatusAction({ injuryId, treatmentId, status: next });
             toast(
                 result.status === "success"
-                    ? { title: "Đã cập nhật điều trị", description: result.message }
-                    : { tone: "error", title: "Không cập nhật được điều trị", description: result.message },
+                    ? { title: t("doctorClinical.treatmentMenu.updated"), description: result.message }
+                    : { tone: "error", title: t("doctorClinical.treatmentMenu.updateFailed"), description: result.message },
             );
         });
     };
 
     return (
         <Popover
-            label={`Đổi trạng thái ${TREATMENT_TYPE_LABELS[type]}`}
+            label={changeLabel}
             align="end"
             trigger={(props) => (
-                <Button {...props} variant="ghost" size="icon-sm" loading={pending} aria-label={`Đổi trạng thái ${TREATMENT_TYPE_LABELS[type]}`}>
+                <Button {...props} variant="ghost" size="icon-sm" loading={pending} aria-label={changeLabel}>
                     {!pending && <Ellipsis />}
                 </Button>
             )}
@@ -51,9 +55,10 @@ export function TreatmentStatusMenu({ injuryId, treatmentId, type, status }: Tre
         >
             {(close) => (
                 <div className="flex flex-col">
-                    <p className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-fg-subtle">Đổi trạng thái</p>
+                    <p className="px-2.5 pt-1 pb-1.5 text-xs font-semibold text-fg-subtle">{t("doctorClinical.treatmentMenu.changeStatus")}</p>
                     {STATUSES.map((value) => {
                         const meta = TREATMENT_STATUS_META[value];
+                        const label = t(meta.label);
                         const Icon = meta.icon;
                         const current = value === status;
                         return (
@@ -69,7 +74,7 @@ export function TreatmentStatusMenu({ injuryId, treatmentId, type, status }: Tre
                                 )}
                             >
                                 <Icon aria-hidden className="size-4 text-fg-muted" />
-                                {current ? `${meta.label} (hiện tại)` : `Chuyển sang ${meta.label.toLowerCase()}`}
+                                {current ? t("doctorClinical.treatmentMenu.current", { status: label }) : t("doctorClinical.treatmentMenu.moveTo", { status: label.toLowerCase() })}
                             </button>
                         );
                     })}

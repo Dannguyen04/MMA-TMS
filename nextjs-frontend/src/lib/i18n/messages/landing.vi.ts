@@ -27,7 +27,7 @@ export const viLanding = {
 
     "landing.analysis.kicker": "Phân tích video bằng AI",
     "landing.analysis.title": "Từng hiệp tập, chấm điểm như bảng điểm trận đấu.",
-    "landing.analysis.text": "Tải lên video đấm gió, đánh đích, đánh bao cát hoặc đấu tập. Quy trình theo dõi võ sĩ, ước lượng 17 điểm mốc tư thế mỗi khung hình và chuyển mọi đòn đánh thành con số HLV có thể kiểm chứng.",
+    "landing.analysis.text": "Tải lên video đấm gió, đánh đích, đánh bao cát hoặc đấu tập. AI theo dõi võ sĩ và chuyển mọi đòn đánh thành con số HLV có thể kiểm chứng.",
     "landing.analysis.results": "Kết quả thu về",
     "landing.analysis.confidence": "Độ tin cậy AI",
     "landing.analysis.reviewLabel": "HLV duyệt:",
@@ -64,7 +64,7 @@ export const viLanding = {
 
     "landing.training.kicker": "Tập luyện",
     "landing.training.title": "Giáo án bám sát từng giai đoạn trại tập.",
-    "landing.training.text": "HLV xây dựng giáo án theo giai đoạn với mục tiêu, nội dung trọng tâm và số buổi tập mỗi tuần, rồi lên lịch buổi tập kèm RPE mục tiêu và số hiệp bài tập. Võ sĩ theo dõi tuần tập của mình; bản thảo chỉ hiện khi HLV kích hoạt.",
+    "landing.training.text": "HLV xây dựng giáo án theo giai đoạn và lên lịch buổi tập kèm RPE mục tiêu và số hiệp. Võ sĩ theo dõi tuần tập của mình.",
     "landing.training.sessionTime": "Thứ 3 · 18:00 · 75 phút",
     "landing.training.sessionTitle": "Đánh đích — tổ hợp đòn",
     "landing.training.targetRpe": "RPE mục tiêu",

@@ -4,6 +4,7 @@ import { CircleStop, RotateCcw, TriangleAlert } from "lucide-react";
 import { startTransition, useActionState, useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormMessage } from "@/components/ui/form";
@@ -23,6 +24,7 @@ export interface JobActionsProps {
 
 /** Retry (failed jobs) or cancel (queued / processing jobs), each confirmed first. */
 export function JobActions({ jobId, status, attempts, videoTitle, retryHelps }: JobActionsProps) {
+    const t = useT();
     const toast = useToast();
     const [open, setOpen] = useState(false);
     const [error, setError] = useState<string | undefined>();
@@ -32,7 +34,7 @@ export function JobActions({ jobId, status, attempts, videoTitle, retryHelps }: 
         const result = await (mode === "retry" ? retryJobAction : cancelJobAction)(previous, formData);
         if (result.status === "success") {
             setOpen(false);
-            toast({ tone: mode === "retry" ? "success" : "warning", title: result.message ?? "Job updated." });
+            toast({ tone: mode === "retry" ? "success" : "warning", title: result.message ?? t("screens.admin.jobActions.updated") });
         } else {
             setError(result.message);
         }
@@ -57,12 +59,12 @@ export function JobActions({ jobId, status, attempts, videoTitle, retryHelps }: 
             {mode === "retry" ? (
                 <Button onClick={openConfirm}>
                     <RotateCcw aria-hidden />
-                    Retry job
+                    {t("screens.admin.jobActions.retry")}
                 </Button>
             ) : (
                 <Button variant="danger-soft" onClick={openConfirm}>
                     <CircleStop aria-hidden />
-                    Cancel job
+                    {t("screens.admin.jobActions.cancel")}
                 </Button>
             )}
             <ConfirmDialog
@@ -71,18 +73,18 @@ export function JobActions({ jobId, status, attempts, videoTitle, retryHelps }: 
                 onConfirm={confirm}
                 pending={pending}
                 tone={mode === "retry" ? "primary" : "danger"}
-                title={mode === "retry" ? "Queue this job again?" : "Cancel this job?"}
-                confirmLabel={mode === "retry" ? `Retry as attempt ${attempts + 1}` : "Cancel job"}
+                title={mode === "retry" ? t("screens.admin.jobActions.retryTitle") : t("screens.admin.jobActions.cancelTitle")}
+                confirmLabel={mode === "retry" ? t("screens.admin.jobActions.retryConfirm", { n: attempts + 1 }) : t("screens.admin.jobActions.cancel")}
                 description={
                     mode === "retry"
-                        ? `“${videoTitle}” goes back to the queue and is processed from the start with the currently active models.`
-                        : `Processing of “${videoTitle}” stops and the job is marked failed with code CANCELLED. The uploader is notified and can retry later.`
+                        ? t("screens.admin.jobActions.retryDescription", { title: videoTitle })
+                        : t("screens.admin.jobActions.cancelDescription", { title: videoTitle })
                 }
             >
                 <div className="flex flex-col gap-3">
                     {mode === "retry" && !retryHelps && (
                         <InlineNote icon={TriangleAlert} tone="warning">
-                            This error usually repeats with the same file. Asking the uploader for a new recording is more likely to work.
+                            {t("screens.admin.jobActions.repeats")}
                         </InlineNote>
                     )}
                     <FormMessage status={error ? "error" : "idle"} message={error} />

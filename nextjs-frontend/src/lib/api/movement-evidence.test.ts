@@ -1,6 +1,7 @@
 import { createElement, type ComponentProps, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { LocaleProvider } from "@/components/i18n/locale-provider";
 import { MovementEvidencePanel } from "@/components/video/movement-evidence-panel";
 import { createPlaybackStore, PlaybackProvider } from "@/components/video/playback-store";
 import { movementEvidenceSchema } from "@/lib/domain/movement-evidence";
@@ -40,8 +41,10 @@ const context: WorkerResultContext = {
 };
 
 /** A panel inside a playback provider, as the analysis page renders it. */
+/** The panel's English copy is what these assertions read, so render it in English (Vietnamese is the app default). */
 const inPlayback = (child: ReactElement) =>
-    createElement(PlaybackProvider, { store: createPlaybackStore(400) } as ComponentProps<typeof PlaybackProvider>, child);
+    createElement(LocaleProvider, { locale: "en" } as ComponentProps<typeof LocaleProvider>,
+        createElement(PlaybackProvider, { store: createPlaybackStore(400) } as ComponentProps<typeof PlaybackProvider>, child));
 
 describe("movement evidence contract", () => {
     it.skipIf(!AI_RESULTS_HIDDEN)("works without a single detected strike and never enables autonomous assessment", () => {
@@ -110,7 +113,7 @@ describe("movement evidence contract", () => {
         data.recordingGuidance = [];
         const report = movementEvidenceSchema.parse(data);
         const html = renderToStaticMarkup(inPlayback(createElement(MovementEvidencePanel, { report })));
-        expect(html).toContain("Cần quay mới hoặc xử lý lại");
+        expect(html).toContain("New recording or reprocessing required");
         expect(html).not.toContain("aria-label=\"Review footage");
     });
 });

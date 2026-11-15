@@ -2,7 +2,7 @@ import { CalendarX2, CircleQuestionMark, ClipboardPlus, ClipboardX, Hourglass, S
 
 import { type EligibilityReason } from "@/lib/domain/medical-contract";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 const REASON_ICONS: Record<EligibilityReason, LucideIcon> = {

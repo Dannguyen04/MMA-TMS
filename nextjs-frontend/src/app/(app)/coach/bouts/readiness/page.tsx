@@ -92,7 +92,6 @@ export default async function CoachReadinessPage({ searchParams }: CoachReadines
         <div className="flex flex-col gap-6">
             <PageHeader
                 title={t("readiness.title")}
-                description={t("readiness.description")}
             />
 
             {/* Filter Bar */}

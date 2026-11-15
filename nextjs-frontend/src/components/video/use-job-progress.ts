@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { useVisibleInterval } from "@/components/ui/use-visible-interval";
 import type { AIJob } from "@/lib/domain/types";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { routes } from "@/lib/routes";
 import { isJobActive, JOB_POLL_INTERVAL_MS, type AIJobPollResponse } from "@/lib/video/job-progress";
 
@@ -28,9 +30,9 @@ export interface UseJobProgressOptions {
 /** A job that stops moving (e.g. waiting for a worker) is polled less often, up to this interval. */
 const MAX_POLL_INTERVAL_MS = 15_000;
 
-const STOP_MESSAGES: Partial<Record<number, string>> = {
-    401: "Your session has expired. Sign in again to follow the analysis.",
-    404: "This analysis job no longer exists.",
+const STOP_MESSAGES: Partial<Record<number, MessageKey>> = {
+    401: "screens.video.pipeline.sessionExpired" as MessageKey,
+    404: "screens.video.pipeline.jobGone" as MessageKey,
 };
 
 function sameProgress(a: AIJob | null, b: AIJob): boolean {
@@ -42,6 +44,7 @@ function sameProgress(a: AIJob | null, b: AIJob): boolean {
  * visible. Polls back off to 15 s while nothing changes, and stop once the job settles.
  */
 export function useJobProgress({ jobId, initialJob, onSettled, restartKey = 0 }: UseJobProgressOptions): JobProgressState {
+    const t = useT();
     const [state, setState] = useState<JobProgressState>({ job: initialJob, analysisId: null, error: null, reconnecting: false });
     const pollKey = `${jobId}:${restartKey}`;
     // Polling stops for one job + restart key; a new key starts it again.
@@ -67,7 +70,7 @@ export function useJobProgress({ jobId, initialJob, onSettled, restartKey = 0 }:
             const response = await fetch(routes.api.aiJob(jobId), { cache: "no-store", signal: controller.signal });
             const stopMessage = STOP_MESSAGES[response.status];
             if (stopMessage) {
-                setState((s) => ({ ...s, error: stopMessage, reconnecting: false }));
+                setState((s) => ({ ...s, error: t(stopMessage), reconnecting: false }));
                 setStoppedKey(pollKey);
                 return "unchanged";
             }
@@ -85,7 +88,7 @@ export function useJobProgress({ jobId, initialJob, onSettled, restartKey = 0 }:
         } catch {
             return reconnect();
         }
-    }, [jobId, pollKey]);
+    }, [jobId, pollKey, t]);
 
     useVisibleInterval(poll, { intervalMs: JOB_POLL_INTERVAL_MS, maxIntervalMs: MAX_POLL_INTERVAL_MS, enabled: stoppedKey !== pollKey });
 
