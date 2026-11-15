@@ -43,7 +43,6 @@ export const viBoutFighter = {
     "boutFighter.plan.currentPhase": "Đang áp dụng",
     "boutFighter.plan.lastEdited": "Sửa lần cuối: {name}, {date}",
     "boutFighter.plan.writtenBy": "Người viết",
-    "boutFighter.plan.writtenByHint": "Tên bạn, hoặc tên chuyên gia mà bạn chép lại.",
     "boutFighter.plan.saving": "Đang lưu",
     "boutFighter.plan.save": "Lưu kế hoạch",
 
@@ -65,7 +64,6 @@ export const viBoutFighter = {
     "boutFighter.weight.title": "Cân nặng",
     "boutFighter.weight.noWeight": "Chưa ghi cân",
     "boutFighter.weight.remaining": "Còn {pct}% cần giảm",
-    "boutFighter.weight.noWeightsInCamp": "Chưa ghi cân lần nào trong camp này.",
     "boutFighter.weight.logWeight": "Ghi cân",
     "boutFighter.weight.noBout": "Chưa có trận sắp tới",
     "boutFighter.weight.noWeightYet": "Chưa ghi cân",

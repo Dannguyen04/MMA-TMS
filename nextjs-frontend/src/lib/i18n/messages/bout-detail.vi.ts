@@ -51,7 +51,6 @@ export const viBoutDetail = {
     "boutDetail.summary.campPlan": "Giáo án chuẩn bị thi đấu",
     "boutDetail.summary.notLinked": "Chưa liên kết",
     "boutDetail.mealPlan.title": "Kế hoạch ăn",
-    "boutDetail.mealPlan.description": "Ba giai đoạn: trong camp, tuần thi đấu, từ lúc cân đến giờ thi. Võ sĩ chỉ thấy ô đang áp dụng.",
 
     /* Next step by phase */
     "boutDetail.next.startCamp.title": "Bắt đầu camp",

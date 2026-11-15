@@ -61,7 +61,7 @@ export function NutritionPlanForm({
                     </Field>
                 );
             })}
-            <Field label={t("boutFighter.plan.writtenBy")} htmlFor={author.id} required error={form.error("authorName")} hint={t("boutFighter.plan.writtenByHint")}>
+            <Field label={t("boutFighter.plan.writtenBy")} htmlFor={author.id} required error={form.error("authorName")}>
                 <Input {...author} maxLength={100} defaultValue={authorName} />
             </Field>
             <SubmitButton pending={form.pending} size="lg" pendingLabel={t("boutFighter.plan.saving")} className="min-h-11 w-full sm:w-auto">

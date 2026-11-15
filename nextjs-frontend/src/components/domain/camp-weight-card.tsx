@@ -33,7 +33,7 @@ export async function CampWeightCard({ track, wayOff, logHref, locale }: { track
                     </span>
                 }
                 description={[latest, remaining].filter(Boolean).join(" · ")}
-                action={<WeightStatusBadge status={track.status} locale={lang} />}
+                action={track.status === "NEUTRAL" ? undefined : <WeightStatusBadge status={track.status} locale={lang} />}
             />
             <CardContent className="flex flex-col gap-4">
                 {track.status === "OVER_LIMIT" && (
@@ -42,11 +42,8 @@ export async function CampWeightCard({ track, wayOff, logHref, locale }: { track
                     </Callout>
                 )}
                 {track.status === "ABOVE_TARGET" && showAdherence && <p className="text-sm text-fg-muted">{adherenceAlertLine(wayOff, t)}</p>}
-                {window && track.points.length > 0 ? (
-                    <WeightChart track={track} from={window.from} to={window.to} />
-                ) : (
-                    <p className="text-sm text-fg-muted">{t("boutFighter.weight.noWeightsInCamp")}</p>
-                )}
+                {/* With no weight yet the header already says so. */}
+                {window && track.points.length > 0 && <WeightChart track={track} from={window.from} to={window.to} />}
                 {logHref && (
                     <ButtonLink href={logHref} size="lg" className="w-full sm:w-auto">
                         {t("boutFighter.weight.logWeight")}

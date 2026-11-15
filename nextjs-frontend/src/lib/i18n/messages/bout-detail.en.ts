@@ -49,7 +49,6 @@ export const enBoutDetail = {
     "boutDetail.summary.campPlan": "Camp plan",
     "boutDetail.summary.notLinked": "Not linked",
     "boutDetail.mealPlan.title": "Meal plan",
-    "boutDetail.mealPlan.description": "During camp, fight week, and from weigh-in to fight time. The fighter sees only the box marked Now.",
 
     /* Next step by phase */
     "boutDetail.next.startCamp.title": "Start the camp",

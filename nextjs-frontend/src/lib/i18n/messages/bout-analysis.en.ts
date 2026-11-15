@@ -229,7 +229,6 @@ export const enBoutAnalysis = {
     "boutAnalysis.rounds.mainObservation": "Main observation",
     "boutAnalysis.rounds.recordMore": "Record more",
     "boutAnalysis.rounds.recordLess": "Show less",
-    "boutAnalysis.rounds.recordMoreHint": "Condition, knockdowns, other tactics and observations, note",
     "boutAnalysis.rounds.otherTactics": "Other tactics",
     "boutAnalysis.rounds.otherObservations": "Other observations",
     "boutAnalysis.rounds.editRound": "Edit round {roundNo}",

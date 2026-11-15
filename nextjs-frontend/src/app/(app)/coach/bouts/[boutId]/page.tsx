@@ -133,7 +133,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                 meta={
                     <>
                         <BoutPhaseBadge phase={bout.phase} locale={locale} />
-                        {track && isRunningPhase(bout.phase) && <WeightStatusBadge status={track.status} locale={locale} />}
+                        {track && track.status !== "NEUTRAL" && isRunningPhase(bout.phase) && <WeightStatusBadge status={track.status} locale={locale} />}
                     </>
                 }
                 actions={
@@ -278,7 +278,7 @@ export default async function CoachBoutPage({ params, searchParams }: PageProps<
                     />
                     {isRunningPhase(bout.phase) && (
                         <Card>
-                            <CardHeader title={t("boutDetail.mealPlan.title")} description={t("boutDetail.mealPlan.description")} />
+                            <CardHeader title={t("boutDetail.mealPlan.title")} />
                             <CardContent>
                                 <NutritionPlanForm boutId={bout.id} plan={bout.nutritionPlan} authorName={user.name} currentPhase={nutritionPhaseFor(bout.phase)} />
                             </CardContent>

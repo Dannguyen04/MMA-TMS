@@ -231,7 +231,6 @@ export const viBoutAnalysis = {
     "boutAnalysis.rounds.mainObservation": "Quan sát chính",
     "boutAnalysis.rounds.recordMore": "Ghi thêm",
     "boutAnalysis.rounds.recordLess": "Ẩn bớt",
-    "boutAnalysis.rounds.recordMoreHint": "Tình trạng, knockdown, chiến thuật và quan sát khác, ghi chú",
     "boutAnalysis.rounds.otherTactics": "Chiến thuật khác",
     "boutAnalysis.rounds.otherObservations": "Quan sát khác",
     "boutAnalysis.rounds.editRound": "Sửa hiệp {roundNo}",

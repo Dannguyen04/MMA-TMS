@@ -41,7 +41,6 @@ export const enBoutFighter = {
     "boutFighter.plan.currentPhase": "Now",
     "boutFighter.plan.lastEdited": "Last edited by {name}, {date}",
     "boutFighter.plan.writtenBy": "Written by",
-    "boutFighter.plan.writtenByHint": "Your name, or the specialist you are copying from.",
     "boutFighter.plan.saving": "Saving",
     "boutFighter.plan.save": "Save plan",
 
@@ -63,7 +62,6 @@ export const enBoutFighter = {
     "boutFighter.weight.title": "Weight",
     "boutFighter.weight.noWeight": "No weight logged",
     "boutFighter.weight.remaining": "{pct}% remaining",
-    "boutFighter.weight.noWeightsInCamp": "No weights logged in this camp yet.",
     "boutFighter.weight.logWeight": "Log weight",
     "boutFighter.weight.noBout": "No upcoming bout",
     "boutFighter.weight.noWeightYet": "No weight logged yet",

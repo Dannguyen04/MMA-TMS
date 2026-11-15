@@ -539,11 +539,6 @@ function RoundCardForm({
             >
                 <span className="min-w-0">
                     {t(more ? "boutAnalysis.rounds.recordLess" : "boutAnalysis.rounds.recordMore")}
-                    {!more && (
-                        <span className="block text-xs font-normal text-fg-muted">
-                            {t("boutAnalysis.rounds.recordMoreHint")}
-                        </span>
-                    )}
                 </span>
                 {more ? <ChevronUp aria-hidden className="size-4 shrink-0" /> : <ChevronDown aria-hidden className="size-4 shrink-0" />}
             </button>

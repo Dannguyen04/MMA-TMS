@@ -140,7 +140,7 @@ export default async function CoachBoutsPage() {
                                         <TD>
                                             <BoutPhaseBadge phase={row.bout.phase} locale={locale} />
                                         </TD>
-                                        <TD>{row.track ? <WeightStatusBadge status={row.track.status} locale={locale} /> : <span className="text-fg-subtle">—</span>}</TD>
+                                        <TD>{row.track && row.track.status !== "NEUTRAL" ? <WeightStatusBadge status={row.track.status} locale={locale} /> : <span className="text-fg-subtle">—</span>}</TD>
                                         <TD>
                                             <Gate1Badge missing={row.missing} overdue={row.overdue} locale={locale} />
                                         </TD>
@@ -184,7 +184,7 @@ function BadgeRow({ row, locale }: { row: BoutRow; locale: Locale }) {
     return (
         <span className="flex flex-wrap items-center gap-1.5">
             <BoutPhaseBadge phase={row.bout.phase} locale={locale} />
-            {row.track && <WeightStatusBadge status={row.track.status} locale={locale} />}
+            {row.track && row.track.status !== "NEUTRAL" && <WeightStatusBadge status={row.track.status} locale={locale} />}
             <Gate1Badge missing={row.missing} overdue={row.overdue} locale={locale} />
         </span>
     );
