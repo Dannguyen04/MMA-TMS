@@ -55,6 +55,7 @@ const fighterProfileProjection = {
   heightCm: fighters.heightCm,
   reachCm: fighters.reachCm,
   dominantStance: fighters.dominantStance,
+  sex: fighters.sex,
   leftArmCm: fighters.leftArmCm,
   rightArmCm: fighters.rightArmCm,
   leftLegCm: fighters.leftLegCm,

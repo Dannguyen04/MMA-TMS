@@ -1186,6 +1186,38 @@ try {
     rejects('mma_024_no_023', sql, /033 requires migration 025/);
     assert.equal(psql('mma_024_no_023', 'SELECT count(*) FROM mma_private.migration_history WHERE version = 33;'), '0');
   });
+  check('S1: 034 applies on ledger 3 alone; fighters.sex is a nullable MALE/FEMALE enum, existing rows stay NULL; re-application rejected', () => {
+    const db = 'mma_034_on_003';
+    prepare(db);
+    migration(db, target003);
+    const target = '034_fighter_sex.sql';
+    const sql = readFileSync(join(api, 'migrations', target), 'utf8');
+    const id = (n) => `00000000-0000-4000-8000-000000034${n}`;
+    psql(db, `
+      INSERT INTO auth.users(id) VALUES ('${id('0f1')}'), ('${id('0f2')}');
+      INSERT INTO public.users(id, auth_user_id, email, role) VALUES
+        ('${id('0b1')}', '${id('0f1')}', 'f1-034@example.invalid', 'FIGHTER'),
+        ('${id('0b2')}', '${id('0f2')}', 'f2-034@example.invalid', 'FIGHTER');
+      INSERT INTO public.fighters(id, user_id, first_name, last_name, date_of_birth, weight_class)
+        VALUES ('${id('0c1')}', '${id('0b1')}', 'Test', 'Old', '2000-01-01', 'LIGHTWEIGHT');
+    `);
+    migration(db, target);
+    assert.equal(
+      psql(db, "SELECT count(*) FROM mma_private.migration_history WHERE version = 34 AND name = '034_fighter_sex.sql';"),
+      '1',
+    );
+    assert.equal(
+      psql(db, `SELECT string_agg(enumlabel, ',' ORDER BY enumsortorder) FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'fighter_sex';`),
+      'MALE,FEMALE',
+    );
+    assert.equal(psql(db, `SELECT sex IS NULL FROM public.fighters WHERE id = '${id('0c1')}';`), 't');
+    psql(db, `INSERT INTO public.fighters(id, user_id, first_name, last_name, date_of_birth, weight_class, sex)
+      VALUES ('${id('0c2')}', '${id('0b2')}', 'Test', 'New', '2000-01-01', 'LIGHTWEIGHT', 'FEMALE');`);
+    assert.equal(psql(db, `SELECT sex FROM public.fighters WHERE id = '${id('0c2')}';`), 'FEMALE');
+    rejects(db, `UPDATE public.fighters SET sex = 'OTHER' WHERE id = '${id('0c1')}';`, /invalid input value for enum fighter_sex/);
+    rejects(db, sql, /034 already applied/);
+    assert.equal(psql(db, 'SELECT count(*) FROM mma_private.migration_history WHERE version = 34;'), '1');
+  });
   check('N1: 026 applies on ledger 24 without 025-032; rejects re-application, missing 024, collisions, and enforces fighter_id consistency', () => {
     const db = 'mma_026_on_024';
     prepare(db);

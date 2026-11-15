@@ -51,8 +51,9 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
     const dateOfBirth = form.control("profile.dateOfBirth", { required: true });
     const weightClass = form.control("profile.weightClass", { required: true });
     const stance = form.control("profile.dominantStance");
-    const optionalError = Boolean(form.error("profile.dominantStance") || form.error("profile.nationality"));
-    const [showOptional, setShowOptional] = useState(Boolean(saved?.dominantStance || saved?.nationality));
+    const sex = form.control("profile.sex");
+    const optionalError = Boolean(form.error("profile.dominantStance") || form.error("profile.nationality") || form.error("profile.sex"));
+    const [showOptional, setShowOptional] = useState(Boolean(saved?.dominantStance || saved?.nationality || saved?.sex));
     const optionalOpen = showOptional || optionalError;
     const optionalId = `${stance.id}-optional`;
     return (
@@ -90,6 +91,13 @@ function FighterFields({ form, saved, today }: FormProp & { saved: FighterProfil
                     </Button>
                 </div>
                 <div id={optionalId} hidden={!optionalOpen} className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                    <Field label={t("screens.admin.profile.sex")} htmlFor={sex.id} optional error={form.error("profile.sex")}>
+                        <Select {...sex} defaultValue={saved?.sex ?? ""}>
+                            <option value="">{t("screens.admin.common.notRecorded")}</option>
+                            <option value="female">{t("screens.admin.profile.sexFemale")}</option>
+                            <option value="male">{t("screens.admin.profile.sexMale")}</option>
+                        </Select>
+                    </Field>
                     <Field
                         label={t("screens.admin.profile.stance")}
                         htmlFor={stance.id}

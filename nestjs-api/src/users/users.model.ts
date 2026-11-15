@@ -36,6 +36,8 @@ export const weightClasses = [
   'HEAVYWEIGHT',
 ] as const;
 export const fighterStances = ['ORTHODOX', 'SOUTHPAW', 'SWITCH'] as const;
+/** Picks the 3D body the web draws; null when unknown (migration 034). */
+export const fighterSexes = ['MALE', 'FEMALE'] as const;
 
 const requiredName = trimmedTextSchema(100);
 
@@ -48,6 +50,7 @@ export const fighterProfileSchema = z.strictObject({
   heightCm: optionalNullablePositiveNumberSchema(300),
   reachCm: optionalNullablePositiveNumberSchema(300),
   dominantStance: z.enum(fighterStances).nullable().optional(),
+  sex: z.enum(fighterSexes).nullable().optional(),
   leftArmCm: optionalNullablePositiveNumberSchema(150),
   rightArmCm: optionalNullablePositiveNumberSchema(150),
   leftLegCm: optionalNullablePositiveNumberSchema(150),

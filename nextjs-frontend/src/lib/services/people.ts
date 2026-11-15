@@ -90,9 +90,10 @@ export const backendFighterSchema = z.object({
     isActive: z.boolean(),
     createdAt: z.string(),
     updatedAt: z.string(),
+    // Migration 034; null while unknown.
+    sex: z.enum(["MALE", "FEMALE"]).nullish(),
     // Not in the API yet.
     nickname: z.string().nullable().optional(),
-    sex: z.enum(["MALE", "FEMALE"]).optional(),
     weightKg: z.number().optional(),
     bodyFatPct: z.number().optional(),
     restingHeartRate: z.number().int().optional(),
@@ -116,6 +117,7 @@ const ownFighterProfileSchema = z.object({
     heightCm: z.number().nullish(),
     reachCm: z.number().nullish(),
     dominantStance: stanceSchema.nullish(),
+    sex: z.enum(["MALE", "FEMALE"]).nullish(),
 });
 
 /** `GET /fighters/:id/medical-summary`, which a fighter may read about themselves. */
@@ -273,7 +275,7 @@ export function accountProfileOf(record: Pick<BackendUser, "role" | "profile">):
         case "FIGHTER": {
             const parsed = ownFighterProfileSchema.safeParse(record.profile);
             if (!parsed.success) return null;
-            const { firstName, lastName, dateOfBirth, weightClass, dominantStance, nationality } = parsed.data;
+            const { firstName, lastName, dateOfBirth, weightClass, dominantStance, nationality, sex } = parsed.data;
             return {
                 role: "fighter",
                 profile: {
@@ -283,6 +285,7 @@ export function accountProfileOf(record: Pick<BackendUser, "role" | "profile">):
                     weightClass: weightClass.toLowerCase() as WeightClass,
                     dominantStance: dominantStance ? (dominantStance.toLowerCase() as Stance) : null,
                     nationality: nationality ?? null,
+                    sex: sex ? (sex.toLowerCase() as Sex) : null,
                 },
             };
         }
@@ -406,6 +409,7 @@ async function ownFighterProfile(): Promise<BackendFighter | null> {
         heightCm: profile.data.heightCm ?? null,
         reachCm: profile.data.reachCm ?? null,
         dominantStance: profile.data.dominantStance ?? null,
+        sex: profile.data.sex ?? null,
         currentMedicalStatus,
         isActive: account.isActive,
         createdAt: account.createdAt,
