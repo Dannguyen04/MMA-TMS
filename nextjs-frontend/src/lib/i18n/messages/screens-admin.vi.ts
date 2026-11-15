@@ -330,7 +330,6 @@ export const viScreensAdmin = {
     "screens.admin.today.allJobs": "Tất cả tác vụ",
     "screens.admin.today.pipelineUnavailableTitle": "Hiện chưa tải được số liệu quy trình AI",
     "screens.admin.today.pipelineUnavailableDescription": "Dịch vụ phân tích không phản hồi. Hàng chờ của bạn và các tài khoản ở trên vẫn được cập nhật.",
-    "screens.admin.today.pipelineDescription": "Số tác vụ hoàn tất mỗi ngày trong 14 ngày qua",
     "screens.admin.today.throughput": "Sản lượng mỗi ngày",
     "screens.admin.today.day": "Ngày",
     "screens.admin.today.throughputChart": "Số tác vụ AI hoàn tất và thất bại mỗi ngày trong 14 ngày qua",

@@ -257,7 +257,6 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                         <Card className="min-w-0 lg:col-span-2">
                             <CardHeader
                                 title={t("screens.admin.today.pipelineHealth")}
-                                description={t("screens.admin.today.pipelineDescription")}
                                 icon={<Activity />}
                                 action={<CardLink href={routes.admin.aiJobs}>{t("screens.admin.today.allJobs")}</CardLink>}
                             />

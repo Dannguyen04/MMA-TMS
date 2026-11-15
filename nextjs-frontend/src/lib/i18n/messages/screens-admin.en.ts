@@ -330,7 +330,6 @@ export const enScreensAdmin = {
     "screens.admin.today.allJobs": "All jobs",
     "screens.admin.today.pipelineUnavailableTitle": "AI pipeline figures can't be loaded right now",
     "screens.admin.today.pipelineUnavailableDescription": "The analysis service didn't answer. Your queue and the accounts above are up to date.",
-    "screens.admin.today.pipelineDescription": "Jobs finished per day over the last 14 days",
     "screens.admin.today.throughput": "Daily throughput",
     "screens.admin.today.day": "Day",
     "screens.admin.today.throughputChart": "AI jobs completed and failed per day over the last 14 days",
