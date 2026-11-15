@@ -4,7 +4,7 @@ import { pair, spot, v, type BodyModel, type RegionSpot } from "./regions";
 import { scannedModelFrom } from "./scanned-model";
 
 /**
- * The female body model, given by the team on 14/11/2026 (see `public/models/ATTRIBUTION.md`):
+ * The female body model, made by the team in Blender (14/11/2026) (see `public/models/ATTRIBUTION.md`):
  * a muscular anatomy figure in a sports top and shorts, A-pose, facing +Z, no rig. The app's file
  * merges the body (36k triangles) with the outfit simplified to 14k triangles, and is stored already in
  * app space (soles on y = 0, 1.75 m, centred on its mean x/z).
