@@ -396,7 +396,6 @@ export const enScreensMisc = {
     "screens.doctor.fighter.noObservations": "No observations for this fighter yet.",
 
     /* Doctor: clearance list */
-    "screens.doctor.clearance.sub": "Warns at ≤ {n} days left, per the system settings",
     "screens.doctor.clearance.missing": "No valid clearance · {n}",
     "screens.doctor.clearance.revoked": "Revoked",
     "screens.doctor.clearance.superseded": "Superseded",

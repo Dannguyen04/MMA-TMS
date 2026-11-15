@@ -24,6 +24,7 @@ export const viHealth: Record<keyof typeof enHealth, string> = {
     "clearanceLevel.not_cleared": "Chưa được tập",
 
     "clearanceStatus.active": "Đang hiệu lực",
+    "clearanceStatus.scheduled": "Chưa đến ngày hiệu lực",
     "clearanceStatus.expired": "Hết hạn",
     "clearanceStatus.revoked": "Đã thu hồi",
     "clearanceStatus.superseded": "Đã thay thế",

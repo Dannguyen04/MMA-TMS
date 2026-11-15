@@ -579,7 +579,8 @@ export const CLEARANCE_LEVEL_LABELS: Record<ClearanceLevel, string> = {
 };
 
 export const CLEARANCE_STATUS_LABELS: Record<ClearanceStatus, string> = {
-    active: "Đang điều trị",
+    active: "Đang hiệu lực",
+    scheduled: "Chưa đến ngày hiệu lực",
     expired: "Hết hạn",
     revoked: "Đã thu hồi",
     superseded: "Đã thay thế",

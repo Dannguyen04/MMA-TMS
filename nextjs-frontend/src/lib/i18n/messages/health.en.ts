@@ -22,6 +22,7 @@ export const enHealth = {
     "clearanceLevel.not_cleared": "Not cleared",
 
     "clearanceStatus.active": "Active",
+    "clearanceStatus.scheduled": "Not started yet",
     "clearanceStatus.expired": "Expired",
     "clearanceStatus.revoked": "Revoked",
     "clearanceStatus.superseded": "Superseded",

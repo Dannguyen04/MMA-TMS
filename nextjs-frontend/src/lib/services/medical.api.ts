@@ -400,15 +400,19 @@ function isValidNow(clearance: Pick<ApiClearance, "status" | "validFrom" | "vali
     return clearance.status === "ACTIVE" && clearance.validFrom <= now && (clearance.validUntil === null || clearance.validUntil > now);
 }
 
-/** The service keeps no expiry job: a lapsed clearance can still say ACTIVE, so validity decides. */
+/**
+ * The service keeps no expiry job: a lapsed clearance can still say ACTIVE, so validity decides. One issued with a
+ * later start date is not valid yet either; it reads as scheduled, not expired.
+ */
 function toClearance(clearance: ApiClearance): MedicalClearance {
     const restricted = isRestricted(clearance.restrictions);
+    const notStarted = clearance.status === "ACTIVE" && !clearance.isCurrentlyValid && Date.parse(clearance.validFrom) > Date.now();
     return {
         id: clearance.id,
         fighterId: clearance.fighterId,
         doctorId: clearance.issuedById,
         level: restricted ? "restricted" : "full",
-        status: clearance.status === "REVOKED" ? "revoked" : clearance.status === "EXPIRED" || !clearance.isCurrentlyValid ? "expired" : "active",
+        status: clearance.status === "REVOKED" ? "revoked" : clearance.status === "EXPIRED" ? "expired" : notStarted ? "scheduled" : !clearance.isCurrentlyValid ? "expired" : "active",
         issuedAt: clearance.validFrom,
         validUntil: clearance.validUntil,
         reason: clearance.notes ?? clearance.restrictions.notes ?? "",

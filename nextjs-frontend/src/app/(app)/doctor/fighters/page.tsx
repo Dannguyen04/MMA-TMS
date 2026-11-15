@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { HEALTH_STATUS, JOINT, fmeta, fmtDate, injuryName, injuryPlace } from "@/components/doctor/labels";
-import { Empty, Gate, PageHead, Panel, Pill, reasonsText } from "@/components/doctor/ui";
+import { Empty, Gate, PageHead, Panel, Pill, reasonsText, suspendedFromTraining } from "@/components/doctor/ui";
 import { requireRole } from "@/lib/auth/session";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural, type MessageKey } from "@/lib/i18n/translate";
@@ -106,8 +106,8 @@ export default async function DoctorFightersPage({ searchParams }: PageProps<"/d
                                             </td>
                                             <td>
                                                 <span className="ro-gates">
-                                                    <Gate label={t("doctorPages.fighters.gateTraining")} e={r.training} t={t} />
-                                                    {showCompetition && <Gate label={t("screens.doctor.gate.competition")} e={r.competition} t={t} />}
+                                                    <Gate label={t("doctorPages.fighters.gateTraining")} e={r.training} t={t} suspended={suspendedFromTraining(r)} />
+                                                    {showCompetition && <Gate label={t("screens.doctor.gate.competition")} e={r.competition} t={t} suspended={suspendedFromTraining(r)} />}
                                                 </span>
                                             </td>
                                             <td className="yt-hide-sm">

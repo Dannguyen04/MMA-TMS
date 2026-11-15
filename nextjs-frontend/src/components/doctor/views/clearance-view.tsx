@@ -1,4 +1,4 @@
-import { Ban, CircleCheck, History, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
+import { Ban, CalendarClock, CircleCheck, History, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 
 import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_STATE, CLEARANCE_TYPE, dayDiff, fmtDate } from "@/components/doctor/labels";
@@ -18,6 +18,8 @@ import { plural } from "@/lib/i18n/translate";
 import { param } from "@/lib/utils";
 
 const isLive = (c: MedicalClearance) => c.status === "active" && c.isCurrentlyValid !== false;
+/** Issued with a start date still ahead: listed with the valid ones, marked with its start date. */
+const isUpcoming = (c: MedicalClearance) => c.status === "scheduled";
 
 /**
  * Giấy phép: đang hiệu lực lấy từ hồ sơ (`activeClearances`, kèm `isCurrentlyValid`), đã thu hồi/hết hạn dựng lại từ lịch sử
@@ -33,9 +35,9 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
     const [fighters, list, overview, settings] = await Promise.all([listFighters(user), listClearances({ fighterIds: scope }), getClearanceOverview(scope, now), getSettings()]);
     const warn = settings.clearanceExpiryWarningDays;
     const nameOf = new Map(fighters.map((f) => [f.id, f.name]));
-    const valid = list.filter((c) => isLive(c) && (!c.validUntil || dayDiff(c.validUntil, now) > warn));
+    const valid = list.filter((c) => isUpcoming(c) || (isLive(c) && (!c.validUntil || dayDiff(c.validUntil, now) > warn)));
     const soon = list.filter((c) => isLive(c) && c.validUntil && dayDiff(c.validUntil, now) <= warn);
-    const off = list.filter((c) => !isLive(c));
+    const off = list.filter((c) => !isLive(c) && !isUpcoming(c));
     const missing = overview.filter((r) => r.state === "none" || r.state === "expired" || r.state === "not_cleared");
     const issueHref = scopedId ? routes.doctor.fighterGrantClearance(scopedId) : `${routes.doctor.grantClearance}${fighterId ? `?fighter=${fighterId}` : ""}`;
 
@@ -46,6 +48,9 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
     const statusOf = (c: MedicalClearance): { tone: "ok" | "warn" | "bad" | "off"; Icon: LucideIcon; text: string } => {
         if (c.status === "revoked") return { tone: "bad", Icon: Ban, text: c.revokedAt ? t("doctorViews.clearance.revokedOn", { date: fmtDate(c.revokedAt, locale) }) : t("doctorViews.clearance.revoked") };
         if (c.status === "superseded") return { tone: "off", Icon: History, text: t("doctorViews.clearance.superseded") };
+        // A "not cleared" decision in force blocks training: shown as blocking, not as a green "valid".
+        if (isLive(c) && c.level === "not_cleared") return { tone: "bad", Icon: Ban, text: t("doctorViews.clearance.blocking") };
+        if (isUpcoming(c)) return { tone: "warn", Icon: CalendarClock, text: t("doctorViews.clearance.startsOn", { date: fmtDate(c.issuedAt, locale) }) };
         if (!isLive(c)) return { tone: "off", Icon: History, text: t("doctorViews.clearance.expired") };
         if (!c.validUntil) return { tone: "ok", Icon: CircleCheck, text: t("doctorViews.clearance.activeNoEnd") };
         const days = dayDiff(c.validUntil, now);
@@ -136,7 +141,6 @@ export async function ClearanceView({ query, fighterId: scopedId }: { query: Rec
             <ListHead
                 scoped={!!scopedId}
                 title={t("doctorViews.clearance.title")}
-                sub={plural(t, "doctorViews.clearance.sub", warn)}
                 actions={
                     <Link href={issueHref} className="yt-btn" data-v="primary">
                         <ShieldCheck aria-hidden />

@@ -45,13 +45,23 @@ export function Pill({ tone = "neutral", children }: { tone?: Tone; children: Re
 }
 
 /** Cổng điều kiện (Tập/Thi đấu). `e` null: chưa đọc được (chế độ demo không có điều kiện thi đấu) nên không hiện. */
-export function Gate({ label, e, t }: { label: string; e: MedicalEligibility | null; t: Translator }) {
+/** A suspension in force that blocks training (a red board item), whatever the medical file says. */
+export function suspendedFromTraining(row: { items: readonly { kind: string; tone?: string }[] }): boolean {
+    return row.items.some((item) => item.kind === "suspension" && item.tone === "red");
+}
+
+/**
+ * One gate's verdict. `suspended`: a suspension blocks training whatever the medical file says, so the gate shows
+ * as blocked rather than a green tick next to the "blocked" lane.
+ */
+export function Gate({ label, e, t, suspended = false }: { label: string; e: MedicalEligibility | null; t: Translator; suspended?: boolean }) {
     if (!e) return null;
+    const ok = e.eligible && !suspended;
     return (
-        <span className="yt-gate" data-ok={e.eligible}>
-            {e.eligible ? <Check aria-hidden /> : <X aria-hidden />}
+        <span className="yt-gate" data-ok={ok}>
+            {ok ? <Check aria-hidden /> : <X aria-hidden />}
             {label}
-            <span className="sr-only">{t(e.eligible ? "doctorUi.gate.eligible" : "doctorUi.gate.notEligible")}</span>
+            <span className="sr-only">{t(ok ? "doctorUi.gate.eligible" : "doctorUi.gate.notEligible")}</span>
         </span>
     );
 }

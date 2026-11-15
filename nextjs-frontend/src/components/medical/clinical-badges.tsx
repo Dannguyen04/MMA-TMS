@@ -1,4 +1,4 @@
-import { Ban, CalendarX2, Check, CircleCheck, CircleDashed, CircleDot, CircleMinus, CircleQuestionMark, CircleX, TriangleAlert } from "lucide-react";
+import { Ban, CalendarClock, CalendarX2, Check, CircleCheck, CircleDashed, CircleDot, CircleMinus, CircleQuestionMark, CircleX, TriangleAlert } from "lucide-react";
 
 import { StatusBadge, type BadgeSize, type StatusMeta } from "@/components/domain/status-badges";
 import { ASSESSMENT_RESULT_LABELS, CLEARANCE_STATUS_LABELS, EXAMINATION_OUTCOME_LABELS } from "@/lib/domain/labels";
@@ -56,6 +56,7 @@ export function AssessmentResultBadge({ result, size, className }: { result: Ass
 
 const CLEARANCE_RECORD_META: Record<ClearanceStatus, StatusMeta> = {
     active: { label: CLEARANCE_STATUS_LABELS.active, tone: "primary", icon: CircleDot },
+    scheduled: { label: CLEARANCE_STATUS_LABELS.scheduled, tone: "info", icon: CalendarClock },
     expired: { label: CLEARANCE_STATUS_LABELS.expired, tone: "warning", icon: CalendarX2 },
     revoked: { label: CLEARANCE_STATUS_LABELS.revoked, tone: "danger", icon: Ban },
     superseded: { label: CLEARANCE_STATUS_LABELS.superseded, tone: "neutral", icon: CircleDashed },

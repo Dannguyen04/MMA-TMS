@@ -394,7 +394,6 @@ export const viScreensMisc = {
     "screens.doctor.fighter.noObservations": "Chưa có quan sát nào cho võ sĩ này.",
 
     /* Bác sĩ: danh sách giấy phép */
-    "screens.doctor.clearance.sub": "Cảnh báo khi còn ≤ {n} ngày theo cài đặt hệ thống",
     "screens.doctor.clearance.missing": "Chưa có giấy phép hợp lệ · {n}",
     "screens.doctor.clearance.revoked": "Đã thu hồi",
     "screens.doctor.clearance.superseded": "Đã thay thế",

@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { BODY_REGION, alertRatio, dayDiff, fmeta, fmtDate, injuryName, injuryPlace, todayLabel } from "@/components/doctor/labels";
-import { Gate, Panel, reasonsText } from "@/components/doctor/ui";
+import { Gate, Panel, reasonsText, suspendedFromTraining } from "@/components/doctor/ui";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import { INTL_LOCALE } from "@/lib/i18n/config";
@@ -32,8 +32,8 @@ function Tag({ r, i, lane, t }: { r: BoardRow; i: number; lane: number; t: Trans
     const meta = fmeta(t, r.fighter);
     const gates = (r.training || r.competition) && (
         <span className="td-gates">
-            <Gate label={t("screens.doctor.gate.training")} e={r.training} t={t} />
-            <Gate label={t("screens.doctor.gate.competition")} e={r.competition} t={t} />
+            <Gate label={t("screens.doctor.gate.training")} e={r.training} t={t} suspended={suspendedFromTraining(r)} />
+            <Gate label={t("screens.doctor.gate.competition")} e={r.competition} t={t} suspended={suspendedFromTraining(r)} />
         </span>
     );
     return (
