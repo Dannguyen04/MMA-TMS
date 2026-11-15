@@ -93,6 +93,8 @@ export function buildPlan(now) {
           opponentName: 'Đối thủ Demo 3',
           weighInAt: oneHourAgo,
           boutAt: at(1, 19),
+          // Two rounds keep the live corner demo on the phone short (teacher's review, 15/11).
+          scheduledRounds: 2,
           target: 'WEIGHED_IN',
           weighIn: { weightKg: 69.8, hydrationCheck: 'NOT_APPLICABLE' },
         },
@@ -129,7 +131,7 @@ export function buildPlan(now) {
           opponentName: 'Đối thủ Demo 6',
           weighInAt: oneHourAgo,
           boutAt: at(0, 23), // today, academy time; the backend refuses a result before the bout date
-          scheduledRounds: 3,
+          scheduledRounds: 2,
           target: 'COMPLETED',
           weighIn: { weightKg: 69.9, hydrationCheck: 'NOT_APPLICABLE' },
           analysis: {
