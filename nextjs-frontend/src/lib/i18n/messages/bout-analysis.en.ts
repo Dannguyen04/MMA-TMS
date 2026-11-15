@@ -146,7 +146,7 @@ export const enBoutAnalysis = {
     "boutAnalysis.analysis.video.watchStart": "Watch video",
     "boutAnalysis.analysis.ai.note": "Suggested by AI from video, reviewed by the coach",
     "boutAnalysis.analysis.ai.full": "Already 6 observations; remove one to accept more.",
-    "boutAnalysis.analysis.ai.error.NOT_CONFIGURED": "The server has no GEMINI_API_KEY.",
+    "boutAnalysis.analysis.ai.error.NOT_CONFIGURED": "The server has no GEMINI_API_KEYS or GEMINI_API_KEY.",
     "boutAnalysis.analysis.ai.error.UNSUPPORTED_URL": "Only public YouTube links are supported (https://www.youtube.com/watch?v=… or https://youtu.be/…).",
     "boutAnalysis.analysis.ai.error.TIMEOUT": "The analysis took over 4 minutes. Try again or use a shorter video.",
     "boutAnalysis.analysis.ai.error.QUOTA": "The free AI quota is used up. Try again later.",

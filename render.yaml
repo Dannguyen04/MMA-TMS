@@ -40,6 +40,9 @@ services:
         sync: false
       - key: SUPABASE_SERVICE_KEY
         sync: false
+      # Several Gemini keys, comma separated; the API moves to the next key on quota or an invalid key.
+      - key: GEMINI_API_KEYS
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_BOUT_MODEL

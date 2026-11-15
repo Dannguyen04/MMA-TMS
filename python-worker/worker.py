@@ -15,6 +15,7 @@ Môi trường: xem .env.example
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -74,6 +75,11 @@ def get_pose_model():
         _pose_model = YOLO(YOLO_MODEL)
         _pose_model_name = YOLO_MODEL
     return _pose_model
+
+
+def redact_url(url: str) -> str:
+    """Hide the password in a connection URL before it reaches a log (Colab keeps cell output)."""
+    return re.sub(r"^(\w+://[^:/@]*:).*@", r"\g<1>***@", url)
 
 
 def get_redis() -> redis.Redis:
@@ -311,7 +317,7 @@ def process_job(r: redis.Redis, job_id: str):
 def run_worker():
     """Vòng lặp chính: poll Redis và xử lý jobs."""
     log.info(f"🚀 Worker khởi động")
-    log.info(f"   Redis:      {REDIS_URL}")
+    log.info(f"   Redis:      {redact_url(REDIS_URL)}")
     log.info(f"   Queue:      {QUEUE_NAME}")
     log.info(f"   Model:      {YOLO_MODEL}")
     log.info(f"   Supabase:   {SUPABASE_URL or '(chưa cấu hình)'}")

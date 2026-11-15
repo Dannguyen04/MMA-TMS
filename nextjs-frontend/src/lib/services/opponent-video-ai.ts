@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 
 import { isSupportedVideoUrl, parseVideoSuggestions, type VideoSuggestion } from "@/lib/domain/opponent-video-suggestions";
+import { GeminiKeyPool, GeminiKeysExhaustedError, parseGeminiKeys } from "@/lib/services/gemini-key-pool";
 
 /**
  * Drafts opponent observations from a public fight video with Gemini (T-033).
@@ -67,10 +68,21 @@ async function readCache(file: string): Promise<{ suggestions: VideoSuggestion[]
     }
 }
 
+let pool: { source: string; pool: GeminiKeyPool } | null = null;
+
+/** GEMINI_API_KEYS (comma separated) or GEMINI_API_KEY; one pool per list so the last working key is remembered. */
+function keyPool(): GeminiKeyPool {
+    const list = process.env.GEMINI_API_KEYS ?? "";
+    const single = process.env.GEMINI_API_KEY ?? "";
+    const source = `${list}|${single}`;
+    if (pool?.source !== source) pool = { source, pool: new GeminiKeyPool(parseGeminiKeys(list, single)) };
+    return pool.pool;
+}
+
 export async function suggestObservationsFromVideo(url: string, who: string): Promise<VideoSuggestionsResult> {
-    const key = process.env.GEMINI_API_KEY;
+    const keys = keyPool();
     const model = process.env.GEMINI_OPPONENT_MODEL || DEFAULT_MODEL;
-    if (!key) return { ok: false, error: "NOT_CONFIGURED" };
+    if (!keys.size) return { ok: false, error: "NOT_CONFIGURED" };
     if (!isSupportedVideoUrl(url) || !/^gemini-[A-Za-z0-9._-]+$/.test(model)) return { ok: false, error: "UNSUPPORTED_URL" };
 
     const file = cacheFile(url, who, model);
@@ -78,7 +90,7 @@ export async function suggestObservationsFromVideo(url: string, who: string): Pr
     if (cached) return { ok: true, ...cached, cached: true, model };
 
     const deadline = AbortSignal.timeout(TIMEOUT_MS);
-    const call = () =>
+    const call = (key: string) =>
         fetch(`${API}/${model}:generateContent`, {
             method: "POST",
             headers: { "content-type": "application/json", "x-goog-api-key": key },
@@ -95,16 +107,28 @@ export async function suggestObservationsFromVideo(url: string, who: string): Pr
             cache: "no-store",
         });
 
+    // The free tier answers 500/503 under load; one retry with the same key inside the same deadline usually clears it.
+    const callWithRetry = async (key: string) => {
+        const first = await call(key);
+        if (first.status < 500) return first;
+        console.warn(`[opponent-video-ai] ${model} HTTP ${first.status}, retrying once`);
+        await new Promise((resolve) => setTimeout(resolve, 3000));
+        return call(key);
+    };
+
     let response: Response;
     try {
-        response = await call();
-        // The free tier answers 500/503 under load; one retry inside the same deadline usually clears it.
-        if (response.status >= 500) {
-            console.warn(`[opponent-video-ai] ${model} HTTP ${response.status}, retrying once`);
-            await new Promise((resolve) => setTimeout(resolve, 3000));
-            response = await call();
-        }
+        // A key out of quota or no longer valid hands the same request to the next key.
+        response = await keys.run(callWithRetry, (failure) =>
+            console.warn(
+                `[opponent-video-ai] Gemini key ${failure.keyNumber}/${failure.keyCount} failed (${failure.reason}, HTTP ${failure.status}); trying the next key`,
+            ),
+        );
     } catch (error: unknown) {
+        if (error instanceof GeminiKeysExhaustedError) {
+            console.error(`[opponent-video-ai] ${error.message}`);
+            return { ok: false, error: error.quota > 0 ? "QUOTA" : "UPSTREAM" };
+        }
         return { ok: false, error: error instanceof Error && error.name === "TimeoutError" ? "TIMEOUT" : "UPSTREAM" };
     }
     if (!response.ok) {

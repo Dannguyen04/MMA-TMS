@@ -148,7 +148,7 @@ export const viBoutAnalysis = {
     "boutAnalysis.analysis.video.watchStart": "Xem video",
     "boutAnalysis.analysis.ai.note": "AI gợi ý từ video, HLV đã duyệt",
     "boutAnalysis.analysis.ai.full": "Đã đủ 6 quan sát; xoá bớt để nhận thêm.",
-    "boutAnalysis.analysis.ai.error.NOT_CONFIGURED": "Máy chủ chưa cấu hình GEMINI_API_KEY.",
+    "boutAnalysis.analysis.ai.error.NOT_CONFIGURED": "Máy chủ chưa cấu hình GEMINI_API_KEYS hoặc GEMINI_API_KEY.",
     "boutAnalysis.analysis.ai.error.UNSUPPORTED_URL": "Chỉ nhận link YouTube công khai (https://www.youtube.com/watch?v=… hoặc https://youtu.be/…).",
     "boutAnalysis.analysis.ai.error.TIMEOUT": "AI phân tích quá 4 phút. Thử lại hoặc dùng video ngắn hơn.",
     "boutAnalysis.analysis.ai.error.QUOTA": "Đã hết lượt gọi AI miễn phí. Thử lại sau.",
