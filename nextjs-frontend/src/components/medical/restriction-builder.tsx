@@ -67,14 +67,14 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
                     {restrictionPresets(t).map(({ id, restriction }) => {
                         const added = labels.has(restriction.label.toLowerCase());
                         return (
-                            <li key={id}>
+                            <li key={id} className="max-w-full">
                                 <Button
                                     variant="secondary"
                                     size="sm"
                                     disabled={added}
                                     onClick={() => add(restriction)}
                                     aria-pressed={added}
-                                    className="h-auto min-h-8 py-1 text-left whitespace-normal"
+                                    className="h-auto min-h-8 max-w-full py-1 text-left whitespace-normal"
                                 >
                                     <Plus aria-hidden />
                                     {restriction.label}
@@ -84,7 +84,7 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
                     })}
                 </ul>
                 <div className="flex flex-wrap items-end gap-x-4 gap-y-2">
-                    <div className="flex items-end gap-2">
+                    <div className="flex flex-wrap items-end gap-2">
                         <div className="flex flex-col gap-1">
                             <label htmlFor={`${baseId}-rpe`} className="text-xs text-fg-muted">
                                 {t("doctorMedical.builder.intensityCap")}
@@ -102,7 +102,7 @@ export function RestrictionBuilder({ drafts, onChange, error, markEdited }: Rest
                             {t("doctorMedical.builder.addMaxRpe")}
                         </Button>
                     </div>
-                    <div className="flex items-end gap-2">
+                    <div className="flex flex-wrap items-end gap-2">
                         <div className="flex flex-col gap-1">
                             <label htmlFor={`${baseId}-region`} className="text-xs text-fg-muted">
                                 {t("doctorMedical.builder.bodyRegion")}
