@@ -1,7 +1,7 @@
-# T-066 Review
+# T-073 Review
 
-- Kết luận: **APPROVED** 12/11/2026, sau ba lượt review độc lập (subagent không mang ngữ cảnh hội thoại). Lượt cuối đạt.
-- Phạm vi: `nestjs-api/scripts/demo-seed.mjs`, `nestjs-api/scripts/demo-seed.test.mjs`, `docs/DEMO-API-MODE-SCRIPT.md`, `docs/tickets/T-066-cleanup.sql`.
+- Kết luận (tự review của Ken, không phải review chính thức; xem [REVIEW-KEN-T066-DEMO-SEED.md](./REVIEW-KEN-T066-DEMO-SEED.md)): **APPROVED** 12/11/2026, sau ba lượt review độc lập (subagent không mang ngữ cảnh hội thoại). Lượt cuối đạt.
+- Phạm vi: `nestjs-api/scripts/demo-seed.mjs`, `nestjs-api/scripts/demo-seed.test.mjs`, `docs/DEMO-API-MODE-SCRIPT.md`, `docs/tickets/T-073-cleanup.sql`.
 - Kiểm tra cuối (Claude chạy lại): `test:seed` 46/46 qua; `lint` exit 0; `--dry-run` exit 0, in đủ f1–f17.
 
 ## Tự kiểm của Claude (sau lượt code đầu)
@@ -25,7 +25,7 @@ API giả làm theo code thay vì backend, nên bốn lỗi qua test. Sửa ở 
 | Q4 | Khám dở dang không được sửa khi chạy lại | Nên sửa | Kiểm theo clearance của phiếu hiện hành |
 | Q5 | `examinedAt` theo đồng hồ máy chạy; f11 chỉ khớp ngày hôm nay | Gợi ý | `now − 60 s`; khớp theo `startsOn` |
 
-`T-066-cleanup.sql`: đạt (chỉ xoá mềm, cột đúng schema, kiểm số dòng và rollback).
+`T-073-cleanup.sql`: đạt (chỉ xoá mềm, cột đúng schema, kiểm số dòng và rollback).
 
 ## Review độc lập lần 2: không đạt
 
@@ -43,5 +43,5 @@ Không còn chặn hay nên sửa. Ba gợi ý để lại, không ảnh hưởn
 
 ## Chưa làm
 
-- Seed chưa chạy lên Supabase. Ken chạy `T-066-cleanup.sql` trước, rồi `--stage early` đúng D−1 và chạy chính sáng ngày D.
+- Seed chưa chạy lên Supabase. Ken chạy `T-073-cleanup.sql` trước, rồi `--stage early` đúng D−1 và chạy chính sáng ngày D.
 - Test e2e `test/coaching-loop-persistence.spec.ts` ghi user `@test.invalid` vào database thật: cần ticket riêng.

@@ -1,6 +1,6 @@
-# T-066 Seed demo API mode cho đủ bốn vai trò và mọi tình huống
+# T-073 Seed demo API mode cho đủ bốn vai trò và mọi tình huống
 
-- Trạng thái: APPROVED 12/11 sau ba lượt review độc lập ([review](./T-066-REVIEW.md)). Ngày: 12/11/2026. Thay cho T-052 (DRAFT, bỏ).
+- Trạng thái: APPROVED 15/11 ([review của Claude](./REVIEW-KEN-T066-DEMO-SEED.md); Claude sửa giúp các mục giấy tờ theo yêu cầu của chủ dự án). Ken tự review trước đó: [T-073-SELF-REVIEW.md](./T-073-SELF-REVIEW.md). Số ticket cũ trên nhánh `User_Feature`: T-066 (trùng nhóm hiệu năng T-063–T-069). Ngày: 12/11/2026. Thay cho T-052 (DRAFT, bỏ).
 - Phạm vi: `nestjs-api/scripts/demo-seed.mjs` và `nestjs-api/scripts/demo-seed.test.mjs`. Không đổi code app, API, mã lỗi, migration, frontend.
 - Người chạy seed lên Supabase: Ken. `agy` và Claude không chạy seed thật, chỉ chạy `--dry-run` và test.
 
@@ -13,7 +13,7 @@ Query Supabase qua API ngày 12/11 (chỉ GET):
 - `GET /academy-settings`: `medicalSupervision = DOCTOR`. Seed không đổi chế độ.
 - Seed T-040 chưa từng chạy (không có user `t040.*`).
 - Tài khoản demo có sẵn: HLV Rafael Costa `rafael.costa@lotus-combat.test`, bác sĩ Thu Lê `thu.le@lotus-combat.test`, Admin `admin@gmail.com`.
-- Dữ liệu thử được dọn trước bằng [T-066-cleanup.sql](./T-066-cleanup.sql) (Ken chạy, xoá mềm).
+- Dữ liệu thử được dọn trước bằng [T-073-cleanup.sql](./T-073-cleanup.sql) (Ken chạy, xoá mềm).
 - Ruleset có sẵn: `MMA – VMMAF 2021` (hạng `70`), `Boxing nghiệp dư – AIBA (tham khảo)` (hạng `48`…`91+`, hồ sơ `HEALTH_CERT`, `INSURANCE`, `FEDERATION_REG`).
 
 Ràng buộc backend đã kiểm trong code, ảnh hưởng cách seed:
@@ -79,7 +79,7 @@ Cập nhật [DEMO-API-MODE-SCRIPT.md](../DEMO-API-MODE-SCRIPT.md), thêm mục 
 ## Ngoài phạm vi
 
 - Code app, API, frontend, demo mode. Đổi chế độ y tế học viện.
-- Dọn dữ liệu cũ (đã có `T-066-cleanup.sql`, Ken chạy tay).
+- Dọn dữ liệu cũ (đã có `T-073-cleanup.sql`, Ken chạy tay).
 - Test e2e `test/coaching-loop-persistence.spec.ts` ghi user `@test.invalid` vào database thật: ghi lại, ticket riêng.
 
 ## Ca kiểm thử

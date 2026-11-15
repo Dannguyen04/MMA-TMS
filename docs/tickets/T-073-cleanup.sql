@@ -1,4 +1,4 @@
--- T-066 bước 0: dọn dữ liệu thử trên Supabase trước khi chạy seed demo.
+-- T-073 bước 0: dọn dữ liệu thử trên Supabase trước khi chạy seed demo.
 -- Ken chạy tay trong Supabase SQL editor. Claude không chạy.
 -- Chỉ XOÁ MỀM (đặt deleted_at), không DELETE dòng nào. Khôi phục: chạy lại với deleted_at = NULL cho cùng danh sách id.
 -- Danh sách id lấy bằng GET qua API ngày 12/11/2026. Nếu số dòng cập nhật khác số mong đợi, khối DO báo lỗi và ROLLBACK toàn bộ.

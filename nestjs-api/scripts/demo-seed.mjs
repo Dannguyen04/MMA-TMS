@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// T-040 B / T-066: demo data through the HTTP API only (no SQL). Fake people, @example.com.
+// T-040 B / T-073: demo data through the HTTP API only (no SQL). Fake people, @example.com.
 // Usage: node scripts/demo-seed.mjs [--dry-run] [--with-ai] [--stage early] [--only clearance]
 //   --stage early (alias --only clearance): fighters f7–f10; run exactly the day before the main run (D−1).
 // Env: DEMO_SEED_API_URL, DEMO_SEED_TOKEN (or DEMO_SEED_ADMIN_EMAIL + DEMO_SEED_ADMIN_PASSWORD),
@@ -55,6 +55,7 @@ export function buildPlan(now) {
     fighters: [
       {
         ...fighter(1, 'An', 'Camp Demo'),
+        // Every other day, last weight 3 days ago: gaps in the last week, grey track.
         measurements: series(range(-27, -3, 2), 78, 75.6),
         plan: campPlan('T-040 demo · camp võ sĩ 1', -28),
         bout: {
@@ -67,6 +68,7 @@ export function buildPlan(now) {
       },
       {
         ...fighter(2, 'Bình', 'Tuần Thi Demo'),
+        // Daily until 2 days ago; latest 75.8 kg is 7.7 % above 70 kg, just under the 8 % red line.
         measurements: series(range(-34, -2, 1), 80, 75.8),
         plan: campPlan('T-040 demo · camp võ sĩ 2', -35),
         bout: {
@@ -95,6 +97,7 @@ export function buildPlan(now) {
       {
         ...fighter(4, 'Dũng', 'Đình Chỉ Demo'),
         measurements: series([-10, -7, -4, -1], 72.4, 71.8),
+        // Created before the suspension and inside its window.
         sessions: [
           { title: 'T-040 demo · sparring 1', sessionType: 'SPARRING', scheduledAt: at(2, 18) },
           { title: 'T-040 demo · hồi phục', sessionType: 'RECOVERY', scheduledAt: at(3, 9) },
@@ -164,10 +167,12 @@ export function buildPlan(now) {
               },
             },
           ],
+          // The MMA ruleset has no suspension rule, so the backend requires the days.
           result: { result: 'LOSS', method: 'KO', resultRound: 2, knockedDown: true, lossOfConsciousness: 'UNDER_1_MIN', suspensionDays: 30, notes: 'Dữ liệu demo' },
         },
       },
       {
+        // SUSPENSION_AWAITING_CLEARANCE shows from endsOn + 1, so this one is seeded on D−1 with --stage early.
         ...fighter(7, 'Giang', 'Chờ Xác Nhận Demo'),
         stage: 'early',
         measurements: [],
@@ -272,6 +277,7 @@ function parseArgs(argv) {
   const only = onlyIdx >= 0 ? argv[onlyIdx + 1] ?? '' : undefined;
 
   const allowedFlags = new Set(['--dry-run', '--with-ai', '--stage', '--only']);
+  // The values after --stage and --only are checked by run(); anything else must be a known flag.
   const unknown = argv.find((a, j) => {
     if (stageIdx >= 0 && j === stageIdx + 1) return false;
     if (onlyIdx >= 0 && j === onlyIdx + 1) return false;
@@ -319,6 +325,7 @@ export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.f
   }
   const effectiveStage = rawStage ?? (only === 'clearance' ? 'early' : undefined);
 
+  // The cut-off is for fighter 6, who is not in --stage early.
   if (!effectiveStage && isPastCutoff(now)) {
     const msg = `Đã quá ${CUTOFF.hour}:${CUTOFF.minute} giờ học viện (UTC+7): trận của võ sĩ 6 xếp lúc 23:00 hôm nay sẽ không kịp. Chạy lại trước ${CUTOFF.hour}:${CUTOFF.minute}.`;
     if (!dryRun) {
@@ -574,6 +581,7 @@ export async function run({ argv = [], env = {}, fetch: fetchImpl = globalThis.f
           createdSuspensionId = matched.id;
           matchedSuspension = matched;
         } else {
+          // R28 on the server already moves the blocked SCHEDULED sessions on create; the script never calls conflicts/apply.
           const susp = await call('POST', '/suspensions', { ...C, label: `${f.key}.suspensionId`, body: { fighterId, ...f.suspension } });
           createdSuspensionId = susp.id;
           matchedSuspension = susp;
@@ -713,6 +721,7 @@ async function seedBout({ call, C, f, fighterId, coachId, ruleset, withAi, found
     if (detail?.opponentAnalysis?.observations?.length) found();
     else await call('PUT', `/bouts/${id}/opponent-analysis`, { ...C, label: f.key, body: b.analysis });
   }
+  // AI only on request, only while the bout is open (PRE_BOUT_TACTICS refuses a final bout), and only once.
   if (b.analysis && withAi) {
     const saved = listOf(await call('GET', `/bouts/${id}/ai/suggestions`, C));
     const hasOk = saved.some((s) => s.status === 'OK');

@@ -1,4 +1,4 @@
-# Bàn giao T-066: Seed demo API mode cho đủ bốn vai trò và mọi tình huống
+# Bàn giao T-073: Seed demo API mode cho đủ bốn vai trò và mọi tình huống
 
 - Trạng thái: HOÀN THÀNH.
 - Nhánh: `User_Feature`.
@@ -43,7 +43,7 @@
 
 ## 2. Ca kiểm thử
 
-Toàn bộ **38/38** ca kiểm thử (19 ca cũ S1–S18 và 19 ca mới T1–T19) đều PASS.
+Toàn bộ **46/46** ca kiểm thử (S1–S18, T1–T19, cùng R1–R4 và Q1–Q5 thêm ở các lượt sửa) đều PASS.
 
 ### Ca S1–S18 (19 ca)
 
@@ -206,7 +206,7 @@ created=251 existing=0
 
 ## 5. Câu hỏi
 
-- Không có câu hỏi hay vướng mắc kỹ thuật nào cần dừng. Mọi ràng buộc của backend (ngày bắt đầu đình chỉ không được trong quá khứ, kết thúc sớm yêu cầu bác sĩ được phân và phiếu khám không trước ngày bắt đầu, `ORGANIZER` bắt buộc `issuerReference`, thứ tự khám trước khi xếp lịch tập) đều đã được mô phỏng chính xác và kiểm chứng qua 38/38 ca test đạt yêu cầu.
+- Không có câu hỏi hay vướng mắc kỹ thuật nào cần dừng. Mọi ràng buộc của backend (ngày bắt đầu đình chỉ không được trong quá khứ, kết thúc sớm yêu cầu bác sĩ được phân và phiếu khám không trước ngày bắt đầu, `ORGANIZER` bắt buộc `issuerReference`, thứ tự khám trước khi xếp lịch tập) đều đã được mô phỏng chính xác và kiểm chứng qua 46/46 ca test đạt yêu cầu.
 
 ---
 
