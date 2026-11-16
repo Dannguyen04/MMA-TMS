@@ -1,6 +1,6 @@
-import { doctor } from "@/i18n/doctor";
-import { DoctorDossierLines } from "@/screens/doctor/clinical-read";
+import { DoctorOldRoute } from "@/screens/doctor/detail/old-route";
 
+/** Redesign step 20: Chấn thương goes to the fighter page, Tổng quan. */
 export default function DoctorInjuriesRoute() {
-  return <DoctorDossierLines title={doctor.medical.injuries} kind="injuries" />;
+  return <DoctorOldRoute/>;
 }

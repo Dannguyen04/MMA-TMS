@@ -60,6 +60,10 @@ describe('auth Zod contracts', () => {
     expect(refreshBodySchema.safeParse({ refreshToken: 'short' }).success).toBe(
       false,
     );
+    // Real Supabase refresh tokens are 12 characters.
+    expect(
+      refreshBodySchema.safeParse({ refreshToken: 'k3dq7rvx2mfa' }).success,
+    ).toBe(true);
     expect(
       refreshBodySchema.safeParse({
         refreshToken: 'r'.repeat(40),

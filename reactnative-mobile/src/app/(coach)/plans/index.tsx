@@ -1,5 +1,5 @@
-import { CoachPlansScreen } from "@/screens/coach/readonly/coach-plans-screen";
+import { CoachPlansListScreen } from "@/screens/coach/plans/plans-list";
 
 export default function CoachPlansRoute() {
-  return <CoachPlansScreen />;
+  return <CoachPlansListScreen/>;
 }

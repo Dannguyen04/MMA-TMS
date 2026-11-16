@@ -1,11 +1,10 @@
 /**
- * T-048 F2 and F9. Session dates are fixed offsets from the current Monday-start week (fake timers stall the
+ * T-048 F9 (the F2 week-stat cases went with the retired fighter home-screen, 2026-11). Session dates are fixed offsets from the current Monday-start week (fake timers stall the
  * screens' async loads), so "this week" and "next week" never depend on the day the suite runs.: where the fighter suspension card renders, and the separate "Chờ xếp lại" count.
  * Presentation-only modules are stubbed; the screens, the card and the selection rules are real.
  */
 import { render, within } from "@testing-library/react-native";
 import type { Suspension } from "@/api/fight-camp";
-import { FighterHomeScreen } from "@/screens/fighter/home-screen";
 import { FighterBodyScreen } from "@/screens/fighter/body-screen";
 import { SuspensionCard } from "@/screens/fight-camp/camp-suspension";
 import { startOfWeek } from "@/screens/fighter/redesign/week";
@@ -26,7 +25,6 @@ jest.mock("@/screens/fighter/redesign/shell", () => {
   const { Text, View } = require("react-native");
   return { FighterHub: ({ children }: { children: unknown }) => <View>{children as never}</View>, HubHeader: ({ title }: { title: string }) => <Text>{title}</Text> };
 });
-jest.mock("@/screens/fighter/home-bout-card", () => ({ HomeBoutCard: () => null }));
 jest.mock("@/components/toast/app-toast", () => ({ useToastMessage: () => undefined }));
 jest.mock("@/components/screen-skeletons", () => ({ FighterHomeSkeleton: () => null, HealthDossierSkeleton: () => null }));
 jest.mock("@/components/motion", () => {
@@ -75,39 +73,7 @@ beforeEach(() => {
 });
 afterEach(() => { jest.clearAllMocks(); });
 
-describe("T-048 F2: fighter home week stats", () => {
-  it("counts PENDING in this week only as Chờ xếp lại, never in Buổi tập trong tuần", async () => {
-    const ui = await render(<FighterHomeScreen/>);
-    const pending = await ui.findByTestId("week-pending");
-    expect(pending.props.accessibilityLabel).toBe("Chờ xếp lại: 2 buổi");
-    expect(within(pending).getByText("2")).toBeTruthy();
-    // Week total = sessions of this week that are not PENDING: COMPLETED + SCHEDULED.
-    const t = order(ui);
-    expect(t[t.indexOf("Buổi tập trong tuần") - 1]).toBe("2");
-  });
-  it("hides the Chờ xếp lại stat when there is no PENDING session this week", async () => {
-    fapi.listSessionsForFighter.mockResolvedValue({ data: [session("sch", at(6, 8), "SCHEDULED"), session("p-next-week", at(8, 17), "PENDING")], total: 2 });
-    const ui = await render(<FighterHomeScreen/>);
-    await ui.findByText("Buổi tập trong tuần");
-    expect(ui.queryByTestId("week-pending")).toBeNull();
-  });
-});
-
 describe("T-048 F9: suspension card placement", () => {
-  it("fighter home: the card comes before Tuần của bạn and the week stats", async () => {
-    const ui = await render(<FighterHomeScreen/>);
-    await ui.findByText("Đang đình chỉ đến 01/11");
-    const t = order(ui);
-    expect(t.indexOf("#suspension-card")).toBeGreaterThan(-1);
-    expect(t.indexOf("#suspension-card")).toBeLessThan(t.indexOf("Tuần của bạn"));
-    expect(t.indexOf("Đang đình chỉ đến 01/11")).toBeLessThan(t.indexOf("Buổi tập trong tuần"));
-  });
-  it("fighter home: no suspension, no card, stats unchanged (F6)", async () => {
-    campApi.suspensions.mockResolvedValue({ data: [], hasNextPage: false, nextCursor: null });
-    const ui = await render(<FighterHomeScreen/>);
-    await ui.findByText("Tuần của bạn");
-    expect(ui.queryByTestId("suspension-card")).toBeNull();
-  });
   it("Hồ sơ sức khỏe tab: the card comes right after the medical clearance tiles", async () => {
     const ui = await render(<FighterBodyScreen/>);
     await ui.findByText("Đang đình chỉ đến 01/11");

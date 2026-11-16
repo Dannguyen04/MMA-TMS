@@ -63,6 +63,8 @@ export interface ListBoutsParams {
   statuses?: readonly BoutStatus[] | undefined;
   cursor?: string | undefined;
   limit: number;
+  /** Weigh-in order; the cursor continues in the same direction. Defaults to `asc`. */
+  order?: 'asc' | 'desc' | undefined;
 }
 
 export interface PlanSummary {
@@ -317,18 +319,22 @@ export class BoutsRepository {
     if (params.statuses && params.statuses.length > 0)
       conditions.push(inArray(bouts.status, [...params.statuses]));
 
+    const newestFirst = params.order === 'desc';
     const cursor = params.cursor ? decodeBoutCursor(params.cursor) : null;
     if (cursor) {
       conditions.push(
-        sql`(${bouts.weighInAt}, ${bouts.id}) > (${cursor.weighInAt}::timestamptz, ${cursor.id}::uuid)`,
+        newestFirst
+          ? sql`(${bouts.weighInAt}, ${bouts.id}) < (${cursor.weighInAt}::timestamptz, ${cursor.id}::uuid)`
+          : sql`(${bouts.weighInAt}, ${bouts.id}) > (${cursor.weighInAt}::timestamptz, ${cursor.id}::uuid)`,
       );
     }
+    const direction = newestFirst ? desc : asc;
 
     return database
       .select()
       .from(bouts)
       .where(and(...conditions))
-      .orderBy(asc(bouts.weighInAt), asc(bouts.id))
+      .orderBy(direction(bouts.weighInAt), direction(bouts.id))
       .limit(params.limit + 1);
   }
 

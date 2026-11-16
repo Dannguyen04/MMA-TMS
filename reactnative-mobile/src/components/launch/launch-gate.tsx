@@ -5,7 +5,7 @@ import * as SystemUI from "expo-system-ui";
 import { NavigationBar, setVisibilityAsync as setNavVisibilityAsync } from "expo-navigation-bar";
 
 import { runSplashBootstrap } from "@/bootstrap/load-core";
-import { MmaSplash } from "@/components/launch/mma-splash";
+import { FireIntro } from "@/components/launch/fire-intro";
 import { SplashErrorBoundary } from "@/components/launch/splash-error-boundary";
 import { SplashLockContext } from "@/components/launch/splash-lock";
 import {
@@ -15,8 +15,7 @@ import {
 import { useSession } from "@/session/session-context";
 import { palettes } from "@/theme/colors";
 import { splash } from "@/theme/splash";
-import { splashPhoneGlassFlags } from "@/components/launch/splash-glass-mesh";
-import { splashBrandFlags } from "@/components/launch/splash-landing-marks";
+import { devLog } from "@/utils/dev-log";
 
 function LaunchSplashFallback({
   onLayoutReady,
@@ -40,7 +39,7 @@ function LaunchSplashFallback({
 export function LaunchGate({ children }: { children: ReactNode }) {
   /**
    * There is **no phase swap of the children's parent** any more. `children`
-   * live in exactly one React position (MmaSplash's home host) from the moment
+   * live in exactly one React position (the intro's home host) from the moment
    * they mount until the app is closed. `splashActive` only decides whether the
    * *splash layers* (black bed, VideoView, shutter, ice, shards) are rendered,
    * so `onFinish` cannot remount the app tree — which is what produced the
@@ -93,23 +92,22 @@ export function LaunchGate({ children }: { children: ReactNode }) {
   }, []);
 
   const dismissNativeSplash = useCallback((why: string) => {
-    console.log(
+    devLog(
       "[splash] hideAsync launchGate failsafe",
       why,
       "splashUntilPlaying",
       true,
-      ...Object.entries({ ...splashPhoneGlassFlags(), ...splashBrandFlags() }).flat(),
     );
     void SplashScreen.hideAsync();
   }, []);
 
   const onLayoutReady = useCallback(() => {
-    console.log("[splash] onLayoutReady hideAsync", false, "splashUntilPlaying", true, "seekAfterVisible", false, ...Object.entries({ ...splashPhoneGlassFlags(), ...splashBrandFlags() }).flat());
+    devLog("[splash] onLayoutReady hideAsync", false, "splashUntilPlaying", true, "seekAfterVisible", false);
   }, []);
 
   useEffect(() => {
-    console.log("[splash] hideAsync launchGate mount", false, "splashUntilPlaying", true, ...Object.entries({ ...splashPhoneGlassFlags(), ...splashBrandFlags() }).flat());
-    console.log(
+    devLog("[splash] hideAsync launchGate mount", false, "splashUntilPlaying", true);
+    devLog(
       "[splash] SystemChrome launchGate mount",
       "navHidden",
       true,
@@ -128,7 +126,7 @@ export function LaunchGate({ children }: { children: ReactNode }) {
     }
     return () => {
       if (Platform.OS === "android" && dismissed.current) {
-        console.log(
+        devLog(
           "[splash] SystemChrome launchGate unmount",
           "navHidden",
           false,
@@ -147,18 +145,17 @@ export function LaunchGate({ children }: { children: ReactNode }) {
 
   /**
    * Ice is locked. Mount REAL home children under the ice NOW — not after
-   * floorPainted, not after fly, not on a liveHost swap. MmaSplash still waits
+   * floorPainted, not after fly, not on a liveHost swap. The intro still waits
    * for this wrapper's onLayout + paintExtraFrames before sheetRelease.
    */
   const onAppCovered = useCallback(() => {
     glassLockedAtRef.current = Date.now();
-    console.log(
+    devLog(
       "[splash] onAppCovered launchGate — mount home children",
       "navHidden",
       true,
       "chrome hidden/translucent unchanged",
       "WHEN lock",
-      ...Object.entries({ ...splashPhoneGlassFlags(), ...splashBrandFlags() }).flat(),
     );
     setHomeMounted(true);
   }, []);
@@ -167,11 +164,11 @@ export function LaunchGate({ children }: { children: ReactNode }) {
   const onHomeContentPainted = useCallback((width: number, height: number) => {
     if (homePaintedRef.current) return;
     homePaintedRef.current = true;
-    console.log("[splash] home children painted", width, height, "— under ice, before sheetRelease", ...Object.entries({ ...splashPhoneGlassFlags(), ...splashBrandFlags() }).flat());
+    devLog("[splash] home children painted", width, height, "— under ice, before sheetRelease");
   }, []);
 
   const onFlyStarted = useCallback(() => {
-    console.log("[splash] flyStarted launchGate", ...Object.entries({ ...splashPhoneGlassFlags(), ...splashBrandFlags() }).flat());
+    devLog("[splash] flyStarted launchGate");
     flyStartedRef.current = true;
     setFlyStarted(true);
   }, []);
@@ -184,14 +181,14 @@ export function LaunchGate({ children }: { children: ReactNode }) {
      */
     if (!sessionReadyRef.current) {
       pendingLiveRef.current = true;
-      console.log("[splash] enterLive held — session gate still loading");
+      devLog("[splash] enterLive held — session gate still loading");
       return;
     }
     pendingLiveRef.current = false;
     dismissed.current = true;
     hangSkipLoggedRef.current = true;
-    console.log("[splash] onFinish launchGate — splash layers off, home stays mounted", ...Object.entries({ ...splashPhoneGlassFlags(), ...splashBrandFlags() }).flat());
-    console.log("[splash] SystemChrome enterLive / onFinish", "navHidden", false, "hidden false later via splashActive", "WHEN onFinish");
+    devLog("[splash] onFinish launchGate — splash layers off, home stays mounted");
+    devLog("[splash] SystemChrome enterLive / onFinish", "navHidden", false, "hidden false later via splashActive", "WHEN onFinish");
     void SystemUI.setBackgroundColorAsync(palettes.dark.bg);
     setHomeMounted(true);
     setSplashActive(false);
@@ -203,7 +200,7 @@ export function LaunchGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!sessionReady || !pendingLiveRef.current || dismissed.current) return;
-    console.log("[splash] enterLive resume — session gate settled", gate);
+    devLog("[splash] enterLive resume — session gate settled", gate);
     enterLive();
   }, [enterLive, gate, sessionReady]);
 
@@ -214,15 +211,15 @@ export function LaunchGate({ children }: { children: ReactNode }) {
       if (flyStartedRef.current) {
         if (!hangSkipLoggedRef.current) {
           hangSkipLoggedRef.current = true;
-          console.log("[splash] hang launchGate skipped — fly", "flyStarted true");
+          devLog("[splash] hang launchGate skipped — fly", "flyStarted true");
         }
         return;
       }
       if (!loadSettledRef.current) {
-        console.log("[splash] hang launchGate skipped — load in flight", "loadProgress", loadProgress);
+        devLog("[splash] hang launchGate skipped — load in flight", "loadProgress", loadProgress);
         return;
       }
-      console.log("[splash] hang launchGate after glassLocked", splash.splashHangMs);
+      devLog("[splash] hang launchGate after glassLocked", splash.splashHangMs);
       dismissNativeSplash("hang");
       enterLive();
     }, splash.splashHangMs);
@@ -233,7 +230,7 @@ export function LaunchGate({ children }: { children: ReactNode }) {
     if (!flyStarted) return;
     const leave = setTimeout(() => {
       if (dismissed.current || !splashActiveRef.current) return;
-      console.log("[splash] lockLeaveTimeout launchGate");
+      devLog("[splash] lockLeaveTimeout launchGate");
       dismissNativeSplash("lockLeaveTimeout");
       enterLive();
     }, splash.lockLeaveTimeoutMs);
@@ -242,7 +239,7 @@ export function LaunchGate({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (splashActive || Platform.OS !== "android") return;
-    console.log(
+    devLog(
       "[splash] SystemChrome after onFinish",
       "navHidden",
       false,
@@ -267,7 +264,7 @@ export function LaunchGate({ children }: { children: ReactNode }) {
         <SplashErrorBoundary
           fallback={<LaunchSplashFallback onLayoutReady={onLayoutReady} onFinish={onFinish} />}
         >
-          <MmaSplash
+          <FireIntro
             splashActive={splashActive}
             onLayoutReady={onLayoutReady}
             onFinish={onFinish}
@@ -292,7 +289,7 @@ export function LaunchGate({ children }: { children: ReactNode }) {
 const styles = StyleSheet.create({
   // App background, not #000: with the children never remounting this is only
   // ever visible behind a transparent splash root. #000 under the fighter comes
-  // from MmaSplash `blackBehind`.
+  // from the intro's own black overlay.
   root: {
     flex: 1,
     backgroundColor: palettes.dark.bg,

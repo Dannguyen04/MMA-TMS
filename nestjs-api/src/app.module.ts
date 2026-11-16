@@ -22,6 +22,7 @@ import { VideosModule } from './videos/videos.module.js';
 import { AcademySettingsModule } from './academy-settings/academy-settings.module.js';
 import { BoutsModule } from './bouts/bouts.module.js';
 import { SuspensionsModule } from './suspensions/suspensions.module.js';
+import { ScheduleModule } from './schedule/schedule.module.js';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { SuspensionsModule } from './suspensions/suspensions.module.js';
     AcademySettingsModule,
     BoutsModule,
     SuspensionsModule,
+    ScheduleModule,
   ],
   controllers: [AppController],
   providers: [AppService],

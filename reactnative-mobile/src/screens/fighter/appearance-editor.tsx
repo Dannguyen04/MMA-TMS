@@ -25,6 +25,7 @@ import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterStack } from "@/screens/fighter/redesign/shell";
 import { APPEARANCE_SAVE_ERROR } from "@/theme/fighter-appearance";
 import { useAppearanceActions, useAppearanceState } from "@/theme";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 type Tab = "customize" | "preview";
 
@@ -99,7 +100,6 @@ export function FighterAppearanceEditor() {
     <FighterStack
       footer={
         <View style={[styles.bar, { backgroundColor: colors.bg, borderTopColor: colors.line, paddingBottom: Math.max(insets.bottom, 8) }]}>
-          <Text style={[styles.note, { color: colors.muted }]}>Lưu trên điện thoại này. Không đồng bộ lên máy chủ.</Text>
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
@@ -108,7 +108,7 @@ export function FighterAppearanceEditor() {
               onPress={cancel}
               style={[styles.cancel, { borderColor: colors.line, opacity: saving ? 0.5 : 1 }]}
             >
-              <Text style={{ color: colors.ink, fontSize: 15, fontWeight: "600" }}>Hủy</Text>
+              <Text style={{ color: colors.ink, fontSize: fz(15), fontWeight: "600" }}>Hủy</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -118,7 +118,7 @@ export function FighterAppearanceEditor() {
               onPress={apply}
               style={[styles.apply, { backgroundColor: applyDisabled ? colors.surface2 : colors.accent }]}
             >
-              <Text style={{ color: applyDisabled ? colors.muted : colors.onAccent, fontWeight: "600", fontSize: 14 }}>
+              <Text style={{ color: applyDisabled ? colors.muted : colors.onAccent, fontWeight: "600", fontSize: fz(14) }}>
                 {saving ? "Đang lưu…" : "Áp dụng"}
               </Text>
             </Pressable>
@@ -139,7 +139,7 @@ export function FighterAppearanceEditor() {
           onPress={() => change(DEFAULT_APPEARANCE_DRAFT)}
           style={styles.reset}
         >
-          <Text style={{ color: colors.accent, fontWeight: "600", fontSize: 13 }}>Mặc định</Text>
+          <Text style={{ color: colors.accent, fontWeight: "600", fontSize: fz(13) }}>Mặc định</Text>
         </Pressable>
       </View>
       <View style={styles.tabsPad}>
@@ -147,7 +147,6 @@ export function FighterAppearanceEditor() {
           <TabButton label="Tùy chỉnh" selected={tab === "customize"} onPress={() => setTab("customize")} />
           <TabButton label="Xem trước" selected={tab === "preview"} onPress={() => setTab("preview")} />
         </View>
-        <Text style={[styles.hint, { color: colors.muted }]}>Chạm tab hoặc vuốt ngang để chuyển</Text>
       </View>
       <View {...pan.panHandlers}>
         {tab === "customize" ? (
@@ -178,7 +177,7 @@ function Customize({
       <View style={styles.head}>
         <Text style={[styles.label, { color: colors.ink }]}>Chủ đề</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Đặt lại chủ đề" onPress={() => onChange(resetAppearanceGroup(draft, "theme"))}>
-          <Text style={{ color: colors.accent, fontSize: 12, fontWeight: "500" }}>Đặt lại mục này</Text>
+          <Text style={{ color: colors.accent, fontSize: fz(12), fontWeight: "500" }}>Đặt lại mục này</Text>
         </Pressable>
       </View>
       <View style={styles.row}>
@@ -188,7 +187,7 @@ function Customize({
       </View>
       <View style={styles.head}>
         <Text style={[styles.label, { color: colors.ink }]}>Màu nhấn</Text>
-        <Text style={{ color: colors.muted, fontSize: 12 }}>{ACCENT_SWATCHES.find((item) => item.id === draft.accent)?.label}</Text>
+        <Text style={{ color: colors.muted, fontSize: fz(12) }}>{ACCENT_SWATCHES.find((item) => item.id === draft.accent)?.label}</Text>
       </View>
       <View style={styles.swatches}>
         {ACCENT_SWATCHES.map((item) => {
@@ -214,7 +213,7 @@ function Customize({
       </View>
       <View style={styles.head}>
         <Text style={[styles.label, { color: colors.ink }]}>Kiểu chữ & cỡ chữ</Text>
-        <Text style={{ color: colors.muted, fontSize: 13 }}>Inter</Text>
+        <Text style={{ color: colors.muted, fontSize: fz(13) }}>Inter</Text>
       </View>
       <View style={[styles.sizes, { backgroundColor: colors.surface2 }]}>
         {(["small", "medium", "large"] as const).map((size) => (
@@ -224,14 +223,14 @@ function Customize({
       <View style={styles.head}>
         <Text style={[styles.label, { color: colors.ink }]}>Hỗ trợ đọc</Text>
         <Pressable accessibilityRole="button" accessibilityLabel="Đặt lại hỗ trợ đọc" onPress={() => onChange(resetAppearanceGroup(draft, "reading"))}>
-          <Text style={{ color: colors.accent, fontSize: 12, fontWeight: "500" }}>Đặt lại mục này</Text>
+          <Text style={{ color: colors.accent, fontSize: fz(12), fontWeight: "500" }}>Đặt lại mục này</Text>
         </Pressable>
       </View>
       <View style={styles.row}>
         <ReadChoice id="standard" label="Tiêu chuẩn" draft={draft} onChange={onChange} />
         <ReadChoice id="highContrast" label="Tương phản cao" draft={draft} onChange={onChange} />
       </View>
-      <Text style={{ color: colors.muted, fontSize: 12, lineHeight: 18 }}>
+      <Text style={{ color: colors.muted, fontSize: fz(12), lineHeight: lh(18) }}>
         {appearanceSummary(draft)}
         {"\n"}
         Thay đổi trong tab Xem trước. Áp dụng để dùng trên cả ứng dụng.
@@ -318,7 +317,7 @@ function TabButton({ label, selected, onPress }: { label: string; selected: bool
       onPress={onPress}
       style={[styles.tab, selected ? { backgroundColor: colors.bg } : null]}
     >
-      <Text style={{ color: selected ? colors.accent : colors.muted, fontWeight: selected ? "700" : "500", fontSize: 14 }}>
+      <Text style={{ color: selected ? colors.accent : colors.muted, fontWeight: selected ? "700" : "500", fontSize: fz(14) }}>
         {label}
       </Text>
     </Pressable>
@@ -397,7 +396,7 @@ function ThemeCard({
         <View style={{ flex: 1, height: 5, borderRadius: 2, backgroundColor: swatch, opacity: 0.25 }} />
       </View>
       <View style={styles.head}>
-        <Text style={{ color: colors.ink, fontSize: 12, fontWeight: "600" }}>{label}</Text>
+        <Text style={{ color: colors.ink, fontSize: fz(12), fontWeight: "600" }}>{label}</Text>
         {selected ? <MaterialCommunityIcons name="check" size={14} color={colors.accent} /> : null}
       </View>
     </Pressable>
@@ -465,23 +464,23 @@ function ReadChoice({
         },
       ]}
     >
-      <Text style={{ flex: 1, color: colors.ink, fontSize: 13, fontWeight: selected ? "600" : "400" }}>{label}</Text>
+      <Text style={{ flex: 1, color: colors.ink, fontSize: fz(13), fontWeight: selected ? "600" : "400" }}>{label}</Text>
       {selected ? <MaterialCommunityIcons name="check" size={15} color={colors.accent} /> : null}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   nav: { height: 56, flexDirection: "row", alignItems: "center", paddingHorizontal: 12 },
   back: { width: 40, height: 44, alignItems: "center", justifyContent: "center" },
-  title: { flex: 1, fontSize: 24, fontWeight: "700" },
+  title: { flex: 1, fontSize: fz(24), fontWeight: "700" },
   reset: { height: 44, paddingHorizontal: 8, justifyContent: "center" },
   tabsPad: { paddingHorizontal: 20, gap: 6, marginBottom: 8 },
   tabs: { flexDirection: "row", borderRadius: 12, padding: 3, height: 44 },
   tab: { flex: 1, borderRadius: 9, alignItems: "center", justifyContent: "center" },
-  hint: { fontSize: 12, textAlign: "center", lineHeight: 20 },
+  hint: { fontSize: fz(12), textAlign: "center", lineHeight: lh(20) },
   pad: { paddingHorizontal: 20, paddingBottom: 16, gap: 8 },
-  label: { fontSize: 14, fontWeight: "600" },
+  label: { fontSize: fz(14), fontWeight: "600" },
   row: { flexDirection: "row", gap: 10 },
   head: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", minHeight: 24 },
   choice: { flex: 1, height: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, flexDirection: "row", alignItems: "center", gap: 8 },
@@ -490,7 +489,7 @@ const styles = StyleSheet.create({
   swatches: { flexDirection: "row", gap: 14 },
   swatchHit: { width: 44, height: 44, borderRadius: 22, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   swatch: { width: 32, height: 32, borderRadius: 16, alignItems: "center", justifyContent: "center" },
-  check: { color: "#FFFFFF", fontWeight: "700", fontSize: 16 },
+  check: { color: "#FFFFFF", fontWeight: "700", fontSize: fz(16) },
   sizes: { flexDirection: "row", borderRadius: 12, padding: 3, height: 44, gap: 3 },
   size: { flex: 1, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   banner: { height: 36, paddingHorizontal: 20, flexDirection: "row", alignItems: "center", gap: 7 },
@@ -501,8 +500,8 @@ const styles = StyleSheet.create({
   bars: { flexDirection: "row", gap: 5 },
   reminder: { flexDirection: "row", gap: 10, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 14 },
   bar: { borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 10, paddingHorizontal: 20, gap: 8 },
-  note: { fontSize: 12, textAlign: "center" },
+  note: { fontSize: fz(12), textAlign: "center" },
   actions: { flexDirection: "row", gap: 12 },
   cancel: { width: 108, height: 46, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   apply: { flex: 1, height: 46, borderRadius: 12, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
-});
+}));

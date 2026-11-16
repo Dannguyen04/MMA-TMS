@@ -18,7 +18,7 @@ export function RoundAiBlock({ target, state, plan, disabled, onAsk, onToggle }:
   return <View style={{ gap: 8 }} testID="round-ai" accessibilityLiveRegion="polite">
     {state.phase === "idle" || state.phase === "loading" ? <>
       <Action label={t.ask} secondary pending={state.phase === "loading"} disabled={disabled} onPress={onAsk}/>
-      <Copy muted small>{state.phase === "loading" ? t.loading : t.askHint(target)}</Copy>
+      {state.phase === "loading" ? <Copy muted small>{t.loading}</Copy> : null}
     </> : null}
     {state.phase === "problem" ? <Copy muted small>{state.text}</Copy> : null}
     {state.phase === "ready" ? <>

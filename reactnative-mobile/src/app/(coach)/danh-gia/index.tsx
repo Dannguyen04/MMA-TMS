@@ -1,5 +1,5 @@
-import { StaffListScreen } from "@/screens/admissions/staff-list";
+import { CoachAdmissionsScreen } from "@/screens/admissions/redesign/coach-admissions";
 
 export default function CoachAdmissions() {
-  return <StaffListScreen audience="coach" />;
+  return <CoachAdmissionsScreen />;
 }

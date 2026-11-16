@@ -1,13 +1,6 @@
-import { Stack } from "expo-router";
+import { CoachVideosScreen } from "@/screens/coach/video/video-list";
 
-import { CoachVideosScreen } from "@/screens/coach/nav/coach-videos-screen";
-
-/** Tab Video: Thư viện video của võ sĩ phụ trách (GET /videos). */
-export default function CoachVideoLibraryRoute() {
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <CoachVideosScreen />
-    </>
-  );
+/** Coach Video (redesign step 19): Thư viện · Cần duyệt. */
+export default function CoachVideosRoute() {
+  return <CoachVideosScreen />;
 }

@@ -1,5 +1,5 @@
-import { FighterMeScreen } from "@/screens/fighter/me-screen";
+import { FighterMeV2 } from "@/screens/fighter/me/me-tab";
 
 export default function MeRoute() {
-  return <FighterMeScreen />;
+  return <FighterMeV2 />;
 }

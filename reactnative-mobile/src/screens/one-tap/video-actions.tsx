@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSession } from "@/session/session-context";
 import { oneTapApi } from "@/api/one-tap";
 import type { ActiveReference, ReanalyzeResult } from "@/api/one-tap.types";
+import { deleteVideo } from "@/api/media";
 import { videoAiApi } from "@/api/video-ai";
 import type { AiCoachingState, AiMovementReviews } from "@/api/video-ai.types";
 import { BottomSheet } from "@/components/filter-sheet";
@@ -41,6 +42,40 @@ export function useReanalyze(videoId: string, fighterId: string | null, onDone: 
           (r) => {
             setOpen(false);
             onDone(r);
+          },
+        ).then(closeIfOffline(setOpen));
+      }}
+    />
+  );
+  return {
+    open: () => {
+      w.setForbidden("");
+      setOpen(true);
+    },
+    sheet,
+  };
+}
+
+/** Admin (step 23): "Xóa video này?" sheet + DELETE /videos/:id; success → onDone (back to the list). */
+export function useDeleteVideo(videoId: string, onDone: () => void) {
+  const [open, setOpen] = useState(false);
+  const w = useWrite(ot.deleteForbidden);
+  const sheet = (
+    <ConfirmSheet
+      visible={open}
+      title={ot.deleteTitle}
+      body={ot.deleteBody}
+      confirmLabel={ot.deleteVideo}
+      danger
+      sending={w.sending}
+      forbidden={w.forbidden}
+      onCancel={() => setOpen(false)}
+      onConfirm={() => {
+        void w.run(
+          () => deleteVideo(videoId),
+          () => {
+            setOpen(false);
+            onDone();
           },
         ).then(closeIfOffline(setOpen));
       }}

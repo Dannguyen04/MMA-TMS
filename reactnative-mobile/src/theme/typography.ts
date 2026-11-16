@@ -1,4 +1,4 @@
-import type { TextStyle } from "react-native";
+import type { StyleSheet, TextStyle } from "react-native";
 
 export const fonts = {
   display: "BarlowCondensed_700Bold",
@@ -113,7 +113,11 @@ let currentTypography = DEFAULT_LIVE_TYPOGRAPHY;
 
 /** Legacy role components use getters so reading preferences are never snapshotted. */
 export function readableTextStyle(base: number, bold = false): ContentTextStyle {
-  const live = currentTypography;
+  return textStyleWith(currentTypography, base, bold);
+}
+
+/** Same as `readableTextStyle`, for an explicit typography (the appearance preview draws from the unsaved draft). */
+export function textStyleWith(live: LiveTypography, base: number, bold = false): ContentTextStyle {
   const fontSize = scaledSize(base, live.sizeFactor);
   return { fontFamily: live.faces[bold ? "bold" : "regular"], fontSize,
     lineHeight: Math.max(viLineHeight(fontSize), Math.ceil(fontSize * live.lineHeight)),
@@ -128,6 +132,65 @@ export function readableTextStyle(base: number, bold = false): ContentTextStyle 
 export function setLiveTypography(live: LiveTypography) {
   currentTypography = live;
   liveStyles = buildLiveStyles(live);
+}
+
+/** Big display numbers and headings grow half as fast, so a large text setting does not blow up cards. */
+const DISPLAY_FROM = 24;
+
+function displayFactor(base: number, factor: number) {
+  return base >= DISPLAY_FROM ? 1 + (factor - 1) / 2 : factor;
+}
+
+/**
+ * A fixed design size that follows the saved text-size setting. Read during render (or inside `liveSheet`),
+ * so the whole app changes the moment the setting is saved instead of after a restart. `max` caps text that
+ * shares a fixed width with its neighbours (five tab labels across a phone).
+ */
+export function fz(base: number, max = Infinity): number {
+  return Math.min(fzWith(currentTypography, base), max);
+}
+
+/** `fz` for an explicit typography (the appearance preview draws from the unsaved draft). */
+export function fzWith(live: Pick<LiveTypography, "sizeFactor">, base: number): number {
+  return scaledSize(base, displayFactor(base, live.sizeFactor));
+}
+
+/** The line height paired with a `fz` size; scales with it so larger text is never clipped. */
+export function lh(base: number, max = Infinity): number {
+  return Math.min(lhWith(currentTypography, base), max);
+}
+
+/** `lh` for an explicit typography. */
+export function lhWith(live: Pick<LiveTypography, "sizeFactor">, base: number): number {
+  const f = live.sizeFactor;
+  return f === 1 ? base : Math.ceil(base * displayFactor(base, f));
+}
+
+/**
+ * `StyleSheet.create` replacement for sheets that hold text sizes: the factory reruns whenever the applied
+ * typography changes, so module-level styles stay live too.
+ */
+export function liveSheet<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(
+  factory: () => T & StyleSheet.NamedStyles<any>,
+): T {
+  let builtFor: LiveTypography | null = null;
+  let sheet = {} as T;
+  const current = () => {
+    if (builtFor !== currentTypography) {
+      builtFor = currentTypography;
+      sheet = factory();
+    }
+    return sheet;
+  };
+  return new Proxy({} as T, {
+    get: (_t, key) => current()[key as keyof T],
+    has: (_t, key) => key in current(),
+    ownKeys: () => Reflect.ownKeys(current()),
+    getOwnPropertyDescriptor: (_t, key) => {
+      const d = Reflect.getOwnPropertyDescriptor(current(), key);
+      return d ? { ...d, configurable: true } : undefined;
+    },
+  });
 }
 
 export const type = {

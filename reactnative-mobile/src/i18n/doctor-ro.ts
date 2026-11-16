@@ -94,7 +94,7 @@ export const doctorRo = {
     appearance: "Giao diện",
     appearanceDesc: "Sáng, tối, hệ thống và khoảng cách chữ",
     logout: "Đăng xuất",
-    logoutConfirm: "Đăng xuất khỏi MMA Vision?",
+    logoutConfirm: "Đăng xuất khỏi tài khoản?",
     cancel: "Hủy",
   },
   roles: { DOCTOR: "Bác sĩ", COACH: "Huấn luyện viên", ADMIN: "Quản trị viên", FIGHTER: "Võ sĩ", GUEST: "Khách" },

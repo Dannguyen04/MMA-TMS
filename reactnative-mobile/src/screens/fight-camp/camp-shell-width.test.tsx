@@ -24,6 +24,17 @@ describe("CampShell column (Phase 5 batches A and D)", () => {
     let back: typeof column | null = ui.getByLabelText("Quay lại"); while (back && back !== column) back = back.parent;
     expect(back).toBe(column);
   });
+  it("puts the screen title in the header bar in place of 'Fight Camp', once", async () => {
+    mockDims = { width: 390, height: 844, scale: 2, fontScale: 1 };
+    const ui = await render(<CampShell title="Trận thi đấu" subtitle="Cân chính thức, chuẩn bị góc đài và ghi hiệp." onBack={() => undefined}><Text>Nội dung</Text></CampShell>);
+    const headers = ui.getAllByRole("header");
+    expect(headers).toHaveLength(1);
+    let n: ReturnType<typeof ui.getByTestId> | null = headers[0]!; while (n && n.props.testID !== "camp-header") n = n.parent;
+    expect(n?.props.testID).toBe("camp-header");
+    expect(ui.getByText("Trận thi đấu")).toBeTruthy();
+    expect(ui.queryByText("Fight Camp")).toBeNull();
+    expect(ui.getByText("Cân chính thức, chuẩn bị góc đài và ghi hiệp.")).toBeTruthy();
+  });
   it.each([{ width: 844, height: 390, header: 44 }, { width: 1180, height: 820, header: 54 }, { width: 1280, height: 800, header: 54 }])("compacts the header and footer only when the window is shorter than 500 ($width×$height)", async ({ width, height, header }) => {
     mockDims = { width, height, scale: 2, fontScale: 1 };
     const ui = await render(<CampShell title="Ghi hiệp" onBack={() => undefined} footer={<Text>Chốt hiệp</Text>}><Text>Nội dung</Text></CampShell>);

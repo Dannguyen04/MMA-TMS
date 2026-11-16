@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Animated,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -12,9 +13,16 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useReducedMotion } from "react-native-reanimated";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 
-import { motion, radius, spacing, type, useThemePreference } from "@/theme";
+import { useThemePreference } from "@/theme";
+// Direct modules so screens that mock "@/theme" in tests can still render a closed sheet.
+import { motion } from "@/theme/motion";
+import { radius } from "@/theme/radius";
+import { spacing } from "@/theme/spacing";
+import { type } from "@/theme/typography";
+
+import { useRevealFocusedField } from "./reveal-focused-field";
 
 /**
  * One slide from the bottom. Reduced motion drops the travel and still opens and closes.
@@ -31,12 +39,14 @@ export function SlideSheet({
   children: ReactNode;
 }) {
   const { colors } = useThemePreference();
-  const insets = useSafeAreaInsets();
+  // Read the context directly so a sheet that is closed never throws outside a SafeAreaProvider (tests, previews).
+  const insets = useContext(SafeAreaInsetsContext) ?? { top: 0, bottom: 0, left: 0, right: 0 };
   const { height } = useWindowDimensions();
   const reduced = useReducedMotion();
   const translate = useRef(new Animated.Value(height)).current;
   const backdrop = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(visible);
+  const { scrollRef, contentRef } = useRevealFocusedField(mounted);
 
   useEffect(() => {
     const duration = reduced ? 0 : motion.base;
@@ -64,7 +74,8 @@ export function SlideSheet({
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.fill}>
+      {/* Owner 2026-11-11: the keyboard never covers a field. The sheet rides on top of it and shrinks to fit. */}
+      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <Animated.View style={[styles.backdrop, { opacity: backdrop }]}>
           <Pressable accessibilityRole="button" accessibilityLabel="Đóng" style={styles.fill} onPress={onClose} />
         </Animated.View>
@@ -91,14 +102,18 @@ export function SlideSheet({
             </Pressable>
           </View>
           <ScrollView
+            ref={scrollRef}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             style={Platform.OS === "web" ? ({ scrollbarWidth: "none" } as ViewStyle) : undefined}
           >
-            {children}
+            <View ref={contentRef} collapsable={false}>
+              {children}
+            </View>
           </ScrollView>
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

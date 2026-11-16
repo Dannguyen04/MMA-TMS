@@ -17,6 +17,7 @@ import {
   SEVERITY_TONE,
   toneColors,
 } from "./tone";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 export type WeightPoint = { id: string; weightKg: number; measuredAt: string; caption?: string };
 
@@ -444,10 +445,10 @@ export function PlanStatusMark({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   chartStack: { gap: spacing.md },
   latestRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  latestValue: { fontFamily: fonts.display, fontSize: 34, lineHeight: viLineHeight(34) },
+  latestValue: { fontFamily: fonts.display, fontSize: fz(34), lineHeight: lh(viLineHeight(34)) },
   center: { alignItems: "center", justifyContent: "center" },
   marker: {
     width: 22,
@@ -456,6 +457,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  markerText: { fontSize: 11 },
+  markerText: { fontSize: fz(11) },
   injuryRing: { borderWidth: 2, borderStyle: "dashed" },
-});
+}));

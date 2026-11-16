@@ -198,7 +198,7 @@ export const manager = {
     count: (n: number) => `${n} người dùng`,
     search: "Tìm theo email hoặc tên",
     roleAll: "Tất cả",
-    roles: { FIGHTER: "Võ sĩ", COACH: "HLV", DOCTOR: "Bác sĩ", ADMIN: "Quản trị", GUEST: "Khách" },
+    roles: { FIGHTER: "Võ sĩ", COACH: "Huấn luyện viên", DOCTOR: "Bác sĩ", ADMIN: "Quản trị", GUEST: "Khách" },
     statusAll: "Mọi trạng thái",
     active: "Đang hoạt động",
     inactive: "Ngừng / đã xóa",

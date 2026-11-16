@@ -1,64 +1,73 @@
 import { useCallback, useRef, useState } from "react";
-import { Text, useWindowDimensions, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { doctorRoApi } from "@/api/doctor-ro";
-import type { PublicFighter } from "@/api/types";
+import type { MedicalDossier, PublicFighter } from "@/api/types";
+import { Icon } from "@/components/icon";
+import { EmptyLine, RolePage } from "@/components/role-page";
+import { doctorRest as r } from "@/i18n/doctor-rest";
 import { doctorRo } from "@/i18n/doctor-ro";
-import { coachRo } from "@/i18n/coach-ro";
-import { vi } from "@/i18n/vi";
-import { fighterName, MEDICAL_CHIP } from "@/screens/coach/readonly/ro-format";
-import { Avatar, RoCard, RoScreen, RowSkeletons, StatusChip, Stack } from "@/screens/coach/readonly/ro-ui";
-import { ActionButton, ConnectionBanner, MessageCard, TEXT, useDelayedFlag } from "@/screens/fighter/bout-states";
-import { useFighterPalette } from "@/screens/fighter/redesign/palette";
-import { useLoad } from "@/screens/fighter/use-load";
-import { headerFacts } from "@/screens/doctor/detail/detail-format";
-import { DetailTabs } from "@/screens/doctor/detail/detail-ui";
-import { AiTab } from "@/screens/doctor/detail/ai-tab";
-import { aiText } from "@/screens/doctor/detail/ai-format";
-import { ExamsTab, HistoryTab, OverviewTab, WIDE_MIN } from "@/screens/doctor/detail/doctor-detail-tabs";
-
-import { useDoctorRoster } from "./doctor-roster";
 import { ot } from "@/i18n/one-tap";
+import { fighterLine, statusMark } from "@/screens/coach/fighters/fighter-model";
+import { fighterName } from "@/screens/coach/readonly/ro-format";
+import { CampTabs } from "@/screens/fight-camp/camp-lit";
+import { RetryRow } from "@/screens/fighter/redesign/tab-page";
+import { useLoad } from "@/screens/fighter/use-load";
+import { AiTab, useFighterAi } from "@/screens/doctor/detail/ai-tab";
+import { detailError, headerFacts } from "@/screens/doctor/detail/detail-format";
+import { ExamsTab, HistoryTab, OverviewTab } from "@/screens/doctor/detail/doctor-detail-tabs";
 import { useEndAssignment, useOptionalSession } from "@/screens/one-tap/status-actions";
 import { MoreMenu } from "@/screens/one-tap/video-actions";
+import { useThemePreference } from "@/theme";
+import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
+
+import { useDoctorRoster } from "./doctor-roster";
 
 const t = doctorRo.detail2;
 type TabKey = "overview" | "exams" | "history" | "ai";
+const TABS: readonly TabKey[] = ["overview", "exams", "history", "ai"];
 
-function DoctorFighterHeader({ f }: { f: PublicFighter }) {
-  const p = useFighterPalette();
+/** Name, two lines (weight · gym; age · height · reach · stance · country), then the medical status as a mark and a word. */
+function Top({ f, dossier }: { f: PublicFighter; dossier: MedicalDossier | null }) {
+  const { colors: c } = useThemePreference();
   const facts = headerFacts(f);
-  const weight = (vi.weightClass as Record<string, string>)[f.weightClass] ?? "";
-  return (
-    <RoCard>
-      <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
-        <Avatar name={fighterName(f)} uri={f.profileImageUrl} size={56} />
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={[TEXT.cardTitle, { color: p.ink }]}>{fighterName(f)}</Text>
-          <Text style={[TEXT.detail, { color: p.ink }]}>{[weight, f.gym ?? ""].filter(Boolean).join(" · ")}</Text>
-          {facts.line ? <Text style={[TEXT.detail, { color: p.ink }]}>{facts.line}</Text> : null}
-          {facts.nationality ? <Text style={[TEXT.detail, { color: p.ink }]}>{`${coachRo.detail.nationality}: ${facts.nationality}`}</Text> : null}
-        </View>
+  const second = [facts.line.replace(/ /g, " "), facts.nationality].filter(Boolean).join(" · ");
+  const m = statusMark(f.currentMedicalStatus);
+  const markColor = m.tone === "ok" ? c.success : m.tone === "warn" ? c.danger : m.tone === "dim" ? c.inkSubtle : c.ink;
+  const wordColor = m.wordTone === "ok" ? c.success : m.wordTone === "warn" ? c.danger : c.ink;
+  const injuries = dossier?.activeInjuries.length ?? 0;
+  const reviews = dossier?.openReviewRequests.length ?? 0;
+  const line = injuries ? r.injuriesLine(injuries) : reviews ? r.reviewsLine(reviews) : "";
+  return <View style={{ gap: 12 }}>
+    <View style={{ gap: 2 }}>
+      <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", color: c.ink }}>{fighterName(f)}</Text>
+      <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{fighterLine(f)}</Text>
+      {second ? <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{second}</Text> : null}
+    </View>
+    <View testID="doctor-fighter-status" accessible accessibilityLabel={line ? `${m.word}. ${line}` : m.word} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
+      {m.icon ? <View style={{ width: 40, alignItems: "center" }}><Icon name={m.icon} size={28} color={markColor}/></View>
+        : <Text style={{ width: 40, textAlign: "center", fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), color: markColor }}>{m.lead ?? "–"}</Text>}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.5, textTransform: "uppercase", color: wordColor }}>{m.word}</Text>
+        {line ? <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{line}</Text> : null}
       </View>
-      <StatusChip spec={MEDICAL_CHIP[f.currentMedicalStatus]} />
-    </RoCard>
-  );
+    </View>
+  </View>;
 }
 
 /**
- * Chi tiết võ sĩ cho Doctor (doctor-detail-v2, phần A): đầu hồ sơ đầy đủ + 3 tab Tổng quan / Khám / Hồ sơ.
- * Thông tin võ sĩ lấy từ danh sách phụ trách (bác sĩ không có quyền GET /fighters/:id).
- * API: /fighters/:id/medical, /medical-examinations, /medical-review-requests, /medical/history, /doctors.
+ * Doctor fighter page (redesign step 21): the coach page's top (name, two lines, status row), tabs Tổng quan · Khám ·
+ * Hồ sơ · AI (open requests counted on Khám). The fighter comes from the roster (the doctor cannot GET /fighters/:id).
+ * "⋯" keeps Kết thúc phụ trách for the doctor's own current assignment.
  */
 export function DoctorFighterDetailScreen() {
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const { id, tab: tabParam } = useLocalSearchParams<{ id?: string; tab?: string }>();
   const fighterId = typeof id === "string" ? id : "";
   const router = useRouter();
-  const p = useFighterPalette();
-  const wide = useWindowDimensions().width >= WIDE_MIN;
+  const { colors: c } = useThemePreference();
   const roster = useDoctorRoster();
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useState<TabKey>(TABS.includes(tabParam as TabKey) ? (tabParam as TabKey) : "overview");
   const binds = useRef<Record<string, (() => Promise<unknown>) | null>>({});
   const bind = useCallback((key: string, fn: (() => Promise<unknown>) | null) => {
     binds.current[key] = fn;
@@ -69,79 +78,51 @@ export function DoctorFighterDetailScreen() {
   const enabled = roster.enabled && !!f;
   const dossier = useLoad(enabled, `dossier:${fighterId}`, loadDossier, { keepOnError: true });
   const waiting = !f && (!roster.loaded || roster.loading) && !roster.error;
-  const skeleton = useDelayedFlag(waiting);
   const missing = !f && !waiting && !roster.error;
   const openCount = dossier.data?.openReviewRequests.length ?? 0;
+  const ai = useFighterAi(fighterId, enabled);
+  const aiCount = ai.groups.reduce((n, g) => n + g.items.length, 0);
 
-  // Kết thúc phụ trách: chỉ phân công đang hiệu lực của chính bác sĩ đăng nhập (máy chủ trả 403 nếu không phải).
   const session = useOptionalSession();
-  const me = session.profileId;
   const loadAssign = useCallback(() => doctorRoApi.listDoctors(fighterId, { page: 1, limit: 50 }), [fighterId]);
   const assigns = useLoad(enabled, `own-assign:${fighterId}`, loadAssign, { keepOnError: true });
-  const own = ownAssignment(assigns.data?.data ?? [], me, session.isDemo);
+  const own = ownAssignment(assigns.data?.data ?? [], session.profileId, session.isDemo);
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/(doctor)/vo-si" as never));
   const end = useEndAssignment({ kind: "doctor", fighterId, own: true, onDone: () => back() });
 
   const refresh = useCallback(async () => {
-    await Promise.all([roster.refresh(), dossier.refresh(), tab === "overview" ? null : binds.current[tab]?.()]);
-  }, [roster, dossier, tab]);
+    await Promise.all([roster.refresh(), dossier.refresh(), ai.data.refresh(), tab === "overview" || tab === "ai" ? null : binds.current[tab]?.()]);
+  }, [roster, dossier, ai.data, tab]);
 
-  const back = () => (router.canGoBack() ? router.back() : router.replace("/(doctor)/vo-si" as never));
-
-  // Con trực tiếp của ScrollView: [thông báo, đầu hồ sơ, thanh tab (ghim), nội dung] — thứ tự cố định để ghim đúng chỉ số 2.
-  return (
-    <RoScreen
-      title={doctorRo.detail.title}
-      back
-      onRefresh={refresh}
-      refreshing={waiting}
-      wide={wide}
-      stickyHeaderIndices={f ? [2] : undefined}
-      trailing={own ? <MoreMenu items={[{ key: "end", label: ot.endOwn, icon: "ban", danger: true, onPress: () => end.open(own.id, "") }]} /> : undefined}
-    >
-      <Stack>
-        {roster.error && !f ? <ConnectionBanner error={roster.error} onRetry={roster.reload} retrying={roster.loading} hasData={false} /> : null}
-        {dossier.error && dossier.data ? <ConnectionBanner error={dossier.error} onRetry={dossier.reload} retrying={dossier.loading} hasData /> : null}
-        {waiting && skeleton ? <RowSkeletons count={2} height={120} /> : null}
-        {missing ? (
-          <MessageCard icon="fighters" title={doctorRo.detail.notFoundTitle} description={doctorRo.detail.notFoundDesc}>
-            <ActionButton label={doctorRo.detail.back} variant="secondary" icon="back" onPress={back} />
-          </MessageCard>
-        ) : null}
-      </Stack>
-      {f ? <DoctorFighterHeader f={f} /> : <View />}
-      {f ? (
-        <View style={{ backgroundColor: p.bg, marginHorizontal: -16, paddingHorizontal: 16, paddingVertical: 8, marginVertical: -8 }}>
-          <DetailTabs
-            value={tab}
-            onChange={setTab}
-            tabs={[
-              { key: "overview", label: t.tabs.overview },
-              { key: "exams", label: t.tabs.exams, badge: openCount, a11y: openCount ? t.tabBadge(t.tabs.exams, openCount) : undefined },
-              { key: "history", label: t.tabs.history },
-              { key: "ai", label: aiText.tab },
-            ]}
-          />
-        </View>
-      ) : (
-        <View />
-      )}
-      {f ? (
-        <View>
-          {tab === "overview" ? <OverviewTab fighterId={f.id} dossier={dossier} enabled={enabled} onSeeAllAi={() => setTab("ai")} /> : null}
-          {tab === "exams" ? <ExamsTab fighterId={f.id} enabled={enabled} bind={bind} /> : null}
-          {tab === "history" ? <HistoryTab fighterId={f.id} enabled={enabled} bind={bind} /> : null}
-          {tab === "ai" ? <AiTab fighterId={f.id} enabled={enabled} bind={bind} /> : null}
-        </View>
-      ) : (
-        <View />
-      )}
-      {end.sheet}
-    </RoScreen>
-  );
+  return <RolePage testID="doctor-fighter-page" title={r.pageTitle} onBack={back} onRefresh={refresh}
+    right={own ? <MoreMenu items={[{ key: "end", label: ot.endOwn, icon: "ban", danger: true, onPress: () => end.open(own.id, "") }]}/> : undefined}>
+    {waiting ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/> : null}
+    {roster.error && !f ? <RetryRow message={detailError(roster.error)} retry={r.retry} onRetry={() => void roster.reload()}/> : null}
+    {missing ? <View style={{ gap: 10 }}>
+      <EmptyLine testID="doctor-fighter-missing" title={r.notFound} line={r.notFoundLine}/>
+      <Pressable accessibilityRole="button" onPress={back} style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }}>
+        <Text style={{ ...readableTextStyle(14.5, true), color: c.lotus }}>{r.back}</Text>
+      </Pressable>
+    </View> : null}
+    {f ? <>
+      <Top f={f} dossier={dossier.data}/>
+      <CampTabs alertLabel="" value={tab} onChange={(k) => setTab(k as TabKey)} tabs={[
+        { key: "overview", label: t.tabs.overview },
+        { key: "exams", label: t.tabs.exams, count: openCount || undefined, a11y: openCount ? t.tabBadge(t.tabs.exams, openCount) : undefined },
+        { key: "history", label: t.tabs.history },
+        { key: "ai", label: r.aiTab, count: aiCount || undefined, a11y: aiCount ? t.tabBadge(r.aiTab, aiCount) : undefined },
+      ]}/>
+      {tab === "overview" ? <OverviewTab fighterId={f.id} dossier={dossier} enabled={enabled} ai={ai} onSeeAllAi={() => setTab("ai")}/> : null}
+      {tab === "exams" ? <ExamsTab fighterId={f.id} enabled={enabled} bind={bind}/> : null}
+      {tab === "history" ? <HistoryTab fighterId={f.id} enabled={enabled} bind={bind}/> : null}
+      {tab === "ai" ? <AiTab fighterId={f.id} enabled={enabled} bind={bind} ai={ai}/> : null}
+    </> : null}
+    {end.sheet}
+  </RolePage>;
 }
 
-/** Phân công đang hiệu lực của chính mình (demo: phân công đang hiệu lực đầu tiên). */
+/** The doctor's own current assignment (demo: the first current one). */
 export function ownAssignment<T extends { doctorId: string; endsAt: string | null }>(rows: readonly T[], me: string | null, demo: boolean): T | null {
-  const current = rows.filter((r) => r.endsAt == null);
-  return current.find((r) => r.doctorId === me) ?? (demo ? current[0] ?? null : null);
+  const current = rows.filter((x) => x.endsAt == null);
+  return current.find((x) => x.doctorId === me) ?? (demo ? current[0] ?? null : null);
 }

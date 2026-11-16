@@ -1,4 +1,4 @@
-import { act, fireEvent, render } from "@testing-library/react-native";
+import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { uploadVideo } from "@/api/media";
@@ -16,6 +16,15 @@ jest.mock("@/api/media", () => {
   const actual = jest.requireActual("@/api/media");
   return { ...actual, uploadVideo: jest.fn() };
 });
+
+// Errors surface as app toasts (no toast host in the test tree), so record what would be shown.
+jest.mock("@/components/toast/app-toast", () => ({
+  useToastMessage: (message: string | null | undefined) => {
+    const shown = ((globalThis as { __uploadToasts?: string[] }).__uploadToasts ??= []);
+    if (message && shown[shown.length - 1] !== message) shown.push(message);
+  },
+}));
+const toastMessages = ((globalThis as { __uploadToasts?: string[] }).__uploadToasts ??= []);
 
 jest.mock("@/screens/fighter/redesign/palette", () => {
   const actual = jest.requireActual("@/screens/fighter/redesign/palette");
@@ -107,7 +116,7 @@ describe("VideoUploadContent", () => {
 
     picker.requestMediaLibraryPermissionsAsync.mockResolvedValueOnce({ granted: false });
     await chooseVideo(view);
-    expect(await view.findByText("Không có quyền mở thư viện video.")).toBeTruthy();
+    await waitFor(() => expect(toastMessages).toContain("Không có quyền mở thư viện video."));
     expect(view.getByDisplayValue("Giữ tiêu đề")).toBeTruthy();
     expect(view.getByDisplayValue("Giữ mô tả")).toBeTruthy();
     expect(view.queryByText("clip.mp4")).toBeNull();

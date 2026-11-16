@@ -103,55 +103,7 @@ describe("coach-nav-v2", () => {
     jest.useRealTimers();
   });
 
-  it("dòng video: tên võ sĩ, loại tập tiếng Việt, ngày; mã lạ không hiện", () => {
-    const { videoLines, trainingText } = require("./coach-videos-screen") as typeof import("./coach-videos-screen");
-    expect(trainingText("PAD_WORK")).toBe("Đấm đích");
-    expect(trainingText("WEIRD_CODE")).toBe("");
-    const lines = videoLines({ fighterId: "cf-1", trainingType: "WEIRD_CODE", createdAt: "2026-10-18T03:00:00.000Z" }, { "cf-1": "Nguyễn Minh Khang" });
-    expect(lines[0]).toBe("Nguyễn Minh Khang");
-    expect(lines[1]).not.toMatch(/WEIRD/);
-  });
-
-  it("khoảng 'hôm nay' theo giờ Việt Nam", () => {
-    const { todayRangeVn } = require("./coach-me-screen") as typeof import("./coach-me-screen");
-    const r = todayRangeVn(Date.parse("2026-10-19T20:00:00.000Z")); // 03:00 ngày 20/10 giờ VN
-    expect(r.fromDate).toBe("2026-10-19T17:00:00.000Z");
-    expect(r.toDate).toBe("2026-10-20T16:59:59.999Z");
-  });
-
-  it("tab Tôi: chip HLV trưởng, chuyên môn, 2 lối tắt, không còn link chữ đỏ", async () => {
-    mockUnread.mockResolvedValue({ count: 0 });
-    const { CoachMeScreen } = require("./coach-me-screen") as typeof import("./coach-me-screen");
-    const ui = await wrap(<CoachMeScreen />);
-    expect(ui.getByText(coachRo.nav.roleHead)).toBeTruthy();
-    expect(ui.getByText("Muay Thai")).toBeTruthy();
-    for (const gone of ["Hồ sơ nhập học", "Duyệt video", "Hiệu suất", "Mục tiêu"]) expect(ui.queryByText(gone)).toBeNull();
-    await fireEvent.press(ui.getByTestId("tile-today"));
-    expect(mockNavigate).toHaveBeenCalledWith("/(coach)/schedule");
-    await waitFor(() => expect(ui.getByLabelText(/Võ sĩ phụ trách: \d+/)).toBeTruthy());
-  });
-
-  it("tab Video: Thư viện từ GET /videos (có phân đoạn Cần duyệt), trống khi không có", async () => {
-    const { CoachVideosScreen } = require("./coach-videos-screen") as typeof import("./coach-videos-screen");
-    const { vai } = require("@/i18n/video-ai") as typeof import("@/i18n/video-ai");
-    const ui = await wrap(<CoachVideosScreen />);
-    await waitFor(() => expect(ui.getByText("Đấm đích hiệp 3")).toBeTruthy());
-    expect(ui.getByText(vai.segReview)).toBeTruthy();
-    await ui.unmount();
-    (globalThis as { __COACH_MOCK_SCENARIO__?: string }).__COACH_MOCK_SCENARIO__ = "empty";
-    const empty = await wrap(<CoachVideosScreen />);
-    await waitFor(() => expect(empty.getByText(vai.libEmptyTitle)).toBeTruthy());
-    delete (globalThis as { __COACH_MOCK_SCENARIO__?: string }).__COACH_MOCK_SCENARIO__;
-  });
-
-  it("chi tiết võ sĩ (Y tế): bỏ 'Tình trạng hiện tại', thẻ 'Giấy phép', có Sơ đồ cơ thể", async () => {
-    const { MedicalTab } = require("@/screens/coach/readonly/coach-fighter-detail-screen") as typeof import("@/screens/coach/readonly/coach-fighter-detail-screen");
-    const ui = await wrap(<MedicalTab fighterId="cf-4" fallback="INJURED" bind={() => undefined} />);
-    await waitFor(() => expect(ui.getByText("Sơ đồ cơ thể")).toBeTruthy());
-    expect(ui.queryByText("Tình trạng hiện tại")).toBeNull();
-    expect(ui.getByText("Giấy phép")).toBeTruthy();
-    expect(ui.queryByText("Giấy phép còn hiệu lực")).toBeNull();
-  });
+  // Step 19: video rows, Tôi and the Video list moved to screens/coach/video/video.test.tsx.
 });
 
 describe("batch38 fix: huy hiệu, tab trong màn, Mục tiêu & cột mốc", () => {
@@ -178,15 +130,5 @@ describe("batch38 fix: huy hiệu, tab trong màn, Mục tiêu & cột mốc", (
     const tab = StyleSheet.flatten(ui.getAllByRole("tab")[0]!.props.style);
     expect(tab.borderWidth).toBe(1);
     expect(tab.borderColor).toBe(tab.backgroundColor);
-  });
-
-  it("chi tiết giáo án: một khối 'Mục tiêu & cột mốc'", async () => {
-    const { CoachPlanDetailScreen } = require("@/screens/coach/readonly/coach-plan-detail-screen") as typeof import("@/screens/coach/readonly/coach-plan-detail-screen");
-    mockParams.id = "cp-1";
-    const ui = await wrap(<CoachPlanDetailScreen />);
-    await waitFor(() => expect(ui.getByText("Mục tiêu & cột mốc")).toBeTruthy());
-    expect(ui.getByText("Cột mốc")).toBeTruthy();
-    expect(ui.queryByText("Mốc")).toBeNull();
-    mockParams.id = "cf-4";
   });
 });

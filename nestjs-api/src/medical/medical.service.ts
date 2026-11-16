@@ -97,6 +97,7 @@ import {
   type ClearanceEligibilityRow,
   type ExaminationDetailsInsert,
 } from './medical.repo.js';
+import { deriveMedicalStatus, type MedicalStatusValue } from './medical-status.js';
 import type { Scat6Input } from './scat6.model.js';
 import { scoreScat6 } from './scat6.scoring.js';
 
@@ -396,19 +397,36 @@ export class MedicalService {
     private readonly academySettingsRepo: AcademySettingsRepository,
   ) {}
 
+  /**
+   * Runs a write in one transaction. With `fighterId` (every clinical write),
+   * the Fighter's summary medical status is re-derived in the same transaction
+   * after the work, so staff lists never lag the record.
+   */
   private async write<T>(
     actor: AuthenticatedUser,
     requestId: string,
     work: (transaction: Transaction) => Promise<T>,
+    fighterId?: string,
   ): Promise<T> {
     try {
       return await this.repo.transaction(async (transaction) => {
         await setAuditContext(actor.authSubject, requestId, transaction);
-        return work(transaction);
+        const result = await work(transaction);
+        if (fighterId) await this.syncMedicalStatus(fighterId, transaction);
+        return result;
       });
     } catch (error) {
       throw mapMedicalPersistenceError(error);
     }
+  }
+
+  private writeFor<T>(
+    fighterId: string,
+    actor: AuthenticatedUser,
+    requestId: string,
+    work: (transaction: Transaction) => Promise<T>,
+  ): Promise<T> {
+    return this.write(actor, requestId, work, fighterId);
   }
 
   // --- Doctor assignments ---
@@ -787,6 +805,69 @@ export class MedicalService {
   }
 
   /**
+   * Re-derives and stores `fighters.current_medical_status` from the clinical
+   * record (see `deriveMedicalStatus`). Returns the status and whether it
+   * changed. Uses the same TRAINING eligibility rule as the start gate.
+   */
+  async syncMedicalStatus(
+    fighterId: string,
+    database?: DatabaseExecutor,
+    now: Date = new Date(),
+  ): Promise<{ status: MedicalStatusValue; changed: boolean }> {
+    const [injuries, plans, openReviewRequests, exam, baselineOnFile, supervision] =
+      await Promise.all([
+        this.repo.listActiveInjuries(fighterId, database),
+        this.repo.listActiveRecoveryPlans(fighterId, database),
+        this.repo.countOpenReviewRequests(fighterId, database),
+        this.repo.findCurrentExamination(fighterId, 'TRAINING', database),
+        this.repo.hasBaselineOnFile(fighterId, database),
+        this.academySettingsRepo.getMedicalSupervision(database),
+      ]);
+    const eligibility = await this.eligibilityFrom(
+      'TRAINING',
+      exam,
+      openReviewRequests,
+      baselineOnFile,
+      now,
+      database,
+      undefined,
+      supervision,
+    );
+    const status = deriveMedicalStatus({
+      injuryStatuses: injuries
+        .map((injury) => injury.status)
+        .filter((s): s is 'ACTIVE' | 'RECOVERING' => s === 'ACTIVE' || s === 'RECOVERING'),
+      activeRecoveryPlans: plans.length,
+      trainingEligible: eligibility.eligible,
+      restricted: exam?.decision === 'ELIGIBLE_WITH_RESTRICTIONS',
+    });
+    const changed = await this.repo.updateFighterMedicalStatus(
+      fighterId,
+      status,
+      database,
+    );
+    return { status, changed };
+  }
+
+  /**
+   * Refreshes every active Fighter's summary status (start-up backfill and the
+   * periodic pass for time-driven changes: a clearance starting or expiring).
+   * One Fighter's failure never stops the rest. Returns how many changed.
+   */
+  async syncAllMedicalStatuses(now: Date = new Date()): Promise<number> {
+    const ids = await this.repo.listActiveFighterIds();
+    let changed = 0;
+    for (const id of ids) {
+      try {
+        if ((await this.syncMedicalStatus(id, undefined, now)).changed) changed += 1;
+      } catch {
+        // Skipped; the next pass retries it.
+      }
+    }
+    return changed;
+  }
+
+  /**
    * Training start gate. Takes the per-Fighter medical lock inside the caller's
    * transaction so a concurrent review request, negative decision or revoke
    * cannot interleave with the start.
@@ -837,7 +918,7 @@ export class MedicalService {
       throw medicalSupervisionDisabled();
     }
     const fighter = await this.access.requireFighter(fighterId);
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       await this.access.assertReviewRequestScope(actor, fighter, tx);
       await this.repo.lockFighterMedicalState(fighterId, tx);
       return this.repo.insertReviewRequest(
@@ -859,7 +940,7 @@ export class MedicalService {
     requestId: string,
   ): Promise<Injury> {
     await this.access.requireFighter(fighterId);
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -878,7 +959,7 @@ export class MedicalService {
     const injury = await this.repo.findInjury(injuryId);
     if (!injury) throw injuryNotFound();
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(injury.fighterId, actor, requestId, async (tx) => {
       await this.access.requireAssignedDoctor(actor, injury.fighterId, tx);
       const current = await this.repo.lockInjury(injuryId, tx);
       if (!current) throw injuryNotFound();
@@ -937,7 +1018,7 @@ export class MedicalService {
     requestId: string,
   ): Promise<RecoveryPlan> {
     await this.access.requireFighter(fighterId);
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -966,7 +1047,7 @@ export class MedicalService {
     const plan = await this.repo.findRecoveryPlan(planId);
     if (!plan) throw recoveryPlanNotFound();
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(plan.fighterId, actor, requestId, async (tx) => {
       await this.access.requireAssignedDoctor(actor, plan.fighterId, tx);
       const current = await this.repo.lockRecoveryPlan(planId, tx);
       if (!current) throw recoveryPlanNotFound();
@@ -1037,7 +1118,7 @@ export class MedicalService {
     await this.access.requireFighter(fighterId);
     const examinedAt = new Date(input.examinedAt);
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -1173,7 +1254,7 @@ export class MedicalService {
   ): Promise<Clearance> {
     await this.access.requireFighter(fighterId);
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -1263,7 +1344,7 @@ export class MedicalService {
     const clearance = await this.repo.findClearance(clearanceId);
     if (!clearance) throw medicalClearanceNotFound();
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(clearance.fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         clearance.fighterId,

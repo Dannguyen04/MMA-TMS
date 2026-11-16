@@ -13,6 +13,7 @@ import { useLoad } from "@/screens/fighter/use-load";
 import { radius, spacing, type, useThemePreference } from "@/theme";
 import { FilterSelect } from "@/components/filter-sheet";
 import { SkeletonFooter, SkeletonRows } from "@/components/loading";
+import { lh, liveSheet } from "@/theme/typography";
 
 const PAGE_SIZE = 20;
 
@@ -207,9 +208,9 @@ export function FighterExerciseDetailScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   row: { minHeight: 44, justifyContent: "center", gap: 2 },
-  meta: { lineHeight: 16 },
+  meta: { lineHeight: lh(16) },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     minHeight: 36,
@@ -219,4 +220,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   thumb: { width: "100%", aspectRatio: 16 / 9, borderRadius: radius.panel },
-});
+}));

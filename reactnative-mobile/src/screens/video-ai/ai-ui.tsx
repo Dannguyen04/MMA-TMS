@@ -116,62 +116,6 @@ export function RecentVideosBlock({ fighterId, enabled, onSeeAll }: { fighterId:
   );
 }
 
-/** Khối "Cảnh báo AI" trong tab Y tế (HLV, Doctor): tối đa 3 cảnh báo suy giảm mới nhất của võ sĩ. */
-export function AiAlertsBlock({ fighterId, enabled, onSeeAll }: { fighterId: string; enabled: boolean; onSeeAll: () => void }) {
-  const p = useFighterPalette();
-  const open = useOpenVideo();
-  const run = useCallback(async () => {
-    const jobs = newestFirst((await videoAiApi.listImpairmentJobs()).filter((j) => j.fighterId === fighterId));
-    const top = jobs.slice(0, 3);
-    const alerts = await Promise.allSettled(top.map((j) => videoAiApi.getHealthAlerts(j.id)));
-    const map = Object.fromEntries(
-      top.map((j, i) => {
-        const r = alerts[i]!;
-        return [j.id, r.status === "fulfilled" ? r.value.alerts : []];
-      }),
-    );
-    return { rows: impairmentRows(top, map), total: jobs.length };
-  }, [fighterId]);
-  const load = useLoad(enabled && !!fighterId, `vai-imp|${fighterId}`, run, { keepOnError: true });
-  return (
-    <RoCard title={vai.aiBlock}>
-      {load.loading && !load.data ? <RowSkeletons count={2} height={56} /> : null}
-      {load.error && !load.data ? <BlockError onRetry={load.reload} loading={load.loading} /> : null}
-      {load.data && load.data.rows.length === 0 ? (
-        <View style={styles.okLine}>
-          <Icon name="success" size={20} color={p.success} />
-          <Text style={[TEXT.body, { color: p.ink, flex: 1 }]}>{vai.aiNone}</Text>
-        </View>
-      ) : null}
-      {load.data?.rows.map((r) => {
-        const sev = r.severity ? severityChip(r.severity) : null;
-        const label = [jointText(r.joint), sev?.label, vnDate(r.createdAt)].filter(Boolean).join(", ");
-        return (
-          <Pressable
-            key={r.jobId}
-            accessibilityRole={r.videoId ? "button" : undefined}
-            accessibilityLabel={label}
-            disabled={!r.videoId}
-            onPress={() => r.videoId && open(r.videoId, r.jobId, "alerts")}
-            style={({ pressed }) => [styles.alertRow, { borderColor: p.line, opacity: pressed ? 0.85 : 1 }]}
-          >
-            <View style={{ flex: 1, gap: 4 }}>
-              <Text style={[TEXT.bodyBold, { color: p.ink }]}>{jointText(r.joint)}</Text>
-              <View style={styles.chips}>
-                {sev ? <StatusChip spec={sev} /> : null}
-                <Text style={[TEXT.detail, { color: p.ink }]}>{vnDate(r.createdAt)}</Text>
-              </View>
-            </View>
-            {r.videoId ? <Icon name="chevron" size={24} color={p.ink} /> : null}
-          </Pressable>
-        );
-      })}
-      {load.data && load.data.total > 0 ? <SeeAll testID="ai-see-all" onPress={onSeeAll} /> : null}
-      <Text style={[TEXT.caption, { color: p.ink }]}>{vai.aiDisclaimer}</Text>
-    </RoCard>
-  );
-}
-
 const styles = StyleSheet.create({
   thumb: { width: 96, height: 54, borderRadius: 8, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   thumbTime: { position: "absolute", right: 4, bottom: 4, borderRadius: 4, paddingHorizontal: 4 },

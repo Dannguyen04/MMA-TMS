@@ -1,0 +1,32 @@
+/** Admin Quản trị tools: Video and Phân công bác sĩ (redesign step 23). */
+export const adminTools = {
+  retry: "Thử lại",
+  // Video
+  videos: "Video",
+  library: "Thư viện",
+  ai: "Phân tích AI",
+  aiA11y: (failed: number) => (failed ? `Phân tích AI, ${failed} lỗi` : "Phân tích AI"),
+  pickFighter: "Chọn võ sĩ",
+  allFighters: "Tất cả võ sĩ",
+  noFighters: "Chưa có võ sĩ",
+  fightersFailed: "Không tải được võ sĩ",
+  // Phân công bác sĩ
+  assign: "Phân công bác sĩ",
+  fighter: "Võ sĩ",
+  fighterMissing: "Không tìm thấy võ sĩ",
+  chooseDoctor: "Chọn bác sĩ",
+  doctors: "Bác sĩ",
+  noDoctors: "Chưa có bác sĩ đang hoạt động",
+  doctorsFailed: "Không tải được bác sĩ",
+  current: "Bác sĩ hiện tại",
+  currentFailed: "Không tải được phân công",
+  hasDoctor: "Võ sĩ này đã có bác sĩ.",
+  since: (d: string) => `từ ${d}`,
+  doctorsPage: "Bác sĩ phụ trách",
+  doctorsPageLine: "Xem hoặc kết thúc phân công",
+  cta: "Phân công",
+  done: "Đã phân công",
+  from: "Từ ngày",
+  another: "Phân công võ sĩ khác",
+  backToApplication: "Về hồ sơ",
+} as const;

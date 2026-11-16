@@ -1,13 +1,15 @@
 import { type Href, usePathname, useRouter } from "expo-router";
-import { type ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { type IconName } from "@/components/icon";
 import { TabIcon } from "@/components/tab-icon";
+import { TabMarkerScope, useSlidingMarker } from "@/components/tab-marker";
 import { fighter } from "@/i18n/fighter";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { navSideWidth, useNavKind, useNavRail } from "@/components/nav-rail";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 export type FighterTab = "home" | "tap" | "plans" | "body" | "me";
 
@@ -33,6 +35,10 @@ function tabFromPath(path: string): FighterTab | null {
   return null;
 }
 
+/** Each fighter screen mounts its own bar; the tab a press left lets the new bar's marker slide in from it. */
+let left: { tab: FighterTab; at: number } | null = null;
+const leftTab = () => (left && Date.now() - left.at < 1000 ? left.tab : null);
+
 export function FighterTabBar() {
   const colors = useFighterPalette();
   const insets = useSafeAreaInsets();
@@ -41,8 +47,12 @@ export function FighterTabBar() {
   const active = tabFromPath(path);
   // Phase 5 F: from 900 wide the same tabs sit in a left rail (iPad: a sidebar); the shells put it beside the content.
   const kind = useNavKind(); const rail = kind !== "bar"; const sidebar = kind === "sidebar";
+  // Redesign step 15: one red marker behind the active icon, sliding in from the tab you left.
+  const from = useRef(leftTab()).current;
+  const { marker, onItemLayout, onIconLayout } = useSlidingMarker(active, from, !sidebar);
 
   return (
+    <TabMarkerScope>
     <View
       accessibilityRole="tablist"
       testID={sidebar ? "nav-sidebar" : rail ? "nav-rail" : "tab-bar"}
@@ -65,6 +75,7 @@ export function FighterTabBar() {
         },
       ]}
     >
+      {marker}
       {TABS.map((tab) => {
         const selected = tab.key === active;
         const color = selected ? colors.activeInk : colors.muted;
@@ -77,11 +88,15 @@ export function FighterTabBar() {
             onPress={() => {
               const onHomeChild = tab.key === "home" && path !== "/" && path !== "";
               if (selected && !onHomeChild && tab.key !== "tap" && tab.key !== "plans") return;
+              if (active) left = { tab: active, at: Date.now() };
               router.replace(tab.href);
             }}
-            style={sidebar ? [styles.sidebarItem, selected && { backgroundColor: colors.accentSoft }] : rail ? styles.railItem : styles.item}
+            onLayout={onItemLayout(tab.key)}
+            style={sidebar ? styles.sidebarItem : rail ? styles.railItem : styles.item}
           >
-            <TabIcon name={tab.icon} focused={selected} color={color} pillColor={colors.accentSoft} />
+            <View onLayout={onIconLayout(tab.key)}>
+              <TabIcon name={tab.icon} focused={selected} color={color} />
+            </View>
             <Text style={[sidebar ? styles.sidebarLabel : rail ? styles.railLabel : styles.label, { color, fontWeight: selected ? "700" : "500" }]} maxFontSizeMultiplier={1.4} numberOfLines={sidebar ? 1 : rail ? 2 : undefined}>
               {tab.label}
             </Text>
@@ -89,10 +104,11 @@ export function FighterTabBar() {
         );
       })}
     </View>
+    </TabMarkerScope>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   bar: {
     flexDirection: "row",
     borderTopWidth: StyleSheet.hairlineWidth,
@@ -112,14 +128,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  label: { fontSize: 10, lineHeight: 14 },
+  label: { fontSize: fz(11, 13), lineHeight: lh(15, 17) },
   rail: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 12 },
   railItem: { minHeight: 64, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", gap: 4 },
-  railLabel: { fontSize: 12, lineHeight: 16, textAlign: "center" },
+  railLabel: { fontSize: fz(12, 14), lineHeight: lh(16, 18), textAlign: "center" },
   sidebar: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 4, paddingRight: 12 },
   sidebarItem: { flexDirection: "row", minHeight: 48, paddingHorizontal: 12, alignItems: "center", justifyContent: "flex-start", gap: 14, borderRadius: 12 },
-  sidebarLabel: { fontSize: 15, lineHeight: 20, flex: 1, textAlign: "left" },
-});
+  sidebarLabel: { fontSize: fz(15), lineHeight: lh(20), flex: 1, textAlign: "left" },
+}));
 
 /**
  * From 900 wide: the fighter rail on the left, the screen beside it. Below that the shell keeps
@@ -133,5 +149,22 @@ export function FighterRailFrame({ show, children, background }: { show: boolean
       <FighterTabBar />
       <View style={{ flex: 1 }}>{children}</View>
     </View>
+  );
+}
+
+/**
+ * Tab chrome only, for redesigned fighter screens that draw their own header and scroll (home, Tập): the fighter
+ * tab bar at the bottom, or the rail beside the screen from 900 wide (redesign step 8, 2026-11-11).
+ */
+export function FighterTabFrame({ children }: { children: ReactNode }) {
+  const colors = useFighterPalette();
+  const rail = useNavRail();
+  return (
+    <FighterRailFrame show background={colors.bg}>
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        {children}
+        {!rail ? <FighterTabBar /> : null}
+      </View>
+    </FighterRailFrame>
   );
 }

@@ -4,14 +4,15 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { MedicalDossier } from "@/api/types";
 import { BottomSheet } from "@/components/filter-sheet";
-import { formatMedicalDay, jointLabel, sessionTypeName, techniqueLabel } from "@/components/medical/medical-format";
+import { reasonFor } from "@/components/medical/clearance-state";
+import { formatMedicalDay } from "@/components/medical/medical-format";
 import { scopeState, type EligibilityLevel, type EligibilityScope, type ScopeState } from "@/components/medical/eligibility-model";
 import { fighterBody as t } from "@/i18n/fighter-body";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { limitRows, reasonLine } from "@/screens/fighter/health/medical-lines";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
-export function reasonLine(code: string): string {
-  return t.reason[code] ?? t.reasonUnknown;
-}
+export { reasonLine, limitRows } from "@/screens/fighter/health/medical-lines";
 
 function useTone(level: EligibilityLevel) {
   const c = useFighterPalette();
@@ -44,7 +45,7 @@ export function TodayCard({ dossier, onRequest, suspended = false }: { dossier: 
   const next =
     training.level === "notEligible"
       ? firstReason
-        ? reasonLine(firstReason)
+        ? reasonFor(dossier, "training", firstReason, reasonLine)
         : t.reasonUnknown
       : suspended
         ? t.today.suspendedNext
@@ -116,22 +117,6 @@ function Tile({ scope, state, onPress, suspended = false }: { scope: Eligibility
   );
 }
 
-function limitRows(state: ScopeState): { label: string; value: string }[] {
-  const sources = [state.exam?.restrictions, state.clearance?.restrictions];
-  const rows: { label: string; value: string }[] = [];
-  const add = (label: string, value: string | null | undefined) => {
-    if (value && !rows.some((r) => r.label === label && r.value === value)) rows.push({ label, value });
-  };
-  for (const r of sources) {
-    if (!r) continue;
-    add(t.sheet.avoidJoints, r.excludedJoints?.map(jointLabel).join(", "));
-    add(t.sheet.allowedSessions, r.allowedSessionTypes?.map(sessionTypeName).join(", "));
-    add(t.sheet.allowedTechniques, r.allowedTechniqueTypes?.map(techniqueLabel).join(", "));
-    add(t.sheet.note, r.notes?.trim());
-  }
-  return rows;
-}
-
 function ScopeSheet({
   dossier,
   scope,
@@ -185,7 +170,7 @@ function ScopeSheet({
         {reasons.length ? (
           <Block title={t.sheet.why}>
             {reasons.map((code) => (
-              <Bullet key={code || "unknown"} text={code ? reasonLine(code) : t.reasonUnknown} color={tone.fg} />
+              <Bullet key={code || "unknown"} text={code ? reasonFor(dossier, s, code, reasonLine) : t.reasonUnknown} color={tone.fg} />
             ))}
           </Block>
         ) : null}
@@ -258,29 +243,29 @@ export function HealthInfoButton() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   flex: { flex: 1 },
   chip: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   dot: { width: 7, height: 7, borderRadius: 4 },
-  chipText: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
+  chipText: { fontSize: fz(13), lineHeight: lh(18), fontWeight: "600" },
   today: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, padding: 16, gap: 14 },
   todayRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },
-  todayTitle: { fontSize: 18, lineHeight: 24, fontWeight: "700" },
-  body: { fontSize: 14, lineHeight: 20 },
-  value: { fontSize: 15, lineHeight: 21 },
+  todayTitle: { fontSize: fz(18), lineHeight: lh(24), fontWeight: "700" },
+  body: { fontSize: fz(14), lineHeight: lh(20) },
+  value: { fontSize: fz(15), lineHeight: lh(21) },
   pending: { flexDirection: "row", alignItems: "center", gap: 8, borderRadius: 12, minHeight: 44, paddingHorizontal: 12 },
   button: { minHeight: 48, borderRadius: 12, alignItems: "center", justifyContent: "center", paddingHorizontal: 16 },
-  buttonText: { fontSize: 16, lineHeight: 22, fontWeight: "600" },
+  buttonText: { fontSize: fz(16), lineHeight: lh(22), fontWeight: "600" },
   tiles: { flexDirection: "row", gap: 10 },
   tile: { flex: 1, height: 84, borderWidth: StyleSheet.hairlineWidth, borderRadius: 14, padding: 14, justifyContent: "space-between" },
   tileTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  tileLabel: { fontSize: 15, lineHeight: 20, fontWeight: "600" },
+  tileLabel: { fontSize: fz(15), lineHeight: lh(20), fontWeight: "600" },
   sheet: { gap: 16, paddingBottom: 8 },
   sheetHead: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
   block: { gap: 8 },
-  blockTitle: { fontSize: 14, lineHeight: 20, fontWeight: "700" },
+  blockTitle: { fontSize: fz(14), lineHeight: lh(20), fontWeight: "700" },
   bullet: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
   bulletDot: { width: 6, height: 6, borderRadius: 3, marginTop: 8 },
   limit: { gap: 2 },
   info: { width: 44, height: 44, borderRadius: 22, alignItems: "center", justifyContent: "center" },
-});
+}));

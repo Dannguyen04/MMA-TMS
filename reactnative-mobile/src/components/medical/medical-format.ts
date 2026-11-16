@@ -7,6 +7,7 @@ import type {
 import { fighter } from "@/i18n/fighter";
 import { medical } from "@/i18n/medical";
 import { vi } from "@/i18n/vi";
+import { doctor } from "@/i18n/doctor";
 
 type Dict = Record<string, string>;
 
@@ -30,6 +31,9 @@ export const requesterRoleLabel = (value: unknown) => lookup(medical.requesterRo
 export const sessionTypeName = (value: unknown) => lookup(fighter.sessionType, value);
 export const jointStateLabel = (value: unknown) => lookup(vi.jointState, value);
 export const measurementContextLabel = (value: unknown) => lookup(vi.measurementContext, value);
+
+/** Exam type code (ROUTINE…) → words; never shows the raw code. */
+export const examTypeLabel = (value: unknown) => (doctor.exam.types as Record<string, string>)[String(value)] ?? "—";
 
 export function eligibilityReasonLabel(code: string): string {
   return (medical.reason as Dict)[code] ?? medical.unknownReason;
@@ -105,6 +109,19 @@ function strList(value: unknown, label: (item: unknown) => string): string | nul
   return value.map(label).join(", ");
 }
 
+/**
+ * History snapshots come back camelCase from the API (affectedJoint), older ones snake_case (affected_joint).
+ * Returns the snapshot with a snake_case key for every camelCase one, so readers can use either.
+ */
+export function snakeSnapshot(snapshot: Record<string, unknown> | null | undefined): Record<string, unknown> {
+  const s: Record<string, unknown> = { ...(snapshot ?? {}) };
+  for (const [k, v] of Object.entries(s)) {
+    const snake = k.replace(/[A-Z]/g, (c) => `_${c.toLowerCase()}`);
+    if (snake !== k && s[snake] == null) s[snake] = v;
+  }
+  return s;
+}
+
 export type SnapshotLine = { label: string; value: string };
 
 /** Adapter over snake_case history snapshots, keyed by `recordType`. */
@@ -112,7 +129,7 @@ export function describeSnapshot(entry: MedicalHistoryEntry): {
   title: string;
   lines: SnapshotLine[];
 } {
-  const s = entry.snapshot ?? {};
+  const s = snakeSnapshot(entry.snapshot);
   const lines: SnapshotLine[] = [];
   const push = (label: string, value: string | null) => {
     if (value) lines.push({ label, value });
@@ -160,7 +177,7 @@ export function describeSnapshot(entry: MedicalHistoryEntry): {
       if (s.details == null) push(medical.currentExams, medical.legacyDetails);
       else if (typeof s.details === "object" && s.details && "examinationType" in s.details) {
         const details = s.details as { examinationType?: unknown };
-        push(medical.currentExams, typeof details.examinationType === "string" ? details.examinationType : null);
+        push(medical.currentExams, typeof details.examinationType === "string" ? examTypeLabel(details.examinationType) : null);
       }
       push(medical.occurredAt, s.examined_at ? formatMedicalWhen(s.examined_at) : null);
       push(medical.snapshot.reason, str(s.reason));
@@ -196,7 +213,7 @@ export function describeSnapshot(entry: MedicalHistoryEntry): {
 /** Injury row to render when only a history snapshot is available (no `GET /injuries/:id`). */
 export function injuryFromSnapshot(entry: MedicalHistoryEntry): MedicalInjury | null {
   if (entry.recordType !== "INJURY") return null;
-  const s = entry.snapshot ?? {};
+  const s = snakeSnapshot(entry.snapshot);
   if (typeof s.id !== "string") return null;
   return {
     id: s.id,

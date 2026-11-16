@@ -14,6 +14,10 @@ export const ot = {
   reanalyzeTitle: "Phân tích lại video này?",
   reanalyzeBody: "Kết quả cũ vẫn được giữ.",
   reanalyzeForbidden: "Bạn không có quyền phân tích lại video này.",
+  deleteVideo: "Xóa video",
+  deleteTitle: "Xóa video này?",
+  deleteBody: "Video và kết quả phân tích sẽ bị xóa.",
+  deleteForbidden: "Bạn không có quyền xóa video này.",
   more: "Thêm thao tác",
   // Duyệt phát hiện AI
   findings: "Phát hiện của AI",

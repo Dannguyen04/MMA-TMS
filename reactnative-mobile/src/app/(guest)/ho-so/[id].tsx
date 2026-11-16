@@ -1,8 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
-
-import { ApplicantDetailScreen } from "@/screens/admissions/applicant-detail";
+import { ApplicantScreen } from "@/screens/admissions/redesign/applicant-screens";
 
 export default function GuestApplicationDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  return <ApplicantDetailScreen id={typeof id === "string" ? id : ""} />;
+  return <ApplicantScreen />;
 }

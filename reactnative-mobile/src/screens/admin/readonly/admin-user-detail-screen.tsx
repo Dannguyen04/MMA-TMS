@@ -1,101 +1,107 @@
 import { useCallback } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { adminApi } from "@/api/admin";
 import { isFighterProfile } from "@/api/types";
-import { coachRo } from "@/i18n/coach-ro";
+import { EmptyLine, RolePage } from "@/components/role-page";
+import { adminRest as t } from "@/i18n/admin-rest";
 import { adminRo } from "@/i18n/admin-ro";
+import { coachRo } from "@/i18n/coach-ro";
 import { vi } from "@/i18n/vi";
-import { ActionButton, ConnectionBanner, MessageCard, TEXT, useDelayedFlag } from "@/screens/fighter/bout-states";
-import { useFighterPalette } from "@/screens/fighter/redesign/palette";
-import { useLoad } from "@/screens/fighter/use-load";
-import { Avatar, InfoLine, RoCard, RoRow, RoScreen, RowSkeletons, StatusChip, Stack, useGo } from "@/screens/coach/readonly/ro-ui";
 import { ageFromDob, vnDate } from "@/screens/coach/readonly/ro-format";
 import { useCoachEnabled } from "@/screens/coach/readonly/use-coach";
-import { fighterIdOf, roleLabel, statusChip, userDisplayName } from "./admin-format";
+import { Initials } from "@/screens/fighter/me/me-tab";
+import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
+import { useLoad } from "@/screens/fighter/use-load";
+import { EvHead } from "@/screens/media/evidence/evidence-panels";
+import { useThemePreference } from "@/theme";
+import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
+
+import { fighterIdOf, roleLabel, userDisplayName } from "./admin-format";
+import { userInitials } from "./admin-users-screen";
 
 const weightLabels = vi.weightClass as Record<string, string>;
 const stanceLabels = (vi as unknown as { stance?: Record<string, string> }).stance ?? {};
 
-/** A-3: chi tiết người dùng (chỉ đọc). Mở bằng /nguoi-dung/chi-tiet?id=... */
+/** One ruled fact line: label left, value right (bold, one line). */
+export function FactLine({ label, value, warn, last }: { label: string; value: string; warn?: boolean; last?: boolean }) {
+  const { colors: c } = useThemePreference();
+  return <View accessible accessibilityLabel={`${label}: ${value}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 16, paddingVertical: 11, borderTopWidth: 1, borderTopColor: c.line, ...(last ? { borderBottomWidth: 1, borderBottomColor: c.line } : null) }}>
+    <Text style={{ ...readableTextStyle(14.5), color: c.ink }}>{label}</Text>
+    <Text numberOfLines={1} style={{ ...readableTextStyle(14.5, true), flexShrink: 1, textAlign: "right", color: warn ? c.danger : c.ink }}>{value}</Text>
+  </View>;
+}
+
+/**
+ * Admin user page (redesign step 22), opened with `nguoi-dung/chi-tiet?id=`: initials, name, role · status, then the
+ * Tài khoản and Hồ sơ sections as ruled lines; a fighter account adds a row to the fighter page. Read only.
+ */
 export function AdminUserDetailScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const uid = typeof id === "string" ? id : "";
   const enabled = useCoachEnabled() && Boolean(uid);
   const router = useRouter();
-  const go = useGo();
-  const p = useFighterPalette();
+  const { colors: c } = useThemePreference();
   const run = useCallback(() => adminApi.getUser(uid), [uid]);
   const { data: u, error, loading, reload, refresh } = useLoad(enabled, `ud|${uid}`, run, { keepOnError: true });
-  const skeleton = useDelayedFlag(loading && !u);
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/(admin)/nguoi-dung" as never));
   const profile = u?.profile ?? null;
   const fighterId = u ? fighterIdOf(u) : null;
   const name = u ? userDisplayName(u) : "";
 
-  return (
-    <RoScreen title={adminRo.user.title} back onRefresh={refresh} refreshing={loading && !u}>
-      <Stack>
-        {error ? <ConnectionBanner error={error} onRetry={reload} retrying={loading} hasData={Boolean(u)} /> : null}
-        {!uid ? (
-          <MessageCard icon="fighters" title={adminRo.user.notFoundTitle} description={adminRo.user.notFoundDesc}>
-            <ActionButton label={adminRo.user.back} variant="secondary" icon="back" onPress={() => router.back()} />
-          </MessageCard>
-        ) : null}
-        {!u && !error && loading && skeleton ? <RowSkeletons count={3} height={128} /> : null}
-        {u ? (
-          <>
-            <RoCard>
-              <View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
-                <Avatar name={name} uri={profile?.profileImageUrl} size={64} />
-                <View style={{ flex: 1, gap: 4 }}>
-                  <Text style={[TEXT.cardTitle, { color: p.ink }]}>{name}</Text>
-                  <Text style={[TEXT.body, { color: p.ink }]}>{roleLabel(u.role)}</Text>
-                </View>
-              </View>
-              <StatusChip spec={statusChip(u)} />
-            </RoCard>
-            <RoCard title={adminRo.user.account}>
-              <InfoLine label={adminRo.user.email} value={u.email} />
-              <InfoLine label={adminRo.user.role} value={roleLabel(u.role)} />
-              <InfoLine label={adminRo.user.status} value={u.isActive ? adminRo.active : adminRo.inactive} />
-              <InfoLine label={adminRo.user.created} value={vnDate(u.createdAt)} />
-              <InfoLine label={adminRo.user.updated} value={vnDate(u.updatedAt)} />
-            </RoCard>
-            <RoCard title={adminRo.user.profile}>
-              {isFighterProfile(profile) ? (
-                <>
-                  <InfoLine label={adminRo.user.weightClass} value={weightLabels[profile.weightClass] ?? profile.weightClass} />
-                  <InfoLine
-                    label={adminRo.user.dob}
-                    value={`${vnDate(profile.dateOfBirth)}${ageFromDob(profile.dateOfBirth) != null ? ` · ${coachRo.detail.age(ageFromDob(profile.dateOfBirth)!)}` : ""}`}
-                  />
-                  {profile.nationality ? <InfoLine label={adminRo.user.nationality} value={profile.nationality} /> : null}
-                  {profile.heightCm ? <InfoLine label={adminRo.user.height} value={coachRo.detail.height(profile.heightCm)} /> : null}
-                  {profile.reachCm ? <InfoLine label={adminRo.user.reach} value={coachRo.detail.height(profile.reachCm)} /> : null}
-                  {profile.dominantStance && stanceLabels[profile.dominantStance] ? (
-                    <InfoLine label={adminRo.user.stance} value={stanceLabels[profile.dominantStance]!} />
-                  ) : null}
-                  {profile.gym ? <InfoLine label={adminRo.user.gym} value={profile.gym} /> : null}
-                </>
-              ) : profile ? (
-                <>
-                  {"isHeadCoach" in profile && profile.isHeadCoach != null ? (
-                    <InfoLine label={adminRo.user.headCoach} value={profile.isHeadCoach ? adminRo.user.yes : adminRo.user.no} />
-                  ) : null}
-                  {profile.specialization ? <InfoLine label={adminRo.user.specialization} value={profile.specialization} /> : null}
-                  {profile.licenseNumber ? <InfoLine label={adminRo.user.license} value={profile.licenseNumber} /> : null}
-                </>
-              ) : (
-                <Text style={[TEXT.body, { color: p.ink }]}>{adminRo.user.noProfile}</Text>
-              )}
-            </RoCard>
-            {fighterId ? (
-              <RoRow title={adminRo.user.openFighter} lines={[adminRo.user.openFighterDesc]} onPress={() => go("/(admin)/vo-si/chi-tiet", fighterId)} />
-            ) : null}
-          </>
-        ) : null}
-      </Stack>
-    </RoScreen>
-  );
+  const profileLines: [string, string][] = [];
+  if (isFighterProfile(profile)) {
+    const age = ageFromDob(profile.dateOfBirth);
+    profileLines.push([adminRo.user.weightClass, weightLabels[profile.weightClass] ?? profile.weightClass]);
+    profileLines.push([adminRo.user.dob, `${vnDate(profile.dateOfBirth)}${age != null ? ` · ${coachRo.detail.age(age)}` : ""}`]);
+    if (profile.nationality) profileLines.push([adminRo.user.nationality, profile.nationality]);
+    if (profile.heightCm) profileLines.push([adminRo.user.height, coachRo.detail.height(profile.heightCm)]);
+    if (profile.reachCm) profileLines.push([adminRo.user.reach, coachRo.detail.height(profile.reachCm)]);
+    if (profile.dominantStance && stanceLabels[profile.dominantStance]) profileLines.push([adminRo.user.stance, stanceLabels[profile.dominantStance]!]);
+    if (profile.gym) profileLines.push([adminRo.user.gym, profile.gym]);
+  } else if (profile) {
+    if ("isHeadCoach" in profile && profile.isHeadCoach != null) profileLines.push([adminRo.user.headCoach, profile.isHeadCoach ? adminRo.user.yes : adminRo.user.no]);
+    if (profile.specialization) profileLines.push([adminRo.user.specialization, profile.specialization]);
+    if (profile.licenseNumber) profileLines.push([adminRo.user.license, profile.licenseNumber]);
+  }
+
+  return <RolePage testID="admin-user" title={t.userTitle} onBack={back} onRefresh={refresh}>
+    {!uid ? <View style={{ gap: 10 }}>
+      <EmptyLine testID="admin-user-missing" title={t.notFound}/>
+      <Pressable accessibilityRole="button" onPress={back} style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }}>
+        <Text style={{ ...readableTextStyle(14.5, true), color: c.lotus }}>{t.backToList}</Text>
+      </Pressable>
+    </View> : null}
+    {uid && !u && loading ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/> : null}
+    {uid && !u && error ? <RetryRow message={t.userFailed} retry={t.retry} onRetry={reload}/> : null}
+    {u ? <>
+      <View accessible accessibilityLabel={[name, roleLabel(u.role), u.isActive ? "" : t.locked].filter(Boolean).join(", ")} style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
+        <Initials text={userInitials(name)}/>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(32), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
+          <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>
+            {roleLabel(u.role)}{u.isActive ? "" : " · "}{u.isActive ? null : <Text style={{ ...readableTextStyle(14.5, true), color: c.danger }}>{t.locked}</Text>}
+          </Text>
+        </View>
+      </View>
+      <View style={{ gap: 8 }}>
+        <EvHead title={t.account}/>
+        <View>
+          <FactLine label={t.email} value={u.email}/>
+          <FactLine label={t.role} value={roleLabel(u.role)}/>
+          <FactLine label={t.status} value={u.isActive ? t.active : t.locked} warn={!u.isActive}/>
+          <FactLine label={t.created} value={vnDate(u.createdAt)}/>
+          <FactLine label={t.updated} value={vnDate(u.updatedAt)} last/>
+        </View>
+      </View>
+      <View style={{ gap: 8 }}>
+        <EvHead title={t.profile}/>
+        {profileLines.length ? <View>{profileLines.map(([l, v], k) => <FactLine key={l} label={l} value={v} last={k === profileLines.length - 1}/>)}</View>
+          : <Text style={{ ...readableTextStyle(15), color: c.ink }}>{t.noProfile}</Text>}
+      </View>
+      {fighterId ? <SlipRow testID="admin-user-fighter" icon="martialArts" title={t.fighterPage} line={t.fighterPageLine} a11y={`${t.fighterPage}, ${t.fighterPageLine}`} last
+        onPress={() => router.push({ pathname: "/(admin)/vo-si/chi-tiet", params: { id: fighterId } } as never)}/> : null}
+    </> : null}
+  </RolePage>;
 }

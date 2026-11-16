@@ -1,4 +1,4 @@
-import { FighterHomeScreen } from "@/screens/fighter/home-screen";
+import { FighterHomeV2 } from "@/screens/fighter/home/fighter-home-v2";
 import { usePostIntroRedirect } from "@/session/role-gate";
 import { useSession } from "@/session/session-context";
 
@@ -11,7 +11,8 @@ export default function Index() {
   usePostIntroRedirect();
 
   if (gate === "fighter") {
-    return <FighterHomeScreen />;
+    // Redesign 2026-11-11: the old home (screens/fighter/home-screen.tsx) stays in the code, unused.
+    return <FighterHomeV2 />;
   }
   return null;
 }

@@ -1,5 +1,6 @@
-import { FighterSessionDetailScreen } from "@/screens/fighter/session-detail-screen";
+import { FighterSessionPage } from "@/screens/fighter/redesign/session-page";
 
+/** Buổi tập (redesign step 25): read-only session page. */
 export default function TapDetailRoute() {
-  return <FighterSessionDetailScreen />;
+  return <FighterSessionPage />;
 }

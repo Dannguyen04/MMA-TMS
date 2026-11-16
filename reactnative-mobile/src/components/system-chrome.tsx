@@ -7,6 +7,7 @@ import { Platform, StatusBar as RNStatusBar } from "react-native";
 
 import { chromeLightIcons, useThemePreference } from "@/theme";
 import { useSplashLock } from "@/components/launch/splash-lock";
+import { devLog } from "@/utils/dev-log";
 
 export function SystemChrome() {
   const locked = useSplashLock();
@@ -26,7 +27,7 @@ export function SystemChrome() {
     if (Platform.OS !== "android") return;
 
     if (locked) {
-      console.log(
+      devLog(
         "[splash] SystemChrome",
         "navHidden",
         true,
@@ -43,7 +44,7 @@ export function SystemChrome() {
       return;
     }
 
-    console.log(
+    devLog(
       "[splash] SystemChrome apply",
       "navHidden",
       false,

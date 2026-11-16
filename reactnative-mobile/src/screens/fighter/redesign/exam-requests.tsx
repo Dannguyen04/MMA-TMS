@@ -13,6 +13,7 @@ import { canSubmitReviewReason, REVIEW_REASON_MAX, reviewReasonIssue } from "@/s
 import { mapApiMessage } from "@/session/map-api-message";
 import { FilterSelect } from "@/components/filter-sheet";
 import { SkeletonRows } from "@/components/loading";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 function outcomeUnknown(error: unknown): boolean {
   return !isApiError(error) || error.status === 0 || error.status >= 500;
@@ -207,7 +208,7 @@ export function ExamRequestSection({
           style={{
             color: canSubmitReviewReason(reason, sending) && enabled ? colors.onAccent : colors.disabledInk,
             fontWeight: "600",
-            fontSize: 14,
+            fontSize: fz(14),
           }}
         >
           {sending ? "Đang gửi…" : "Gửi yêu cầu khám"}
@@ -218,20 +219,20 @@ export function ExamRequestSection({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   stack: { gap: 12 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  section: { fontSize: 16, lineHeight: 22, fontWeight: "700" },
-  meta: { fontSize: 12, lineHeight: 17 },
+  section: { fontSize: fz(16), lineHeight: lh(22), fontWeight: "700" },
+  meta: { fontSize: fz(12), lineHeight: lh(17) },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { borderRadius: 99, paddingHorizontal: 11, paddingVertical: 8 },
   request: { gap: 3, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth },
-  body: { fontSize: 14, lineHeight: 20 },
+  body: { fontSize: fz(14), lineHeight: lh(20) },
   field: { minHeight: 124, borderRadius: 12, borderWidth: 1, padding: 14, justifyContent: "space-between" },
-  input: { fontSize: 13, lineHeight: 18, minHeight: 72, textAlignVertical: "top" },
-  counter: { fontSize: 11, textAlign: "right" },
+  input: { fontSize: fz(13), lineHeight: lh(18), minHeight: 72, textAlignVertical: "top" },
+  counter: { fontSize: fz(11), textAlign: "right" },
   warn: { flexDirection: "row", gap: 10, borderRadius: 12, padding: 12 },
-  warnTitle: { fontSize: 12, fontWeight: "700", lineHeight: 17 },
+  warnTitle: { fontSize: fz(12), fontWeight: "700", lineHeight: lh(17) },
   flex: { flex: 1, gap: 4 },
   submit: { height: 48, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-});
+}));

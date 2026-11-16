@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { radius, spacing, type, useThemePreference } from "@/theme";
 import { CONTRAST_BODY, ensureContrast } from "@/theme/appearance/color-math";
+import { lh, liveSheet } from "@/theme/typography";
 
 export function MedicalCard({ children }: { children: ReactNode }) {
   const { colors } = useThemePreference();
@@ -58,7 +59,7 @@ export function MedicalChip({
         },
       ]}
     >
-      <Text style={[type.caption, { color: colors.ink, lineHeight: 16 }]}>{label}</Text>
+      <Text style={[type.caption, { color: colors.ink, lineHeight: lh(16) }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -78,16 +79,16 @@ export const medicalStyles = StyleSheet.create({
   stack: { gap: spacing.md },
 });
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   card: {
     borderWidth: 1,
     borderRadius: radius.panel,
     padding: spacing.lg,
     gap: spacing.sm,
   },
-  section: { letterSpacing: 0.8, lineHeight: 18, textTransform: "uppercase" },
+  section: { letterSpacing: 0.8, lineHeight: lh(18), textTransform: "uppercase" },
   fact: { gap: 2 },
-  meta: { lineHeight: 16 },
+  meta: { lineHeight: lh(16) },
   chip: {
     minHeight: 36,
     paddingHorizontal: spacing.md,
@@ -96,4 +97,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   link: { minHeight: 44, justifyContent: "center" },
-});
+}));

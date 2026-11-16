@@ -1,5 +1,5 @@
-import { FighterInjuryDetailScreen } from "@/screens/fighter/injury-detail-screen";
+import { FighterInjuryV2 } from "@/screens/fighter/health/injury-v2";
 
 export default function InjuryDetailRoute() {
-  return <FighterInjuryDetailScreen />;
+  return <FighterInjuryV2 />;
 }
