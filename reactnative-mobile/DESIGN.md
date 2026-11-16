@@ -137,7 +137,7 @@ components:
 
 Bề mặt phẳng, kỷ luật như một công cụ huấn luyện chuyên nghiệp; khung vẽ bằng nét sắc cắt góc chứ không đóng hộp; chỉ một màu Đỏ võ đài, dùng dứt khoát cho đúng điểm cần hành động hoặc rủi ro; các con số quyết định trận in thật to, đậm và có tương phản cao.
 
-Mood: **dứt khoát, kỷ luật, tin cậy.** Density is medium and single-column: one portrait phone column, capped at 480px, 22px gutters and 22px between groups. Status is written as words in context, never as pill badges or color alone. Each screen carries exactly one vector title. Light and dark are first-class schemes; "Đỏ võ đài" is the default palette, and the user's Appearance settings may override color, face, size and spacing on top.
+Mood: **dứt khoát, kỷ luật, tin cậy.** Density is medium and single-column: one portrait phone column, capped at 480px, 22px gutters and 22px between groups. Status is written as words in context, never as pill badges or color alone. Each screen names itself once, in the header bar (2026-11-10, user decision). Light and dark are first-class schemes; "Đỏ võ đài" is the default palette, and the user's Appearance settings may override color, face, size and spacing on top.
 
 Confirmed visual rejections (from `design/fight-camp/DESIGN-NOTES.md`): repeated black title cards, shape badges/pills for business status, a duplicated header title, hero tiles, screenshots in place of UI.
 
@@ -179,7 +179,7 @@ A near-monochrome zinc palette with a single ring-red accent and muted semantic 
 **Character:** Chữ hiển thị hẹp kiểu poster thi đấu (Barlow Condensed) + chữ nội dung kỹ thuật, điềm đạm (IBM Plex Sans).
 
 ### Hierarchy
-- **Display** (Barlow 700, 39px, uppercase, SVG-rendered, wraps at ~23 chars): the single screen title in `SvgTitle`, preceded by a slanted red slash.
+- **Display** (Barlow 700, 39px, uppercase, SVG-rendered, wraps at ~23 chars): `SvgTitle` with a slanted red slash; since 2026-11-10 used only for an in-screen title that changes inside one screen (e.g. "Ghi hiệp N"), never repeating the header.
 - **Display small** (Barlow 700, 26px): compact titles inside sub-screens.
 - **Weight numeral** (Barlow 700, 78px / 98px, centered): the kg entry on the weight slip.
 - **Title** (Barlow 600, 22px, +0.4 tracking, uppercase): shared app title role.
@@ -194,7 +194,7 @@ A near-monochrome zinc palette with a single ring-red accent and muted semantic 
 
 ## Layout
 
-Single portrait column, `maxWidth: 480` centered; fight-camp gutters 22px, header 18px. Groups stack with a 22px gap; title block gap 6px; field label gap 7px. Header row is 54px tall: back chevron (48×48 target), "Fight Camp" label, and "Dữ liệu mẫu" marker when on preview data. Content sits inside top safe-area inset; bottom padding is max(inset, 24) + 24. Keyboard: `KeyboardAvoidingView` with `padding` on iOS only; taps persist. Facts are label-left / value-right rows (value max 62% width) with hairline dividers. Global scale: 4 / 8 / 12 / 16 / 24 / 32, screen gutter 24 outside fight-camp.
+Single portrait column, `maxWidth: 480` centered; fight-camp gutters 22px, header 18px. Groups stack with a 22px gap; title block gap 6px; field label gap 7px. Header row is 54px tall: back chevron (48×48 target), the screen title centred (Barlow 600-700, 20px, uppercase; replaced the fixed "Fight Camp" label on 2026-11-10), and "Dữ liệu mẫu" marker when on preview data; side slots are equal width so the title stays centred. Content sits inside top safe-area inset; bottom padding is max(inset, 24) + 24. Keyboard: `KeyboardAvoidingView` with `padding` on iOS only; taps persist. Facts are label-left / value-right rows (value max 62% width) with hairline dividers. Global scale: 4 / 8 / 12 / 16 / 24 / 32, screen gutter 24 outside fight-camp.
 
 ## Elevation & Depth
 
@@ -241,7 +241,7 @@ Component feel: **cắt góc, sắc cạnh, tiết chế** — sharp in shape, r
 - SVG line plot: Ring Red dots for logged weights, dashed control-border reference path, dashed danger limit line; accessible summary label; muted legend.
 
 ### Navigation (`CampShell`)
-- In-screen header with back chevron, one SVG title in content, content cross-fades/rises on screen change. Internal sub-screen history inside one route (coach: detail → weigh → decision → catchweight → cancel …).
+- In-screen header with back chevron and the screen title, subtitle first in content, content cross-fades/rises on screen change. Sections inside a screen use `SectionTitle` (plain condensed uppercase, no slash). Internal sub-screen history inside one route (coach: detail → weigh → decision → catchweight → cancel …).
 
 ### Loading (`Busy`)
 - Accent ActivityIndicator + "Đang tải dữ liệu…".
@@ -249,7 +249,7 @@ Component feel: **cắt góc, sắc cạnh, tiết chế** — sharp in shape, r
 ## Do's and Don'ts
 
 ### Do:
-- **Do** use one SVG title per screen with the red slash.
+- **Do** name the screen once, in the header bar; use `SectionTitle` for sections below it.
 - **Do** put status in Vietnamese words with a glyph, in context.
 - **Do** keep Ring Red for action, focus, selection and seams only.
 - **Do** keep line height ≥ 1.35× and read type from live Appearance settings.
@@ -258,7 +258,7 @@ Component feel: **cắt góc, sắc cạnh, tiết chế** — sharp in shape, r
 
 ### Don't:
 - **Don't** use pill or shape badges for business status.
-- **Don't** repeat the screen title in the header or use black title cards.
+- **Don't** repeat the screen title in the content or use black title cards.
 - **Don't** add blurred drop shadows; depth is outline, offset and corner marks.
 - **Don't** use more than one spotlight per screen.
 - **Don't** convey state by color alone.

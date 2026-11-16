@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getAnalysisJob } from "@/api/media";
-import { SkeletonCards } from "@/components/loading";
+import { EmptyLine, RolePage } from "@/components/role-page";
+import { fighterVideo as fv } from "@/i18n/fighter-video";
+import { Action } from "@/screens/fight-camp/camp-ui";
 import { ev } from "@/i18n/video-evidence";
-import { media } from "@/i18n/media";
-import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { useThemePreference } from "@/theme";
 import { evidenceError } from "@/screens/media/evidence/errors";
-import { VideoScreenHeader } from "@/screens/media/video-chrome";
 import { VideoDetailContent, type EvidenceRole } from "@/screens/media/video-detail";
 
 function first(value: string | string[] | undefined): string {
@@ -31,7 +31,7 @@ export function EvidenceRoute({
   listHref: Href;
   canRequestAnalysis: boolean;
 }) {
-  const c = useFighterPalette();
+  const { colors: c } = useThemePreference();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const directId = first(params.id);
@@ -63,26 +63,23 @@ export function EvidenceRoute({
     else router.replace(listHref);
   };
 
+  if (!videoId) {
+    // Step 19: the waiting / error state in the page grammar (one line, then the link back to the list).
+    return (
+      <RolePage title={fv.title} onBack={back}>
+        {jobId && !error ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 32 }} /> : null}
+        {!jobId || error ? (
+          <>
+            <EmptyLine title={error || ev.noVideoId} />
+            <Action label={ev.openVideoList} onPress={() => router.replace(listHref)} />
+          </>
+        ) : null}
+      </RolePage>
+    );
+  }
   return (
     <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
-      {videoId ? (
-        <VideoDetailContent videoId={videoId} role={role} canRequestAnalysis={canRequestAnalysis} onBack={back} />
-      ) : (
-        <>
-          <VideoScreenHeader title={media.detailTitle} onBack={back} />
-          <View style={{ paddingHorizontal: 20, gap: 16 }}>
-            {jobId && !error ? <SkeletonCards count={1} lines={3} /> : null}
-            {!jobId || error ? (
-              <>
-                <Text style={{ color: c.ink, fontSize: 15 }}>{error || ev.noVideoId}</Text>
-                <Pressable accessibilityRole="button" onPress={() => router.replace(listHref)} hitSlop={8}>
-                  <Text style={{ color: c.accent, fontWeight: "700" }}>{ev.openVideoList}</Text>
-                </Pressable>
-              </>
-            ) : null}
-          </View>
-        </>
-      )}
+      <VideoDetailContent videoId={videoId} role={role} canRequestAnalysis={canRequestAnalysis} onBack={back} />
     </View>
   );
 }

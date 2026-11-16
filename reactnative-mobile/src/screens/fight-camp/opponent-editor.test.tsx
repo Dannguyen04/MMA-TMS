@@ -9,7 +9,7 @@ jest.mock("@/theme", () => ({
   useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light }),
   fonts: { display: "display" },
 }));
-jest.mock("@/theme/typography", () => ({ readableTextStyle: () => ({}) }));
+jest.mock("@/theme/typography", () => ({ ...jest.requireActual("@/theme/typography"), readableTextStyle: () => ({}) }));
 jest.mock("@/api/training", () => ({ listTrainingSessions: jest.fn() }));
 jest.mock("@/api/fight-camp", () => ({ campApi: { saveAnalysis: jest.fn(), prior: jest.fn() } }));
 jest.mock("./camp-ui", () => require("./camp-test-ui").campUiMock());

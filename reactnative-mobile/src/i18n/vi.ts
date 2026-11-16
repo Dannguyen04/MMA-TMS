@@ -5,7 +5,7 @@ export const vi = {
     wordmarkLockup: "Vision",
     wordmarkExpansion: "",
     /** Chốt 31/10: tên học viện bằng tiếng Việt (agent đề xuất, chờ duyệt). */
-    academy: "Học viện Võ thuật Lotus",
+    academy: "Học viện Võ thuật MMA",
     slogan: "Tầm nhìn võ đài",
   },
   theme: {

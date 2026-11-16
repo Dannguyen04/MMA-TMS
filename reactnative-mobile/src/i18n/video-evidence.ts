@@ -97,7 +97,7 @@ export const ev = {
   ratingOf: (n: number) => `${n}/5`,
   summaryText: "Nhận xét tổng",
   noAnalysisId: "Phân tích này chưa sẵn sàng để duyệt.",
-  reviewedBy: { COACH: "HLV", DOCTOR: "Bác sĩ" } as Record<string, string>,
+  reviewedBy: { COACH: "Huấn luyện viên", DOCTOR: "Bác sĩ" } as Record<string, string>,
   healthAlerts: "Cảnh báo sức khỏe",
   noHealthAlerts: "Không có cảnh báo.",
   romRatio: (pct: number) => `Biên độ ${pct}% so với chuẩn`,

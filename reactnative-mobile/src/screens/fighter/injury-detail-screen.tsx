@@ -17,6 +17,7 @@ import {
   injuryStatusLabel,
   jointLabel,
   severityLabel,
+  snakeSnapshot,
 } from "@/components/medical/medical-format";
 import { MedicalFact, MedicalMuted } from "@/components/medical/medical-ui";
 import { fighter } from "@/i18n/fighter";
@@ -79,7 +80,7 @@ export function FighterInjuryDetailScreen() {
       injury = latest ? injuryFromSnapshot(latest) : null;
     }
     const treatments = injury
-      ? await collectHistory(fighterId, "TREATMENT", (entry) => entry.snapshot?.injury_id === injuryId)
+      ? await collectHistory(fighterId, "TREATMENT", (entry) => snakeSnapshot(entry.snapshot).injury_id === injuryId)
       : [];
     return {
       injury,

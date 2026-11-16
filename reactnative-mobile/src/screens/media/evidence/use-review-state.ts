@@ -18,8 +18,8 @@ export function useReviewState(jobId: string | null, done: boolean, role: Eviden
     if (!jobId || !done) return;
     let cancelled = false;
     const quiet = <T,>(p: Promise<T>) => p.catch((): null => null);
-    if (role !== "doctor") void quiet(getCoachingState(jobId)).then((v) => !cancelled && setCoaching(v));
-    void quiet(getMovementReviews(jobId)).then((v) => !cancelled && setMovement(v));
+    if (role === "fighter" || role === "coach") void quiet(getCoachingState(jobId)).then((v) => !cancelled && setCoaching(v));
+    if (role !== "admin") void quiet(getMovementReviews(jobId)).then((v) => !cancelled && setMovement(v));
     if (role === "doctor") void quiet(getJobHealthAlerts(jobId)).then((v) => !cancelled && setAlerts(v?.healthAlerts ?? null));
     return () => {
       cancelled = true;

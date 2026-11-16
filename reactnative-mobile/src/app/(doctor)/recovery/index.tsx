@@ -1,6 +1,6 @@
-import { medical } from "@/i18n/medical";
-import { DoctorDossierLines } from "@/screens/doctor/clinical-read";
+import { DoctorOldRoute } from "@/screens/doctor/detail/old-route";
 
+/** Redesign step 20: Hồi phục goes to the fighter page, Tổng quan. */
 export default function DoctorRecoveryRoute() {
-  return <DoctorDossierLines title={medical.recoveryPlans} kind="recovery" />;
+  return <DoctorOldRoute/>;
 }

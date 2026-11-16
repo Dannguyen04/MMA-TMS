@@ -4,7 +4,7 @@ export function campUiMock() {
   const React = require("react"); const { Text, View, Pressable, TextInput } = require("react-native");
   const text = ({ children }: { children: unknown }) => React.createElement(Text, null, children);
   return {
-    Copy: text, SvgTitle: text, Frame: ({ children }: { children: unknown }) => React.createElement(View, null, children),
+    Copy: text, SvgTitle: text, SectionTitle: text, Frame: ({ children }: { children: unknown }) => React.createElement(View, null, children),
     Busy: () => React.createElement(Text, null, "Loading"),
     Fact: ({ label, value }: { label: string; value: string }) => React.createElement(Text, null, `${label}: ${value}`),
     Notice: ({ title, children }: { title: string; children?: unknown }) => React.createElement(View, null, React.createElement(Text, null, title), children ? React.createElement(Text, null, children) : null),
@@ -17,6 +17,8 @@ export function campUiMock() {
     WeightPlot: () => null, CampIcon: () => null,
     PlanToggle: ({ label, selected, onPress, disabled }: { label: string; selected: boolean; onPress: () => void; disabled?: boolean }) => React.createElement(Pressable, { accessibilityRole: "checkbox", accessibilityLabel: label, accessibilityState: { checked: selected, disabled: !!disabled }, disabled, onPress }, React.createElement(Text, null, label)),
     CampFooter: ({ children }: { children: unknown }) => React.createElement(View, { testID: "camp-footer" }, children),
-    CampShell: ({ title, children, footer }: { title: string; children: unknown; footer?: unknown }) => React.createElement(View, null, React.createElement(Text, null, title), children, footer ?? null),
+    CampTop: ({ children }: { children: unknown }) => React.createElement(View, { testID: "camp-top" }, children),
+    sentences: (text: string) => text.split(/(?<=[.!?])\s+(?=\S)/),
+    CampShell: ({ title, children, footer, top }: { title: string; children: unknown; footer?: unknown; top?: unknown }) => React.createElement(View, null, React.createElement(Text, null, title), top ?? null, children, footer ?? null),
   };
 }

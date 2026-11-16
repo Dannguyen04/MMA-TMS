@@ -13,7 +13,7 @@ describe("postIntroHref", () => {
     const cases: Array<[SessionGate, string]> = [
       ["guest", "/ho-so"],
       ["fighter", "/"],
-      ["coach", "/(coach)/fighters"],
+      ["coach", "/(coach)/hom-nay"],
       ["doctor", "/(doctor)"],
       ["admin", "/(admin)"],
     ];

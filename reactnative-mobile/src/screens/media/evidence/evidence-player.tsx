@@ -15,6 +15,7 @@ import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { palettes } from "@/theme/colors";
 import { SheetOption } from "@/screens/media/evidence/sheet-option";
 import { formatPrecise } from "@/screens/media/evidence/evidence-model";
+import { fz, liveSheet } from "@/theme/typography";
 
 export type PoseState = "idle" | "loading" | "ready" | "missing" | "error";
 export type EvidencePlayerHandle = { seek: (ms: number) => void };
@@ -229,7 +230,7 @@ export const EvidencePlayer = forwardRef<EvidencePlayerHandle, Props>(function E
         <Chip label={`${rate}×`} a11y={ev.speedTitle} onPress={() => setSheet("speed")} />
         <Chip label={ev.layers} a11y={noPose ? ev.noSkeleton : ev.layersTitle} onPress={layersPress} icon="layers-outline" testID="layers-button" dimmed={noPose} />
       </View>
-      {poseState === "missing" ? <Text style={{ color: c.muted, fontSize: 12 }}>{ev.poseMissing}</Text> : null}
+      {poseState === "missing" ? <Text style={{ color: c.muted, fontSize: fz(12) }}>{ev.poseMissing}</Text> : null}
     </View>
   );
 
@@ -326,12 +327,12 @@ export const EvidencePlayer = forwardRef<EvidencePlayerHandle, Props>(function E
       {phase === "loading" ? (
         <View style={styles.center} pointerEvents="none">
           <ActivityIndicator color={onWell} />
-          {overlay && fit.mini && !full ? null : <Text style={{ color: onWell, fontSize: 13 }}>{media.mediaLoading}</Text>}
+          {overlay && fit.mini && !full ? null : <Text style={{ color: onWell, fontSize: fz(13) }}>{media.mediaLoading}</Text>}
         </View>
       ) : null}
       {phase === "error" ? (
         <View style={[styles.center, { backgroundColor: well }]}>
-          <Text style={{ color: onWell, fontSize: 13, textAlign: "center" }}>{webMov ? media.mediaFormatWeb : media.mediaError}</Text>
+          <Text style={{ color: onWell, fontSize: fz(13), textAlign: "center" }}>{webMov ? media.mediaFormatWeb : media.mediaError}</Text>
           <Pressable accessibilityRole="button" onPress={onRetry} hitSlop={8} style={{ minHeight: 48, justifyContent: "center" }}>
             <Text style={{ color: onWell, fontWeight: "700", textDecorationLine: "underline" }}>{media.retry}</Text>
           </Pressable>
@@ -357,10 +358,10 @@ export const EvidencePlayer = forwardRef<EvidencePlayerHandle, Props>(function E
             {fs ? null : stageBody(false)}
           </View>
           <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ color: c.ink, fontWeight: "700", fontSize: 14 }} numberOfLines={1}>
+            <Text style={{ color: c.ink, fontWeight: "700", fontSize: fz(14) }} numberOfLines={1}>
               {fit.miniTitle ?? ""}
             </Text>
-            <Text style={{ color: c.ink, fontSize: 13, fontVariant: ["tabular-nums"] }} numberOfLines={1} testID="mini-clock">
+            <Text style={{ color: c.ink, fontSize: fz(13), fontVariant: ["tabular-nums"] }} numberOfLines={1} testID="mini-clock">
               {`${formatPrecise(timeMs)} / ${formatPrecise(durationMs)}`}
             </Text>
           </View>
@@ -457,28 +458,28 @@ function Chip({ label, a11y, onPress, icon, testID, dark, dimmed }: { label: str
       accessibilityState={dimmed ? { disabled: true } : undefined}
     >
       {icon ? <Ionicons name={icon} size={15} color={fg} /> : null}
-      <Text style={{ color: fg, fontSize: 13, fontWeight: "600" }}>{label}</Text>
+      <Text style={{ color: fg, fontSize: fz(13), fontWeight: "600" }}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   video: { position: "absolute", left: 0, top: 0, width: "100%", height: "100%" },
   stage: { width: "100%", overflow: "hidden", borderTopLeftRadius: 14, borderTopRightRadius: 14 },
   stageFit: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
   ovTop: { position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 8 },
   ovCenter: { position: "absolute", left: 0, right: 0, top: "50%", marginTop: -28, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 24 },
-  ovClock: { position: "absolute", left: 12, bottom: 52, color: palettes.dark.ink, fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
+  ovClock: { position: "absolute", left: 12, bottom: 52, color: palettes.dark.ink, fontSize: fz(13), fontWeight: "600", fontVariant: ["tabular-nums"] },
   ovSeek: { position: "absolute", left: 0, right: 112, bottom: 0, height: 48 },
   zoom: { position: "absolute", right: 8, bottom: 6, minHeight: 48, minWidth: 48, paddingHorizontal: 12, borderRadius: 24, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(0,0,0,0.6)" },
-  zoomText: { color: palettes.dark.ink, fontSize: 14, fontWeight: "700" },
+  zoomText: { color: palettes.dark.ink, fontSize: fz(14), fontWeight: "700" },
   thinTrack: { position: "absolute", left: 0, right: 0, bottom: 0, height: 3, backgroundColor: "rgba(255,255,255,0.25)" },
   mini: { height: 64, flexDirection: "row", alignItems: "center", gap: 12, paddingRight: 8, borderBottomWidth: StyleSheet.hairlineWidth, overflow: "hidden" },
   miniThumb: { width: 114, height: 64, backgroundColor: "#000", overflow: "hidden" },
   fsRoot: { flex: 1, backgroundColor: "#000" },
   center: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center", gap: 10, padding: 16 },
   pill: { position: "absolute", left: 10, bottom: 10, flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 99, paddingHorizontal: 10, paddingVertical: 5 },
-  pillText: { color: palettes.dark.ink, fontSize: 12, fontWeight: "600" },
+  pillText: { color: palettes.dark.ink, fontSize: fz(12), fontWeight: "600" },
   controls: { paddingHorizontal: 12, paddingTop: 6, paddingBottom: 10, gap: 6, borderWidth: StyleSheet.hairlineWidth, borderTopWidth: 0, borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
   trackHit: { height: 48, justifyContent: "center" },
   track: { height: 4, borderRadius: 99, overflow: "hidden" },
@@ -486,9 +487,9 @@ const styles = StyleSheet.create({
   head: { position: "absolute", top: 16, width: 2, height: 16, borderRadius: 1 },
   row: { flexDirection: "row", alignItems: "center", gap: 4 },
   icon: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
-  clock: { flex: 1, fontSize: 13, fontVariant: ["tabular-nums"], fontWeight: "600" },
+  clock: { flex: 1, fontSize: fz(13), fontVariant: ["tabular-nums"], fontWeight: "600" },
   chip: { minHeight: 48, flexDirection: "row", alignItems: "center", gap: 4, borderRadius: 99, paddingHorizontal: 10, borderWidth: StyleSheet.hairlineWidth },
-});
+}));
 
 type Size = { width: number; height: number } | null | undefined;
 function applySize(size: Size, set: (a: number) => void) {

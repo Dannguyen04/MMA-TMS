@@ -1,7 +1,6 @@
-import { manager } from "@/i18n/manager";
-import { AdminUnavailable } from "@/screens/admin/admin-ui";
+import { Redirect, type Href } from "expo-router";
 
-/** Chưa có API backend — xem out/06-API-can-bo-sung.md. */
-export default function AdminAuditRoute() {
-  return <AdminUnavailable title={manager.tools.audit} description={manager.missing.audit} />;
+/** Hidden in step 23 (no backend API; Giao diện is in Tôi): old links go to Tổng quan. */
+export default function AdminHiddenToolRoute() {
+  return <Redirect href={"/(admin)" as Href} />;
 }

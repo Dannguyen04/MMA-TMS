@@ -1,29 +1,60 @@
 import { useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
+import { Icon } from "@/components/icon";
+import { PressableScale, StaggerList } from "@/components/motion";
 import { strikeAt, type EvidenceWindow, type ResultFinding, type ResultStrike, type WorkerResult } from "@/components/video/pose-model";
 import { strikeName } from "@/components/video/pose-overlay";
 import { ev } from "@/i18n/video-evidence";
-import { useFighterPalette, type FighterPalette } from "@/screens/fighter/redesign/palette";
-import { filterFindings, formatPrecise, metricsOf, type FindingFilter } from "@/screens/media/evidence/evidence-model";
-import { useTypography } from "@/theme";
 import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 import { guidanceLine } from "@/i18n/server-text";
+import { Choices } from "@/screens/fight-camp/camp-ui";
+import { filterFindings, formatPrecise, metricsOf, type FindingFilter } from "@/screens/media/evidence/evidence-model";
+import { useThemePreference } from "@/theme";
+import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 
 type Seek = (ms: number) => void;
+export type Word = { word: string; tone?: "ok" | "warn" };
 
-function Section({ title, aside, children }: { title: string; aside?: string; children: ReactNode }) {
-  const c = useFighterPalette();
-  const live = useTypography();
-  return (
-    <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        <Text style={{ color: c.ink, fontFamily: live.faces.semibold, fontSize: 16 }}>{title}</Text>
-        {aside ? <Text style={{ color: c.muted, fontSize: 12 }}>{aside}</Text> : null}
-      </View>
-      {children}
+/** Uppercase section head with an optional count after it (redesign step 19). */
+export function EvHead({ title, aside }: { title: string; aside?: string }) {
+  const { colors: c } = useThemePreference();
+  return <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
+    <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+    {aside ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, true), color: c.ink }}>{aside}</Text> : null}
+  </View>;
+}
+
+/**
+ * One evidence row (redesign step 19): the time (or a mark) as the lead, an uppercase title, then one line where only
+ * the status word is coloured. The row playing now has a red lead. Pressing seeks (and, for the coach, opens a review).
+ */
+export function EvRow({ lead, leadTone, title, word, line, active, onPress, a11y, testID, last }: {
+  lead: string; leadTone?: "ok" | "warn" | "dim"; title: string; word?: Word; line?: string; active?: boolean;
+  onPress?: () => void; a11y: string; testID?: string; last?: boolean;
+}) {
+  const { colors: c } = useThemePreference();
+  const tone = active ? c.lotus : leadTone === "ok" ? c.success : leadTone === "warn" ? c.danger : leadTone === "dim" ? c.inkSubtle : c.ink;
+  const wordColor = word?.tone === "ok" ? c.success : word?.tone === "warn" ? c.danger : c.ink;
+  const style = { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 60, paddingVertical: 8, borderTopColor: c.line, borderTopWidth: 1, ...(last ? { borderBottomColor: c.line, borderBottomWidth: 1 } : null) } as const;
+  const body = <>
+    <Text numberOfLines={1} style={{ width: 60, fontFamily: fonts.displayExtraBold, fontSize: lead.length > 2 ? 20 : 28, lineHeight: lh(30), color: tone }}>{lead}</Text>
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(16.5), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      {word || line ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>
+        {word ? <Text style={{ ...readableTextStyle(13.5, true), color: wordColor }}>{word.word}</Text> : null}
+        {word && line ? ` · ${line}` : line}
+      </Text> : null}
     </View>
-  );
+    {onPress ? <Icon name="chevron" size={18} color={c.inkSubtle}/> : null}
+  </>;
+  if (!onPress) return <View testID={testID} accessible accessibilityLabel={a11y} style={style}>{body}</View>;
+  return <PressableScale testID={testID} scaleTo={0.99} accessibilityRole="button" accessibilityLabel={a11y} onPress={onPress} style={style}>{body}</PressableScale>;
+}
+
+function Plain({ children, testID }: { children: string; testID?: string }) {
+  const { colors: c } = useThemePreference();
+  return <Text testID={testID} style={{ ...readableTextStyle(15), color: c.ink }}>{children}</Text>;
 }
 
 function strikeFacts(s: ResultStrike): string {
@@ -31,183 +62,143 @@ function strikeFacts(s: ResultStrike): string {
   if (s.score != null) parts.push(`${ev.score} ${Math.round(s.score)}`);
   if (s.angle != null) parts.push(`${Math.round(s.angle)}°`);
   if (s.peakSpeed != null) parts.push(`${s.peakSpeed.toFixed(2)} ${ev.speedUnit}`);
-  if (s.guardKept != null) parts.push(s.guardKept ? ev.guardKept : ev.guardDropped);
   return parts.join(" · ");
 }
-
-function Row({ time, title, detail, active, onPress, testID, tone }: { time: number; title: string; detail?: string; active?: boolean; onPress: () => void; testID?: string; tone?: string }) {
-  const c = useFighterPalette();
-  const live = useTypography();
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={`${title}, ${ev.at(formatPrecise(time))}`}
-      onPress={onPress}
-      testID={testID}
-      style={[styles.row, { borderBottomColor: c.line, backgroundColor: active ? c.surface2 : "transparent" }]}
-    >
-      <Text style={[styles.time, { color: c.muted, fontFamily: live.faces.medium }]}>{formatPrecise(time)}</Text>
-      <View style={styles.rowBody}>
-        <Text style={{ color: tone ?? c.ink, fontFamily: live.faces.semibold, fontSize: 14 }}>{title}</Text>
-        {detail ? <Text style={{ color: c.muted, fontSize: 13 }}>{detail}</Text> : null}
-      </View>
-    </Pressable>
-  );
-}
+const guardWord = (s: ResultStrike): Word | undefined =>
+  s.guardKept == null ? undefined : s.guardKept ? { word: ev.guardKept } : { word: ev.guardDropped, tone: "warn" };
 
 export function TimelinePanel({
   result,
   timeMs,
   onSeek,
   top,
-  renderWindowExtra,
+  windowStatus,
+  onWindow,
 }: {
   result: WorkerResult;
   timeMs: number;
   onSeek: Seek;
   /** Role-specific block above the strike list (doctor health alerts). */
   top?: ReactNode;
-  renderWindowExtra?: (w: EvidenceWindow) => ReactNode;
+  /** The review word for a window (coach and doctor). */
+  windowStatus?: (w: EvidenceWindow) => Word;
+  /** Opens the window review (when the reader may review). */
+  onWindow?: (w: EvidenceWindow) => void;
 }) {
-  const c = useFighterPalette();
-  const live = useTypography();
+  const { colors: c } = useThemePreference();
   const now = strikeAt(result.strikes, timeMs);
   const me = result.movementEvidence;
+  const nowFacts = now ? strikeFacts(now) : "";
   return (
-    <View style={styles.panel} testID="panel-timeline">
-      <View style={[styles.nowCard, { backgroundColor: c.surface, borderColor: c.line }]}>
-        <Text style={{ color: c.muted, fontSize: 12 }}>{ev.now} · {formatPrecise(timeMs)}</Text>
-        {now ? (
-          <>
-            <Text style={{ color: c.ink, fontFamily: live.faces.semibold, fontSize: 16 }}>{strikeName(now)}</Text>
-            <Text style={{ color: c.muted, fontSize: 13 }}>{strikeFacts(now)}</Text>
-          </>
-        ) : (
-          <Text style={{ color: c.muted, fontSize: 14 }}>{ev.nothingNow}</Text>
-        )}
+    <View style={{ gap: 18 }} testID="panel-timeline">
+      <View testID="timeline-now" accessible accessibilityLabel={`${ev.now} ${formatPrecise(timeMs)}. ${now ? `${strikeName(now)}. ${nowFacts}` : ev.nothingNow}`}
+        style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
+        <Text style={{ width: 60, fontFamily: fonts.displayExtraBold, fontSize: fz(20), lineHeight: lh(26), color: c.lotus }}>{formatPrecise(timeMs)}</Text>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(16.5), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{now ? strikeName(now) : ev.now}</Text>
+          <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>{now ? nowFacts || " " : ev.nothingNow}</Text>
+        </View>
       </View>
       {top}
-      <Section title={ev.strikes} aside={result.strikes.length ? String(result.strikes.length) : undefined}>
-        {result.strikes.length === 0 ? <Text style={{ color: c.muted }}>{ev.noStrikes}</Text> : null}
-        {result.strikes.map((s, i) => (
-          <Row
-            key={`${s.actionId ?? i}`}
-            time={s.impactMs ?? s.startMs}
-            title={strikeName(s)}
-            detail={strikeFacts(s)}
-            active={now === s}
-            onPress={() => onSeek(s.impactMs ?? s.startMs)}
-            testID={`strike-${i}`}
-          />
-        ))}
-      </Section>
-      <Section title={ev.windows} aside={me ? ev.usable(me.usableFrames, me.totalFrames) : undefined}>
-        {me ? (
-          <Text style={{ color: me.status === "review_ready" ? c.success : c.warning, fontSize: 13 }}>
-            {ev.evidenceStatus[me.status] ?? UNKNOWN_VALUE}
-          </Text>
-        ) : null}
+      <View style={{ gap: 8 }}>
+        <EvHead title={ev.strikes} aside={result.strikes.length ? String(result.strikes.length) : undefined}/>
+        {result.strikes.length === 0 ? <Plain>{ev.noStrikes}</Plain> : null}
+        {result.strikes.length ? <StaggerList>
+          {result.strikes.map((s, i) => {
+            const at = s.impactMs ?? s.startMs;
+            const facts = strikeFacts(s);
+            const w = guardWord(s);
+            return <EvRow key={`${s.actionId ?? i}`} testID={`strike-${i}`} lead={formatPrecise(at)} title={strikeName(s)} active={now === s}
+              line={facts} word={w} a11y={`${strikeName(s)}, ${ev.at(formatPrecise(at))}${facts ? `, ${facts}` : ""}${w ? `, ${w.word}` : ""}`}
+              onPress={() => onSeek(at)} last={i === result.strikes.length - 1}/>;
+          })}
+        </StaggerList> : null}
+      </View>
+      <View style={{ gap: 8 }}>
+        <EvHead title={ev.windows} aside={me ? ev.usable(me.usableFrames, me.totalFrames) : undefined}/>
+        {me ? <Text testID="evidence-status" style={{ ...readableTextStyle(14.5, true), color: me.status === "review_ready" ? c.success : c.danger }}>{ev.evidenceStatus[me.status] ?? UNKNOWN_VALUE}</Text> : null}
         {me?.guidance.map((g) => {
           // Phase 5 C: Vietnamese by code; an unknown code is hidden, never the English message.
           const line = guidanceLine(g.code);
-          return line ? <Text key={g.code} style={{ color: c.muted, fontSize: 13 }}>{line}</Text> : null;
+          return line ? <Plain key={g.code}>{line}</Plain> : null;
         })}
-        {!me || me.windows.length === 0 ? <Text style={{ color: c.muted }}>{ev.noWindows}</Text> : null}
-        {me?.windows.map((w, i) => (
-          <View key={w.id}>
-          <Row
-            time={w.startMs}
-            title={ev.windowN(i + 1)}
-            detail={`${formatPrecise(w.startMs)} – ${formatPrecise(w.endMs)} · ${ev.frames(w.sampleCount)}`}
-            active={timeMs >= w.startMs && timeMs <= w.endMs}
-            onPress={() => onSeek(w.startMs)}
-            testID={`window-${w.id}`}
-          />
-          {renderWindowExtra?.(w)}
-          </View>
-        ))}
-      </Section>
+        {!me || me.windows.length === 0 ? <Plain>{ev.noWindows}</Plain> : null}
+        {me?.windows.length ? <StaggerList>
+          {me.windows.map((w, i) => {
+            const range = `${formatPrecise(w.startMs)} – ${formatPrecise(w.endMs)} · ${ev.frames(w.sampleCount)}`;
+            const st = windowStatus?.(w);
+            return <EvRow key={w.id} testID={`window-${w.id}`} lead={formatPrecise(w.startMs)} title={ev.windowN(i + 1)} word={st} line={range}
+              active={timeMs >= w.startMs && timeMs <= w.endMs} a11y={`${ev.windowN(i + 1)}, ${st ? `${st.word}, ` : ""}${range}`}
+              onPress={() => { onSeek(w.startMs); onWindow?.(w); }} last={i === me.windows.length - 1}/>;
+          })}
+        </StaggerList> : null}
+      </View>
     </View>
   );
 }
 
-export function severityTone(c: FighterPalette, f: ResultFinding): string {
-  if (f.severity === "positive") return c.success;
-  if (f.severity === "warning" || f.severity === "critical") return c.warning;
-  return c.ink;
+/** The mark before a finding: ✓ good, ! to fix, – a plain note. */
+export function findingMark(f: Pick<ResultFinding, "severity">): { lead: string; tone?: "ok" | "warn" | "dim" } {
+  if (f.severity === "positive") return { lead: "✓", tone: "ok" };
+  if (f.severity === "warning" || f.severity === "critical") return { lead: "!", tone: "warn" };
+  return { lead: "–", tone: "dim" };
 }
 
-/** Read-only AI findings with a filter; `renderExtra` lets the coach screen attach review controls. */
+/**
+ * AI findings with a filter (Tất cả · Cần sửa · Tốt). Each row: mark, title, then the review word (coach) or the
+ * severity word, time and description. `onOpen` lets the coach review a finding; otherwise a tap seeks.
+ */
 export function FindingsPanel({
   result,
   onSeek,
-  renderExtra,
+  status,
+  onOpen,
   header,
 }: {
   result: WorkerResult;
   onSeek: Seek;
-  renderExtra?: (f: ResultFinding) => ReactNode;
+  status?: (f: ResultFinding) => Word;
+  onOpen?: (f: ResultFinding) => void;
   header?: ReactNode;
 }) {
-  const c = useFighterPalette();
   const [filter, setFilter] = useState<FindingFilter>("all");
   const rows = filterFindings(result.findings, filter);
-  const opts: [FindingFilter, string][] = [["all", ev.filterAll], ["fix", ev.filterFix], ["good", ev.filterGood]];
   return (
-    <View style={styles.panel} testID="panel-review">
+    <View style={{ gap: 14 }} testID="panel-review">
       {header}
-      <View style={styles.chips}>
-        {opts.map(([k, label]) => {
-          const on = k === filter;
-          return (
-            <Pressable
-              key={k}
-              accessibilityRole="button"
-              accessibilityState={{ selected: on }}
-              onPress={() => setFilter(k)}
-              testID={`finding-filter-${k}`}
-              style={[styles.chip, { borderColor: on ? c.ink : c.line, backgroundColor: on ? c.ink : "transparent" }]}
-            >
-              <Text style={{ color: on ? c.bg : c.ink, fontSize: 13, fontWeight: "600" }}>{label}</Text>
-            </Pressable>
-          );
+      <Choices chips value={filter} onChange={setFilter}
+        options={[{ value: "all" as FindingFilter, label: ev.filterAll }, { value: "fix" as FindingFilter, label: ev.filterFix }, { value: "good" as FindingFilter, label: ev.filterGood }]}/>
+      {rows.length === 0 ? <Plain>{ev.noFindings}</Plain> : null}
+      {rows.length ? <StaggerList>
+        {rows.map((f, i) => {
+          const m = findingMark(f);
+          const w = status?.(f) ?? { word: ev.severity[f.severity] ?? UNKNOWN_VALUE, tone: m.tone === "dim" ? undefined : m.tone };
+          const line = [formatPrecise(f.timeMs), f.description, f.recommendation].filter(Boolean).join(" · ");
+          return <EvRow key={f.id} testID={`finding-${f.id}`} lead={m.lead} leadTone={m.tone} title={f.title} word={w} line={line}
+            a11y={`${f.title}, ${w.word}, ${line}`} onPress={() => { onSeek(f.timeMs); onOpen?.(f); }} last={i === rows.length - 1}/>;
         })}
-      </View>
-      {rows.length === 0 ? <Text style={{ color: c.muted }}>{ev.noFindings}</Text> : null}
-      {rows.map((f) => (
-        <View key={f.id} style={[styles.finding, { borderBottomColor: c.line }]}>
-          <Row
-            time={f.timeMs}
-            title={f.title}
-            detail={[ev.severity[f.severity], f.description, f.recommendation].filter(Boolean).join(" · ")}
-            tone={severityTone(c, f)}
-            onPress={() => onSeek(f.timeMs)}
-            testID={`finding-${f.id}`}
-          />
-          {renderExtra?.(f)}
-        </View>
-      ))}
+      </StaggerList> : null}
     </View>
   );
 }
 
+/** Four numbers in one ruled strip, like the stat strips on the other pages. */
 export function MetricsPanel({ result, children }: { result: WorkerResult; children?: ReactNode }) {
-  const c = useFighterPalette();
-  const live = useTypography();
+  const { colors: c } = useThemePreference();
   const m = metricsOf(result);
-  const cells: [string, string][] = [
-    [ev.metricStrikes, String(m.strikes)],
-    [ev.metricAvg, m.avgScore == null ? "—" : String(Math.round(m.avgScore))],
-    [ev.metricSpeed, m.peakSpeed == null ? "—" : m.peakSpeed.toFixed(2)],
-    [ev.metricUsable, m.usablePct == null ? "—" : `${m.usablePct}%`],
+  const cells: [string, string, string][] = [
+    [ev.metricStrikes, String(m.strikes), ""],
+    [ev.metricAvg, m.avgScore == null ? "–" : String(Math.round(m.avgScore)), ""],
+    [ev.metricSpeed, m.peakSpeed == null ? "–" : m.peakSpeed.toFixed(2), ""],
+    [ev.metricUsable, m.usablePct == null ? "–" : String(m.usablePct), m.usablePct == null ? "" : "%"],
   ];
   return (
-    <View style={styles.panel} testID="panel-metrics">
-      <View style={styles.grid}>
-        {cells.map(([label, value]) => (
-          <View key={label} style={[styles.cell, { backgroundColor: c.surface, borderColor: c.line }]}>
-            <Text style={{ color: c.muted, fontSize: 12 }}>{label}</Text>
-            <Text style={{ color: c.ink, fontFamily: live.faces.bold, fontSize: 22 }}>{value}</Text>
+    <View style={{ gap: 18 }} testID="panel-metrics">
+      <View style={{ flexDirection: "row", borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
+        {cells.map(([label, value, unit], k) => (
+          <View key={label} accessible accessibilityLabel={`${label}: ${value}${unit}`} style={{ flex: 1, minWidth: 0, alignItems: "center", paddingVertical: 12, paddingHorizontal: 3, ...(k ? { borderLeftColor: c.line, borderLeftWidth: 1 } : null) }}>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(24), lineHeight: lh(28), color: value === "–" ? c.inkSubtle : c.ink }}>{value}{unit ? <Text style={{ fontSize: fz(13) }}>{unit}</Text> : null}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={{ ...readableTextStyle(12), color: c.ink, marginTop: 2 }}>{label}</Text>
           </View>
         ))}
       </View>
@@ -215,18 +206,3 @@ export function MetricsPanel({ result, children }: { result: WorkerResult; child
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  panel: { gap: 18 },
-  section: { gap: 6 },
-  sectionHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
-  nowCard: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 4 },
-  row: { flexDirection: "row", gap: 12, minHeight: 48, paddingVertical: 10, paddingHorizontal: 4, borderBottomWidth: StyleSheet.hairlineWidth, borderRadius: 6 },
-  time: { width: 52, fontSize: 13, paddingTop: 1 },
-  rowBody: { flex: 1, gap: 2 },
-  chips: { flexDirection: "row", gap: 8 },
-  chip: { minHeight: 34, paddingHorizontal: 14, borderRadius: 17, borderWidth: 1, justifyContent: "center" },
-  finding: { gap: 6 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  cell: { flexGrow: 1, flexBasis: "45%", borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 4 },
-});

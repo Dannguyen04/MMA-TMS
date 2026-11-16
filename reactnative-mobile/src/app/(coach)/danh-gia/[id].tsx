@@ -1,8 +1,5 @@
-import { useLocalSearchParams } from "expo-router";
-
-import { StaffDetailScreen } from "@/screens/admissions/staff-detail";
+import { CoachAdmissionScreen } from "@/screens/admissions/redesign/coach-admissions";
 
 export default function CoachAdmissionDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  return <StaffDetailScreen id={typeof id === "string" ? id : ""} audience="coach" />;
+  return <CoachAdmissionScreen />;
 }

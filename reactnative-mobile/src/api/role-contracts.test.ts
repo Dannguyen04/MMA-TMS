@@ -9,14 +9,14 @@ import {
 import { videoListPath } from "./media";
 
 describe("measurement role baseline", () => {
-  it("keeps GET measurements on the existing fighter route for coach and admin only", () => {
+  it("keeps GET measurements on the existing fighter route for coach and admin only; fighter and admin write", () => {
     expect(MEASUREMENT_READ_ROLES).toEqual(["COACH", "ADMIN"]);
     expect(MEASUREMENT_READ_PERMISSION).toBe("fighter.measurement:read");
     expect(roleMayReadMeasurements("FIGHTER")).toBe(false);
     expect(roleMayReadMeasurements("DOCTOR")).toBe(false);
     expect(roleMayReadMeasurements("COACH")).toBe(true);
     expect(roleMayReadMeasurements("ADMIN")).toBe(true);
-    expect(roleMayWriteMeasurements("FIGHTER")).toBe(false);
+    expect(roleMayWriteMeasurements("FIGHTER")).toBe(true); // own SELF_REPORTED weight (migration 024)
     expect(roleMayWriteMeasurements("COACH")).toBe(false);
     expect(roleMayWriteMeasurements("DOCTOR")).toBe(false);
     expect(roleMayWriteMeasurements("ADMIN")).toBe(true);

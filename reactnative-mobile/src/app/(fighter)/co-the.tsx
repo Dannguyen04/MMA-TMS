@@ -1,5 +1,5 @@
-import { FighterBodyScreen } from "@/screens/fighter/body-screen";
+import { FighterHealthTab } from "@/screens/fighter/health/health-tab";
 
 export default function BodyRoute() {
-  return <FighterBodyScreen />;
+  return <FighterHealthTab />;
 }

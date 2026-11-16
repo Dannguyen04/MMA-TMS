@@ -24,6 +24,7 @@ import { useLoad } from "@/screens/fighter/use-load";
 import { HealthDossierSkeleton } from "@/components/screen-skeletons";
 import { FighterSuspensionCard, useFighterSuspensions } from "@/screens/fight-camp/fighter-suspension";
 import { limitsTrainingToday } from "@/screens/fight-camp/camp-rules";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 export function FighterBodyScreen() {
   const colors = useFighterPalette();
@@ -192,20 +193,20 @@ function Record({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   pad: { paddingHorizontal: 20, paddingBottom: 24, gap: 20 },
   tabs: { flexDirection: "row", gap: 8 },
   tab: { flex: 1, minHeight: 44, borderRadius: 12, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingHorizontal: 8 },
-  tabLabel: { fontSize: 14, lineHeight: 20, fontWeight: "600", textAlign: "center" },
+  tabLabel: { fontSize: fz(14), lineHeight: lh(20), fontWeight: "600", textAlign: "center" },
   hidden: { display: "none" },
   stack: { gap: 16 },
   retry: { minHeight: 44, justifyContent: "center" },
-  link: { fontSize: 14, lineHeight: 20, fontWeight: "600" },
+  link: { fontSize: fz(14), lineHeight: lh(20), fontWeight: "600" },
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, alignItems: "center", justifyContent: "center" },
-  badgeText: { fontSize: 12, lineHeight: 16, fontWeight: "700" },
-  section: { fontSize: 16, lineHeight: 22, fontWeight: "700", marginBottom: 4 },
+  badgeText: { fontSize: fz(12), lineHeight: lh(16), fontWeight: "700" },
+  section: { fontSize: fz(16), lineHeight: lh(22), fontWeight: "700", marginBottom: 4 },
   record: { flexDirection: "row", gap: 12, alignItems: "center", paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth },
-  recordTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600" },
-  meta: { fontSize: 12, lineHeight: 17 },
+  recordTitle: { fontSize: fz(14), lineHeight: lh(20), fontWeight: "600" },
+  meta: { fontSize: fz(12), lineHeight: lh(17) },
   flex: { flex: 1, gap: 3 },
-});
+}));

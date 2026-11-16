@@ -1,0 +1,38 @@
+/** Fighter Video (redesign step 13): list, upload and the fighter's view of one video. */
+export const fighterVideo = {
+  title: "Video",
+  upload: "Tải video lên",
+  uploadTitle: "Tải video",
+  loadFailed: "Không tải được video",
+  statusFailed: "Không tải được phân tích",
+  retry: "Thử lại",
+  empty: "Chưa có video nào",
+  demo: "Dữ liệu mẫu không có video.",
+  /** Status words on the list and the detail. */
+  status: { DONE: "Xong", PROCESSING: "Đang phân tích", PENDING: "Đang chờ", FAILED: "Thất bại", NONE: "Chưa phân tích" },
+  rowA11y: (title: string, line: string, score: number | null) => `${title}. ${line}${score == null ? "" : `. Điểm ${score}`}`,
+  pick: {
+    empty: "Chọn video",
+    types: "MP4, MOV hoặc WebM",
+    change: "Đổi video",
+  },
+  fields: {
+    title: "Tiêu đề",
+    titlePlaceholder: "Nhập tiêu đề video",
+    description: "Mô tả",
+    descriptionPlaceholder: "Thêm mô tả cho video",
+    training: "Loại tập",
+    angle: "Góc máy",
+  },
+  angle: { FRONT: "Góc trước", SIDE: "Góc bên", DIAGONAL: "Góc chéo" } as Record<string, string>,
+  send: "Gửi video",
+  sending: "Đang gửi",
+  noFighter: "Chưa có hồ sơ võ sĩ để tải video.",
+  strip: { done: "Xong", analysis: "Phân tích", score: "Điểm", alerts: "Cảnh báo", reviewed: "Đã duyệt" },
+  sentAt: (hm: string) => `Gửi lúc ${hm}`,
+  ask: "Yêu cầu phân tích",
+  asking: "Đang gửi yêu cầu",
+  again: "Phân tích lại",
+  tabs: { timeline: "Diễn biến", review: "Nhận xét", metrics: "Chỉ số" },
+  alertDot: "có cảnh báo",
+} as const;

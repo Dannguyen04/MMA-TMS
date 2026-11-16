@@ -1,6 +1,8 @@
 import { Component, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Linking, PanResponder, Pressable, Text, View } from "react-native";
 import { useReducedMotion } from "./reduced-motion";
+import { dragAngle, GlBoundary, useBodyMode } from "./gl-mode";
+export { dragAngle, DRAG_RAD_PER_DP, LOAD_TIMEOUT_MS, useBodyMode } from "./gl-mode";
 
 import type { MedicalJointState } from "@/api/types";
 import { BottomSheet } from "@/components/filter-sheet";
@@ -17,7 +19,6 @@ import { buildJointRows, paintRegions, STATUS_COLOR, STATUS_TEXT, type JointRow,
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const BodyCanvas = lazy(() => Promise.resolve().then(() => require("./body-canvas") as typeof import("./body-canvas")));
 
-export const LOAD_TIMEOUT_MS = 5000;
 
 export const bodyText = {
   title: "Sơ đồ cơ thể",
@@ -36,38 +37,6 @@ export const bodyText = {
   openSource: "Mở trang mô hình",
   close: "Đóng",
 } as const;
-
-class GlBoundary extends Component<{ onError: () => void; children: ReactNode }, { failed: boolean }> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidCatch() {
-    this.props.onError();
-  }
-  render() {
-    return this.state.failed ? null : this.props.children;
-  }
-}
-
-type Mode = "3d" | "fallback";
-
-/** Chọn 3D hay SVG: giảm chuyển động / lỗi GL / quá 5 s chưa tải → SVG. */
-export function useBodyMode(reduced: boolean, timeoutMs: number = LOAD_TIMEOUT_MS) {
-  const [mode, setMode] = useState<Mode>(reduced ? "fallback" : "3d");
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    if (reduced) setMode("fallback");
-  }, [reduced]);
-  useEffect(() => {
-    if (mode !== "3d" || ready) return;
-    const t = setTimeout(() => setMode("fallback"), timeoutMs);
-    return () => clearTimeout(t);
-  }, [mode, ready, timeoutMs]);
-  const fail = useCallback(() => setMode("fallback"), []);
-  const onReady = useCallback(() => setReady(true), []);
-  return { mode, ready, fail, onReady };
-}
 
 export function BodyMapSection({
   injuries,
@@ -206,17 +175,6 @@ function isLightHex(hex: string): boolean {
 /** SVG dự phòng dùng mức trạng thái khớp có sẵn của BodyMap. */
 function svgState(s: PaintStatus | null): string {
   return s === "injury" ? "CONFIRMED_IMPAIRMENT" : s === "recovering" ? "SUSPECTED_AVOIDANCE" : s === "healed" ? "HEALTHY" : "SUSPECTED";
-}
-
-/** Radian xoay cho mỗi dp kéo ngang. */
-export const DRAG_RAD_PER_DP = 0.01;
-
-/**
- * Góc camera sau khi kéo ngang `ddx` dp. Camera quay ngược chiều ngón tay để mô hình
- * xoay cùng chiều ngón tay (kéo sang phải → mặt trước trôi sang phải).
- */
-export function dragAngle(angle: number, ddx: number): number {
-  return angle - ddx * DRAG_RAD_PER_DP;
 }
 
 export function withAlpha(hex: string, a: number): string {

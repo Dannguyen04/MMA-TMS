@@ -6,7 +6,6 @@ import { kg } from "./camp-rules";
 import { useCampResource } from "./use-camp-resource";
 import { previewCornerCard } from "./round-advice-preview";
 import { readPreviewRounds } from "./preview-round-store";
-import { RoundAdvicePanel } from "./round-advice-panel";
 import { betweenRound as planCopy } from "@/i18n/between-round";
 import { cornerPlanTactics } from "./next-round-plan";
 import { campText } from "@/i18n/fight-camp";
@@ -27,7 +26,7 @@ export function CornerScreen({ bout, name, preview, onRounds }: { bout: CampDeta
     {state.loading && !c ? <Busy/> : null}<ResourceError error={state.error} retry={() => void state.reload()}/>
     {c ? <>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-        <View style={{ flex: 1, gap: 9 }}><Copy large strong>{name}</Copy><Copy muted>{campText.roundScreens.doiThu}{bout.opponentName || campText.roundScreens.chuaXacDinh}</Copy><Copy>{kg(bout.catchweightKg ?? bout.weightLimitKg)} {campText.roundScreens.kg}{bout.scheduledRounds ?? "—"} {campText.roundScreens.hiep}</Copy></View>
+        <View style={{ flex: 1, gap: 9 }}><Copy large strong>{name}</Copy><Copy muted>{campText.roundScreens.doiThu}{bout.opponentName || campText.roundScreens.chuaXacDinh}</Copy><Copy>{kg(bout.catchweightKg ?? bout.weightLimitKg)} {campText.roundScreens.kg}{bout.scheduledRounds == null ? campText.roundScreens.chuaDatSoHiep : `${bout.scheduledRounds} ${campText.roundScreens.hiep}`}</Copy></View>
         <Image source={require("../../../assets/fight-camp/corner-stool.webp")} accessibilityLabel={campText.roundScreens.gocDaiVoiGheVa} resizeMode="contain" style={{ width: 108, height: 126 }}/>
       </View>
       {c.acuteLossFlag ? <Notice title={campText.roundScreens.giamCanCapTocVuot} danger>{campText.roundScreens.hlvCanLuuYCanh}</Notice> : null}
@@ -48,11 +47,3 @@ export function CornerScreen({ bout, name, preview, onRounds }: { bout: CampDeta
 
 export { RoundScreen, type RoundDraftState } from './round-entry-screen';
 export { ReportScreen } from './report-screen';
-
-export function AdviceScreen({ bout, preview }: { bout: CampDetail; preview: boolean }) {
-  const state = useCampResource(`advice:${bout.id}:${preview}`, () => preview ? Promise.resolve(readPreviewRounds(bout)) : campApi.rounds(bout.id));
-  return <>
-    {state.loading ? <Busy/> : null}<ResourceError error={state.error} retry={() => void state.reload()}/>
-    {state.data && !state.error ? <RoundAdvicePanel data={state.data} refreshing={state.loading} heading={false}/> : null}
-  </>;
-}

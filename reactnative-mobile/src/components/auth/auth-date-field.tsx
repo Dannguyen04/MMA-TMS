@@ -15,6 +15,7 @@ import { AuthUnderlineField } from "@/components/auth/auth-underline-field";
 import { vi } from "@/i18n/vi";
 import { radius, spacing, type, useThemePreference } from "@/theme";
 import { isValidDateOnly } from "@/utils/is-valid-date-only";
+import { fz } from "@/theme/typography";
 
 type AuthDateFieldProps = {
   label: string;
@@ -157,7 +158,7 @@ export function AuthDateField({
             ]}
             onPress={() => undefined}
           >
-            <Text style={[type.title, { color: colors.ink, fontSize: 22 }]}>{label}</Text>
+            <Text style={[type.title, { color: colors.ink, fontSize: fz(22) }]}>{label}</Text>
             <View style={styles.columns}>
               <Wheel
                 label={vi.register.year}

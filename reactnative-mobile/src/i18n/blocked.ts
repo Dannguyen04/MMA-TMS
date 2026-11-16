@@ -30,8 +30,6 @@ export const blocked = {
   videos: "Video",
   upload: "Tải video",
   liveCheck: "Form trực tiếp",
-  goalsNav: "Mục tiêu",
-  performanceNav: "Hiệu suất",
   notificationsNav: "Thông báo",
   healthHistory: "Lịch sử sức khỏe",
   injury: "Chấn thương",

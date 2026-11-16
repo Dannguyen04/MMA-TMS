@@ -103,6 +103,8 @@ function repositoryMock(): Mocked<MedicalRepository> {
       pendingReviewRequests: [],
     }),
     listMedicalHistory: vi.fn().mockResolvedValue({ data: [], total: 0 }),
+    updateFighterMedicalStatus: vi.fn().mockResolvedValue(false),
+    listActiveFighterIds: vi.fn().mockResolvedValue([]),
   } as unknown as Mocked<MedicalRepository>;
 }
 
@@ -1514,6 +1516,59 @@ describe('MedicalService', () => {
       expect(dossier.eligibility.training.supervision).toBe('DOCTOR');
       expect(dossier.eligibility.training.eligible).toBe(false);
       expect(dossier.eligibility.competition.supervision).toBe('DOCTOR');
+    });
+  });
+
+  describe('summary medical status (current_medical_status)', () => {
+    const exam = {
+      id: 'exam-1', fighterId, scope: 'TRAINING', decision: 'ELIGIBLE_WITH_RESTRICTIONS',
+      examinedAt: new Date('2026-09-20T10:00:00.000Z'), validUntil: null,
+    };
+    const clearance = {
+      status: 'ACTIVE', validFrom: new Date('2026-09-20T10:00:00.000Z'), validUntil: null,
+      allowedSessionTypes: ['GRAPPLING'], allowedTechniqueTypes: null, excludedJoints: null,
+      createdAt: new Date('2026-09-20T10:00:00.000Z'),
+    };
+
+    it('an ACTIVE injury reads INJURED, even when training is not cleared', async () => {
+      repo.listActiveInjuries.mockResolvedValue([{ status: 'ACTIVE' }] as never);
+      const result = await service.syncMedicalStatus(fighterId, undefined, now);
+      expect(result.status).toBe('INJURED');
+      expect(repo.updateFighterMedicalStatus).toHaveBeenCalledWith(fighterId, 'INJURED', undefined);
+    });
+
+    it('no current clearance reads NOT_CLEARED', async () => {
+      repo.findCurrentExamination.mockResolvedValue(exam as never);
+      repo.listClearancesForExamination.mockResolvedValue([
+        { ...clearance, validFrom: new Date('2026-12-01T05:00:00.000Z') },
+      ] as never);
+      expect((await service.syncMedicalStatus(fighterId, undefined, now)).status).toBe('NOT_CLEARED');
+    });
+
+    it('cleared with restrictions reads MONITORING; with a recovery plan, RECOVERY', async () => {
+      repo.findCurrentExamination.mockResolvedValue(exam as never);
+      repo.listClearancesForExamination.mockResolvedValue([clearance] as never);
+      expect((await service.syncMedicalStatus(fighterId, undefined, now)).status).toBe('MONITORING');
+      repo.listActiveRecoveryPlans.mockResolvedValue([{ id: 'plan-1' }] as never);
+      expect((await service.syncMedicalStatus(fighterId, undefined, now)).status).toBe('RECOVERY');
+    });
+
+    it('a clinical write re-derives the status in the same transaction', async () => {
+      repo.insertInjury.mockResolvedValue({ id: 'inj-1', fighterId } as never);
+      repo.listActiveInjuries.mockResolvedValue([{ status: 'ACTIVE' }] as never);
+      await service.createInjury(doctorActor, fighterId, {} as never, requestId);
+      const tx = repo.insertInjury.mock.calls[0][3];
+      expect(repo.updateFighterMedicalStatus).toHaveBeenCalledWith(fighterId, 'INJURED', tx);
+    });
+
+    it('the periodic pass counts changed rows and skips a failing Fighter', async () => {
+      repo.listActiveFighterIds.mockResolvedValue(['f-1', 'f-2', 'f-3']);
+      repo.listActiveInjuries.mockImplementation(async (id) => {
+        if (id === 'f-2') throw new Error('boom');
+        return [];
+      });
+      repo.updateFighterMedicalStatus.mockResolvedValue(true);
+      expect(await service.syncAllMedicalStatuses(now)).toBe(2);
     });
   });
 });

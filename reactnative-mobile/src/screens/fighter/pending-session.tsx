@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 import { fighter } from "@/i18n/fighter";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { fz, liveSheet } from "@/theme/typography";
 
 /** T-048 10A: a PENDING session waits for the coach; the fighter has no start or complete action on it. */
 export function PendingBadge() {
@@ -15,9 +16,9 @@ export function PendingBadge() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   row: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8, marginTop: 6 },
   badge: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2 },
-  badgeText: { fontSize: 13, fontWeight: "700" },
-  line: { fontSize: 13, flexShrink: 1 },
-});
+  badgeText: { fontSize: fz(13), fontWeight: "700" },
+  line: { fontSize: fz(13), flexShrink: 1 },
+}));

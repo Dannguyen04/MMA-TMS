@@ -4,6 +4,8 @@ import type { BottomTabBarProps } from "expo-router/build/layouts/Tabs";
 
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { navSideWidth, useNavKind } from "@/components/nav-rail";
+import { TabMarkerScope, useSlidingMarker } from "@/components/tab-marker";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 /** Chiều cao tối thiểu của vùng nút (không tính vùng an toàn phía dưới). */
 export const TAB_BAR_MIN_HEIGHT = 56;
@@ -20,7 +22,7 @@ export function isHiddenTab(style: StyleProp<ViewStyle> | undefined): boolean {
 
 /**
  * Thanh tab dùng chung cho Coach và Admin (Expo Tabs), cùng kiểu với `FighterTabBar`:
- * nền = nền màn hình, viên thuốc xanh chanh nhạt cho mục đang chọn, chữ/biểu tượng `activeInk`,
+ * nền = nền màn hình, một viên đỏ trượt sau biểu tượng mục đang chọn (bước 15), chữ/biểu tượng `activeInk`,
  * cao tối thiểu 56dp + vùng an toàn, nhãn luôn hiện đủ.
  * Từ bề rộng 900 (Phase 5 F): thành thanh điều hướng dọc bên trái, cùng biểu tượng, nhãn và huy hiệu;
  * trên iPad là thanh bên rộng 240 (biểu tượng và nhãn cùng hàng); layout đặt `tabBarPosition: "left"` cùng ngưỡng.
@@ -31,8 +33,11 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
   const kind = useNavKind(); const rail = kind !== "bar"; const sidebar = kind === "sidebar";
   // A screen can hide the bar while it is focused (in-bout Fight Camp screens) with `tabBarStyle: { display: "none" }`.
   const focusedRoute = state.routes[state.index];
+  // Redesign step 15: one red marker slides to the focused tab; a hidden route (notifications) hides it.
+  const { marker, onItemLayout, onIconLayout } = useSlidingMarker(focusedRoute?.key ?? null, null, !sidebar);
   if (focusedRoute && isHiddenTab(descriptors[focusedRoute.key]?.options.tabBarStyle as StyleProp<ViewStyle>)) return null;
   return (
+    <TabMarkerScope>
     <View
       accessibilityRole="tablist"
       testID={sidebar ? "nav-sidebar" : rail ? "nav-rail" : "tab-bar"}
@@ -44,6 +49,7 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
         { backgroundColor: p.bg, borderTopColor: p.line, paddingBottom: tabBarBottomPadding(insets.bottom) },
       ]}
     >
+      {marker}
       {state.routes.map((route, index) => {
         const { options } = descriptors[route.key]!;
         if (isHiddenTab(options.tabBarItemStyle)) return null;
@@ -62,9 +68,12 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
               const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
               if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
             }}
-            style={sidebar ? [styles.sidebarItem, focused && { backgroundColor: p.accentSoft }] : rail ? styles.railItem : styles.item}
+            onLayout={onItemLayout(route.key)}
+            style={sidebar ? styles.sidebarItem : rail ? styles.railItem : styles.item}
           >
-            <View>
+            {/* Keyed by layout kind: bar → rail moves the icon inside a taller tab without resizing it, and on web
+                only a resize reports layout, so the marker would keep the old offset. Remounting re-reports it. */}
+            <View key={kind} onLayout={onIconLayout(route.key)}>
               {options.tabBarIcon?.({ focused, color, size: 24 })}
               {badge ? (
                 <View
@@ -85,19 +94,20 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
         );
       })}
     </View>
+    </TabMarkerScope>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   bar: { flexDirection: "row", borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8, paddingHorizontal: 8, minHeight: TAB_BAR_MIN_HEIGHT },
   item: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 4 },
-  label: { fontSize: 10, lineHeight: 14 },
+  label: { fontSize: fz(11, 13), lineHeight: lh(15, 17) },
   rail: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 12 },
   railItem: { minHeight: 64, paddingHorizontal: 4, alignItems: "center", justifyContent: "center", gap: 4 },
-  railLabel: { fontSize: 12, lineHeight: 16, textAlign: "center" },
+  railLabel: { fontSize: fz(12, 14), lineHeight: lh(16, 18), textAlign: "center" },
   sidebar: { flexDirection: "column", borderRightWidth: StyleSheet.hairlineWidth, gap: 4, paddingRight: 12 },
   sidebarItem: { flexDirection: "row", minHeight: 48, paddingHorizontal: 12, alignItems: "center", justifyContent: "flex-start", gap: 14, borderRadius: 12 },
-  sidebarLabel: { fontSize: 15, lineHeight: 20, flex: 1, textAlign: "left" },
+  sidebarLabel: { fontSize: fz(15), lineHeight: lh(20), flex: 1, textAlign: "left" },
   badge: {
     position: "absolute",
     top: -6,
@@ -110,5 +120,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { fontSize: 11, lineHeight: 14, fontWeight: "700", fontVariant: ["tabular-nums"] },
-});
+  badgeText: { fontSize: fz(11, 12), lineHeight: lh(14, 15), fontWeight: "700", fontVariant: ["tabular-nums"] },
+}));

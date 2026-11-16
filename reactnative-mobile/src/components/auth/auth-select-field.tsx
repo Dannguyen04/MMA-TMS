@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AuthUnderlineField } from "@/components/auth/auth-underline-field";
 import { vi } from "@/i18n/vi";
 import { radius, spacing, type, useThemePreference } from "@/theme";
+import { fz } from "@/theme/typography";
 
 type Option<T extends string> = {
   value: T;
@@ -87,7 +88,7 @@ export function AuthSelectField<T extends string>({
             ]}
             onPress={() => undefined}
           >
-            <Text style={[type.title, { color: colors.ink, fontSize: 22 }]}>{label}</Text>
+            <Text style={[type.title, { color: colors.ink, fontSize: fz(22) }]}>{label}</Text>
             <ScrollView
               keyboardShouldPersistTaps="handled"
               style={styles.optionList}

@@ -13,7 +13,7 @@ jest.mock("./camp-ui", () => {
   const React = require("react"); const { Text, View, Pressable, TextInput } = require("react-native");
   const text = ({ children, strike }: { children: unknown; strike?: boolean }) => React.createElement(Text, { style: strike ? { textDecorationLine: "line-through" } : undefined }, children);
   return {
-    Copy: text, SvgTitle: text, Frame: ({ children }: { children: unknown }) => React.createElement(View, null, children),
+    Copy: text, SvgTitle: text, SectionTitle: text, Frame: ({ children }: { children: unknown }) => React.createElement(View, null, children),
     Busy: () => React.createElement(Text, null, "Loading"),
     Notice: ({ title, children }: { title: string; children: unknown }) => React.createElement(View, null, React.createElement(Text, null, title), React.createElement(Text, null, children)),
     Choices: ({ label, options, onChange }: { label?: string; options: { value: unknown; label: string }[]; onChange: (v: unknown) => void }) => React.createElement(View, null, label ? React.createElement(Text, null, label) : null, ...options.map((o, i) => React.createElement(Pressable, { key: i, onPress: () => onChange(o.value) }, React.createElement(Text, null, o.label)))),
@@ -21,6 +21,7 @@ jest.mock("./camp-ui", () => {
     PlanToggle: ({ label, selected, onPress, disabled, tag }: { label: string; selected: boolean; onPress: () => void; disabled?: boolean; tag?: string }) => React.createElement(Pressable, { accessibilityRole: "checkbox", accessibilityLabel: tag ? `${tag}: ${label}` : label, accessibilityState: { checked: selected }, disabled, onPress }, React.createElement(Text, null, label)),
     Field: ({ label, ...props }: { label: string }) => React.createElement(TextInput, { accessibilityLabel: label, ...props }),
     CampFooter: ({ children }: { children: unknown }) => React.createElement(View, { testID: "camp-footer" }, children),
+    CampTop: ({ children }: { children: unknown }) => React.createElement(View, { testID: "camp-top" }, children),
     RoundTabs: ({ total, value, saved, onChange, tabLabel, savedLabel }: { total: number; value: number; saved: number[]; onChange: (n: number) => void; tabLabel: (n: number) => string; savedLabel: (n: number) => string }) => React.createElement(View, { testID: "round-tabs" }, ...Array.from({ length: total }, (_, i) => React.createElement(Pressable, { key: i, accessibilityRole: "radio", accessibilityLabel: saved.includes(i + 1) ? savedLabel(i + 1) : tabLabel(i + 1), accessibilityState: { checked: value === i + 1 }, onPress: () => onChange(i + 1) }, React.createElement(Text, null, tabLabel(i + 1))))),
   };
 });
@@ -35,13 +36,16 @@ const suggestion = (over: Partial<AiSuggestion> = {}): AiSuggestion => ({ id: "2
 /** Open on tab 1 with round 1 saved: the state right after "Chốt hiệp 1" (1A). */
 function OnTab1() {
   const [state, setState] = useState<RoundDraftState>({ round: 1, values: {} });
-  return <RoundScreen bout={bout} preview={false} onAdvice={() => undefined} draftState={state} onDraftStateChange={setState}/>;
+  return <RoundScreen bout={bout} preview={false} draftState={state} onDraftStateChange={setState}/>;
 }
 const onTab1 = async () => {
   const ui = await render(<OnTab1/>);
   await ui.findByText("Lưu lại hiệp 1");
+  // AI advice lives in the "Hiệp sau" tab (round entry is tabbed, owner 2026-11-11).
+  await fireEvent.press(ui.getByRole("tab", { name: /Hiệp sau/ }));
   return ui;
 };
+const nextTab = (ui: Awaited<ReturnType<typeof render>>) => fireEvent.press(ui.getByRole("tab", { name: /Hiệp sau/ }));
 const checked = (el: { props: { accessibilityState?: { checked?: boolean } } }) => !!el.props.accessibilityState?.checked;
 
 beforeEach(() => { jest.clearAllMocks(); jest.useRealTimers(); resetPreviewRounds(bout.id); jest.mocked(campApi.aiHistory).mockResolvedValue({ suggestions: [] }); });
@@ -50,22 +54,25 @@ describe("T-038 B2 AI advice on the round-entry screen", () => {
   it("offers AI only on the last saved round, inside 'Hiệp n+1: làm gì', and stays on tab n after saving", async () => {
     jest.mocked(campApi.rounds).mockResolvedValueOnce({ scheduledRounds: 3, rounds: [], advice: null }).mockResolvedValue(withR1());
     jest.mocked(campApi.saveRound).mockResolvedValue(r1);
-    const ui = await render(<RoundScreen bout={bout} preview={false} onAdvice={() => undefined}/>);
+    const ui = await render(<RoundScreen bout={bout} preview={false}/>);
     await ui.findByText("Chốt hiệp 1");
     expect(ui.queryByText("AI dặn")).toBeNull();
     await fireEvent.press(ui.getByText("Thua")); await fireEvent.press(ui.getByText("Chốt hiệp 1"));
     await ui.findByText("Đã lưu hiệp 1");
-    expect(ui.getByText("Ghi hiệp 1")).toBeTruthy();
+    expect(ui.getByLabelText("Hiệp 1, đã ghi").props.accessibilityState.checked).toBe(true);
     expect(ui.getByText('Chọn lời dặn AI rồi bấm "Lưu lại hiệp 1", hoặc chuyển sang hiệp 2 ở thanh chọn hiệp.')).toBeTruthy();
+    await nextTab(ui);
     expect(ui.getByText("AI dặn")).toBeTruthy();
     expect(campApi.roundAdvice).not.toHaveBeenCalled(); // never asked automatically the first time
     await fireEvent.press(ui.getByLabelText("Hiệp 2"));
+    await nextTab(ui);
     expect(ui.queryByText("AI dặn")).toBeNull();
   });
   it("does not offer AI before weigh-in", async () => {
     jest.mocked(campApi.rounds).mockResolvedValue(withR1());
-    const ui = await render(<RoundScreen bout={{ ...bout, status: "FIGHT_WEEK" }} preview={false} onAdvice={() => undefined} draftState={{ round: 1, values: {} }} onDraftStateChange={() => undefined}/>);
+    const ui = await render(<RoundScreen bout={{ ...bout, status: "FIGHT_WEEK" }} preview={false} draftState={{ round: 1, values: {} }} onDraftStateChange={() => undefined}/>);
     await ui.findByText("Lưu lại hiệp 1");
+    await nextTab(ui);
     expect(ui.queryByText("AI dặn")).toBeNull();
   });
   it("shows up to 3 AI lines; they only take free slots and SAFETY_CHECK can still be unticked", async () => {
@@ -222,10 +229,11 @@ describe("T-038 B2 AI advice on the round-entry screen", () => {
     await ui.findByText("Gợi ý lấy lại từ lần trước");
   });
   it("demo mode uses the labelled sample and never calls the server", async () => {
-    const ui = await render(<RoundScreen bout={{ ...bout, id: "demo-ai" }} preview onAdvice={() => undefined}/>);
+    const ui = await render(<RoundScreen bout={{ ...bout, id: "demo-ai" }} preview/>);
     await ui.findByText("Chốt hiệp 1");
     await fireEvent.press(ui.getByText("Thua")); await fireEvent.press(ui.getByText("Chốt hiệp 1"));
     await ui.findByText("Đã lưu hiệp 1");
+    await nextTab(ui);
     await fireEvent.press(ui.getByText("AI dặn"));
     await ui.findByText("Gợi ý mẫu (demo)", {}, { timeout: 3000 });
     expect(campApi.roundAdvice).not.toHaveBeenCalled(); expect(campApi.decideAi).not.toHaveBeenCalled();

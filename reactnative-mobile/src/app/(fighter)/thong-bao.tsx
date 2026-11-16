@@ -1,10 +1,6 @@
-import { NotificationInbox } from "@/screens/notifications/inbox";
-import { FighterScreen } from "@/screens/fighter/screen";
+import { FighterInboxScreen } from "@/screens/fighter/me/fighter-inbox";
 
+/** Fighter Thông báo, opened from the bell (redesign step 25). */
 export default function FighterNotificationsRoute() {
-  return (
-    <FighterScreen title="Thông báo" onBack>
-      <NotificationInbox title="Hộp thư" />
-    </FighterScreen>
-  );
+  return <FighterInboxScreen />;
 }

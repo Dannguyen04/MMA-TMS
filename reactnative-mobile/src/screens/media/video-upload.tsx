@@ -1,10 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useReducer, useRef } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -13,6 +10,7 @@ import {
 
 import { useToastMessage } from "@/components/toast/app-toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardFrame, KeyboardScroll } from "@/components/keyboard-aware";
 
 import { isApiError } from "@/api";
 import {
@@ -34,6 +32,7 @@ import {
 import { useTypography } from "@/theme";
 import { useReadableWidth } from "@/components/readable-width";
 import { errorCodeText } from "@/i18n/backend-codes";
+import { fz, liveSheet } from "@/theme/typography";
 
 function issueLabel(issue: UploadIssue): string {
   if (issue === "title") return media.needTitle;
@@ -53,19 +52,8 @@ function messageFor(error: unknown): string {
   return errorCodeText[error.code] ?? media.generic;
 }
 
-export function VideoUploadContent({
-  fighterId,
-  onUploaded,
-  onBack,
-}: {
-  fighterId: string | null;
-  onUploaded: (videoId: string) => void;
-  onBack: () => void;
-}) {
-  const readable = useReadableWidth();
-  const colors = useFighterPalette();
-  const live = useTypography();
-  const insets = useSafeAreaInsets();
+/** Picker, form state and upload, shared by the coach form and the fighter redesign (step 13). */
+export function useVideoUpload(fighterId: string | null, onUploaded: (videoId: string) => void) {
   const [form, dispatch] = useReducer(uploadFormReducer, undefined, initialUploadForm);
   useToastMessage(form.error, "error");
   const abortRef = useRef<AbortController | null>(null);
@@ -184,15 +172,28 @@ export function VideoUploadContent({
   const sending = form.phase === "sending";
   const submitEnabled = ready && !sending;
   const sizeLabel = formatFileSize(form.asset?.fileSizeBytes ?? null);
+  return { form, dispatch, onPick, onSubmit, ready, sending, submitEnabled, sizeLabel };
+}
+
+export function VideoUploadContent({
+  fighterId,
+  onUploaded,
+  onBack,
+}: {
+  fighterId: string | null;
+  onUploaded: (videoId: string) => void;
+  onBack: () => void;
+}) {
+  const readable = useReadableWidth();
+  const colors = useFighterPalette();
+  const live = useTypography();
+  const insets = useSafeAreaInsets();
+  const { form, dispatch, onPick, onSubmit, sending, submitEnabled, sizeLabel } = useVideoUpload(fighterId, onUploaded);
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardFrame style={styles.flex}>
       <VideoScreenHeader title={media.uploadTitle} onBack={onBack} />
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
+      <KeyboardScroll
         contentContainerStyle={[styles.form, readable]}
       >
         {!fighterId ? <Text style={{ color: colors.muted }}>{media.needFighter}</Text> : null}
@@ -205,13 +206,13 @@ export function VideoUploadContent({
           style={[styles.picker, { backgroundColor: colors.bg, borderColor: colors.line }]}
         >
           <Ionicons name="document-text-outline" size={28} color={colors.muted} />
-          <Text style={{ color: colors.muted, fontSize: 12 }}>
+          <Text style={{ color: colors.muted, fontSize: fz(12) }}>
             {form.asset ? form.asset.filename : media.noVideoYet}
           </Text>
-          {sizeLabel ? <Text style={{ color: colors.muted, fontSize: 12 }}>{sizeLabel}</Text> : null}
+          {sizeLabel ? <Text style={{ color: colors.muted, fontSize: fz(12) }}>{sizeLabel}</Text> : null}
           <View style={[styles.choose, { backgroundColor: colors.accentSoft }]}>
             <Ionicons name="add" size={16} color={colors.accent} />
-            <Text style={{ color: colors.accent, fontFamily: live.faces.semibold, fontSize: 14 }}>
+            <Text style={{ color: colors.accent, fontFamily: live.faces.semibold, fontSize: fz(14) }}>
               {media.chooseExisting}
             </Text>
           </View>
@@ -274,7 +275,7 @@ export function VideoUploadContent({
             ))}
           </View>
         </View>
-      </ScrollView>
+      </KeyboardScroll>
       <View style={[styles.submitBar, { borderTopColor: colors.line, paddingBottom: Math.max(insets.bottom, 12) }]}>
         <Pressable
           accessibilityRole="button"
@@ -290,14 +291,14 @@ export function VideoUploadContent({
             style={{
               color: submitEnabled ? colors.onAccent : colors.disabledInk,
               fontFamily: live.faces.semibold,
-              fontSize: 15,
+              fontSize: fz(15),
             }}
           >
             {sending ? media.sending : media.submit}
           </Text>
         </Pressable>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardFrame>
   );
 }
 
@@ -340,7 +341,7 @@ function Choice({
         style={{
           color: colors.ink,
           fontFamily: live.faces.medium,
-          fontSize: 13,
+          fontSize: fz(13),
           flexShrink: 1,
         }}
       >
@@ -350,7 +351,7 @@ function Choice({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   flex: { flex: 1 },
   form: { gap: 20, paddingHorizontal: 20, paddingTop: 12, paddingBottom: 20 },
   picker: {
@@ -372,14 +373,14 @@ const styles = StyleSheet.create({
     minHeight: 40,
   },
   field: { gap: 8 },
-  label: { fontSize: 13 },
+  label: { fontSize: fz(13) },
   input: {
     minHeight: 48,
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 14,
+    fontSize: fz(14),
   },
   area: { minHeight: 76, textAlignVertical: "top" },
   choiceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
@@ -397,4 +398,4 @@ const styles = StyleSheet.create({
   choiceThird: { flex: 1, justifyContent: "center" },
   submitBar: { borderTopWidth: 1, paddingHorizontal: 20, paddingTop: 12 },
   submit: { minHeight: 50, borderRadius: 12, alignItems: "center", justifyContent: "center" },
-});
+}));

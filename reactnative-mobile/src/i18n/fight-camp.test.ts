@@ -1,15 +1,10 @@
 /// <reference types="jest" />
 import { campText } from "./fight-camp";
 
-// Phase 5 G: the 354 Fight Camp strings moved out of src/screens/fight-camp, frozen as they were
-// before the move (no wording change). Templates are checked by calling them with markers.
+// Phase 5 G froze the Fight Camp strings when they moved out of src/screens/fight-camp; the
+// baseline was re-taken after the 2026-11 redesign copy. Any wording change must update it on purpose.
+// Templates are checked by calling them with markers.
 const PLAIN: string[] = [
-"chưa đặt",
-"Được tập một phần",
-"Được tập",
-"Chưa được tập",
-"số nguyên không âm",
-"số dương",
 "Đã lên lịch",
 "Trong trại tập",
 "Tuần thi đấu",
@@ -66,6 +61,7 @@ const PLAIN: string[] = [
 "Ngày hết thời hạn",
 "Đình chỉ này đã kết thúc.",
 "Cần xác nhận cho tập lại; chưa thể chốt ngày trở lại.",
+"chưa đặt",
 "Cân nặng chính thức",
 "Chưa có giới hạn",
 "kg",
@@ -77,7 +73,6 @@ const PLAIN: string[] = [
 "Chấm: số cân đã ghi · Nét đứt: lộ trình / giới hạn",
 "Trận thi đấu",
 "Cân chính thức, chuẩn bị góc đài và ghi hiệp.",
-"Xem bản mẫu giao diện",
 "Không tải được danh sách",
 "Chưa có trận thi đấu",
 "Các trận của võ sĩ bạn phụ trách sẽ xuất hiện tại đây.",
@@ -87,6 +82,7 @@ const PLAIN: string[] = [
 "Mở chi tiết trận",
 "Tải thêm trận",
 "Tải lại danh sách",
+"Không có trận nào đang chuẩn bị.",
 "Chi tiết trận",
 "Cân chính thức",
 "Kết quả cân",
@@ -226,6 +222,9 @@ const PLAIN: string[] = [
 "Không có đình chỉ nào trong hồ sơ được trả về.",
 "Tải thêm bản ghi",
 "Buổi tập cụ thể còn phụ thuộc hồ sơ y tế và các đình chỉ khác.",
+"Được tập một phần",
+"Được tập",
+"Chưa được tập",
 ", hôm nay",
 " · hôm nay",
 "Chưa tải được trạng thái đình chỉ. Thử lại",
@@ -236,6 +235,8 @@ const PLAIN: string[] = [
 "Lý do: ",
 "và ",
 "đình chỉ khác",
+"số nguyên không âm",
+"số dương",
 "Số trận thắng",
 "Số trận thua",
 "Số trận hoà",
@@ -294,6 +295,42 @@ const PLAIN: string[] = [
 "Thêm chiến thuật",
 "Chưa lưu được phân tích",
 "Lưu phân tích đối thủ",
+"Lưu phân tích",
+"Có thay đổi chưa lưu",
+"Đã lưu",
+"Quan sát",
+"Chiến thuật",
+"thắng",
+"thua",
+"hoà",
+"Sửa hồ sơ đối thủ",
+"Sửa",
+"Xong",
+"Tư thế chưa rõ",
+"Lối đánh chưa rõ",
+"Chép phân tích lần trước gặp đối thủ này",
+"Chưa ghi nội dung",
+"chưa có bằng chứng",
+"chưa chọn quan sát",
+"chưa luyện",
+"cần một quan sát trước",
+"Chọn một quan sát bên trái để sửa, hoặc thêm quan sát mới.",
+"Chọn một chiến thuật bên trái để sửa, hoặc thêm chiến thuật mới.",
+"Loại",
+"Đã thấy gì",
+"Số lần thấy",
+"Bằng chứng",
+"Ghi chú",
+"Mốc video",
+"Đường dẫn video",
+"Cần ghi chú hoặc đường dẫn",
+"Áp dụng",
+"Dựa trên quan sát",
+"Chọn ít nhất một quan sát.",
+"Đã luyện ở buổi",
+"Xem buổi cũ hơn",
+"Ví dụ: hạ tay phải khi lùi sau tổ hợp đòn",
+"Ví dụ: giữ khoảng cách, dẫn nhịp bằng jab",
 "Hiệu quả",
 "Không hiệu quả",
 "Chưa dùng",
@@ -305,6 +342,7 @@ const PLAIN: string[] = [
 "Chưa xác định",
 "kg · ",
 "hiệp",
+"chưa đặt số hiệp",
 "Góc đài với ghế và khăn",
 "Giảm cân cấp tốc vượt ngưỡng",
 "HLV cần lưu ý cảnh báo khi chuẩn bị góc đài.",
@@ -317,166 +355,58 @@ const PLAIN: string[] = [
 "Đã gắn buổi tập",
 "Đối luyện: ",
 "Chưa có chiến thuật cho hiệp này",
-"Ghi chú và ghi hiệp"
+"Ghi chú và ghi hiệp",
 ];
 const TEMPLATES: [number, string][] = [
 [1, ". Có thể ghi từ ⟨0⟩"],
-[
-1,
-"Còn thiếu: ⟨0⟩"
-],
-[
-1,
-"Hết hạn trước ngày thi đấu: ⟨0⟩"
-],
-[
-1,
-"Chưa đủ hồ sơ thi đấu nên chưa vào được tuần thi đấu.⟨0⟩ Bổ sung hồ sơ rồi thử lại."
-],
-[
-1,
-"Chưa đến ngày cân chính thức⟨0⟩. Số đã nhập được giữ lại."
-],
-[
-1,
-"Từ ⟨0⟩"
-],
-[
-1,
-"⟨0⟩ chưa được tập loại nào"
-],
-[
-1,
-"⟨0⟩ được tập tất cả các loại"
-],
-[
-2,
-"⟨0⟩ được tập: ⟨1⟩"
-],
-[
-1,
-"Đang tập lại theo bậc, tập đầy đủ từ ⟨0⟩"
-],
-[
-1,
-"Đang đình chỉ đến ⟨0⟩"
-],
-[
-1,
-"Sắp đình chỉ từ ⟨0⟩"
-],
-[
-1,
-"Tập đến nhóm ⟨0⟩"
-],
-[
-1,
-"Tập đến nhóm ⟨0⟩"
-],
-[
-1,
-"Dự kiến sau ngày ⟨0⟩ nếu không có hạn chế khác."
-],
-[
-3,
-"Biểu đồ cân: ⟨0⟩ lần ghi. Mới nhất ⟨1⟩ kg. Giới hạn ⟨2⟩ kg."
-],
-[
-1,
-"Thoả thuận ⟨0⟩"
-],
-[
-1,
-"Xác nhận ⟨0⟩"
-],
-[
-1,
-"Đã xác nhận ⟨0⟩"
-],
-[
-1,
-"Còn thiếu: ⟨0⟩."
-],
-[
-1,
-"Hết hạn trước ngày thi đấu: ⟨0⟩."
-],
-[
-1,
-"⟨0⟩/500 ký tự"
-],
-[
-2,
-"Vượt ⟨0⟩ kg⟨1⟩"
-],
-[
-1,
-"Thoả thuận ⟨0⟩"
-],
-[
-1,
-"Giới hạn ⟨0⟩ mới"
-],
-[
-1,
-"Số cân gần nhất⟨0⟩"
-],
-[
-1,
-" · giới hạn ⟨0⟩ kg"
-],
-[
-1,
-"Còn thiếu: ⟨0⟩."
-],
-[
-1,
-"Hết hạn trước ngày thi đấu: ⟨0⟩."
-],
-[
-1,
-"Hôm nay đã ghi ⟨0⟩ kg"
-],
-[
-1,
-"⟨0⟩ (một phần)"
-],
-[
-4,
-"Bậc ⟨0⟩, ⟨1⟩: ⟨2⟩. ⟨3⟩"
-],
-[
-2,
-"⟨0⟩: nhập ⟨1⟩."
-],
-[
-1,
-"⟨0⟩ chưa hợp lệ."
-],
-[
-1,
-"Bỏ quan sát ⟨0⟩"
-],
-[
-1,
-"Chiến thuật ⟨0⟩"
-],
-[
-1,
-"Hiệp ⟨0⟩"
-],
-[
-1,
-"Bỏ chiến thuật ⟨0⟩"
-],
-[
-1,
-"Hiệp ⟨0⟩"
-],
-[
-1,
-"Hiệp ⟨0⟩"
-]
+[1, "Còn thiếu: ⟨0⟩"],
+[1, "Hết hạn trước ngày thi đấu: ⟨0⟩"],
+[1, "Chưa đủ hồ sơ thi đấu nên chưa vào được tuần thi đấu.⟨0⟩ Bổ sung hồ sơ rồi thử lại."],
+[1, "Chưa đến ngày cân chính thức⟨0⟩. Số đã nhập được giữ lại."],
+[1, "Từ ⟨0⟩"],
+[1, "⟨0⟩ chưa được tập loại nào"],
+[1, "⟨0⟩ được tập tất cả các loại"],
+[2, "⟨0⟩ được tập: ⟨1⟩"],
+[1, "Đang tập lại theo bậc, tập đầy đủ từ ⟨0⟩"],
+[1, "Đang đình chỉ đến ⟨0⟩"],
+[1, "Sắp đình chỉ từ ⟨0⟩"],
+[1, "Tập đến nhóm ⟨0⟩"],
+[1, "Tập đến nhóm ⟨0⟩"],
+[1, "Dự kiến sau ngày ⟨0⟩ nếu không có hạn chế khác."],
+[3, "Biểu đồ cân: ⟨0⟩ lần ghi. Mới nhất ⟨1⟩ kg. Giới hạn ⟨2⟩ kg."],
+[1, "Đang chuẩn bị · ⟨0⟩ trận"],
+[1, "Đã xong · ⟨0⟩ trận"],
+[1, "Thoả thuận ⟨0⟩"],
+[1, "Xác nhận ⟨0⟩"],
+[1, "Đã xác nhận ⟨0⟩"],
+[1, "Còn thiếu: ⟨0⟩."],
+[1, "Hết hạn trước ngày thi đấu: ⟨0⟩."],
+[1, "⟨0⟩/500 ký tự"],
+[2, "Vượt ⟨0⟩ kg⟨1⟩"],
+[1, "Thoả thuận ⟨0⟩"],
+[1, "Giới hạn ⟨0⟩ mới"],
+[1, "Số cân gần nhất⟨0⟩"],
+[1, " · giới hạn ⟨0⟩ kg"],
+[1, "Còn thiếu: ⟨0⟩."],
+[1, "Hết hạn trước ngày thi đấu: ⟨0⟩."],
+[1, "Hôm nay đã ghi ⟨0⟩ kg"],
+[1, "⟨0⟩ (một phần)"],
+[4, "Bậc ⟨0⟩, ⟨1⟩: ⟨2⟩. ⟨3⟩"],
+[2, "⟨0⟩: nhập ⟨1⟩."],
+[1, "⟨0⟩ chưa hợp lệ."],
+[1, "Bỏ quan sát ⟨0⟩"],
+[1, "Chiến thuật ⟨0⟩"],
+[1, "Hiệp ⟨0⟩"],
+[1, "Bỏ chiến thuật ⟨0⟩"],
+[1, "⟨0⟩ cm"],
+[1, "tầm với ⟨0⟩"],
+[1, "QS ⟨0⟩"],
+[1, "CT ⟨0⟩"],
+[1, "dựa trên ⟨0⟩"],
+[1, "đã luyện ⟨0⟩ buổi"],
+[1, "Quan sát ⟨0⟩"],
+[1, "Hiệp ⟨0⟩"],
+[1, "Hiệp ⟨0⟩"],
 ];
 
 const values = Object.values(campText).flatMap((group) => Object.values(group as Record<string, unknown>));
@@ -489,6 +419,6 @@ describe("Phase 5 G: Fight Camp i18n keeps every string unchanged", () => {
     const fns = values.filter((v): v is (...a: unknown[]) => string => typeof v === "function");
     const got = fns.map((f) => f(...Array.from({ length: 8 }, (_, i) => `⟨${i}⟩`))).sort();
     expect(got).toEqual(TEMPLATES.map(([, t]) => t).sort());
-    expect(got).toHaveLength(40);
+    expect(got).toHaveLength(49);
   });
 });

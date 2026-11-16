@@ -1,6 +1,6 @@
-import { medical } from "@/i18n/medical";
-import { DoctorDossierLines } from "@/screens/doctor/clinical-read";
+import { DoctorOldRoute } from "@/screens/doctor/detail/old-route";
 
+/** Redesign step 20: Giấy phép goes to the fighter page, Tổng quan. */
 export default function DoctorClearanceRoute() {
-  return <DoctorDossierLines title={medical.clearances} kind="clearance" />;
+  return <DoctorOldRoute/>;
 }

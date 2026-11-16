@@ -1,5 +1,6 @@
-import { ExaminationListScreen } from "@/screens/doctor/clinical-read";
+import { DoctorOldRoute } from "@/screens/doctor/detail/old-route";
 
+/** Redesign step 20: the exam list goes to the fighter page, Khám tab. */
 export default function DoctorExamsRoute() {
-  return <ExaminationListScreen />;
+  return <DoctorOldRoute tab="exams"/>;
 }

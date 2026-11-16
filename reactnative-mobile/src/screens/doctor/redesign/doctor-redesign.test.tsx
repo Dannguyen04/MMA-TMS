@@ -173,20 +173,22 @@ describe("DoctorMeScreen", () => {
     expect(await screen.findByText("Bác sĩ trưởng Y học thể thao")).toBeTruthy();
     expect(screen.queryByText(/DEMO-SD-0001/)).toBeNull();
     expect(screen.queryByText(/Head of Sports Medicine/)).toBeNull();
-    expect(screen.getByText("Bác sĩ")).toBeTruthy();
     expect(screen.getByText("bacsi@mmavision.vn")).toBeTruthy();
-    expect(screen.getAllByText("–")).toHaveLength(2);
+    // Strip Võ sĩ · Cần chú ý · Cảnh báo AI: '–' until each number loads.
+    expect(screen.getAllByText("–")).toHaveLength(3);
+    await fireEvent.press(screen.getByLabelText("Cảnh báo AI: –"));
+    expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/(doctor)/vo-si", params: expect.objectContaining({ seg: "ai" }) }));
     // Không còn chuông ở đầu trang; số chưa đọc nằm trên tab Thông báo.
     expect(screen.queryByLabelText("Thông báo")).toBeNull();
 
-    await fireEvent.press(screen.getByLabelText("Cần chú ý: chưa có"));
+    await fireEvent.press(screen.getByLabelText("Cần chú ý: –"));
     expect(mockNavigate).toHaveBeenCalledWith(expect.objectContaining({ pathname: "/(doctor)/vo-si", params: expect.objectContaining({ status: "attention" }) }));
 
     await fireEvent.press(screen.getByText("Đăng xuất"));
     expect(mockSignOut).not.toHaveBeenCalled();
-    expect(screen.getByText("Đăng xuất khỏi MMA Vision?")).toBeTruthy();
+    expect(screen.getByText("Đăng xuất khỏi tài khoản?")).toBeTruthy();
     await fireEvent.press(screen.getByText("Hủy"));
-    expect(screen.queryByText("Đăng xuất khỏi MMA Vision?")).toBeNull();
+    expect(screen.queryByText("Đăng xuất khỏi tài khoản?")).toBeNull();
     await fireEvent.press(screen.getByText("Đăng xuất"));
     const buttons = screen.getAllByText("Đăng xuất");
     await fireEvent.press(buttons[buttons.length - 1]!);

@@ -1,5 +1,5 @@
-import { ApplicantListScreen } from "@/screens/admissions/applicant-list";
+import { ApplicantHomeScreen } from "@/screens/admissions/redesign/applicant-screens";
 
 export default function GuestHome() {
-  return <ApplicantListScreen showSubmit detailHref={(id) => `/ho-so/${id}`} />;
+  return <ApplicantHomeScreen guest />;
 }

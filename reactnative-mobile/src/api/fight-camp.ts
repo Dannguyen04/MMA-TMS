@@ -80,7 +80,7 @@ export type CampReport = {
 };
 export type PriorContext = { improvementPoints: ImprovementPoint[] | null; copyableAnalysis: { boutId: string; eventName: string; opponentName: string; opponentAnalysis: Analysis } | null };
 export type Suspension = {
-  id: string; reason: string; status: "UPCOMING" | "ACTIVE" | "AWAITING_CLEARANCE" | "ENDED";
+  id: string; fighterId?: string; reason: string; status: "UPCOMING" | "ACTIVE" | "AWAITING_CLEARANCE" | "ENDED";
   startsOn: string; endsOn: string; blockedSessionTypes: string[]; requiresClearance: boolean;
   clearedAt: string | null; clearanceNote: string | null;
   /** T-045 A: highest intensity tier allowed now, integer 0–5 (suspensions.model.ts:966). */
@@ -106,6 +106,8 @@ export const campApi = {
   list: (query?: { fighterId?: string; status?: CampStatus; cursor?: string; limit?: number; order?: "asc" | "desc" }) =>
     apiFetch<CursorPage<CampBout>>(withQuery("/bouts", query)),
   detail: (id: string) => apiFetch<CampDetail>(`/bouts/${id}`),
+  /** PATCH /bouts/:id (nestjs-api updateBoutSchema). Round count stays editable until the bout is completed or cancelled. */
+  update: (id: string, body: { scheduledRounds: number }) => apiFetch<CampDetail>(`/bouts/${id}`, json("PATCH", body)),
   weightTrack: (id: string) => apiFetch<WeightTrack>(`/bouts/${id}/weight-track`),
   weigh: (id: string, body: { weightKg: number; hydrationCheck: Hydration; notes?: string }) =>
     apiFetch<WeighResult>(`/bouts/${id}/weigh-in`, json("POST", body)),
@@ -129,6 +131,8 @@ export const campApi = {
   report: (id: string) => apiFetch<CampReport>(`/bouts/${id}/report`),
   review: (id: string, reviews: { tacticId: string; outcome: TacticOutcome; note?: string }[]) =>
     apiFetch<{ opponentAnalysis: Analysis; tacticsWithoutSessions: string[] }>(`/bouts/${id}/opponent-analysis/review`, json("PUT", { reviews })),
+  /** POST /suspensions/:id/clear (COACH/DOCTOR, AWAITING_CLEARANCE only): clearanceNote 3–500 chars (suspensions.model.ts:479). */
+  clear: (id: string, clearanceNote: string) => apiFetch<Suspension>(`/suspensions/${id}/clear`, json("POST", { clearanceNote })),
   /** `fighterId` narrows the scope-aware list (nestjs-api suspensions.model.ts:383, ListSuspensionsQuery). */
   suspensions: (query?: string | { cursor?: string; fighterId?: string }) => {
     const q = typeof query === "string" ? { cursor: query } : query;

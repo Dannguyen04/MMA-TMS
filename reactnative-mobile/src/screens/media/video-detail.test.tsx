@@ -31,6 +31,11 @@ jest.mock("@/api/evidence", () => ({
   getJobResult: jest.fn().mockResolvedValue({ fps: 30, durationMs: 1000, width: null, height: null, frames: [], strikes: [], findings: [], movementEvidence: null, avgScore: null }),
 }));
 
+jest.mock("@/session/session-context", () => ({
+  useSession: () => ({ user: { id: "u-f", role: "FIGHTER" }, isDemo: false, signOut: jest.fn() }),
+  useSessionRole: () => "FIGHTER",
+}));
+
 jest.mock("@/api/tokens", () => ({
   getMemorySession: jest.fn(),
 }));
@@ -126,9 +131,10 @@ describe("VideoDetailContent", () => {
       </SafeAreaProvider>,
     );
     expect(await view.findByText("Đang tải video…")).toBeTruthy();
-    await fireEvent.press(await view.findByTestId("tab-metrics"));
-    expect(await view.findByText("Xong")).toBeTruthy();
-    expect(view.getAllByText("0").length).toBeGreaterThan(0);
+    // Fighter view (redesign step 13): the result is the strip under the title, no tab to open.
+    expect(await view.findByTestId("video-strip")).toBeTruthy();
+    expect(view.getByText("Xong")).toBeTruthy();
+    expect(view.getByLabelText("Cảnh báo: 0")).toBeTruthy();
     expect(view.queryByText("70")).toBeNull();
     expect(view.queryByText("Điểm 70")).toBeNull();
     await waitFor(() => expect(getAnalysisJob).toHaveBeenCalledWith("job-referenced"));
@@ -156,8 +162,8 @@ describe("VideoDetailContent", () => {
         </ThemePreferenceProvider>
       </SafeAreaProvider>,
     );
-    expect(await view.findByTestId("tab-timeline")).toBeTruthy();
+    expect(await view.findByTestId("camp-tab-timeline")).toBeTruthy();
     expect(view.getAllByText("Đấm thẳng tay sau, bên phải").length).toBeGreaterThan(0);
-    expect(view.queryByTestId("tab-review")).toBeNull();
+    expect(view.queryByTestId("camp-tab-review")).toBeNull();
   });
 });

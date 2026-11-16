@@ -37,7 +37,7 @@ export function useMeId(): string | null {
 export const DETAIL_PATH: Record<AiRole, string> = {
   coach: "/(coach)/video-analysis/chi-tiet",
   admin: "/(admin)/quan-tri/video-chi-tiet",
-  doctor: "/(doctor)/vo-si/video",
+  doctor: "/(doctor)/ai-alerts/xem",
 };
 
 export type DetailFocus = "result" | "alerts";

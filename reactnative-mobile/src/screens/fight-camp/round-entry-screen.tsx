@@ -1,4 +1,5 @@
 import { useContext, useEffect, useRef, useState } from "react";
+import { Swap } from "@/components/motion-kit";
 import { Platform, View } from "react-native";
 import { hapticSuccess } from "@/components/motion";
 import { CampReveal } from "./camp-motion";
@@ -6,7 +7,10 @@ import { campApi, type CampDetail, type RoundInput, type RoundsResponse, type Ta
 import { betweenRound as t } from "@/i18n/between-round";
 import { roundAdvice as adviceCopy } from "@/i18n/round-advice";
 import { boutReport } from "@/i18n/bout-report";
-import { Action, Busy, CampFooter, Choices, Copy, Field, Frame, Notice, RoundTabs, SvgTitle } from "./camp-ui";
+import { Action, Busy, CampFooter, CampTop, Choices, Copy, Field, Frame, Notice, RoundTabs } from "./camp-ui";
+import { CampTabs, FitList } from "./camp-lit";
+import { SlideSheet } from "@/components/ui/slide-sheet";
+import { boutTabs } from "@/i18n/bout-tabs";
 import { campError } from "./camp-rules";
 import { currentRound, entryTactics, compactTactics, initialPlan, nextTacticId, validatePlan, validateRoundMarks } from "./next-round-plan";
 import { NextRoundPlanEditor } from "./next-round-plan-editor";
@@ -16,18 +20,47 @@ import { CampScrollContext } from "./camp-scroll-context";
 import { roundAi as aiCopy } from "@/i18n/round-ai";
 import { aiDecision, aiTargetRound, isAlreadyDecided } from "./round-ai";
 import { useRoundAi } from "./use-round-ai";
-import { CampColumns, useCampTwoColumns } from "./camp-columns";
+import { useCampTwoColumns } from "./camp-columns";
+import { RoundAdvicePanel } from "./round-advice-panel";
 
 /** round=0 means follow the backend's current round until the coach edits/selects one. */
 export type RoundDraftState = { round: number; values: Record<number, RoundInput> };
-export function RoundScreen({ bout, preview, onAdvice, onReport, draftState, onDraftStateChange }: {
-  bout: CampDetail; preview: boolean; onAdvice: () => void; onReport?: () => void; draftState?: RoundDraftState; onDraftStateChange?: (s: RoundDraftState) => void;
+/**
+ * A weighed-in bout can reach round entry without a round count (it is optional on create). Instead of a dead end,
+ * ask for it here: 3 or 5 in one tap, any other count 1–12 typed. Saved with PATCH /bouts/:id.
+ */
+function SetRoundsPrompt({ bout, preview, onSet }: { bout: CampDetail; preview: boolean; onSet: (b: CampDetail) => void }) {
+  const [pick, setPick] = useState<number | null>(null);
+  const [other, setOther] = useState("");
+  const [error, setError] = useState(""); const [pending, setPending] = useState(false);
+  const typed = other.trim() ? Number(other.trim()) : null;
+  const count = typed ?? pick;
+  async function submit() {
+    if (pending) return;
+    if (count == null || !Number.isInteger(count) || count < 1 || count > 12) { setError(adviceCopy.roundsRange); return; }
+    setPending(true); setError("");
+    try { onSet(preview ? { ...bout, scheduledRounds: count } : await campApi.update(bout.id, { scheduledRounds: count })); }
+    catch (e) { setError(campError(e)); } finally { setPending(false); }
+  }
+  return <Frame pad={16}>
+    <Copy strong>{adviceCopy.setRoundsTitle}</Copy>
+    <Choices<number | null> value={typed == null ? pick : null} onChange={n => { setPick(n); setOther(""); setError(""); }} options={[3, 5].map(n => ({ value: n, label: adviceCopy.roundsOption(n) }))}/>
+    <Field label={adviceCopy.otherRounds} value={other} onChangeText={v => { setOther(v.replace(/[^\d]/g, "")); setError(""); }} inputMode="numeric" keyboardType="number-pad" maxLength={2} placeholder="1–12" error={error || undefined}/>
+    <Action label={adviceCopy.setRounds(count != null && count >= 1 && count <= 12 ? count : null)} pending={pending} onPress={() => void submit()}/>
+  </Frame>;
+}
+
+export function RoundScreen({ bout, preview, onReport, draftState, onDraftStateChange, onBoutChange }: {
+  bout: CampDetail; preview: boolean; onReport?: () => void; draftState?: RoundDraftState; onDraftStateChange?: (s: RoundDraftState) => void;
+  /** The bout changed here (round count set); the bout screen keeps its copy in sync. */
+  onBoutChange?: (b: CampDetail) => void;
 }) {
   const state = useCampResource(`rounds:${bout.id}:${preview}`, () => preview ? Promise.resolve(readPreviewRounds(bout)) : campApi.rounds(bout.id));
   const [ownDraft, setOwnDraft] = useState<RoundDraftState>({ round: 0, values: {} });
   const drafts = draftState ?? ownDraft;
   const setDrafts = onDraftStateChange ?? setOwnDraft;
   const [more, setMore] = useState(false);
+  const [tab, setTab] = useState<"this" | "health" | "next">("this");
   const [pending, setPending] = useState(false); const lock = useRef(false);
   const [error, setError] = useState(""); const [saved, setSaved] = useState<number | null>(null);
   /** 1A: round whose save kept the coach on its tab because AI advice for the next round is valid. */
@@ -58,7 +91,7 @@ export function RoundScreen({ bout, preview, onAdvice, onReport, draftState, onD
     setDrafts({ ...drafts, round, values: { ...drafts.values, [round]: { ...draft, nextRoundPlan: plan, ...patch } } });
     setSaved(null); setError(""); setStayed(null);
   }
-  function select(n: number) { setDrafts({ ...drafts, round: n }); setMore(false); setError(""); setSaved(null); setStayed(null); }
+  function select(n: number) { setDrafts({ ...drafts, round: n }); setMore(false); setTab("this"); setError(""); setSaved(null); setStayed(null); }
   async function save() {
     if (lock.current || !total || !state.data || state.loading || state.error) return;
     lock.current = true; setPending(true); setError(""); setSaved(null);
@@ -91,30 +124,28 @@ export function RoundScreen({ bout, preview, onAdvice, onReport, draftState, onD
       if (Platform.OS !== "web") hapticSuccess();
     } catch (e) { setError(campError(e)); } finally { lock.current = false; setPending(false); }
   }
-  const markOptions = [{ value: "EFFECTIVE" as const, label: t.effective }, { value: "INEFFECTIVE" as const, label: t.ineffective }, { value: "NOT_USED" as const, label: t.unused }];
+  const markOptions = [{ value: "EFFECTIVE" as const, label: t.effective, tone: "good" as const }, { value: "INEFFECTIVE" as const, label: t.ineffective, tone: "bad" as const }, { value: "NOT_USED" as const, label: t.unused }];
   function markTactic(a: typeof tactics[number]) { return <View key={a.id} style={{ gap: 4 }}>
-    <Choices<TacticOutcome | null> label={a.text} value={draft.tacticMarks?.[a.id] ?? null} options={markOptions} disabled={disabled} onChange={v => { if (v) change({ tacticMarks: { ...draft.tacticMarks, [a.id]: v } }); }}/>
+    <Choices<TacticOutcome | null> chips label={a.text} value={draft.tacticMarks?.[a.id] ?? null} options={markOptions} disabled={disabled} onChange={v => { if (v) change({ tacticMarks: { ...draft.tacticMarks, [a.id]: v } }); }}/>
   </View>; }
   function markObservation(o: typeof observations[number]) { return <View key={o.id} style={{ gap: 4 }}>
-    <Choices<"SEEN" | "NOT_SEEN" | null> label={o.text} value={draft.observationMarks?.[o.id] ?? null} options={[{ value: "SEEN", label: t.seen }, { value: "NOT_SEEN", label: t.unseen }]} disabled={disabled} onChange={v => { if (v) change({ observationMarks: { ...draft.observationMarks, [o.id]: v } }); }}/>
+    <Choices<"SEEN" | "NOT_SEEN" | null> chips label={o.text} value={draft.observationMarks?.[o.id] ?? null} options={[{ value: "SEEN", label: t.seen }, { value: "NOT_SEEN", label: t.unseen }]} disabled={disabled} onChange={v => { if (v) change({ observationMarks: { ...draft.observationMarks, [o.id]: v } }); }}/>
   </View>; }
   // Phase 5 E: round entry in two columns from 744 (tactics | health and next-round instructions); phone order below.
   // Two columns (2b): health fields always open on the right; "Ghi thêm" only opens the remaining tactics on the left,
   // and is hidden when there are none.
   const extraMarks = tactics.filter(a => !quick.some(b => b.id === a.id)).length + observations.filter(o => o.id !== mainObservation?.id).length;
-  const head = (data: RoundsResponse, n: number) => <>
-    {saved != null ? <Notice title={t.saved(saved)} success>{stayed === saved ? aiCopy.stay(saved) : undefined}</Notice> : null}
-    <RoundTabs label={t.roundTabs} total={n} value={round} saved={data.rounds.map(r => r.roundNo)} disabled={disabled} onChange={select} tabLabel={t.roundTab} savedLabel={t.roundTabSaved}/>
-    <CampReveal key={`round-${round}`}><SvgTitle small>{t.current(round)}</SvgTitle></CampReveal>
-    <Copy muted>{t.compact}</Copy>
-    <Frame pad={12}>
-      {quick.map(markTactic)}
-      {!quick.length ? <Copy muted>{t.noTactics}</Copy> : null}
-      {mainObservation ? markObservation(mainObservation) : <Copy muted>{t.noObservations}</Copy>}
-      <Choices<RoundInput["selfScore"]> label={t.selfScore} value={draft.selfScore ?? null} disabled={disabled} options={[{ value: "WIN", label: t.win }, { value: "CLOSE", label: t.close }, { value: "LOSS", label: t.loss }]} onChange={selfScore => change({ selfScore })}/>
-    </Frame>
-    {!wide || extraMarks ? <Action label={more ? t.less : t.more} secondary disabled={disabled} onPress={() => setMore(!more)}/> : null}
-  </>;
+  const picker = (data: RoundsResponse, n: number) => <RoundTabs label={t.roundTabs} total={n} value={round} saved={data.rounds.map(r => r.roundNo)} disabled={disabled} onChange={select} tabLabel={t.roundTab} savedLabel={t.roundTabSaved}/>;
+  const extras = [...tactics.filter(a => !quick.some(b => b.id === a.id)).map(a => ({ kind: "t" as const, a })), ...observations.filter(o => o.id !== mainObservation?.id).map(o => ({ kind: "o" as const, o }))];
+  const thisRound = () => <View style={{ gap: 14 }}>
+    {quick.map(markTactic)}
+    {!quick.length ? <Copy muted>{t.noTactics}</Copy> : null}
+    {/* Two columns show every mark; a phone shows the main ones and opens the rest in a sheet. */}
+    {wide ? extras.map(x => x.kind === "t" ? markTactic(x.a) : markObservation(x.o))
+      : <FitList items={extras} max={0} moreLabel={boutTabs.more} render={() => null} onMore={() => setMore(true)}/>}
+    {mainObservation ? markObservation(mainObservation) : <Copy muted>{t.noObservations}</Copy>}
+    <Choices<RoundInput["selfScore"]> chips label={t.selfScore} value={draft.selfScore ?? null} disabled={disabled} options={[{ value: "WIN", label: t.win, tone: "good" }, { value: "CLOSE", label: t.close }, { value: "LOSS", label: t.loss, tone: "bad" }]} onChange={selfScore => change({ selfScore })}/>
+  </View>;
   const healthFields = () => <>
     <Field label={t.note} value={draft.note ?? ""} maxLength={300} multiline editable={!disabled} helper={`${draft.note?.length ?? 0}/300 · ${t.draft}`} onChangeText={note => change({ note })}/>
     <Frame pad={12}><Copy strong>{t.knockdowns}</Copy><View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
@@ -122,38 +153,47 @@ export function RoundScreen({ bout, preview, onAdvice, onReport, draftState, onD
       <Copy large strong>{draft.knockdownsAgainst ?? 0}</Copy>
       <View style={{ flex: 1 }}><Action label={t.increase} icon="plus" secondary disabled={disabled || (draft.knockdownsAgainst ?? 0) >= 10} onPress={() => change({ knockdownsAgainst: (draft.knockdownsAgainst ?? 0) + 1 })}/></View>
     </View></Frame>
-    {([{ key: "stunned", label: t.stunned }, { key: "bleeding", label: t.bleeding }, { key: "fatigued", label: t.fatigued }] as const).map(f => <Choices key={f.key} label={f.label} value={draft[f.key] ? 1 : 0} options={[{ value: 0, label: t.no }, { value: 1, label: t.yes }]} onChange={v => change({ [f.key]: !!v })} disabled={disabled}/>)}
+    {([{ key: "stunned", label: t.stunned }, { key: "bleeding", label: t.bleeding }, { key: "fatigued", label: t.fatigued }] as const).map(f => <Choices key={f.key} chips label={f.label} value={draft[f.key] ? 1 : 0} options={[{ value: 0, label: t.no }, { value: 1, label: t.yes, tone: "bad" }]} onChange={v => change({ [f.key]: !!v })} disabled={disabled}/>)}
   </>;
   const moreMarks = () => <>
     {tactics.filter(a => !quick.some(b => b.id === a.id)).map(markTactic)}
     {observations.filter(o => o.id !== mainObservation?.id).map(markObservation)}
   </>;
+  // Advice (safety, self-scored standing, each tactic's score) sits right above the plan it informs, so the break
+  // needs one screen. Shown only once the server has advice; no separate advice screen.
   const instructions = (data: RoundsResponse, n: number) => <>
-    {data.advice?.safety ? <Notice title={adviceCopy.safetyTitle} danger>{adviceCopy.safety}</Notice> : null}
+    {data.advice ? <RoundAdvicePanel data={data} heading={false}/> : null}
     {round < n ? <NextRoundPlanEditor key={round} round={round} plan={plan} tactics={tactics} observations={observations} suggested={data.advice?.nextRound && [round, round + 1].includes(data.advice.nextRound.roundNo) ? data.advice.nextRound.suggested : []} disabled={disabled} onChange={nextRoundPlan => change({ nextRoundPlan })} newId={() => nextTacticId(bout, data, round, plan)}
       ai={aiTarget ? { target: aiTarget, state: ai.get(aiTarget), onAsk: () => void ai.ask(aiTarget) } : undefined}/> : <Copy muted>{t.final}</Copy>}
   </>;
   return <View style={{ gap: 12 }} testID="round-entry">
     {state.loading && !state.data ? <Busy/> : null}
     {state.error ? <><Notice title={t.loadFailed} danger>{state.error}</Notice><Action label={t.retry} onPress={() => void state.reload()}/></> : null}
-    {total == null && !state.loading ? <Notice title={adviceCopy.missingRounds}/> : null}
+    {total == null && !state.loading && !state.error ? <SetRoundsPrompt bout={bout} preview={preview} onSet={b => {
+      onBoutChange?.(b);
+      if (preview) state.setData({ ...(state.data ?? readPreviewRounds(b)), scheduledRounds: b.scheduledRounds });
+      else void state.reload();
+    }}/> : null}
     {state.data && total != null ? <>
-      <CampColumns gap={12} left={<>
-        {head(state.data, total)}
-        {more && extraMarks ? <CampReveal disclosure style={{ gap: 12 }}>{moreMarks()}</CampReveal> : null}
-      </>} right={<>
-        <View testID="round-health" style={{ gap: 12 }}>{healthFields()}</View>
-        {instructions(state.data, total)}
-      </>}>
-      {head(state.data, total)}
-      {more ? <CampReveal disclosure style={{ gap: 12 }}>
-        {healthFields()}
-        {moreMarks()}
-      </CampReveal> : null}
-      {instructions(state.data, total)}
-      </CampColumns>
+      <CampTop>
+        {picker(state.data, total)}
+        <CampTabs alertLabel={boutTabs.needsAttention} value={tab} onChange={setTab} tabs={[
+          { key: "this", label: boutTabs.rounds.thisRound },
+          { key: "health", label: boutTabs.rounds.health, alert: !!(draft.knockdownsAgainst || draft.stunned || draft.bleeding) },
+          { key: "next", label: boutTabs.rounds.next, alert: !!state.data.advice?.safety },
+        ]}/>
+      </CampTop>
+      {/* The save confirmation shows whichever tab the coach saved from. */}
+      {saved != null ? <Notice title={t.saved(saved)} success>{stayed === saved ? aiCopy.stay(saved) : undefined}</Notice> : null}
+      <Swap swapKey={`${round}-${tab}`} testID={`round-tab-${tab}`} style={{ gap: 12 }}>
+        {tab === "this" ? thisRound() : null}
+        {tab === "health" ? <View testID="round-health" style={{ gap: 12 }}>{healthFields()}</View> : null}
+        {tab === "next" ? instructions(state.data, total) : null}
+      </Swap>
+      <SlideSheet visible={more} onClose={() => setMore(false)} title={boutTabs.moreMarks}>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 8, gap: 14 }}>{moreMarks()}</View>
+      </SlideSheet>
       <CampFooter>{error ? <Notice title={t.saveFailed} danger>{error}</Notice> : null}<Action label={t.save(round, !!existing)} pending={pending} disabled={state.loading || !!state.error} onPress={() => void save()}/></CampFooter>
-      <Action label={adviceCopy.title} secondary disabled={disabled} onPress={onAdvice}/>
       {bout.status === "COMPLETED" && onReport ? <Action label={boutReport.openReport} secondary disabled={disabled} onPress={onReport}/> : null}
       {preview ? <Action label={adviceCopy.reset} secondary disabled={disabled} onPress={() => { resetPreviewRounds(bout.id); state.setData(readPreviewRounds(bout)); setDrafts({ round: 0, values: {} }); setSaved(null); setMore(false); setError(""); }}/> : null}
     </> : null}

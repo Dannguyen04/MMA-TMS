@@ -186,3 +186,6 @@ jest.mock("expo-router", () => {
     },
   };
 });
+
+// Keyboard handling (react-native-keyboard-controller) has no native module under Jest.
+jest.mock("react-native-keyboard-controller", () => require("react-native-keyboard-controller/jest"));

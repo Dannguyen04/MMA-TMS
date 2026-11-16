@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 
 import { doctorRo } from "@/i18n/doctor-ro";
 import { useThemePreference } from "@/theme";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 type Role = keyof typeof doctorRo.roles;
 
@@ -30,7 +31,7 @@ export function RoleChip({ role, label: override }: { role: Role; /** Nhãn riê
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   chip: { flexDirection: "row", alignItems: "center", alignSelf: "center", gap: 6, height: 28, borderRadius: 14, paddingHorizontal: 12 },
-  text: { fontSize: 13, lineHeight: 18, fontWeight: "500" },
-});
+  text: { fontSize: fz(13), lineHeight: lh(18), fontWeight: "500" },
+}));

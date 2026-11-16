@@ -4,6 +4,7 @@ import { FeatureUnavailable } from "@/components/feature-unavailable";
 import { unavailable } from "@/i18n/unavailable";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterStack } from "@/screens/fighter/redesign/shell";
+import { fz, liveSheet } from "@/theme/typography";
 
 /** Chưa có API backend — xem out/06-API-can-bo-sung.md. */
 export default function FighterLiveCheckRoute() {
@@ -18,7 +19,7 @@ export default function FighterLiveCheckRoute() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   wrap: { paddingHorizontal: 20, gap: 16 },
-  title: { fontSize: 22, fontWeight: "700" },
-});
+  title: { fontSize: fz(22), fontWeight: "700" },
+}));

@@ -1,4 +1,5 @@
 import "../../global.css";
+import "@/utils/pressable-style-fix";
 import "react-native-reanimated";
 import { useEffect } from "react";
 import { Stack } from "expo-router";
@@ -7,6 +8,7 @@ import { colorScheme } from "nativewind";
 import { Platform } from "react-native";
 
 import { AppToastHost } from "@/components/toast/app-toast";
+import { KeyboardRoot } from "@/components/keyboard-aware";
 import { LaunchGate } from "@/components/launch/launch-gate";
 import { useSplashLock } from "@/components/launch/splash-lock";
 import { SystemChrome } from "@/components/system-chrome";
@@ -19,6 +21,7 @@ import {
   useAppearanceReady,
   useThemePreference,
 } from "@/theme";
+import { devLog } from "@/utils/dev-log";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -33,7 +36,7 @@ function LockedStack() {
   const barStyle = locked ? "light" : chromeLightIcons(colors.bg) ? "light" : "dark";
 
   useEffect(() => {
-    console.log(
+    devLog(
       "[splash] LockedStack mount",
       "contentStyle",
       bg,
@@ -116,7 +119,7 @@ function RootNavigator() {
 
 export default function RootLayout() {
   useEffect(() => {
-    console.log("[splash] hideAsync rootLayout mount", false, "splashUntilPlaying", true);
+    devLog("[splash] hideAsync rootLayout mount", false, "splashUntilPlaying", true);
   }, []);
 
   useEffect(() => {
@@ -125,6 +128,7 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <KeyboardRoot>
     <ThemePreferenceProvider>
       <SessionProvider>
         <AppearanceOwnerBridge />
@@ -132,5 +136,6 @@ export default function RootLayout() {
         <AppToastHost />
       </SessionProvider>
     </ThemePreferenceProvider>
+    </KeyboardRoot>
   );
 }

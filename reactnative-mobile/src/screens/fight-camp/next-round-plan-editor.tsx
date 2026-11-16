@@ -3,7 +3,7 @@ import { CampReveal } from "./camp-motion";
 import { View } from "react-native";
 import type { NextRoundPlan, Observation, RoundInstruction } from "@/api/fight-camp";
 import { betweenRound as t, instructionText } from "@/i18n/between-round";
-import { Action, Copy, Field, Frame, PlanToggle, SvgTitle } from "./camp-ui";
+import { Action, Copy, Field, Frame, PlanToggle, SectionTitle } from "./camp-ui";
 import { instructionKey, type PlanTactic } from "./next-round-plan";
 import { RoundAiBlock } from "./round-ai-block";
 import type { AiLine } from "./round-ai";
@@ -32,9 +32,8 @@ export function NextRoundPlanEditor({ round, plan, tactics, observations, sugges
     .sort((a, b) => Number(b.code === "SAFETY_CHECK") - Number(a.code === "SAFETY_CHECK"));
   function focus(id: string) { onChange({ ...plan, focusTacticIds: plan.focusTacticIds.includes(id) ? plan.focusTacticIds.filter(v => v !== id) : [...plan.focusTacticIds, id] }); }
   return <View style={{ gap: 10 }} testID="next-round-plan">
-    <SvgTitle small>{t.next(round + 1)}</SvgTitle>
+    <SectionTitle>{t.next(round + 1)}</SectionTitle>
     <Copy strong>{t.suggested} · {t.picked(plan.instructions.length)}</Copy>
-    <Copy muted>{t.instructionLimit}</Copy>
     {choices.map(i => {
       const selected = plan.instructions.some(a => instructionKey(a) === instructionKey(i));
       return <PlanToggle key={instructionKey(i)} label={instructionText(i, allTactics)} selected={selected} danger={i.code === "SAFETY_CHECK"}
@@ -52,7 +51,6 @@ export function NextRoundPlanEditor({ round, plan, tactics, observations, sugges
         onChange({ ...plan, instructions: customIndex < 0 ? [...rest, ...(next ? [next] : [])] : next ? [...rest.slice(0, customIndex), next, ...rest.slice(customIndex)] : rest });
       }}/>
     <Copy strong>{t.focus} · {plan.focusTacticIds.length}/2</Copy>
-    <Copy muted>{t.focusLimit}</Copy>
     {focusOptions.map(a => <View key={a.id} style={{ gap: 4 }}>
       <PlanToggle label={a.text} selected={plan.focusTacticIds.includes(a.id)} disabled={disabled || (!plan.focusTacticIds.includes(a.id) && plan.focusTacticIds.length >= 2)} onPress={() => focus(a.id)}/>
       {a.dropped && plan.focusTacticIds.includes(a.id) ? <Copy>{t.dropped}</Copy> : null}

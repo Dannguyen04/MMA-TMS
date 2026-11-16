@@ -1,5 +1,5 @@
-import { FighterSettingsScreen } from "@/screens/fighter/settings-screen";
+import { FighterSettingsV2 } from "@/screens/fighter/me/settings-v2";
 
 export default function FighterSettingsRoute() {
-  return <FighterSettingsScreen />;
+  return <FighterSettingsV2 />;
 }

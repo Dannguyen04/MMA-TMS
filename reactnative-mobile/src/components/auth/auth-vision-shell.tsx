@@ -53,6 +53,7 @@ import { authInputProgress } from "@/components/auth/auth-vision-scene";
 import { vi } from "@/i18n/vi";
 import { motion, spacing } from "@/theme";
 import { PressableScale } from "@/components/motion";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 type ChromeValue = {
   setInputFocused: (next: boolean) => void;
@@ -587,7 +588,7 @@ function assignRef(ref: Ref<TextInput> | undefined, node: TextInput | null) {
   if (ref) ref.current = node;
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   brand: {
     position: "absolute",
     left: 24,
@@ -619,8 +620,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   titleCompact: {
-    fontSize: 20,
-    lineHeight: 26,
+    fontSize: fz(20),
+    lineHeight: lh(26),
   },
   fieldsCompact: {
     gap: 4,
@@ -797,4 +798,4 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
   },
-});
+}));

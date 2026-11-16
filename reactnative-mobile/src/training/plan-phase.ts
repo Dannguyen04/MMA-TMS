@@ -23,6 +23,12 @@ export function planPhaseLabel(phase: string | null | undefined): string {
   return `${LABELS[phase]} (${phase})`;
 }
 
+/** Vietnamese label only, for fighter screens (redesign 2026-11-11: no raw API codes on screen). */
+export function planPhaseWord(phase: string | null | undefined): string {
+  if (!phase || !isTrainingPlanPhase(phase)) return phase ?? "";
+  return LABELS[phase];
+}
+
 export function planPhaseOptions(): { value: TrainingPlanPhase; label: string }[] {
   return TRAINING_PLAN_PHASES.map((value) => ({ value, label: planPhaseLabel(value) }));
 }

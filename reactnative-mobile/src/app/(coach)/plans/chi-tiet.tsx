@@ -1,6 +1,6 @@
-import { CoachPlanDetailScreen } from "@/screens/coach/readonly/coach-plan-detail-screen";
+import { CoachPlanPage } from "@/screens/coach/plans/plan-page";
 
-/** Chi tiết mở bằng query: chi-tiet?id=... (không dùng route động [id]). */
+/** The one plan page (redesign step 17): chi-tiet?id=...&tab=goals|info. */
 export default function CoachPlansDetailRoute() {
-  return <CoachPlanDetailScreen />;
+  return <CoachPlanPage/>;
 }

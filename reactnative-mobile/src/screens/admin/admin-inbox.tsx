@@ -1,19 +1,20 @@
-import { useCallback, useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { useCallback } from "react";
+import { ActivityIndicator } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import { listNotifications, type AppNotification } from "@/api";
-import { Icon, type IconName } from "@/components/icon";
-import { FadeInView, PressableScale, SkeletonList } from "@/components/motion";
-import { StateView } from "@/components/state-view";
-import { useToastMessage } from "@/components/toast/app-toast";
-import { manager } from "@/i18n/manager";
-import { states } from "@/i18n/unavailable";
-import { useAdminType } from "@/screens/admin/admin-page";
-import { AdminScreen } from "@/screens/admin/admin-ui";
-import { mapApiMessage } from "@/session/map-api-message";
-import { spacing, useThemePreference } from "@/theme";
+import type { IconName } from "@/components/icon";
+import { StaggerList } from "@/components/motion";
+import { EmptyLine, RolePage } from "@/components/role-page";
+import { adminRest as t } from "@/i18n/admin-rest";
+import { useCoachEnabled } from "@/screens/coach/readonly/use-coach";
+import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
+import { useLoad } from "@/screens/fighter/use-load";
 import { useMarkRead } from "@/screens/one-tap/notification-read";
+import { relTime } from "@/screens/video-ai/ai-model";
+import { useThemePreference } from "@/theme";
+
+import { useAdminUnread } from "./admin-unread";
 
 /** Icon theo loại thông báo (NOTIFICATION_TYPE trong nestjs-api). */
 const TYPE_ICON: Record<string, IconName> = {
@@ -34,85 +35,41 @@ export function notificationHref(row: Pick<AppNotification, "payload">): string 
   return null;
 }
 
-/** Figma "Manager · Thông báo" (161:19200) — chỉ hộp thư nhận, chưa có API gửi. */
+/**
+ * Admin Thông báo tab (redesign step 22): the coach inbox grammar. One row per notification (type icon, title,
+ * "when · message"); unread rows carry an ink icon and a small red square. A row with a target opens the admission or the
+ * doctor-assignment page; opening marks it read.
+ */
 export function AdminInboxScreen() {
-  const { colors } = useThemePreference();
-  const at = useAdminType();
   const router = useRouter();
-  const [rows, setRows] = useState<AppNotification[] | null>(null);
-  const [error, setError] = useState("");
-  useToastMessage(error, "error");
-
-  const load = useCallback((mode: "initial" | "refresh" = "initial") => {
-    if (mode === "initial") setError("");
-    return listNotifications({ page: 1, limit: 30 })
-      .then((page) => setRows(page.data))
-      .catch((cause: unknown) => {
-        if (mode === "refresh") throw cause;
-        setRows((current) => current ?? []);
-        setError(mapApiMessage(cause));
-      });
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
-  const reads = useMarkRead();
+  const { colors: c } = useThemePreference();
+  const enabled = useCoachEnabled();
+  const unread = useAdminUnread();
+  const run = useCallback(() => listNotifications({ page: 1, limit: 30 }).then((page) => page.data), []);
+  const list = useLoad(enabled, "admin-inbox", run, { keepOnError: true });
+  const reads = useMarkRead(() => {
+    unread.refresh();
+    void list.refresh().catch(() => undefined);
+  });
+  const rows = list.data ?? [];
   const open = (row: AppNotification) => {
     if (!reads.isRead(row)) reads.mark(row.id);
     const href = notificationHref(row);
     if (href) router.push(href as Href);
   };
-
-  return (
-    <AdminScreen title={manager.inbox.title} onRefresh={load}>
-      <View style={styles.lead}>
-        <Text style={[at.section, { color: colors.ink }]}>{manager.inbox.lead}</Text>
-        <Text style={[at.meta, { color: colors.inkMuted }]}>{manager.inbox.hint}</Text>
-      </View>
-      {rows == null ? <SkeletonList rows={3} height={72} /> : null}
-      {rows && rows.length === 0 && error ? (
-        <StateView kind="error" title={states.loadFailed} description={error} actionLabel={states.retry} onAction={load} compact />
-      ) : null}
-      {rows && rows.length === 0 && !error ? <StateView kind="empty" title={manager.inbox.empty} compact /> : null}
-      {rows && rows.length > 0 ? (
-        <View>
-          {rows.map((row, index) => (
-            <FadeInView key={row.id} index={index}>
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={row.message ? `${row.title}. ${row.message}` : row.title}
-                onPress={() => open(row)}
-                scaleTo={0.985}
-                style={[styles.row, { borderBottomColor: colors.line }]}
-              >
-                <Icon name={TYPE_ICON[row.type] ?? "notifications"} size={22} tone="accent" />
-                <View style={styles.body}>
-                  <Text style={[at.rowTitle, { color: colors.ink, opacity: reads.isRead(row) ? 0.8 : 1 }]}>{row.title}</Text>
-                  {row.message ? <Text style={[at.meta, { color: colors.inkMuted }]}>{row.message}</Text> : null}
-                </View>
-                {!reads.isRead(row) ? <View style={[styles.dot, { backgroundColor: colors.lotus }]} /> : null}
-                {notificationHref(row) ? <Icon name="chevron" size={20} tone="muted" /> : null}
-              </PressableScale>
-            </FadeInView>
-          ))}
-        </View>
-      ) : null}
-    </AdminScreen>
-  );
+  return <RolePage testID="admin-inbox" title={t.inbox} onRefresh={() => { unread.refresh(); return list.refresh(); }}>
+    {list.loading && !list.data ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 32 }}/> : null}
+    {list.error && !list.data ? <RetryRow message={t.inboxFailed} retry={t.retry} onRetry={list.reload}/> : null}
+    {list.data && !rows.length ? <EmptyLine testID="inbox-empty" title={t.inboxEmpty}/> : null}
+    {rows.length ? <StaggerList testID="inbox-list">
+      {rows.map((row, k) => {
+        const isRead = reads.isRead(row);
+        const line = [relTime(row.createdAt), row.message].filter(Boolean).join(" · ");
+        const target = notificationHref(row);
+        return <SlipRow key={row.id} testID={`inbox-${row.id}`} icon={TYPE_ICON[row.type] ?? "notifications"} leadTone={isRead ? "dim" : undefined} dot={!isRead}
+          title={row.title} line={line} a11y={[isRead ? "" : t.unread, row.title, line].filter(Boolean).join(", ")}
+          onPress={target || !isRead ? () => open(row) : undefined} last={k === rows.length - 1}/>;
+      })}
+    </StaggerList> : null}
+  </RolePage>;
 }
-
-const styles = StyleSheet.create({
-  lead: { gap: spacing.xs },
-  row: {
-    minHeight: 76,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.md,
-    paddingVertical: spacing.lg,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  body: { flex: 1, gap: 4 },
-  dot: { width: 8, height: 8, borderRadius: 4 },
-});

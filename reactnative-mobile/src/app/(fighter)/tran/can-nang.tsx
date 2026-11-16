@@ -1,5 +1,5 @@
-import { FighterDailyWeightScreen } from "@/screens/fight-camp/fighter-camp-screen";
+import { FighterWeighV2 } from "@/screens/fighter/bout/weigh-screen";
 
 export default function CanNangRoute() {
-  return <FighterDailyWeightScreen />;
+  return <FighterWeighV2 />;
 }

@@ -1,5 +1,9 @@
-import { CoachSessionDetailScreen } from "@/screens/coach/session-detail";
+import { Redirect, useLocalSearchParams } from "expo-router";
 
-export default function CoachSessionDetailRoute() {
-  return <CoachSessionDetailScreen />;
+import { coachSessionHref } from "@/screens/coach/schedule/session-model";
+
+/** Old links to schedule/[id] land on the one session page (redesign step 18). */
+export default function CoachSessionRedirect() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  return <Redirect href={coachSessionHref(typeof id === "string" ? id : "")} />;
 }

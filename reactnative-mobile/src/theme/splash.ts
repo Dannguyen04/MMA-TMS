@@ -322,3 +322,22 @@ export function punchScreenOrigin(viewW: number, viewH: number): { x: number; y:
     y: layout.top + splash.punchScreenY * layout.height,
   };
 }
+
+/**
+ * Launch intro "Than lửa" (embers): the app icon burns, its embers turn into a
+ * sphere, burst, and fly together into MMA VISION, which burns while the app
+ * loads. Wall-clock ms from the first painted frame. Approved preview:
+ * design-previews/intro-than-lua.html. Positions are in the 390×844 design frame.
+ */
+export const splashIntro = {
+  /** The sphere bursts and the embers scatter. */
+  burstMs: 1110,
+  /** Haptic tick when the embers have formed the name. */
+  nameLandMs: 1650,
+  /** Earliest moment the intro may leave (it also waits for load + home paint). */
+  holdAtMs: 2150,
+  /** Name fades out while the app fades in. */
+  exitMs: 650,
+  /** A device whose GL never starts opens the app after this long (black screen, no other intro). */
+  glReadyGiveUpMs: 4000,
+} as const;

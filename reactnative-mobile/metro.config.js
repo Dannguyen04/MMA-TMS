@@ -10,6 +10,7 @@ const config = getDefaultConfig(__dirname);
 // supported library component. Set this before withNativeWind so css-interop
 // keeps calling it.
 const motiSafeAreaShim = path.resolve(__dirname, "src/shims/moti-safe-area-view.ts");
+const threeModule = path.join(path.dirname(require.resolve("three")), "three.module.js");
 config.resolver.resolveRequest = (context, moduleName, platform) => {
   const origin = (context.originModulePath || "").replace(/\\/g, "/");
   const specifier = moduleName.replace(/\\/g, "/");
@@ -20,6 +21,12 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     /\/moti\/(?:src|build)\/components\/safe-area-view(?:\.(?:tsx|ts|js))?$/.test(specifier);
   if (fromMotiComponents && isSafeAreaModule) {
     return { type: "sourceFile", filePath: motiSafeAreaShim };
+  }
+  // three 0.186's CommonJS entry (picked by R3F's `require("three")`) calls
+  // process.emitWarning, which React Native lacks: opening the 3D body map
+  // crashed the app. Every import of "three" gets the ES module build instead.
+  if (specifier === "three") {
+    return { type: "sourceFile", filePath: threeModule };
   }
   return context.resolveRequest(context, moduleName, platform);
 };

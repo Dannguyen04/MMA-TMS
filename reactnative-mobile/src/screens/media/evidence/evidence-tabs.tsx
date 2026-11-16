@@ -3,12 +3,13 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { ev } from "@/i18n/video-evidence";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { useTypography } from "@/theme";
+import { fz } from "@/theme/typography";
 
 export type EvidenceTab = "timeline" | "review" | "metrics";
 
 /** Doctors get no "Nhận xét" tab: they cannot read coaching state. */
-export function tabsFor(role: "fighter" | "coach" | "doctor"): EvidenceTab[] {
-  return role === "doctor" ? ["timeline", "metrics"] : ["timeline", "review", "metrics"];
+export function tabsFor(role: "fighter" | "coach" | "doctor" | "admin"): EvidenceTab[] {
+  return role === "doctor" || role === "admin" ? ["timeline", "metrics"] : ["timeline", "review", "metrics"];
 }
 
 export function EvidenceTabs({ tabs, value, onChange }: { tabs: EvidenceTab[]; value: EvidenceTab; onChange: (t: EvidenceTab) => void }) {
@@ -28,7 +29,7 @@ export function EvidenceTabs({ tabs, value, onChange }: { tabs: EvidenceTab[]; v
             onPress={() => onChange(t)}
             style={styles.tab}
           >
-            <Text style={{ color: on ? c.ink : c.muted, fontFamily: on ? live.faces.semibold : live.faces.regular, fontSize: 15 }}>{ev.tabs[t]}</Text>
+            <Text style={{ color: on ? c.ink : c.muted, fontFamily: on ? live.faces.semibold : live.faces.regular, fontSize: fz(15) }}>{ev.tabs[t]}</Text>
             <View style={[styles.rule, { backgroundColor: on ? c.accent : "transparent" }]} />
           </Pressable>
         );

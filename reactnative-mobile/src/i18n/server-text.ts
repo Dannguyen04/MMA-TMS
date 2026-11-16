@@ -171,3 +171,17 @@ const AREA_VI: Record<string, string> = { Cardiovascular: "Tim mạch", Neurolog
 export function assessmentAreaLabel(area: string): string {
   return AREA_VI[area.trim()] ?? area;
 }
+
+/** Exercise target muscles arrive as English words from the library; unknown words stay as they are. */
+export const muscleText: Record<string, string> = {
+  shoulders: "vai", hips: "hông", "upper back": "lưng trên", back: "lưng", neck: "cổ", hamstrings: "đùi sau",
+  quads: "đùi trước", glutes: "mông", "full body": "toàn thân", legs: "chân", calves: "bắp chân", core: "cơ lõi",
+  spine: "cột sống", chest: "ngực", arms: "tay", biceps: "tay trước", triceps: "tay sau", forearms: "cẳng tay",
+  abs: "bụng", "lower back": "lưng dưới", grip: "cầm nắm", lats: "xô", traps: "cầu vai",
+};
+export const musclesLine = (list: readonly string[]) => list.map(m => muscleText[m.trim().toLowerCase()] ?? m).join(", ");
+/** A Vietnamese search word ("vai") becomes the library's English muscle word ("shoulders"). */
+export const muscleQuery = (q: string) => {
+  const v = q.trim().toLowerCase();
+  return Object.keys(muscleText).find(k => muscleText[k] === v) ?? v;
+};

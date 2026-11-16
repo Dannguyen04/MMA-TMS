@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-na
 import { campApi, type Analysis, type AnalysisInput, type CampDetail, type Observation, type OpponentProfile, type Tactic } from "@/api/fight-camp";
 import { listTrainingSessions } from "@/api/training";
 import { fonts, useThemePreference } from "@/theme";
-import { readableTextStyle } from "@/theme/typography";
+import { readableTextStyle, fz, lh, liveSheet } from "@/theme/typography";
 import { Action, CampFooter, CampIcon, Choices, Copy, Field, Frame, Notice, PlanToggle } from "./camp-ui";
 import { campError, dateLabel, validateAnalysis } from "./camp-rules";
 import { previewBout } from "./camp-preview";
@@ -251,7 +251,7 @@ function SheetTabs<K extends string>({ value, onChange, tabs }: { value: K; onCh
     {tabs.map(x => { const on = x.key === value;
       return <Pressable key={x.key} accessibilityRole="tab" accessibilityLabel={`${x.label} ${x.count}`} accessibilityState={{ selected: on }} onPress={() => onChange(x.key)}
         style={[styles.tab, { borderBottomColor: on ? c.lotus : "transparent" }]}>
-        <Text style={{ fontFamily: fonts.display, fontSize: 19, letterSpacing: 0.6, textTransform: "uppercase", color: on ? c.ink : c.inkMuted }}>
+        <Text style={{ fontFamily: fonts.display, fontSize: fz(19), letterSpacing: 0.6, textTransform: "uppercase", color: on ? c.ink : c.inkMuted }}>
           {x.label}<Text style={{ ...readableTextStyle(12), color: c.inkSubtle }}>{` ${x.count}`}</Text>
         </Text>
       </Pressable>; })}
@@ -284,24 +284,24 @@ function EditorActions({ readonly, disabled, removeLabel, onRemove, onDone }: { 
 
 function SectionLabel({ children }: { children: string }) {
   const { colors: c } = useThemePreference();
-  return <Text style={{ fontFamily: fonts.display, fontSize: 14, letterSpacing: 1.1, textTransform: "uppercase", color: c.inkMuted }}>{children}</Text>;
+  return <Text style={{ fontFamily: fonts.display, fontSize: fz(14), letterSpacing: 1.1, textTransform: "uppercase", color: c.inkMuted }}>{children}</Text>;
 }
 function EditorTitle({ children }: { children: string }) {
   const { colors: c } = useThemePreference();
-  return <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: 22, textTransform: "uppercase", color: c.ink, marginBottom: 12 }}>{children}</Text>;
+  return <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(22), textTransform: "uppercase", color: c.ink, marginBottom: 12 }}>{children}</Text>;
 }
 
-const styles = StyleSheet.create({
-  oppName: { fontSize: 30, lineHeight: 34, textTransform: "uppercase", letterSpacing: 0.3 },
-  recordNum: { fontSize: 46, lineHeight: 52, width: 56, textAlign: "center", padding: 0, borderWidth: 0 },
-  recordDash: { fontSize: 30 },
-  legend: { fontSize: 12, width: 56, textAlign: "center" },
+const styles = liveSheet(() => ({
+  oppName: { fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", letterSpacing: 0.3 },
+  recordNum: { fontSize: fz(46), lineHeight: lh(52), width: 56, textAlign: "center", padding: 0, borderWidth: 0 },
+  recordDash: { fontSize: fz(30) },
+  legend: { fontSize: fz(12), width: 56, textAlign: "center" },
   summary: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 48, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
   tabs: { flexDirection: "row", gap: 22, borderBottomWidth: StyleSheet.hairlineWidth, marginTop: 4 },
   tab: { minHeight: 48, justifyContent: "center", borderBottomWidth: 3, marginBottom: -1 },
   row: { flexDirection: "row", alignItems: "flex-start", gap: 12, paddingVertical: 14, paddingHorizontal: 8, marginHorizontal: -8, borderBottomWidth: StyleSheet.hairlineWidth },
-  tag: { width: 74, fontSize: 14, letterSpacing: 1.1, textTransform: "uppercase", paddingTop: 1 },
+  tag: { width: 74, fontSize: fz(14), letterSpacing: 1.1, textTransform: "uppercase", paddingTop: 1 },
   inline: { paddingTop: 6, paddingBottom: 18 },
   add: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 52 },
   actions: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 4 },
-});
+}));

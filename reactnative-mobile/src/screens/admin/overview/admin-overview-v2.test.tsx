@@ -46,6 +46,9 @@ jest.mock("@/api/coach", () => ({
   },
 }));
 
+jest.mock("@/api/admissions", () => ({ listApplications: () => Promise.resolve({ items: [{ status: "SUBMITTED" }], total: 1 }) }));
+jest.mock("@/api/video-ai", () => ({ videoAiApi: { listJobs: () => Promise.resolve([]) } }));
+
 // 2026-10-19 16:00 UTC = 23:00 thứ Hai giờ Việt Nam.
 const NOW = Date.parse("2026-10-19T16:00:00Z");
 const f = (status: PublicFighter["currentMedicalStatus"], wc: PublicFighter["weightClass"] = "LIGHTWEIGHT", id = Math.random().toString()) =>
@@ -120,8 +123,8 @@ describe("AdminOverviewV2Screen", () => {
       </SafeAreaProvider>,
     );
     expect(await screen.findByLabelText("Người dùng: 8")).toBeTruthy();
-    expect(await screen.findByText("Đã khóa 2")).toBeTruthy();
-    expect(screen.getByLabelText("Thông báo chưa đọc: 0")).toBeTruthy();
+    expect(await screen.findByLabelText("Tài khoản đã khóa: 2")).toBeTruthy();
+    expect(screen.getByLabelText("Buổi hôm nay: 0")).toBeTruthy();
     expect(screen.getAllByText("Không tải được dữ liệu").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Thử lại").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Cần chú ý")).toBeNull();
@@ -140,10 +143,25 @@ describe("AdminOverviewV2Screen", () => {
         </ThemePreferenceProvider>
       </SafeAreaProvider>,
     );
-    expect(await screen.findByText("Chấn thương (5)")).toBeTruthy();
-    expect(screen.getByText("Chưa cho phép (1)")).toBeTruthy();
+    expect(await screen.findByText("Chấn thương · 5")).toBeTruthy();
+    expect(screen.getByText("Chưa cho phép · 1")).toBeTruthy();
     expect(screen.queryByText("Xem tất cả")).toBeNull();
     expect(screen.getAllByLabelText(/^Tên\d Võ, /)).toHaveLength(5);
     expect(screen.queryByText("Chưa đủ điều kiện")).toBeNull();
+  });
+
+  it("Quản trị: three rows at the bottom (step 23); tools without an API are hidden", async () => {
+    mockUsers.mockImplementation(() => Promise.resolve({ items: [], total: 1, page: 1, limit: 1 }));
+    await render(
+      <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>
+        <ThemePreferenceProvider>
+          <AdminOverviewV2Screen />
+        </ThemePreferenceProvider>
+      </SafeAreaProvider>,
+    );
+    for (const k of ["admissions", "assign", "videos"]) expect(screen.getByTestId(`ov-tool-${k}`)).toBeTruthy();
+    for (const k of ["ai", "settings", "roles", "models", "audit"]) expect(screen.queryByTestId(`ov-tool-${k}`)).toBeNull();
+    expect(screen.queryByText("Chưa mở")).toBeNull();
+    expect(await screen.findByText("1 hồ sơ chờ xử lý")).toBeTruthy();
   });
 });

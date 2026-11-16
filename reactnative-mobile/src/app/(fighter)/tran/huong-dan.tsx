@@ -1,5 +1,5 @@
-import { FighterGuideScreen } from "@/screens/fighter/bout-guide-screen";
+import { FighterGuideV2 } from "@/screens/fighter/bout/guide-v2";
 
 export default function HuongDanRoute() {
-  return <FighterGuideScreen />;
+  return <FighterGuideV2 />;
 }

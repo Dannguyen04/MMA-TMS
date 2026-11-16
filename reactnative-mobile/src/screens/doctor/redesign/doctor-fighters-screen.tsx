@@ -1,34 +1,46 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ScrollView, StyleSheet } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { MEDICAL_STATUSES } from "@/api";
-import { FilterSelect, type FilterOption } from "@/components/filter-sheet";
+import { Icon } from "@/components/icon";
+import { StaggerList } from "@/components/motion";
+import { EmptyLine, RolePage } from "@/components/role-page";
 import { WEIGHT_CLASSES, type WeightClass } from "@/constants/weight-classes";
-import { doctorRo } from "@/i18n/doctor-ro";
-import { vi } from "@/i18n/vi";
-import { fighterName, MEDICAL_CHIP } from "@/screens/coach/readonly/ro-format";
-import { Avatar, RoRow, RoScreen, RowSkeletons, SearchBar, Stack, useGo } from "@/screens/coach/readonly/ro-ui";
-import { ActionButton, ConnectionBanner, MessageCard, useDelayedFlag } from "@/screens/fighter/bout-states";
-import { useFighterPalette } from "@/screens/fighter/redesign/palette";
-import { vai } from "@/i18n/video-ai";
-import { DetailTabs } from "@/screens/doctor/detail/detail-ui";
-import { DoctorAiAlerts, useImpairments } from "@/screens/video-ai/doctor-ai-alerts";
+import { coachRo } from "@/i18n/coach-ro";
+import { doctorRest as t } from "@/i18n/doctor-rest";
+import { fighterLine, statusMark, weightLabel } from "@/screens/coach/fighters/fighter-model";
+import { FilterChips, FilterRow } from "@/screens/coach/fighters/fighters-list";
+import { FighterPick } from "@/screens/coach/fighter-pick";
+import { fighterName, vnDate } from "@/screens/coach/readonly/ro-format";
+import { DoctorBell } from "@/screens/doctor/today/doctor-bell";
+import { CampTabs } from "@/screens/fight-camp/camp-lit";
+import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useAiEnabled } from "@/screens/video-ai/ai-data";
+import { jointText, severityLabel, severityTone } from "@/screens/video-ai/ai-model";
+import { useImpairments } from "@/screens/video-ai/doctor-ai-alerts";
+import { useThemePreference } from "@/theme";
+import { readableTextStyle } from "@/theme/typography";
 
+import { DoctorAiDisclaimer } from "./ai-disclaimer";
 import { filterRoster, statusFromParam, type RosterStatusFilter } from "./doctor-format";
+import { doctorVideoHref } from "./doctor-paths";
 import { useDoctorRoster } from "./doctor-roster";
 
-const weightLabels = vi.weightClass as Record<string, string>;
 export const DOCTOR_DETAIL_PATH = "/(doctor)/vo-si/chi-tiet";
+type Seg = "fighters" | "ai";
 
-/** Tab Võ sĩ của Doctor: tên, hạng cân, chip y tế; tìm theo tên, lọc hạng cân và tình trạng. */
+/**
+ * Doctor Võ sĩ (redesign step 21): tabs Võ sĩ · Cảnh báo AI (count on the tab). Võ sĩ: search, weight and status chips
+ * that apply on tap, one row per fighter (mark, name, status word · weight · gym). Cảnh báo AI: a fighter field and one
+ * row per analysis (severity word · joint · alerts · date); a row opens the one video page.
+ */
 export function DoctorFightersScreen() {
   const roster = useDoctorRoster();
-  const go = useGo();
-  const p = useFighterPalette();
+  const router = useRouter();
+  const { colors: c } = useThemePreference();
   const params = useLocalSearchParams<{ status?: string; t?: string; seg?: string; fighterId?: string }>();
-  const [seg, setSeg] = useState<"fighters" | "ai">("fighters");
+  const [seg, setSeg] = useState<Seg>("fighters");
   const [aiFighter, setAiFighter] = useState("");
   const aiEnabled = useAiEnabled();
   const impairments = useImpairments(aiEnabled && roster.enabled);
@@ -36,140 +48,82 @@ export function DoctorFightersScreen() {
   const [search, setSearch] = useState("");
   const [wc, setWc] = useState<WeightClass | "">("");
   const [status, setStatus] = useState<RosterStatusFilter>("");
-  const chipRow = useRef<ScrollView>(null);
 
-  // Ô "Cần chú ý" / "Võ sĩ phụ trách" ở màn Tôi mở tab này với bộ lọc tình trạng đặt sẵn.
+  // Tôi and Hôm nay open this tab with a preset (status, or the AI tab for one fighter).
   useEffect(() => {
     const next = statusFromParam(params.status);
     if (next !== null) setStatus(next);
-    // Lọc đặt sẵn từ màn Tôi: cuộn hàng chip để chip Tình trạng đang bật luôn nhìn thấy.
-    if (next) requestAnimationFrame(() => chipRow.current?.scrollToEnd({ animated: false }));
     if (params.seg === "ai") {
       setSeg("ai");
       setAiFighter(typeof params.fighterId === "string" ? params.fighterId : "");
     } else if (next !== null) setSeg("fighters");
   }, [params.status, params.t, params.seg, params.fighterId]);
 
-  const weightOptions = useMemo<FilterOption<WeightClass | "">[]>(
-    () => [{ value: "", label: doctorRo.fighters.weightAll }, ...WEIGHT_CLASSES.map((w) => ({ value: w, label: weightLabels[w] ?? w }))],
-    [],
-  );
-  const statusOptions = useMemo<FilterOption<RosterStatusFilter>[]>(
-    () => [
-      { value: "", label: doctorRo.fighters.statusAll },
-      { value: "attention", label: doctorRo.fighters.attention },
-      ...MEDICAL_STATUSES.map((s) => ({ value: s, label: MEDICAL_CHIP[s].label })),
-    ],
-    [],
-  );
+  const weights = useMemo(() => [{ value: "" as const, label: t.weightAll }, ...WEIGHT_CLASSES.map((w) => ({ value: w, label: weightLabel(w) }))], []);
+  const statuses = useMemo(() => [
+    { value: "" as RosterStatusFilter, label: t.statusAll },
+    { value: "attention" as RosterStatusFilter, label: t.attention },
+    ...MEDICAL_STATUSES.map((s) => ({ value: s as RosterStatusFilter, label: coachRo.medicalStatus[s] })),
+  ], []);
 
   const visible = useMemo(() => filterRoster(roster.items, { search, weightClass: wc, status }), [roster.items, search, wc, status]);
   const firstLoad = !roster.loaded || (roster.loading && roster.items.length === 0 && !roster.error);
-  const skeleton = useDelayedFlag(firstLoad);
   const filtered = Boolean(search.trim() || wc || status);
   const empty = roster.loaded && !roster.loading && !roster.error && visible.length === 0;
+  const aiRows = useMemo(() => (impairments.data ?? []).filter((r) => !aiFighter || r.fighterId === aiFighter), [impairments.data, aiFighter]);
+  const aiCount = impairments.data?.length ?? 0;
 
-  return (
-    <RoScreen
-      title={doctorRo.fighters.title}
-      onRefresh={() => Promise.all([roster.refresh(), seg === "ai" ? impairments.refresh() : null])}
-      refreshing={roster.loading && roster.items.length === 0}
-    >
-      <Stack>
-        <DetailTabs
-          value={seg}
-          onChange={setSeg}
-          tabs={[
-            { key: "fighters", label: vai.segFighters },
-            { key: "ai", label: vai.segAi },
-          ]}
-        />
-        {seg === "ai" ? <DoctorAiAlerts load={impairments} names={names} fighterId={aiFighter || undefined} onClearFighter={() => setAiFighter("")} /> : null}
-        {seg === "fighters" ? (
-        <>
-        <SearchBar value={search} onChangeText={setSearch} placeholder={doctorRo.fighters.search} />
-        {/* Một hàng chip lọc cuộn ngang (Hạng cân + Tình trạng), cao 48dp. */}
-        <ScrollView
-          ref={chipRow}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          contentContainerStyle={styles.chips}
-          style={styles.chipRow}
-        >
-          <FilterSelect
-            mutedColor={p.filterMuted}
-            label={doctorRo.fighters.weightFilter}
-            value={wc}
-            onChange={setWc}
-            options={weightOptions}
-            allValue=""
-            style={styles.chip}
-          />
-          <FilterSelect
-            mutedColor={p.filterMuted}
-            label={doctorRo.fighters.statusFilter}
-            value={status}
-            onChange={setStatus}
-            options={statusOptions}
-            allValue=""
-            style={styles.chip}
-          />
-        </ScrollView>
+  return <RolePage testID="doctor-fighters" title={t.fighters} right={<DoctorBell/>}
+    onRefresh={() => Promise.all([roster.refresh(), seg === "ai" ? impairments.refresh() : null])}>
+    <CampTabs alertLabel="" value={seg} onChange={(k) => setSeg(k as Seg)}
+      tabs={[{ key: "fighters", label: t.tabFighters }, { key: "ai", label: t.tabAi, count: aiCount || undefined, a11y: t.tabAiA11y(aiCount) }]}/>
 
-        {roster.error ? (
-          <ConnectionBanner error={roster.error} onRetry={roster.reload} retrying={roster.loading} hasData={roster.items.length > 0} />
-        ) : null}
+    {seg === "fighters" ? <>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, minHeight: 48, paddingHorizontal: 12, borderWidth: 1.5, borderColor: c.controlBorder }}>
+        <Icon name="search" size={20} color={c.inkMuted}/>
+        <TextInput testID="doctor-search" value={search} onChangeText={setSearch} placeholder={t.search} placeholderTextColor={c.inkSubtle} accessibilityLabel={t.search}
+          style={{ ...readableTextStyle(15), flex: 1, minWidth: 0, color: c.ink, paddingVertical: 10 }}/>
+      </View>
+      <FilterRow>
+        <FilterChips testID="filter-weight" label={t.weightGroup} options={weights} value={wc} onChange={setWc}/>
+        <FilterChips testID="filter-status" label={t.statusGroup} options={statuses} value={status} onChange={setStatus}/>
+      </FilterRow>
 
-        {firstLoad && !roster.error && skeleton ? <RowSkeletons count={5} height={96} /> : null}
-
-        {empty ? (
-          <MessageCard
-            icon="fighters"
-            title={filtered && roster.items.length > 0 ? doctorRo.fighters.emptyFiltered : doctorRo.fighters.emptyTitle}
-            description={filtered && roster.items.length > 0 ? doctorRo.fighters.emptyFilteredDesc : doctorRo.fighters.emptyDesc}
-          >
-            {filtered && roster.items.length > 0 ? (
-              <ActionButton
-                label={doctorRo.fighters.clear}
-                variant="secondary"
-                icon="close"
-                onPress={() => {
-                  setSearch("");
-                  setWc("");
-                  setStatus("");
-                }}
-              />
-            ) : null}
-          </MessageCard>
-        ) : null}
-
-        {visible.length > 0 ? (
-          <Stack>
-            {visible.map((f) => {
-              const name = fighterName(f);
-              return (
-                <RoRow
-                  key={f.id}
-                  leading={<Avatar name={name} uri={f.profileImageUrl} />}
-                  title={name}
-                  lines={[weightLabels[f.weightClass] ?? f.weightClass]}
-                  chip={MEDICAL_CHIP[f.currentMedicalStatus]}
-                  onPress={() => go(DOCTOR_DETAIL_PATH, f.id)}
-                />
-              );
-            })}
-          </Stack>
-        ) : null}
-        </>
-        ) : null}
-      </Stack>
-    </RoScreen>
-  );
+      {roster.error ? <RetryRow message={t.loadFailed} retry={t.retry} onRetry={() => void roster.reload()}/> : null}
+      {firstLoad && !roster.error ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/> : null}
+      {empty ? <View style={{ gap: 10 }}>
+        <EmptyLine testID="doctor-fighters-empty" title={filtered && roster.items.length ? t.emptyFiltered : t.empty}/>
+        {filtered ? <Pressable accessibilityRole="button" onPress={() => { setSearch(""); setWc(""); setStatus(""); }} style={{ minHeight: 44, justifyContent: "center", alignSelf: "flex-start" }}>
+          <Text style={{ ...readableTextStyle(14.5, true), color: c.lotus }}>{t.clear}</Text>
+        </Pressable> : null}
+      </View> : null}
+      {visible.length ? <StaggerList testID="doctor-fighters-list">
+        {visible.map((f, k) => {
+          const name = fighterName(f);
+          const m = statusMark(f.currentMedicalStatus);
+          const line = fighterLine(f);
+          return <SlipRow key={f.id} testID={`doctor-fighter-${f.id}`} lead={m.lead} icon={m.icon} leadTone={m.tone} title={name} word={m.word} wordTone={m.wordTone} line={line}
+            a11y={`${name}, ${m.word}, ${line}`} last={k === visible.length - 1}
+            onPress={() => router.push({ pathname: DOCTOR_DETAIL_PATH, params: { id: f.id } } as never)}/>;
+        })}
+      </StaggerList> : null}
+    </> : <>
+      <FighterPick testID="ai-pick-fighter" placeholder={t.pickFighter} allLabel={t.allFighters} empty={t.empty} failed={t.loadFailed} retry={t.retry}
+        state={roster.error ? "error" : roster.loaded ? "ok" : "loading"} fighters={roster.items} value={aiFighter} onChange={setAiFighter} onRetry={() => void roster.reload()}/>
+      {impairments.loading && !impairments.data ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 32 }}/> : null}
+      {impairments.error && !impairments.data ? <RetryRow message={t.aiFailed} retry={t.retry} onRetry={() => void impairments.reload()}/> : null}
+      {impairments.data && !aiRows.length ? <EmptyLine testID="doctor-ai-empty" title={aiFighter ? t.aiEmptyFighter : t.aiEmpty}/> : null}
+      {aiRows.length ? <StaggerList testID="doctor-ai-list">
+        {aiRows.map((r, k) => {
+          const name = names[r.fighterId] ?? t.fighterFallback;
+          const sev = r.severity ? severityLabel(r.severity) : "";
+          const line = [jointText(r.joint), r.count ? t.alerts(r.count) : "", vnDate(r.createdAt).slice(0, 5)].filter(Boolean).join(" · ");
+          return <SlipRow key={r.jobId} testID={`doctor-ai-${r.jobId}`} lead="!" leadTone={sev && severityTone(r.severity) === "danger" ? "warn" : undefined} title={name}
+            word={sev || undefined} wordTone="warn" line={line} a11y={[name, sev, line].filter(Boolean).join(", ")} last={k === aiRows.length - 1}
+            onPress={() => router.push(doctorVideoHref(r.jobId, r.videoId) as never)}/>;
+        })}
+      </StaggerList> : null}
+      {impairments.data ? <DoctorAiDisclaimer/> : null}
+    </>}
+  </RolePage>;
 }
-
-const styles = StyleSheet.create({
-  chipRow: { flexGrow: 0 },
-  chips: { flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 2, paddingRight: 16 },
-  chip: { minHeight: 48, height: 48, maxWidth: 360 },
-});

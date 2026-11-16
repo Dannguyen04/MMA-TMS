@@ -13,13 +13,13 @@ export const UNKNOWN_VALUE = "Chưa rõ";
 /** Mã lỗi backend → câu cho người dùng. */
 export const errorCodeText: Record<string, string> = {
   // Chung
-  NETWORK_ERROR: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại; dữ liệu đang nhập được giữ nguyên.",
+  NETWORK_ERROR: "Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.",
   VALIDATION_ERROR: "Thông tin chưa hợp lệ. Kiểm tra các ô nhập trước khi lưu.",
   TOO_MANY_REQUESTS: "Bạn thao tác quá nhanh. Đợi một chút rồi thử lại.",
   // Trận (nestjs-api/src/bouts/bouts.error.ts)
-  BOUT_NOT_FOUND: "Không tìm thấy trận hoặc bạn không có quyền xem.",
+  BOUT_NOT_FOUND: "Không tìm thấy trận.",
   BOUT_FIGHTER_NOT_FOUND: "Không tìm thấy võ sĩ hoặc võ sĩ không còn hoạt động.",
-  BOUT_ACTIVE_EXISTS: "Võ sĩ đã có một trận đang chuẩn bị. Mỗi võ sĩ chỉ có một trận đang chạy.",
+  BOUT_ACTIVE_EXISTS: "Võ sĩ đã có một trận đang chuẩn bị.",
   BOUT_COACH_REQUIRED: "Cần chọn huấn luyện viên phụ trách trận.",
   BOUT_COACH_NOT_ASSIGNED: "Huấn luyện viên chưa được phân công cho võ sĩ này.",
   BOUT_NOT_IN_FUTURE: "Thời gian thi đấu phải ở tương lai.",
@@ -54,8 +54,8 @@ export const errorCodeText: Record<string, string> = {
   VIDEO_NOT_FOUND: "Không tìm thấy video.",
   VIDEO_FORMAT_UNSUPPORTED: "Định dạng video chưa được hỗ trợ. Chọn tệp MP4 hoặc MOV.",
   VIDEO_SIZE_REQUIRED: "Không đọc được dung lượng tệp. Chọn lại video.",
-  VIDEO_TOO_LARGE: "Video quá lớn. Chọn tệp nhỏ hơn.",
-  VIDEO_STORAGE_FILE_TOO_LARGE: "Video quá lớn. Chọn tệp nhỏ hơn.",
+  VIDEO_TOO_LARGE: "Video quá lớn, vui lòng chọn tệp nhỏ hơn.",
+  VIDEO_STORAGE_FILE_TOO_LARGE: "Dung lượng video quá lớn.",
   VIDEO_STORAGE_REJECTED: "Kho lưu trữ không nhận tệp này. Thử lại với tệp khác.",
   VIDEO_STORAGE_UNAVAILABLE: "Kho lưu video đang tạm gián đoạn. Thử lại sau.",
   VIDEO_SESSION_MISMATCH: "Video không thuộc buổi tập đã chọn.",
@@ -75,10 +75,13 @@ export function backendErrorText(error: { code?: string; status?: number } | nul
   return GENERIC_ERROR;
 }
 
-/** Huy hiệu trạng thái gợi ý AI (status + errorCode của /ai/*). */
+/**
+ * Trạng thái gợi ý AI (status + errorCode của /ai/*). Mỗi câu đứng một mình trên màn ghi hiệp,
+ * nên luôn nói rõ là AI: "Hết thời gian" trơn dễ đọc nhầm thành hết giờ hiệp.
+ */
 export const aiStatusBadge: Record<string, string> = {
   OK: "Có gợi ý",
-  FAILED: "Chưa có gợi ý",
+  FAILED: "AI chưa có gợi ý",
   NOT_CONFIGURED: "AI chưa được bật",
   TIMEOUT: "AI không trả lời kịp",
   QUOTA: "AI tạm hết lượt",

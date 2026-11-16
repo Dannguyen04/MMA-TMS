@@ -1,6 +1,9 @@
-import { AiLibraryScreen } from "@/screens/video-ai/ai-video-library";
+import { Redirect, useLocalSearchParams, type Href } from "expo-router";
 
-/** Thư viện video lọc sẵn võ sĩ (thu-vien-video?fighterId=...), mở từ chi tiết võ sĩ. */
-export default function AdminVideoLibraryRoute() {
-  return <AiLibraryScreen />;
+import { adminVideosHref } from "@/screens/admin/tools/admin-paths";
+
+/** Old video library link (step 23): now the Thư viện tab of Video, on the fighter when given. */
+export default function AdminVideoLibraryLegacyRoute() {
+  const { fighterId } = useLocalSearchParams<{ fighterId?: string }>();
+  return <Redirect href={adminVideosHref({ seg: "library", fighterId }) as unknown as Href} />;
 }

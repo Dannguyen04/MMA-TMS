@@ -1,19 +1,21 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputProps } from "react-native";
+import { ActivityIndicator, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions, type TextInputProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 import { useRouter } from "expo-router";
+import { KeyboardFrame, KeyboardScroll, type KeyboardScrollRef } from "@/components/keyboard-aware";
 import { fonts, useThemePreference, useTypography } from "@/theme";
-import { readableTextStyle } from "@/theme/typography";
+import { readableTextStyle, fz, lh } from "@/theme/typography";
 import { ArenaFrame, ArenaSurface } from "@/components/arena/arena-frame";
 import { CampScrollContext } from "./camp-scroll-context";
 import { PressableScale } from "@/components/motion";
 import { CampReveal, CampSelection } from "./camp-motion";
-import { pendingVi } from "@/i18n/pending-vi";
 import { READABLE_MAX_WIDTH } from "@/components/readable-width";
 import { navSideWidth, useNavKind } from "@/components/nav-rail";
 import { CAMP_TWO_COLUMN_MAX, CampTwoColumnsProvider, campTwoColumns } from "./camp-columns";
 import { campText } from "@/i18n/fight-camp";
+import * as Haptics from "expo-haptics";
+import { LitFill, Sheen, type LitKind } from "./camp-lit";
 
 export function Copy({ children, muted, strong, color, large, small, strike }: { children: ReactNode; muted?: boolean; strong?: boolean; color?: string; large?: boolean; small?: boolean; strike?: boolean }) {
   const { colors: c } = useThemePreference();
@@ -58,8 +60,20 @@ export function SvgTitle({ children, small = false }: { children: string; small?
     </Svg>
   </View>;
 }
+/**
+ * A section heading inside a screen. DESIGN.md: the screen names itself once, in the CampShell header bar; sections
+ * below it use this plain condensed heading (no red slash).
+ */
+export function SectionTitle({ children }: { children: string }) {
+  const { colors: c } = useThemePreference();
+  return <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(30), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{children}</Text>;
+}
 export function Frame({ children, tone, pad = 20 }: { children: ReactNode; tone?: "danger" | "success" | "accent"; pad?: number; slip?: boolean }) {
   return <ArenaFrame tone={tone} pad={pad}>{children}</ArenaFrame>;
+}
+/** Owner 2026-11-11: inside a notice, every sentence sits on its own line. */
+export function sentences(text: string): string[] {
+  return text.split(/(?<=[.!?])\s+(?=\S)/).map(x => x.trim()).filter(Boolean);
 }
 export function Notice({ title, children, danger = false, success = false }: { title: string; children?: ReactNode; danger?: boolean; success?: boolean }) {
   const { colors: c } = useThemePreference();
@@ -69,24 +83,50 @@ export function Notice({ title, children, danger = false, success = false }: { t
         <View style={{ paddingTop: 1 }}><CampIcon name={danger ? "alert" : success ? "check" : "arrow"} color={danger ? c.danger : success ? c.success : c.lotus}/></View>
         <Copy strong color={danger ? c.danger : success ? c.success : c.ink}>{title}</Copy>
       </View>
-      {children ? <Copy>{children}</Copy> : null}
+      {typeof children === "string" ? sentences(children).map((line, i) => <Copy key={i}>{line}</Copy>) : children ? <Copy>{children}</Copy> : null}
     </Frame>
   </View>;
   return success && !danger ? <CampReveal>{content}</CampReveal> : content;
 }
 export function Action({ label, onPress, secondary, danger, disabled, pending, icon }: { label: string; onPress: () => void; secondary?: boolean; danger?: boolean; disabled?: boolean; pending?: boolean; icon?: "minus" | "plus" }) {
   const { colors: c } = useThemePreference();
-  const fill = disabled || pending ? c.disabledFill : secondary ? c.surface : danger ? c.danger : c.cta;
-  const ink = disabled || pending ? c.disabledInk : secondary ? c.ink : c.onCta;
-  return <PressableScale accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: !!disabled || !!pending, busy: !!pending }} disabled={disabled || pending} onPress={onPress} style={{ minHeight: 54, justifyContent: "center", alignItems: "center" }}>
-    <Svg width="100%" height="100%" viewBox="0 0 350 54" preserveAspectRatio="none" style={StyleSheet.absoluteFill} aria-hidden={true}><Path d="M1 1H336L349 14V53H14L1 40Z" fill={fill} stroke={secondary ? c.controlBorder : fill}/></Svg>
-    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 12 }}>{pending ? <ActivityIndicator size="small" color={ink}/> : null}{icon ? <CampIcon name={icon} color={ink} size={24}/> : <Text style={{ ...readableTextStyle(15, true), color: ink, textAlign: "center", flexShrink: 1 }}>{label}</Text>}</View>
+  const off = !!disabled || !!pending;
+  const kind: LitKind = off ? "disabled" : secondary ? "secondary" : danger ? "danger" : "primary";
+  const ink = off ? c.disabledInk : secondary ? c.ink : "#FFFFFF";
+  // The one main (red, non-danger) button per screen gets the light sheen: on appear and once per press.
+  const main = kind === "primary";
+  const [sheen, setSheen] = useState(0);
+  return <PressableScale scaleTo={0.985} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled: off, busy: !!pending }} disabled={off}
+    onPressIn={() => { if (main) { setSheen(n => n + 1); if (Platform.OS !== "web") void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); } }}
+    onPress={onPress} style={{ minHeight: 54, justifyContent: "center", alignItems: "center" }}>
+    <LitFill kind={kind}/>
+    {main ? <Sheen trigger={sheen}/> : null}
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 12 }}>{pending ? <ActivityIndicator size="small" color={ink}/> : null}{icon ? <CampIcon name={icon} color={ink} size={24}/> : <Text style={{ ...readableTextStyle(15, true), color: ink, textAlign: "center", flexShrink: 1, ...(main || kind === "danger" ? { textShadowColor: "rgba(60,8,0,0.45)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 0 } : {}) }}>{label}</Text>}</View>
   </PressableScale>;
 }
-export function Choices<T extends string | number | null | undefined>({ label, options, value, onChange, disabled }: { label?: string; options: readonly { value: T; label: string }[]; value: T; onChange: (v: T) => void; disabled?: boolean }) {
+export type ChoiceTone = "good" | "bad";
+/**
+ * Pick one. Default: text options with a red underline. `chips`: bordered chips whose selected state is a lit fill
+ * (neutral ink, good = green, bad = deep red) with white text (owner 2026-11-11: never pink with dark text).
+ */
+export function Choices<T extends string | number | null | undefined>({ label, options, value, onChange, disabled, chips, wrap: wrapAlways }: { label?: string; options: readonly { value: T; label: string; tone?: ChoiceTone }[]; value: T; onChange: (v: T) => void; disabled?: boolean; chips?: boolean;
+  /** Rows of three even with five or fewer options (long labels such as "Đấm bóng ma"). */ wrap?: boolean }) {
   const { colors: c } = useThemePreference();
   const live = useTypography();
   const labelStyle = { ...readableTextStyle(14), fontFamily: live.faces.medium };
+  // Six or more chips wrap into rows of three so a long label (Chuẩn bị thi đấu) stays on one line.
+  const wrap = wrapAlways || options.length > 5;
+  if (chips) return <View style={{ gap: 8 }}>
+    {label ? <Copy strong>{label}</Copy> : null}
+    <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: wrap ? "wrap" : "nowrap", gap: 6 }}>
+      {options.map((o, i) => { const on = value === o.value;
+        return <PressableScale key={i} scaleTo={0.97} disabled={disabled} accessibilityRole="radio" aria-checked={on} aria-disabled={!!disabled} accessibilityState={{ checked: on, disabled }} onPress={() => onChange(o.value)}
+          style={{ ...(wrap ? { flexGrow: 1, flexBasis: "30%" } : { flex: 1 }), minWidth: 0, minHeight: 46, justifyContent: "center", paddingHorizontal: 4, opacity: disabled ? 0.55 : 1 }}>
+          {on ? <LitFill kind={o.tone ?? "neutral"} cut={false}/> : <View pointerEvents="none" style={[StyleSheet.absoluteFill, { borderWidth: 1, borderColor: c.controlBorder }]}/>}
+          <Text numberOfLines={wrap ? 1 : 2} style={{ ...readableTextStyle(13.5, true), color: on ? (o.tone ? "#FFFFFF" : c.bg) : c.ink, textAlign: "center" }}>{o.label}</Text>
+        </PressableScale>; })}
+    </View>
+  </View>;
   return <View style={{ gap: 6 }}>
     {label ? <Copy strong>{label}</Copy> : null}
     <View accessibilityRole="radiogroup" accessibilityLabel={label} style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
@@ -155,7 +195,7 @@ export function WeightSlip({ value, onChange, limit, label = campText.campUi.can
   return <Pressable accessible={false} focusable={false} disabled={disabled} onPress={() => input.current?.focus()}><Frame slip pad={20}>
     <View style={{ flexDirection: "row", justifyContent: "space-between", gap: 14 }}><Copy muted>{label}</Copy><Copy strong>{limit == null ? campText.campUi.chuaCoGioiHan : `${limit} kg`}</Copy></View>
     <View style={{ flexDirection: "row", alignItems: "baseline", gap: 10, paddingVertical: 12 }}>
-      <TextInput ref={input} accessibilityLabel={label} editable={!disabled} value={value} onChangeText={onChange} inputMode="decimal" keyboardType="decimal-pad" maxLength={5} placeholder="00,0" placeholderTextColor={c.inkSubtle} selectionColor={c.ring} style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 1, color: c.ink, fontFamily: fonts.display, fontSize: 78, lineHeight: 98, textAlign: "center", padding: 0, ...(Platform.OS === "web" ? { outlineStyle: "none", borderWidth: 0 } as object : {}) }}/>
+      <TextInput ref={input} accessibilityLabel={label} editable={!disabled} value={value} onChangeText={onChange} inputMode="decimal" keyboardType="decimal-pad" maxLength={5} placeholder="00,0" placeholderTextColor={c.inkSubtle} selectionColor={c.ring} style={{ flex: 1, minWidth: 0, position: "relative", zIndex: 1, color: c.ink, fontFamily: fonts.display, fontSize: fz(78), lineHeight: lh(98), textAlign: "center", padding: 0, ...(Platform.OS === "web" ? { outlineStyle: "none", borderWidth: 0 } as object : {}) }}/>
       <Copy muted>{campText.campUi.kg}</Copy>
     </View>
     <Copy muted>{campText.campUi.gioiHanCanOGoc}</Copy>
@@ -169,6 +209,14 @@ export function Busy() { const { colors } = useThemePreference(); return <View s
 /** `footer` docks the screen's save action above the keyboard and home indicator. */
 /** Lets a nested screen dock its primary action in the shell footer (stays above the keyboard). */
 const CampFooterSlot = createContext<((node: ReactNode) => void) | null>(null);
+/** Lets a nested screen pin content (round picker, tabs) above the shell's body, below the header and `top`. */
+const CampTopSlot = createContext<((node: ReactNode) => void) | null>(null);
+export function CampTop({ children }: { children: ReactNode }) {
+  const set = useContext(CampTopSlot);
+  useEffect(() => { set?.(children); }, [set, children]);
+  useEffect(() => () => set?.(null), [set]);
+  return set ? null : <View style={{ gap: 10 }}>{children}</View>;
+}
 export function CampFooter({ children }: { children: ReactNode }) {
   const set = useContext(CampFooterSlot);
   useEffect(() => { set?.(children); }, [set, children]);
@@ -177,10 +225,12 @@ export function CampFooter({ children }: { children: ReactNode }) {
 }
 /** Below this window height (phone landscape, split screen) CampShell uses a compact header and footer. */
 export const CAMP_SHORT_HEIGHT = 500;
-export function CampShell({ title, subtitle, children, onBack, preview, compactTitle = false, footer: ownFooter, columns = false }: { title: string; subtitle?: string; children: ReactNode; onBack?: () => void; preview?: boolean; compactTitle?: boolean; footer?: ReactNode; /** Phase 5 E: allow two columns when the shell gets at least CAMP_TWO_COLUMN_MIN (744) wide. */ columns?: boolean }) {
+export function CampShell({ title, subtitle, children, onBack, preview, footer: ownFooter, columns = false, top, onRefresh }: { title: string; subtitle?: string; children: ReactNode; onBack?: () => void; preview?: boolean; footer?: ReactNode; /** Pull-to-refresh (fighter step 14): a quiet refetch that keeps what is on screen. */ onRefresh?: () => Promise<unknown>; /** Pinned under the header on every view (fighter vs opponent + status); never scrolls. */ top?: ReactNode; /** Phase 5 E: allow two columns when the shell gets at least CAMP_TWO_COLUMN_MIN (744) wide. */ columns?: boolean }) {
   const { colors: c } = useThemePreference(); const insets = useSafeAreaInsets(); const router = useRouter();
-  const [slot, setSlot] = useState<ReactNode>(null); const footer = ownFooter ?? slot;
-  const scroll = useRef<ScrollView>(null);
+  const [slot, setSlot] = useState<ReactNode>(null); const footer = ownFooter ?? slot; const [topSlot, setTopSlot] = useState<ReactNode>(null);
+  const scroll = useRef<KeyboardScrollRef>(null);
+  const [pulling, setPulling] = useState(false);
+  const pull = useCallback(() => { if (!onRefresh) return; setPulling(true); void onRefresh().catch(() => undefined).finally(() => setPulling(false)); }, [onRefresh]);
   // Phase 5 D: tablets may rotate (Android 16 large screens, iPad multitasking); short windows get a compact header and footer.
   const window = useWindowDimensions(); const short = window.height < CAMP_SHORT_HEIGHT;
   // Content width after the side navigation: measured, with the window minus the rail (88) or iPad sidebar (240) until the first layout.
@@ -188,19 +238,23 @@ export function CampShell({ title, subtitle, children, onBack, preview, compactT
   const wide = campTwoColumns(columns, measured || window.width - navSideWidth(nav));
   const scrollTop = useCallback(() => { scroll.current?.scrollTo({ y: 0, animated: false }); }, []);
   useEffect(scrollTop, [title, scrollTop]);
-  return <KeyboardAvoidingView testID="camp-shell" onLayout={e => setMeasured(Math.round(e.nativeEvent.layout.width))} style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+  return <KeyboardFrame testID="camp-shell" onLayout={e => setMeasured(Math.round(e.nativeEvent.layout.width))} style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
     <View testID="camp-column" style={{ flex: 1, width: "100%", maxWidth: wide ? CAMP_TWO_COLUMN_MAX : READABLE_MAX_WIDTH, alignSelf: "center" }}>
       <View testID="camp-header" style={{ paddingHorizontal: 18, minHeight: short ? 44 : 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomColor: c.line, borderBottomWidth: 1 }}>
-        <Pressable accessibilityRole="button" accessibilityLabel={campText.campUi.quayLai} onPress={onBack ?? (() => router.back())} style={{ minWidth: 48, minHeight: 48, justifyContent: "center" }}><CampIcon name="back" color={c.ink} size={26}/></Pressable>
-        <Copy strong>{pendingVi.fightCamp}</Copy><Copy muted>{preview ? campText.campUi.duLieuMau : ""}</Copy>
+        {/* Equal side slots keep the title optically centred whether or not the "Dữ liệu mẫu" marker shows. */}
+        <View style={{ width: 88, alignItems: "flex-start" }}><Pressable accessibilityRole="button" accessibilityLabel={campText.campUi.quayLai} onPress={onBack ?? (() => router.back())} style={{ minWidth: 48, minHeight: 48, justifyContent: "center" }}><CampIcon name="back" color={c.ink} size={26}/></Pressable></View>
+        {/* The screen's one title lives in the header bar (it replaced the fixed "Fight Camp" label). */}
+        <Text accessibilityRole="header" numberOfLines={1} style={{ flex: 1, textAlign: "center", fontFamily: fonts.display, fontSize: short ? 18 : 20, lineHeight: short ? 24 : 27, letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+        <View style={{ width: 88, alignItems: "flex-end" }}><Copy muted small>{preview ? campText.campUi.duLieuMau : ""}</Copy></View>
       </View>
-      <ScrollView ref={scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: 22, paddingTop: short ? 10 : 20, paddingBottom: footer ? (short ? 12 : 24) : Math.max(insets.bottom, 24) + 24, gap: short ? 14 : 22 }}>
-        <View style={{ gap: 6 }}>{!compactTitle ? <SvgTitle small={short}>{title}</SvgTitle> : null}{subtitle ? <Copy muted>{subtitle}</Copy> : null}</View>
-        <CampScrollContext.Provider value={scrollTop}><CampFooterSlot.Provider value={setSlot}><CampTwoColumnsProvider value={wide}><CampReveal key={title} style={{ gap: 22 }}>{children}</CampReveal></CampTwoColumnsProvider></CampFooterSlot.Provider></CampScrollContext.Provider>
-      </ScrollView>
+      {top || topSlot ? <View testID="camp-top" style={{ paddingHorizontal: 22, paddingTop: short ? 8 : 12, gap: 10 }}>{top}{topSlot}</View> : null}
+      <KeyboardScroll ref={scroll} showsVerticalScrollIndicator={false} refreshControl={onRefresh ? <RefreshControl refreshing={pulling} onRefresh={pull} tintColor={c.lotus} colors={[c.lotus]} progressBackgroundColor={c.surface}/> : undefined} contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ paddingHorizontal: 22, paddingTop: short ? 10 : 20, paddingBottom: footer ? (short ? 12 : 24) : Math.max(insets.bottom, 24) + 24, gap: short ? 14 : 22 }}>
+        {subtitle ? <Copy muted>{subtitle}</Copy> : null}
+        <CampScrollContext.Provider value={scrollTop}><CampTopSlot.Provider value={setTopSlot}><CampFooterSlot.Provider value={setSlot}><CampTwoColumnsProvider value={wide}><CampReveal key={title} style={{ gap: 22 }}>{children}</CampReveal></CampTwoColumnsProvider></CampFooterSlot.Provider></CampTopSlot.Provider></CampScrollContext.Provider>
+      </KeyboardScroll>
       {footer ? <View testID="camp-footer-bar" style={{ paddingHorizontal: 22, paddingTop: short ? 6 : 12, paddingBottom: Math.max(insets.bottom, short ? 6 : 12) + (short ? 2 : 8), gap: short ? 6 : 10, borderTopColor: c.line, borderTopWidth: 1, backgroundColor: c.bg }}>{footer}</View> : null}
     </View>
-  </KeyboardAvoidingView>;
+  </KeyboardFrame>;
 }
 export function WeightPlot({ points, reference, limit }: { points: { date: string; kg: number }[]; reference: { date: string; kg: number }[]; limit: number | null }) {
   const { colors: c } = useThemePreference();

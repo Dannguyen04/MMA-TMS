@@ -58,6 +58,12 @@ export const fighter = {
     cancelReason: "Lý do hủy",
     checkedIn: "Bắt đầu lúc",
     completedAt: "Xong lúc",
+    where: "Địa điểm",
+    coachNotes: "Ghi chú của HLV",
+    noNotes: "Chưa có ghi chú.",
+    loadFailed: "Không tải được buổi tập",
+    notFound: "Không tìm thấy buổi tập",
+    statusA11y: (w: string) => `Trạng thái: ${w}`,
   },
   sessionStatus: {
     SCHEDULED: "Đã lên lịch",

@@ -20,6 +20,7 @@ import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import { useSession } from "@/session/session-context";
 import { Skeleton } from "@/components/motion";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 function initials(first: string, last: string): string {
   const a = first.trim().charAt(0);
@@ -225,28 +226,28 @@ function Row({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   pad: { paddingHorizontal: 20, paddingBottom: 16, gap: 14 },
-  title: { fontSize: 26, lineHeight: 36, fontWeight: "700" },
+  title: { fontSize: fz(26), lineHeight: lh(36), fontWeight: "700" },
   identity: { flexDirection: "row", alignItems: "center", gap: 12 },
   avatar: { width: 56, height: 56, borderRadius: 28, alignItems: "center", justifyContent: "center" },
-  avatarText: { fontSize: 18, fontWeight: "700" },
-  name: { fontSize: 21, lineHeight: 28, fontWeight: "700" },
+  avatarText: { fontSize: fz(18), fontWeight: "700" },
+  name: { fontSize: fz(21), lineHeight: lh(28), fontWeight: "700" },
   flex: { flex: 1, gap: 2 },
   gear: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center" },
   stats: { flexDirection: "row", borderRadius: 12, paddingVertical: 12 },
   stat: { flex: 1, alignItems: "center", gap: 3 },
-  statValue: { fontSize: 12, fontWeight: "600", textAlign: "center" },
+  statValue: { fontSize: fz(12), fontWeight: "600", textAlign: "center" },
   facts: { gap: 10 },
   pair: { flexDirection: "row", gap: 16 },
-  fine: { fontSize: 11, lineHeight: 15 },
-  factValue: { fontSize: 13, lineHeight: 18, fontWeight: "600" },
-  meta: { fontSize: 12, lineHeight: 17 },
+  fine: { fontSize: fz(11), lineHeight: lh(15) },
+  factValue: { fontSize: fz(13), lineHeight: lh(18), fontWeight: "600" },
+  meta: { fontSize: fz(12), lineHeight: lh(17) },
   lock: { flexDirection: "row", gap: 8, alignItems: "flex-start" },
   doctor: { flexDirection: "row", gap: 12, alignItems: "center", borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
   row: { flexDirection: "row", gap: 12, alignItems: "center", minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 12 },
-  rowTitle: { fontSize: 14, fontWeight: "600" },
+  rowTitle: { fontSize: fz(14), fontWeight: "600" },
   choice: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 99 },
   logout: { flexDirection: "row", alignItems: "center", gap: 10, minHeight: 44 },
-  logoutLabel: { fontSize: 13, fontWeight: "600" },
-});
+  logoutLabel: { fontSize: fz(13), fontWeight: "600" },
+}));

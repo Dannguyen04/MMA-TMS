@@ -40,6 +40,7 @@ import type {
   Transaction,
 } from '../shared/utils/audit-context.util.js';
 import type { UserRole } from '../shared/types/user.role.js';
+import type { MedicalStatusValue } from './medical-status.js';
 import {
   ACTIVE_INJURY_STATUSES,
   MEDICAL_FIGHTER_LOCK_NAMESPACE,
@@ -564,6 +565,36 @@ export class MedicalRepository {
       .limit(1)
       .for('share');
     return rows.length > 0;
+  }
+
+  /** Stores the derived summary status; true when it changed. */
+  async updateFighterMedicalStatus(
+    fighterId: string,
+    status: MedicalStatusValue,
+    database: DatabaseExecutor = this.db,
+  ): Promise<boolean> {
+    const rows = await database
+      .update(fighters)
+      .set({ currentMedicalStatus: status })
+      .where(
+        and(
+          eq(fighters.id, fighterId),
+          sql`${fighters.currentMedicalStatus} <> ${status}::medical_status`,
+        ),
+      )
+      .returning({ id: fighters.id });
+    return rows.length > 0;
+  }
+
+  /** Every active Fighter, for the periodic status refresh. */
+  async listActiveFighterIds(
+    database: DatabaseExecutor = this.db,
+  ): Promise<string[]> {
+    const rows = await database
+      .select({ id: fighters.id })
+      .from(fighters)
+      .where(eq(fighters.isActive, true));
+    return rows.map((row) => row.id);
   }
 
   async lockFighterMedicalState(
