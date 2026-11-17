@@ -7,7 +7,7 @@ import type { Fighter, TrainingType, User, VideoTrainingType } from "@/lib/domai
 import { VIDEO_PIPELINE_MODE, type VideoPipelineMode } from "@/lib/api/pipeline-mode";
 import { accessibleFighterIds } from "@/lib/auth/access";
 import { getSettings } from "@/lib/services/admin";
-import { getClearanceStatus } from "@/lib/services/medical";
+import { getClearanceStatus, primeMedicalDossiers } from "@/lib/services/medical";
 import { getFighter, listFighters } from "@/lib/services/people";
 import { platformFeatureAvailable } from "@/lib/services/platform-features";
 import { listSessions } from "@/lib/services/training";
@@ -59,6 +59,8 @@ export async function loadUploadWizardData(user: User): Promise<UploadWizardData
         getSettings(),
     ]);
 
+    // One batch read for the roster: parallel per-fighter dossier reads overload the service and some answer 500.
+    primeMedicalDossiers(fighters.map((fighter) => fighter.id));
     const statuses = await Promise.all(fighters.map((fighter) => getClearanceStatus(fighter.id, now)));
 
     return {

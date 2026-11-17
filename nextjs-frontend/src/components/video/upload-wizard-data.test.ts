@@ -1,11 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const people = vi.hoisted(() => ({ getFighter: vi.fn(), listFighters: vi.fn() }));
+const medical = vi.hoisted(() => ({
+    getClearanceStatus: vi.fn(async () => ({ clearance: null, state: "full" })),
+    primeMedicalDossiers: vi.fn(),
+}));
 
 vi.mock("@/lib/services/people", () => people);
 vi.mock("@/lib/services/training", () => ({ listSessions: vi.fn(async () => []) }));
 vi.mock("@/lib/services/admin", () => ({ getSettings: vi.fn(async () => ({ allowedVideoFormats: ["mp4"], videoMaxSizeMb: 500 })) }));
-vi.mock("@/lib/services/medical", () => ({ getClearanceStatus: vi.fn(async () => ({ clearance: null, state: "full" })) }));
+vi.mock("@/lib/services/medical", () => medical);
 
 import type { Fighter, User } from "@/lib/domain/types";
 import { loadUploadWizardData } from "./upload-wizard-data";
@@ -40,6 +44,8 @@ describe("upload wizard fighters", () => {
     beforeEach(() => {
         people.getFighter.mockReset().mockResolvedValue(self);
         people.listFighters.mockReset().mockResolvedValue([self]);
+        medical.primeMedicalDossiers.mockClear();
+        medical.getClearanceStatus.mockClear();
     });
 
     it("gives a fighter their own profile without reading the fighter directory", async () => {
@@ -64,5 +70,15 @@ describe("upload wizard fighters", () => {
 
         expect(people.listFighters).toHaveBeenCalledWith(coach);
         expect(people.getFighter).not.toHaveBeenCalled();
+    });
+
+    it("reads the roster's dossiers in one batch before each fighter's clearance", async () => {
+        const other = { ...self, id: "44444444-4444-4444-8444-444444444444" };
+        people.listFighters.mockResolvedValue([self, other]);
+        await loadUploadWizardData(signedIn("coach", "33333333-3333-4333-8333-333333333333"));
+
+        expect(medical.primeMedicalDossiers).toHaveBeenCalledWith([self.id, other.id]);
+        expect(medical.primeMedicalDossiers.mock.invocationCallOrder[0]).toBeLessThan(medical.getClearanceStatus.mock.invocationCallOrder[0]);
+        expect(medical.getClearanceStatus).toHaveBeenCalledTimes(2);
     });
 });
