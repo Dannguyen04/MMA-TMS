@@ -11,7 +11,17 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { Request } from 'express';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, ilike, isNull, notInArray, or } from 'drizzle-orm';
+import {
+  and,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNull,
+  lt,
+  notInArray,
+  or,
+} from 'drizzle-orm';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { DRIZZLE, type DrizzleDB } from '../database/database.module.js';
 import { fighters, trainingSessions, videos } from '../database/schema.js';
@@ -35,6 +45,15 @@ const NOT_READY_STATUSES = ['PENDING_UPLOAD', 'REJECTED'] as const;
 
 /** Supabase signed upload URLs are valid for two hours; the API cannot change that. */
 const SIGNED_UPLOAD_TTL_SECONDS = 2 * 60 * 60;
+
+/**
+ * A direct upload still PENDING after this long was abandoned: its signed URL
+ * expired after two hours, so nothing can complete it any more.
+ */
+export const STALE_UPLOAD_AFTER_MS = 6 * 60 * 60 * 1000;
+
+/** Rows cleaned per pass; the next pass picks up the rest. */
+const STALE_UPLOAD_BATCH = 100;
 
 type VideoRow = typeof videos.$inferSelect;
 
@@ -320,6 +339,70 @@ export class VideosService {
       .update(videos)
       .set({ status, updatedAt: new Date() })
       .where(eq(videos.id, id));
+  }
+
+  /**
+   * Deletes abandoned direct uploads: any partial object in storage, and the
+   * row (soft delete, as `remove`, marked REJECTED). Only rows still
+   * PENDING_UPLOAD are touched, so a run racing a confirm cannot undo it.
+   * Returns how many rows were cleaned.
+   */
+  async cleanupStaleUploads(now = new Date()): Promise<number> {
+    const cutoff = new Date(now.getTime() - STALE_UPLOAD_AFTER_MS);
+    const stale = await this.db
+      .select({
+        id: videos.id,
+        storageBucket: videos.storageBucket,
+        storageKey: videos.storageKey,
+      })
+      .from(videos)
+      .where(
+        and(
+          eq(videos.status, 'PENDING_UPLOAD'),
+          eq(videos.isActive, true),
+          isNull(videos.deletedAt),
+          lt(videos.createdAt, cutoff),
+        ),
+      )
+      .limit(STALE_UPLOAD_BATCH);
+    if (stale.length === 0) return 0;
+
+    const keysByBucket = new Map<string, string[]>();
+    for (const row of stale) {
+      keysByBucket.set(row.storageBucket, [
+        ...(keysByBucket.get(row.storageBucket) ?? []),
+        row.storageKey,
+      ]);
+    }
+    for (const [bucket, keys] of keysByBucket) {
+      // Removing a key that was never uploaded is not an error; an outage only
+      // leaves an orphan object, which must not keep the row alive.
+      await this.supabase.storage
+        .from(bucket)
+        .remove(keys)
+        .catch(() => undefined);
+    }
+
+    const cleaned = await this.db
+      .update(videos)
+      .set({
+        status: 'REJECTED',
+        rejectionReason: 'The upload was not completed',
+        isActive: false,
+        deletedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          inArray(
+            videos.id,
+            stale.map((row) => row.id),
+          ),
+          eq(videos.status, 'PENDING_UPLOAD'),
+        ),
+      )
+      .returning({ id: videos.id });
+    return cleaned.length;
   }
 
   async remove(actor: AuthenticatedUser, id: string): Promise<null> {
