@@ -29,10 +29,6 @@ const BODY_LABELS: Record<keyof BodyActivity, MessageKey> = {
 
 const SEGMENT_SEC = 30;
 
-function Explainer({ children }: { children: ReactNode }) {
-    return <p className="text-[13px] text-pretty text-fg-muted">{children}</p>;
-}
-
 function TileGrid({ children, className }: { children: ReactNode; className?: string }) {
     return <div className={cn("grid grid-cols-2 gap-2 sm:grid-cols-3", className)}>{children}</div>;
 }
@@ -45,7 +41,8 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
 
     const countItems = useMemo(
         () =>
-            [...STRIKE_TYPES]
+            // Only the strike types this video has; an all-zero chart still lists every type.
+            STRIKE_TYPES.filter((type) => total === 0 || metrics.strikeCounts[type] > 0)
                 .sort((a, b) => metrics.strikeCounts[b] - metrics.strikeCounts[a])
                 .map((type) => ({
                     label: techniqueLabel(t, type),
@@ -89,16 +86,13 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
             label: t("screens.video.metrics.overview"),
             content: (
                 <div className="flex flex-col gap-4 pt-4">
-                    <Explainer>{t("screens.video.metrics.overviewDesc")}</Explainer>
                     <TileGrid className="sm:grid-cols-4">
                         <MetricTile label={t("screens.video.metrics.strikesPerMin")} value={formatNumber(metrics.strikesPerMin, 1)} hint={t("screens.video.metrics.strikesCount", { n: total })} />
-                        <MetricTile label={t("screens.video.metrics.combinations")} value={metrics.combinations} hint={t("screens.video.metrics.combinationsHint")} />
-                        <MetricTile label={t("screens.video.trackingQuality")} value={formatPercent(analysis.trackingQuality * 100)} hint={t("screens.video.metrics.trackingHint")} />
-                        <MetricTile
-                            label={t("screens.video.detectionConfidence")}
-                            value={analysis.confidenceAvailable === false ? t("screens.video.unavailable") : confidencePct(t, analysis.overallConfidence)}
-                            hint={analysis.confidenceAvailable === false ? t("screens.video.metrics.notCalibrated") : t("screens.video.metrics.meanOfDetections")}
-                        />
+                        <MetricTile label={t("screens.video.metrics.combinations")} value={metrics.combinations} />
+                        <MetricTile label={t("screens.video.trackingQuality")} value={formatPercent(analysis.trackingQuality * 100)} />
+                        {analysis.confidenceAvailable !== false && (
+                            <MetricTile label={t("screens.video.detectionConfidence")} value={confidencePct(t, analysis.overallConfidence)} />
+                        )}
                     </TileGrid>
                     <ChartFigure
                         title={t("screens.video.metrics.strikesDetected")}
@@ -114,7 +108,6 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
             label: t("screens.video.metrics.speed"),
             content: (
                 <div className="flex flex-col gap-4 pt-4">
-                    <Explainer>{t("screens.video.metrics.speedDesc")}</Explainer>
                     <ChartFigure
                         title={t("screens.video.metrics.avgPeakSpeed")}
                         description={t("screens.video.metrics.avgPeakSpeedDesc")}
@@ -151,7 +144,6 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
             label: t("screens.video.metrics.mechanics"),
             content: (
                 <div className="flex flex-col gap-4 pt-4">
-                    <Explainer>{t("screens.video.metrics.mechanicsDesc")}</Explainer>
                     <TileGrid>
                         <MetricTile label={t("screens.video.metrics.punchExtension")} value={`${formatNumber(metrics.avgPunchExtensionDeg, 1)}°`} hint={t("screens.video.metrics.punchExtensionHint")} />
                         <MetricTile
@@ -181,7 +173,6 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
             label: t("screens.video.metrics.defense"),
             content: (
                 <div className="flex flex-col gap-4 pt-4">
-                    <Explainer>{t("screens.video.metrics.defenseDesc")}</Explainer>
                     <ProgressBar
                         value={uptime}
                         label={t("screens.video.metrics.guardUptime")}
@@ -205,7 +196,6 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
             label: t("screens.video.metrics.footwork"),
             content: (
                 <div className="flex flex-col gap-4 pt-4">
-                    <Explainer>{t("screens.video.metrics.footworkDesc")}</Explainer>
                     <TileGrid>
                         <MetricTile label={t("screens.video.metrics.distance")} value={formatNumber(metrics.footwork.distanceM, 1)} unit="m" />
                         <MetricTile label={t("screens.video.metrics.pivots")} value={metrics.footwork.pivots} />
@@ -223,7 +213,6 @@ export function MetricsPanel({ analysis, className }: { analysis: AIAnalysis; cl
             label: t("screens.video.metrics.bodyMovement"),
             content: (
                 <div className="flex flex-col gap-4 pt-4">
-                    <Explainer>{t("screens.video.metrics.bodyMovementDesc")}</Explainer>
                     <ChartFigure
                         title={t("screens.video.metrics.bodyShare")}
                         table={{ columns: [t("screens.video.metrics.colRegion"), t("screens.video.metrics.colSharePct")], rows: bodyItems.map((i) => [i.label, `${i.value}%`]) }}

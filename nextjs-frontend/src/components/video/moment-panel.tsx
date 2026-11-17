@@ -93,15 +93,11 @@ function NoStrikeMoment({ events, onJump, t }: { events: MovementEvent[]; onJump
     return (
         <div className="rounded-lg border border-dashed border-border px-3 py-4 text-center">
             <p className="text-sm font-medium text-fg">{t("screens.video.moment.noStrikeTitle")}</p>
-            <p className="mt-1 text-[13px] text-fg-muted">
-                {event ? (
-                    <>
-                        <span className="font-medium text-fg">{movementEventLabel(t, event.type)}</span> · {eventDetail(t, event.detail)}
-                    </>
-                ) : (
-                    t("screens.video.moment.noStrikeHint")
-                )}
-            </p>
+            {event && (
+                <p className="mt-1 text-[13px] text-fg-muted">
+                    <span className="font-medium text-fg">{movementEventLabel(t, event.type)}</span> · {eventDetail(t, event.detail)}
+                </p>
+            )}
             <div className="mt-3 flex justify-center gap-2">
                 <Button variant="secondary" size="sm" onClick={() => onJump("previous")}>
                     <ChevronLeft aria-hidden />

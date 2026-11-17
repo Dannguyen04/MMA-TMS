@@ -18,9 +18,8 @@ import { canAccessFighter } from "@/lib/auth/access";
 import { hasPermission } from "@/lib/auth/session";
 import { reviewCounts } from "@/lib/domain/ai-review";
 import { trainingTypeLabel } from "@/lib/domain/labels";
-import { LOW_CONFIDENCE_THRESHOLD } from "@/lib/domain/rules";
 import type { AIAnalysis, User } from "@/lib/domain/types";
-import { formatClock, formatConfidence, formatDateTime, formatFileSize, formatNumber, formatPercent, formatRelative } from "@/lib/format";
+import { formatClock, formatConfidence, formatDateTime, formatFileSize, formatNumber, formatRelative } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { getTranslator } from "@/lib/i18n/server";
 import { plural, type Translator } from "@/lib/i18n/translate";
@@ -33,7 +32,7 @@ import { AnalysisFailed } from "./analysis-failed";
 import { AnalysisWorkspace } from "./analysis-workspace";
 import { PipelineProgress } from "./pipeline-progress";
 import { CoachReviewStateBadge } from "./video-badges";
-import { analysisSummary, cameraAngleLabel, confidencePct, reviewCountParts, splitPlaceholder } from "./video-copy";
+import { cameraAngleLabel, splitPlaceholder } from "./video-copy";
 
 export interface VideoDetailViewProps {
     user: User;
@@ -160,74 +159,46 @@ function MetaItem({ icon, children }: { icon: ReactNode; children: ReactNode }) 
 
 function AnalysisSummary({ analysis, role, t, locale }: { analysis: AIAnalysis; role: "fighter" | "coach"; t: Translator; locale: Locale }) {
     const counts = reviewCounts(analysis);
-    const [unreviewed] = reviewCountParts(t, { unreviewedFindings: counts.unreviewedFindings });
-    const confidenceAvailable = analysis.confidenceAvailable !== false;
-    const coachingEligible = analysis.coachingEligible !== false;
-    const lowOverall = !confidenceAvailable || analysis.overallConfidence === null || analysis.overallConfidence < LOW_CONFIDENCE_THRESHOLD;
     const observations = analysis.alertIds.length;
+    const poorFootage = analysis.evidenceQuality === "blocked" || analysis.evidenceQuality === "degraded";
     const [beforeLink, afterLink] = splitPlaceholder(t("screens.video.summary.observationsBody"), "link");
 
+    // The numbers a coach acts on; the tabs below carry the details (findings, each detection, metrics).
     const stats = analysis.movementEvidence ? [
-        { label: t("screens.video.summary.reviewWindows"), value: formatNumber(analysis.movementEvidence.windows.length), hint: t("screens.video.summary.notRepetitions") },
-        { label: t("screens.video.summary.usableFrames"), value: `${analysis.movementEvidence.coverage.usableFrames} / ${analysis.movementEvidence.coverage.totalFrames}`, hint: t("screens.video.summary.visibilityOnly") },
+        { label: t("screens.video.summary.reviewWindows"), value: formatNumber(analysis.movementEvidence.windows.length) },
+        { label: t("screens.video.summary.usableFrames"), value: `${analysis.movementEvidence.coverage.usableFrames} / ${analysis.movementEvidence.coverage.totalFrames}` },
     ] : [
         { label: t("screens.video.summary.strikeCandidates"), value: formatNumber(analysis.detections.length) },
-        { label: t("screens.video.summary.findings"), value: formatNumber(analysis.findings.length), hint: unreviewed ?? t("screens.video.summary.allReviewed") },
-        {
-            label: t("screens.video.summary.lowConfidenceDetections"),
-            value: formatNumber(counts.lowConfidenceDetections),
-            hint: t("screens.video.summary.unreviewedBelow", { pct: formatPercent(LOW_CONFIDENCE_THRESHOLD * 100) }),
-        },
-        { label: t("screens.video.summary.framesTracked"), value: formatConfidence(analysis.trackingQuality), hint: t("screens.video.summary.notAccuracy") },
-        ...(analysis.poseConfidence !== undefined
-            ? [{ label: t("screens.video.summary.poseConfidence"), value: analysis.poseConfidence === null ? t("screens.video.unavailable") : formatConfidence(analysis.poseConfidence) }]
+        { label: t("screens.video.summary.lowConfidenceDetections"), value: formatNumber(counts.lowConfidenceDetections) },
+        { label: t("screens.video.summary.framesTracked"), value: formatConfidence(analysis.trackingQuality) },
+        ...(analysis.poseConfidence !== undefined && analysis.poseConfidence !== null
+            ? [{ label: t("screens.video.summary.poseConfidence"), value: formatConfidence(analysis.poseConfidence) }]
             : []),
     ];
 
     return (
         <section aria-label={t("screens.video.summary.label")} className="flex flex-col gap-3">
-            <Card className={cn("flex flex-col gap-4 px-5 py-4", stats.length <= 4 && "lg:flex-row lg:items-center lg:gap-8")}>
-                <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <AIGeneratedBadge size="sm" label={t("screens.video.summary.label")} />
-                        {confidenceAvailable ? (
-                            <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" locale={locale} />
-                        ) : (
-                            <span className="text-xs font-semibold text-warning">{t("screens.video.summary.confidenceUnavailable")}</span>
-                        )}
-                    </div>
-                    <p className="mt-2 text-sm text-pretty text-fg">{analysisSummary(t, analysis.summary)}</p>
+            <Card className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:gap-8">
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <AIGeneratedBadge size="sm" label={t("screens.video.summary.label")} />
+                    {analysis.confidenceAvailable !== false && <ConfidenceBadge confidence={analysis.overallConfidence} size="sm" locale={locale} />}
                 </div>
-                <dl className={cn("grid shrink-0 grid-cols-2 gap-x-6 gap-y-3 lg:gap-x-8", stats.length <= 4 ? "sm:grid-cols-4" : "sm:grid-cols-3 lg:grid-cols-5")}>
+                <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-4">
                     {stats.map((stat) => (
                         <div key={stat.label} className="min-w-0">
                             <dt className="text-xs text-fg-muted">{stat.label}</dt>
-                            <dd className="mt-0.5 text-lg leading-tight font-semibold text-fg">
-                                {stat.value}
-                                {stat.hint && <span className="block text-xs font-normal text-fg-subtle">{stat.hint}</span>}
-                            </dd>
+                            <dd className="mt-0.5 text-lg leading-tight font-semibold text-fg tabular-nums">{stat.value}</dd>
                         </div>
                     ))}
                 </dl>
             </Card>
-            <div className={cn("grid grid-cols-1 gap-3", (lowOverall || (role === "coach" && observations > 0)) && "lg:grid-cols-2")}>
-                <AINotice audience={role} compact locale={locale} />
-                {!coachingEligible && (
+            <div className={cn("grid grid-cols-1 gap-3", role === "coach" && observations > 0 && "lg:grid-cols-2")}>
+                {poorFootage ? (
                     <InlineNote icon={TriangleAlert} tone="warning">
-                        <span className="font-semibold">{t("screens.video.summary.notEligibleTitle")}</span>{" "}
-                        {t("screens.video.summary.notEligibleBody", { quality: t(`screens.video.evidenceQuality.${analysis.evidenceQuality ?? "unknown"}`) })}
+                        {t("screens.video.summary.poorFootage")}
                     </InlineNote>
-                )}
-                {lowOverall && (
-                    <InlineNote icon={TriangleAlert} tone="warning">
-                        <span className="font-semibold">{t("screens.video.summary.lowTitle")}</span>{" "}
-                        {t("screens.video.summary.lowBody", {
-                            confidence: confidenceAvailable
-                                ? t("screens.video.summary.overallConfidence", { pct: confidencePct(t, analysis.overallConfidence) })
-                                : t("screens.video.summary.noCalibration"),
-                            next: role === "coach" ? t("screens.video.summary.coachNext") : t("screens.video.summary.fighterNext"),
-                        })}
-                    </InlineNote>
+                ) : (
+                    <AINotice audience={role} compact locale={locale} />
                 )}
                 {role === "coach" && observations > 0 && (
                     <InlineNote icon={Stethoscope} tone="info">

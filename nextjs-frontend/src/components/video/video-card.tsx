@@ -22,7 +22,7 @@ export interface VideoCardProps {
     className?: string;
 }
 
-/** Library tile: placeholder thumbnail, status, findings and review state. The whole card links to the analysis. */
+/** Library tile: a still from the footage, status, findings and review state. The whole card links to the analysis. */
 export async function VideoCard({ item, href, now, showFighter, headingLevel = 3, className }: VideoCardProps) {
     const copy = await getDemoCopy();
     const locale = await getLocale();
@@ -37,7 +37,7 @@ export async function VideoCard({ item, href, now, showFighter, headingLevel = 3
                 className,
             )}
         >
-            <VideoThumb locale={locale} trainingType={video.trainingType} status={video.status} durationSec={video.durationSec} className="w-28 shrink-0 self-start max-sm:m-3 max-sm:rounded-lg sm:w-full" />
+            <VideoThumb locale={locale} trainingType={video.trainingType} status={video.status} durationSec={video.durationSec} src={video.sourceUrl} className="w-28 shrink-0 self-start max-sm:m-3 max-sm:rounded-lg sm:w-full" />
             <div className="flex min-w-0 flex-1 flex-col gap-2.5 py-3 pr-3 sm:p-4">
                 <div className="min-w-0">
                     <Heading className="text-[15px] leading-snug font-semibold text-fg">

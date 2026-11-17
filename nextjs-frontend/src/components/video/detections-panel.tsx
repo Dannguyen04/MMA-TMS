@@ -125,7 +125,8 @@ export function DetectionsPanel({ detections }: { detections: Detection[] }) {
                                             {reviewedStrike(t, detection)}
                                         </span>
                                         <span className="block truncate text-xs text-fg-muted">
-                                            {limbLabel(t, detection.limb)} · {confidenceText}
+                                            {limbLabel(t, detection.limb)}
+                                            {detection.confidenceAvailable !== false && <> · {confidenceText}</>}
                                         </span>
                                     </span>
                                     <ReviewStateBadge review={detection.review} confidence={detection.confidence} size="sm" className="max-sm:hidden" locale={locale} />

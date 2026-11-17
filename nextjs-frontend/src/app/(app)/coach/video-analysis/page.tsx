@@ -92,7 +92,7 @@ async function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibr
     const inFlight = video.status === "queued" || video.status === "processing";
     return (
         <li className="flex items-center gap-3 px-5 py-3.5 md:gap-4">
-            <VideoThumb trainingType={video.trainingType} durationSec={video.durationSec} size="sm" className="hidden w-24 shrink-0 rounded-lg sm:block" />
+            <VideoThumb trainingType={video.trainingType} durationSec={video.durationSec} src={video.sourceUrl} size="sm" className="hidden w-24 shrink-0 rounded-lg sm:block" />
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fg sm:truncate">{video.title}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">

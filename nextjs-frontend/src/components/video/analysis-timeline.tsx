@@ -190,7 +190,7 @@ export function AnalysisTimeline({ analysis, findings, observations, onSelectFin
                         </div>
                     </div>
                 </div>
-                <Legend t={t} />
+                <Legend detections={detections} combinations={analysis.combinations} events={analysis.movementEvents} findings={findings} t={t} />
             </div>
         </Card>
     );
@@ -534,45 +534,59 @@ function ObservationsTrack({ observations, pct, onSeek, t }: TrackProps & { obse
     );
 }
 
-function Legend({ t }: { t: Translator }) {
+/** Keys only the marks this video actually has, so the legend never lists empty lanes. */
+function Legend({
+    detections,
+    combinations,
+    events,
+    findings,
+    t,
+}: {
+    detections: Detection[];
+    combinations: Combination[];
+    events: MovementEvent[];
+    findings: AIFinding[];
+    t: Translator;
+}) {
+    const strikes = STRIKE_LANES.filter((type) => detections.some((d) => d.type === type));
+    const has = (test: (e: MovementEvent) => boolean) => events.some(test);
+    const entries: { key: string; mark: ReactNode; label: string }[] = [
+        ...strikes.map((type) => ({ key: type, mark: <StrikeShape type={type} hollow={false} />, label: techniqueLabel(t, type) })),
+        ...(detections.some(isNeedsReview)
+            ? [{ key: "review", mark: <StrikeShape type={strikes[0] ?? "jab"} hollow />, label: t("screens.video.legend.needsReview", { pct: Math.round(LOW_CONFIDENCE_THRESHOLD * 100) }) }]
+            : []),
+        ...(combinations.length > 0
+            ? [{ key: "combo", mark: <span aria-hidden className="h-2.5 w-5 rounded-[3px] border border-chart-5/60 bg-chart-5/20" />, label: t("screens.video.legend.combination") }]
+            : []),
+        ...(has((e) => HEAD_MOVEMENT.has(e.type)) ? [{ key: "head", mark: <MovementGlyph type="slip" />, label: t("screens.video.legend.headMovement") }] : []),
+        ...(has((e) => !HEAD_MOVEMENT.has(e.type) && e.type !== "guard_drop" && e.type !== "tracking_lost")
+            ? [{ key: "feet", mark: <MovementGlyph type="step_in" />, label: t("screens.video.legend.footwork") }]
+            : []),
+        ...(has((e) => e.type === "guard_drop") ? [{ key: "guard", mark: <MovementGlyph type="guard_drop" />, label: t("screens.video.legend.guardDrop") }] : []),
+        ...(findings.length > 0
+            ? [
+                  {
+                      key: "finding",
+                      mark: (
+                          <span aria-hidden className="flex size-4 items-center justify-center rounded bg-ai-soft text-ai-fg ring-1 ring-ai-border">
+                              <Sparkles className="size-2.5" />
+                          </span>
+                      ),
+                      label: t("screens.video.legend.aiFinding"),
+                  },
+              ]
+            : []),
+        ...(has((e) => e.type === "tracking_lost") ? [{ key: "lost", mark: <MovementGlyph type="tracking_lost" />, label: t("screens.video.legend.trackingLost") }] : []),
+    ];
+    if (entries.length === 0) return null;
     return (
         <ul aria-label={t("screens.video.legend.label")} className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-fg-muted">
-            {STRIKE_LANES.map((type) => (
-                <li key={type} className="flex items-center gap-1.5">
-                    <StrikeShape type={type} hollow={false} />
-                    {techniqueLabel(t, type)}
+            {entries.map((entry) => (
+                <li key={entry.key} className="flex items-center gap-1.5">
+                    {entry.mark}
+                    {entry.label}
                 </li>
             ))}
-            <li className="flex items-center gap-1.5">
-                <StrikeShape type="jab" hollow />
-                {t("screens.video.legend.needsReview", { pct: Math.round(LOW_CONFIDENCE_THRESHOLD * 100) })}
-            </li>
-            <li className="flex items-center gap-1.5">
-                <span aria-hidden className="h-2.5 w-5 rounded-[3px] border border-chart-5/60 bg-chart-5/20" />
-                {t("screens.video.legend.combination")}
-            </li>
-            <li className="flex items-center gap-1.5">
-                <MovementGlyph type="slip" />
-                {t("screens.video.legend.headMovement")}
-            </li>
-            <li className="flex items-center gap-1.5">
-                <MovementGlyph type="step_in" />
-                {t("screens.video.legend.footwork")}
-            </li>
-            <li className="flex items-center gap-1.5">
-                <MovementGlyph type="guard_drop" />
-                {t("screens.video.legend.guardDrop")}
-            </li>
-            <li className="flex items-center gap-1.5">
-                <span aria-hidden className="flex size-4 items-center justify-center rounded bg-ai-soft text-ai-fg ring-1 ring-ai-border">
-                    <Sparkles className="size-2.5" />
-                </span>
-                {t("screens.video.legend.aiFinding")}
-            </li>
-            <li className="flex items-center gap-1.5">
-                <MovementGlyph type="tracking_lost" />
-                {t("screens.video.legend.trackingLost")}
-            </li>
         </ul>
     );
 }

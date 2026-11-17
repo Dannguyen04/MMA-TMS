@@ -103,7 +103,7 @@ export function FindingsPanel({ findings, now, filter, onFilterChange, highlight
                 <EmptyState
                     compact
                     title={findings.length === 0 ? t("screens.video.findings.noneForClip") : t("screens.video.findings.noneMatch")}
-                    description={findings.length === 0 ? t("screens.video.findings.noneForClipDesc") : t("screens.video.findings.noneMatchDesc")}
+                    description={findings.length === 0 ? undefined : t("screens.video.findings.noneMatchDesc")}
                     action={
                         findings.length > 0 && (
                             <Button variant="secondary" size="sm" onClick={() => onFilterChange("all")}>
