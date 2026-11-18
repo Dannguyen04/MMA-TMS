@@ -17,11 +17,11 @@ Chữ **đậm** là chữ thật trên màn.
 
 | Người | Ai | Phần | Màn dùng | Thời gian |
 | --- | --- | --- | --- | --- |
-| **Người 1** | Hoàng Anh | Slide mở đầu, **Hôm nay**, **Tập luyện** (giáo án, buổi tập), **Phòng video**, câu kết | Slide + web HLV | 10 phút |
+| **Người 1** | Hoàng Anh | Slide mở đầu, **Hôm nay**, **Tập luyện** (giáo án, buổi tập), **Phòng video** (HLV duyệt video AI, võ sĩ xem video và tự kiểm tra kỹ thuật), câu kết | Slide + web HLV + web võ sĩ | 11 phút |
 | **Người 2** | Dan | **Trước trận**: tạo trận, bắt đầu camp, kế hoạch ăn, võ sĩ xem trận, cân chính thức, phân tích đối thủ | Web HLV + web võ sĩ | 7 phút |
 | **Người 3** | Fon | **Trong trận**: thẻ góc đài, ghi 2 hiệp, lời dặn giữa hiệp | App điện thoại MMA Vision, chiếu lên máy chiếu | 4 phút |
 | **Người 4** | Ken | **Sau trận**: kết quả, báo cáo, đình chỉ, chặn lịch tập, võ sĩ xem đình chỉ; **Bác sĩ** | Web HLV + web võ sĩ + web bác sĩ | 7 phút |
-| | | Chuyển người, chuyển máy chiếu, dự phòng | | 2 phút |
+| | | Chuyển người, chuyển máy chiếu, dự phòng | | 1 phút |
 | | | **Tổng** | | **30 phút** |
 
 Câu chuyện chung: một trận của **Minh Trần**. Người 1 cho thấy CLB tập luyện hằng ngày ra sao và tạo giáo án trại thi đấu cho Minh. Người 2 nhận giáo án đó, tạo trận và đưa Minh tới lúc đạt cân. Người 3 cầm điện thoại ra góc đài. Người 4 nhận kết quả, xử lý đình chỉ và chuyển sang bác sĩ.
@@ -33,7 +33,7 @@ Câu chuyện chung: một trận của **Minh Trần**. Người 1 cho thấy C
 | Trình duyệt | Tài khoản | Ai dùng |
 | --- | --- | --- |
 | Chrome thường | HLV `rafael.costa@lotus-combat.test` | Người 1, 2, 4 |
-| Chrome ẩn danh, F12 → 390 px | Võ sĩ `minh.tran@lotus-combat.test` | Người 2, 4 |
+| Chrome ẩn danh, F12 → 390 px | Võ sĩ `minh.tran@lotus-combat.test` | Người 1, 2, 4 |
 | Edge | Bác sĩ `thu.le@lotus-combat.test` | Người 4 |
 
 Điện thoại Android của **Người 3**: mở **MMA Vision**, đăng nhập Rafael (cùng tài khoản HLV với web). Tắt thông báo và chế độ ngủ màn hình. Thử chiếu màn hình lên máy chiếu (scrcpy qua USB hoặc cast).
@@ -42,8 +42,9 @@ Câu chuyện chung: một trận của **Minh Trần**. Người 1 cho thấy C
 2. Mật khẩu là mật khẩu thật của backend, không chiếu lên màn. Cả ba trình duyệt để **Tiếng Việt**.
 3. Giờ thi phải **sau giờ hiện tại**: dùng **22:00** (sau 21:30 thì **23:30**), giờ cân **08:00** cùng ngày.
 4. Ở cửa sổ bác sĩ, mở hồ sơ Minh, chắc Minh đang **Được tập**.
-5. Ở **Phòng video**, chắc video **Bao cát — 18/11/2026** của Kenji Morita còn nhãn **AI đã xong** (Người 1 mở video này ở P3).
-6. Mở sẵn slide ở một tab riêng trên laptop chiếu.
+5. Ở **Phòng video**, chắc video **Bao cát — 19/11/2026** của Kenji Morita còn nhãn **AI đã xong** (Người 1 mở video này ở P3).
+6. Thử webcam của laptop chiếu ở màn **Video** của võ sĩ (P3d), cho phép trình duyệt dùng camera.
+7. Mở sẵn slide ở một tab riêng trên laptop chiếu.
 
 ## 3. Kịch bản
 
@@ -71,13 +72,14 @@ Slide còn lại để dành cho phần hỏi đáp, không chiếu hết.
 | P2c | Buổi tập vừa tạo | Chỉ nút **Bắt đầu buổi tập**, không bấm | "Tới giờ HLV bấm bắt đầu, app kiểm tra cấp phép lần nữa. Xong buổi HLV ghi RPE và số hiệp, võ sĩ thấy phần tổng kết." |
 | P2d | Tab **Giáo án** → **Giáo án mới** | Mẫu **Trại thi đấu** → **Tiếp** → Võ sĩ **Minh Trần**, tiêu đề `Lotus Fight Night 18 – Minh` → **Tiếp** → **Tạo giáo án** | "Minh sắp có trận, nên em tạo giáo án trại thi đấu từ mẫu. Bạn Dan sẽ gắn giáo án này vào trận." |
 
-### 3.3 Người 1: Phòng video (2,5 phút), web HLV
+### 3.3 Người 1: Phòng video (3,5 phút), web HLV rồi web võ sĩ
 
 | # | Màn | Thao tác | Câu nói |
 | --- | --- | --- | --- |
 | P3a | **Phòng video** `/coach/video-analysis` | Chỉ **Hàng chờ duyệt** và danh sách **Đang xử lý hoặc cần kiểm tra** | "Võ sĩ hoặc HLV tải video tập lên, AI phân tích xong thì video vào hàng chờ HLV duyệt." |
-| P3b | Mở **Bao cát — 18/11/2026** (Kenji Morita, **AI đã xong**, **Chờ HLV duyệt**) | Bấm phát; bật **Khung xương** và **Nhãn đòn**; chỉ **Tóm tắt của AI** (**Đòn nhận diện** 5, **Độ tin cậy tư thế** 90%) và **Chỉ số thi đấu** (**Số đòn mỗi phút**) | "AI dựng khung xương, đánh dấu từng đòn trên dòng thời gian, tính số đòn mỗi phút." |
+| P3b | Mở **Bao cát — 19/11/2026** (Kenji Morita, **AI đã xong**, **Chờ HLV duyệt**) | Bấm phát; bật **Khung xương** và **Nhãn đòn**; chỉ **Tóm tắt của AI** (**Đòn nhận diện** 5, **Độ tin cậy tư thế** 90%) và **Chỉ số thi đấu** (**Số đòn mỗi phút**) | "AI dựng khung xương, đánh dấu từng đòn trên dòng thời gian, tính số đòn mỗi phút." |
 | P3c | Cùng màn | Chỉ dòng **Kết quả AI là gợi ý. Hãy xác nhận hoặc sửa trước khi chia sẻ.** | "AI chỉ gợi ý. HLV xác nhận, sửa hoặc bác bỏ từng đòn trước khi võ sĩ thấy." |
+| P3d | **Cửa sổ võ sĩ** (Minh): menu **Video** `/fighter/videos` | Chỉ nút **Tải video lên để AI phân tích** và danh sách video của Minh. Thẻ **Kiểm tra kỹ thuật trực tiếp** (**Thử nghiệm**) → **Bắt đầu kiểm tra**, đứng trước webcam đá vòng cầu 2–3 lần | "Phía võ sĩ: tự quay video tập gửi lên cho AI và HLV. Muốn sửa đòn ngay thì bật camera: app đo độ co gối, độ duỗi chân và tốc độ ngay trên máy, không ghi hình, không tải lên." |
 | | | **Chuyển cho Người 2 (Dan)** | "Giờ tới phần trước trận." |
 
 Không tải video mới khi chiếu: phân tích chạy trên worker Colab, mất từ 1 phút (GPU) tới vài phút (CPU).
@@ -146,18 +148,18 @@ Web HLV, trừ V4–V5 ở cửa sổ võ sĩ.
 | --- | --- | --- | --- |
 | Slide | Hoàng Anh | 4 | 0:00–4:00 |
 | Hôm nay, Tập luyện | Hoàng Anh | 3 | 4:00–7:00 |
-| Phòng video | Hoàng Anh | 2,5 | 7:00–9:30 |
-| Trước trận | Dan | 7 | 9:30–16:30 |
-| Trong trận (điện thoại) | Fon | 4 | 16:30–20:30 |
-| Sau trận | Ken | 4,5 | 20:30–25:00 |
-| Bác sĩ | Ken | 2,5 | 25:00–27:30 |
-| Câu kết | Hoàng Anh | 0,5 | 27:30–28:00 |
-| Dự phòng (chuyển người, mạng chậm) | | 2 | 28:00–30:00 |
+| Phòng video (HLV và võ sĩ) | Hoàng Anh | 3,5 | 7:00–10:30 |
+| Trước trận | Dan | 7 | 10:30–17:30 |
+| Trong trận (điện thoại) | Fon | 4 | 17:30–21:30 |
+| Sau trận | Ken | 4,5 | 21:30–26:00 |
+| Bác sĩ | Ken | 2,5 | 26:00–28:30 |
+| Câu kết | Hoàng Anh | 0,5 | 28:30–29:00 |
+| Dự phòng (chuyển người, mạng chậm) | | 1 | 29:00–30:00 |
 | **Tổng** | | **30** | |
 
-Trễ giờ thì cắt theo thứ tự: slide S4 (nói một câu), P2c, P3a (mở thẳng video), A3 và V3, D3, C2. Không cắt: P2b, P2d, A1, A2, A5, B2–B4, C1, R, C3, D1.
+Trễ giờ thì cắt theo thứ tự: slide S4 (nói một câu), P2c, phần webcam ở P3d (chỉ nói), P3a (mở thẳng video), A3 và V3, D3, C2. Không cắt: P2b, P2d, A1, A2, A5, B2–B4, C1, R, C3, D1.
 
-Lúc 16:30 chưa tới phần điện thoại thì Dan bỏ A6 và V3. Lúc 25:00 Ken chưa sang bác sĩ thì bỏ V5 và D2.
+Lúc 17:30 chưa tới phần điện thoại thì Dan bỏ A6 và V3. Lúc 26:00 Ken chưa sang bác sĩ thì bỏ V5 và D2.
 
 ## 5. Sự cố hay gặp
 
@@ -166,6 +168,7 @@ Lúc 16:30 chưa tới phần điện thoại thì Dan bỏ A6 và V3. Lúc 25:0
 | Web hoặc app báo lỗi mạng ở lần mở đầu | Render đang thức dậy (khoảng 50 giây). Mở `/health` trước giờ chiếu. |
 | P2d không tạo được giáo án | Tạo sẵn giáo án `Lotus Fight Night 18 – Minh` trước giờ chiếu, khi chiếu chỉ mở ra. |
 | A2 báo không có giáo án / võ sĩ đã có trận khác | Giáo án phải của Minh và là trại thi đấu. Minh còn trận chưa xong thì backend từ chối: dùng trận đó. |
+| Webcam không bật hoặc không nhận chân ở P3d | Bỏ phần đá trước camera, chỉ đọc mô tả trên thẻ **Kiểm tra kỹ thuật trực tiếp**. |
 | Video Kenji không phát được | Chỉ phần **Tóm tắt của AI** và **Chỉ số thi đấu**, nói phần khung xương bằng lời. |
 | App điện thoại không thấy trận vừa tạo | Kéo xuống để tải lại, hoặc **Tải lại danh sách**. Kiểm tra app đăng nhập đúng tài khoản Rafael. |
 | Không thấy **Mở thẻ góc đài** trên điện thoại | Chỉ mở sau khi **Đạt cân** ở A5. Tải lại chi tiết trận. |
