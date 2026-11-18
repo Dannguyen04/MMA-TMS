@@ -124,8 +124,11 @@ export const CANCEL_REASONS = [
     "OTHER",
 ] as const satisfies readonly CancelReason[];
 
-/** Three rounds for a regular MMA bout, five for a main event or title fight. */
-export const SCHEDULED_ROUND_CHOICES = [3, 5] as const;
+/** Two rounds for a short bout (such as the demo bout), three for a regular MMA bout, five for a main event or title fight. */
+export const SCHEDULED_ROUND_CHOICES = [2, 3, 5] as const;
+
+/** The round count the bout form starts on. Kept apart from the list so adding a shorter choice does not change it. */
+export const DEFAULT_SCHEDULED_ROUNDS = 3 as const;
 
 export type HydrationCheck = "NOT_APPLICABLE" | "PASSED" | "FAILED";
 

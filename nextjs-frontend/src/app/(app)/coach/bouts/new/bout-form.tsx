@@ -9,7 +9,7 @@ import { Field, FormFooter, FormSection, Select } from "@/components/ui/form";
 import { useActionForm } from "@/components/ui/use-action-form";
 import { createBoutAction, previewFeasibilityAction } from "@/lib/actions/bouts";
 import { actionError } from "@/lib/actions/state";
-import { SCHEDULED_ROUND_CHOICES, type CompetitionRuleset } from "@/lib/domain/bout";
+import { DEFAULT_SCHEDULED_ROUNDS, SCHEDULED_ROUND_CHOICES, type CompetitionRuleset } from "@/lib/domain/bout";
 import { validateBoutSchedule } from "@/lib/domain/bout-rules";
 import { Scale, TriangleAlert } from "lucide-react";
 import { Callout } from "@/components/training/callout";
@@ -123,7 +123,7 @@ export function BoutForm({ fighters, rulesets, defaults, todayOn }: BoutFormProp
                     <FormSection title={t("coachBouts.form.event")}>
                         <EventFields form={form} defaults={defaults} />
                         <Field label={t("coachBouts.form.rounds")} htmlFor={rounds.id} info={<InfoHint label={t("screens.shared.infoHint", { label: t("coachBouts.form.rounds") })} content={t("coachBouts.form.roundsHint")} />}>
-                            <Select {...rounds} defaultValue={String(SCHEDULED_ROUND_CHOICES[0])}>
+                            <Select {...rounds} defaultValue={String(DEFAULT_SCHEDULED_ROUNDS)}>
                                 {SCHEDULED_ROUND_CHOICES.map((n) => (
                                     <option key={n} value={n}>
                                         {t("coachBouts.form.roundsOption", { n })}
