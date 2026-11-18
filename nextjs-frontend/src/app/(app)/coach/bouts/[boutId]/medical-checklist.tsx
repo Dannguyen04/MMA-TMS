@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
 import { RequirementStateBadge } from "@/components/domain/status-badges";
+import { InfoHint } from "@/components/domain/term-hint";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Callout } from "@/components/training/callout";
 import { ActionDialog } from "@/components/ui/action-dialog";
@@ -149,7 +150,7 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
             >
                 {(form) => {
                     const label = form.control("label", { required: true });
-                    const validity = form.control("validityDays", { hint: true });
+                    const validity = form.control("validityDays");
                     return (
                         <>
                             <input type="hidden" name="boutId" value={boutId} />
@@ -163,7 +164,7 @@ export function MedicalChecklist({ boutId, requirements, boutDay, dueOn, overdue
                                 label={t("boutDetail.checklist.required")}
                                 description={t("boutDetail.addDoc.requiredDescription")}
                             />
-                            <Field label={t("boutDetail.addDoc.validFor")} htmlFor={validity.id} optional error={form.error("validityDays")} hint={t("boutDetail.addDoc.validForHint")}>
+                            <Field label={t("boutDetail.addDoc.validFor")} htmlFor={validity.id} optional error={form.error("validityDays")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.addDoc.validFor") })} content={t("boutDetail.addDoc.validForHint")} />}>
                                 <Input {...validity} inputMode="numeric" className="w-32" suffix={t("boutDetail.addDoc.days")} />
                             </Field>
                         </>
@@ -242,7 +243,7 @@ function EditRequirementDialog({
         >
             {(form) => {
                 const issued = form.control("issuedOn");
-                const until = form.control("validUntil", { required: state === "PROVIDED", hint: true });
+                const until = form.control("validUntil", { required: state === "PROVIDED" });
                 const reason = form.control("statusReason", { required: true });
                 const showDates = state === "PROVIDED" || state === "REJECTED";
                 return (
@@ -282,8 +283,7 @@ function EditRequirementDialog({
                                     label={t("boutDetail.editDoc.validUntil")}
                                     htmlFor={until.id}
                                     required={state === "PROVIDED"}
-                                    error={form.error("validUntil")}
-                                    hint={item.validityDays ? t("boutDetail.editDoc.validUntilSuggested", { n: item.validityDays }) : t("boutDetail.editDoc.validUntilHint")}
+                                    error={form.error("validUntil")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.editDoc.validUntil") })} content={item.validityDays ? t("boutDetail.editDoc.validUntilSuggested", { n: item.validityDays }) : t("boutDetail.editDoc.validUntilHint")} />}
                                 >
                                     <Input {...until} type="date" value={validUntil} onChange={(event) => setValidUntil(event.target.value)} />
                                 </Field>
