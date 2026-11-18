@@ -188,6 +188,9 @@ export const vi = {
     "coachToday.hero.sessionsToday": "Buổi tập hôm nay",
     "coachToday.hero.sessionsDone": "đã xong/đã lên lịch",
     "coachToday.hero.roster": "Tất cả võ sĩ",
+    "coachToday.hero.weighInMissed": "Chưa ghi cân chính thức",
+    "coachToday.hero.unavailable": "Không tải được danh sách trận. Thử tải lại trang.",
+    "coachToday.hero.statUnavailable": "không tải được",
 
     "coachTodo.title": "Việc của các trận",
     "coachTodo.unavailable": "Không tải được việc của các trận. Thử tải lại trang.",

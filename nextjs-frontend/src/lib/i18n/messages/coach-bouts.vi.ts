@@ -127,12 +127,6 @@ export const viCoachBouts = {
     "coachBouts.notify.saved": "Đã lưu",
 
     /* Bout cards on the coach's Today page */
-    "coachBouts.dashboard.weightAlerts": "Cảnh báo cân",
-    "coachBouts.dashboard.weightAlertsHint": "Các trận đang theo dõi cần xem lại, mức đỏ trước.",
-    "coachBouts.dashboard.allBouts": "Tất cả trận",
-    "coachBouts.dashboard.documentsDue": "Hồ sơ sắp đến hạn",
-    "coachBouts.dashboard.documentsDueHint": "Hồ sơ bắt buộc còn thiếu, trong vòng 14 ngày trước hạn nộp.",
-    "coachBouts.dashboard.due": "hạn {date}",
     "coachBouts.dialog.edit.title": "Chỉnh sửa thông tin trận đấu",
     "coachBouts.dialog.edit.description": "Cập nhật thông tin giải đấu, địa điểm, đối thủ, giới hạn cân và lịch trình.",
     "coachBouts.dialog.edit.submit": "Lưu thay đổi",

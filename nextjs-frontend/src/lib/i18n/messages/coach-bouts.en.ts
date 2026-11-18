@@ -128,12 +128,6 @@ export const enCoachBouts = {
     "coachBouts.notify.saved": "Saved",
 
     /* Bout cards on the coach's Today page */
-    "coachBouts.dashboard.weightAlerts": "Weight alerts",
-    "coachBouts.dashboard.weightAlertsHint": "Running bouts that need a look, red first.",
-    "coachBouts.dashboard.allBouts": "All bouts",
-    "coachBouts.dashboard.documentsDue": "Documents due",
-    "coachBouts.dashboard.documentsDueHint": "Required documents still missing within 14 days of the deadline.",
-    "coachBouts.dashboard.due": "due {date}",
     "coachBouts.dialog.edit.title": "Edit bout details",
     "coachBouts.dialog.edit.description": "Update tournament information, venue, opponent, weight limit and schedule.",
     "coachBouts.dialog.edit.submit": "Save changes",

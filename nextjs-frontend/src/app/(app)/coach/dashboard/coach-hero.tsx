@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 
 import { CardLink } from "@/components/dashboard/card-link";
@@ -17,7 +17,8 @@ import type { ActiveSuspensionLine } from "./coach-todo-card";
 export interface CoachHeroProps {
     /** Bouts in scope; null when the bout service failed. */
     bouts: CampBout[] | null;
-    suspensions: ActiveSuspensionLine[];
+    /** Active suspensions; null when the suspension service failed. */
+    suspensions: ActiveSuspensionLine[] | null;
     roster: { clearanceState: ClearanceState }[];
     todaySessions: Pick<TrainingSession, "status">[];
     fighterNames: Map<string, string>;
@@ -33,11 +34,11 @@ export function CoachHero({ bouts, suspensions, roster, todaySessions, fighterNa
         .filter((b) => b.phase !== "COMPLETED" && b.phase !== "CANCELLED" && academyDateOf(b.boutAt) >= today)
         .sort((a, b) => a.weighInAt.localeCompare(b.weighInAt));
     const nearest = running[0];
-    const days = nearest ? Math.max(0, daysBetweenDates(today, academyDateOf(nearest.weighInAt))) : 0;
+    const days = nearest ? daysBetweenDates(today, academyDateOf(nearest.weighInAt)) : 0;
     const scheduled = todaySessions.filter((s) => s.status !== "cancelled");
     const stats = [
-        [t("coachToday.hero.running"), running.length],
-        [t("coachToday.hero.suspended"), suspensions.length],
+        [t("coachToday.hero.running"), bouts && running.length],
+        [t("coachToday.hero.suspended"), suspensions && suspensions.length],
         [t("coachToday.hero.notCleared"), roster.filter((r) => r.clearanceState !== "full").length],
         [t("coachToday.hero.sessionsToday"), `${scheduled.filter((s) => s.status === "completed").length}/${scheduled.length}`, t("coachToday.hero.sessionsDone")],
     ] as const;
@@ -50,28 +51,41 @@ export function CoachHero({ bouts, suspensions, roster, todaySessions, fighterNa
                     <>
                         <CornerTag tone="stage">{t("coachToday.hero.nearest")}</CornerTag>
                         <div>
-                            <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance italic sm:text-[34px]">{nearest.event}</h2>
+                            <h2 className="font-display text-[30px] leading-[1.05] font-extrabold text-balance break-words italic sm:text-[34px]">{nearest.event}</h2>
                             <p className="mt-1 text-[15px] text-white/85">
                                 {fighterNames.get(nearest.fighterId) ?? t("weight.fighterFallback")} ·{" "}
                                 {t("coachToday.hero.weighIn", { date: formatShortDate(nearest.weighInAt, locale) })}
                             </p>
                         </div>
                         <p className="flex items-end gap-3">
-                            <span className="font-display text-[76px] leading-[0.8] font-extrabold tracking-tight tabular-nums italic sm:text-[88px]">{days}</span>
-                            <span className="pb-1 font-display text-[15px] leading-tight font-bold tracking-[0.1em] uppercase">
-                                {days > 0
-                                    ? plural(t, "coachToday.hero.daysToWeighIn", days)
-                                    : t(nearest.phase === "WEIGHED_IN" ? "coachToday.hero.weighedIn" : "weight.weighInTodayShort")}
+                            {days >= 0 && (
+                                <span className="font-display text-[76px] leading-[0.8] font-extrabold tracking-tight tabular-nums italic sm:text-[88px]">{days}</span>
+                            )}
+                            <span className="flex items-center gap-1.5 pb-1 font-display text-[15px] leading-tight font-bold tracking-[0.1em] uppercase">
+                                {days > 0 ? (
+                                    plural(t, "coachToday.hero.daysToWeighIn", days)
+                                ) : nearest.phase === "WEIGHED_IN" ? (
+                                    t("coachToday.hero.weighedIn")
+                                ) : days === 0 ? (
+                                    t("weight.weighInTodayShort")
+                                ) : (
+                                    <>
+                                        <TriangleAlert aria-hidden className="size-4 shrink-0" />
+                                        {t("coachToday.hero.weighInMissed")}
+                                    </>
+                                )}
                             </span>
                         </p>
                     </>
+                ) : bouts === null ? (
+                    <p className="max-w-md text-[15px] text-pretty text-white/85">{t("coachToday.hero.unavailable")}</p>
                 ) : (
                     <div>
                         <h2 className="font-display text-[30px] leading-[1.05] font-extrabold italic sm:text-[34px]">{t("coachToday.hero.noBout")}</h2>
                         <p className="mt-1 max-w-md text-[15px] text-pretty text-white/85">{t("coachToday.hero.noBoutText")}</p>
                         <Link
                             href={routes.coach.newBout}
-                            className="mt-2 inline-flex min-h-11 w-fit items-center gap-1 rounded-sm text-[14px] font-semibold text-white underline-offset-2 hover:underline"
+                            className="mt-2 inline-flex min-h-11 w-fit items-center gap-1 rounded-sm text-[14px] font-semibold text-white underline-offset-2 hover:underline focus-visible:outline-white"
                         >
                             {t("coachToday.newBout")}
                             <ArrowRight aria-hidden className="size-4" />
@@ -86,7 +100,20 @@ export function CoachHero({ bouts, suspensions, roster, todaySessions, fighterNa
                         <ReadinessCell
                             key={label}
                             label={label}
-                            value={<ReadinessNumber value={<span className="tabular-nums">{value}</span>} />}
+                            value={
+                                <ReadinessNumber
+                                    value={
+                                        value === null ? (
+                                            <>
+                                                <span className="tabular-nums">—</span>
+                                                <span className="sr-only">{t("coachToday.hero.statUnavailable")}</span>
+                                            </>
+                                        ) : (
+                                            <span className="tabular-nums">{value}</span>
+                                        )
+                                    }
+                                />
+                            }
                             hint={hint}
                         />
                     ))}

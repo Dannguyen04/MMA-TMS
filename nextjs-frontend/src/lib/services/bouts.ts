@@ -14,13 +14,13 @@ import { awaitsWeighInDecision, requirementCode, type RequirementUpdate } from "
 import { wayOffCount } from "@/lib/domain/nutrition";
 import { blockingSuspensions as findBlockingSuspensions, type SuspensionDraft } from "@/lib/domain/bout-suspension-rules";
 import type { TrainingType, User } from "@/lib/domain/types";
-import type { PlanAdherence, WeightStatus } from "@/lib/domain/weight-chart";
+import type { PlanAdherence } from "@/lib/domain/weight-chart";
 import type { WeightTrack } from "@/lib/domain/weight-track";
 import type { WriteResult } from "@/lib/domain/write-result";
 import { dayKey, daysBetweenKeys } from "@/lib/format";
 import { nullIfServiceFails } from "./api-helpers";
 import type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
-import { getFighter, getUser } from "./people";
+import { getUser } from "./people";
 import { getPlan } from "./training";
 
 export type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } from "./bouts.demo";
@@ -31,15 +31,6 @@ export type { BoutEdit, CreateResult, FightWeekResult, NewBout, WeighInEntry } f
  * them, reads come back empty and writes say so instead of failing. Suspensions (T-007) have no contract yet and
  * stay demo-only.
  */
-
-export interface WeightAlert {
-    bout: CampBout;
-    fighterName: string;
-    track: WeightTrack;
-    wayOff: number;
-}
-
-const STATUS_ORDER: Record<WeightStatus, number> = { OVER_LIMIT: 0, ABOVE_TARGET: 1, NOT_WEIGHED: 2, ON_TRACK: 3, NEUTRAL: 4 };
 
 /** Writes the backend does not serve yet refuse with this, never with an exception that blanks the page. */
 export const BOUTS_UNAVAILABLE = "Bouts are not available from the server yet.";
@@ -133,25 +124,6 @@ export async function getWeightTrack(boutId: string, now = new Date()): Promise<
         acuteLossLimitPct: bout?.acuteLossLimitPct ?? 8,
         acuteWindowDays: bout?.acuteWindowDays ?? 7,
     };
-}
-
-/** Running bouts whose weight is red, yellow or grey, red first. */
-export async function listWeightAlerts(fighterIds: string[] | "all", now = new Date()): Promise<WeightAlert[]> {
-    if (isDemoAuthEnabled()) {
-        const alerts = (await demo()).listDemoWeightAlerts(fighterIds, now);
-        return Promise.all(alerts.map(async (alert) => ({ ...alert, fighterName: (await getFighter(alert.bout.fighterId))?.name ?? "Fighter" })));
-    }
-
-    const bouts = (await listCampBouts(fighterIds)).filter((bout) => isRunningPhase(bout.phase));
-    const rows = await Promise.all(
-        bouts.map(async (bout) => {
-            const track = await getWeightTrack(bout.id, now);
-            if (!track || (track.status === "ON_TRACK" || track.status === "NEUTRAL")) return null;
-            const fighterName = (await getFighter(bout.fighterId))?.name ?? "Fighter";
-            return { bout, fighterName, track, wayOff: await wayOffForBout(bout.id, dayKey(now)) };
-        }),
-    );
-    return rows.filter((row): row is WeightAlert => row !== null).sort((a, b) => STATUS_ORDER[a.track.status] - STATUS_ORDER[b.track.status]);
 }
 
 export async function wayOffForBout(boutId: string, todayOn: string): Promise<number> {

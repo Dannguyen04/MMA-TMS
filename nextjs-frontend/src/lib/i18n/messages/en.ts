@@ -194,6 +194,9 @@ export const en = {
     "coachToday.hero.sessionsToday": "Sessions today",
     "coachToday.hero.sessionsDone": "done/scheduled",
     "coachToday.hero.roster": "All fighters",
+    "coachToday.hero.weighInMissed": "Official weigh-in not recorded",
+    "coachToday.hero.unavailable": "Couldn't load bouts. Try reloading the page.",
+    "coachToday.hero.statUnavailable": "unavailable",
 
     "coachTodo.title": "Bout tasks",
     "coachTodo.unavailable": "Couldn't load bout tasks. Try reloading the page.",

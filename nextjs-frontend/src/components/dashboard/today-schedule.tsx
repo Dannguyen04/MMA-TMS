@@ -50,7 +50,7 @@ export function TodaySchedule({ sessions, fighters, t = createTranslator("en"), 
                     title={t("schedule.emptyTitle")}
                     description={t("schedule.emptyText")}
                     action={
-                        <ButtonLink href={routes.coach.newSession} variant="secondary" size="sm">
+                        <ButtonLink href={routes.coach.newSession} variant="secondary" size="sm" className="min-h-11">
                             <CalendarPlus aria-hidden />
                             {t("coachToday.scheduleSession")}
                         </ButtonLink>

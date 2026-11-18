@@ -69,7 +69,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
         getSettings(),
         // Every status, so a fighter whose only plan is a draft is told to finish it rather than start another.
         listPlans({ fighterIds: scope }),
-        nullIfServiceFails(listSuspensions(scope === "all" ? {} : { fighterIds: scope }, user)),
+        nullIfServiceFails(listSuspensions(scope === "all" ? { active: true } : { fighterIds: scope, active: true }, user)),
         nullIfServiceFails(getCoachTodo(scope)),
         nullIfServiceFails(listCampBouts(scope)),
     ]);
@@ -133,7 +133,7 @@ export default async function CoachDashboardPage({ searchParams }: PageProps<"/c
             <div className="flex flex-col gap-6">
                 <CoachHero
                     bouts={bouts}
-                    suspensions={suspensionLines}
+                    suspensions={suspensions && suspensionLines}
                     roster={roster}
                     todaySessions={todaySessions}
                     fighterNames={fighterNames}

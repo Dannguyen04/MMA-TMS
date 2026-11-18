@@ -46,7 +46,6 @@ export const enCoachToday = {
     "coachToday.fighters.one": "1 fighter",
     "coachToday.sessions": "{n} sessions",
     "coachToday.sessions.one": "1 session",
-    "coachToday.newPlan": "New training plan",
     "coachToday.scheduleSession": "Schedule session",
     "coachToday.queueTitle": "Corner queue",
     "coachToday.queueFilter": "Filter the corner queue",

@@ -48,7 +48,6 @@ export const viCoachToday = {
     "coachToday.fighters.one": "1 võ sĩ",
     "coachToday.sessions": "{n} buổi tập",
     "coachToday.sessions.one": "1 buổi tập",
-    "coachToday.newPlan": "Giáo án mới",
     "coachToday.scheduleSession": "Xếp buổi tập",
     "coachToday.queueTitle": "Việc cần xử lý",
     "coachToday.queueFilter": "Lọc việc cần xử lý",

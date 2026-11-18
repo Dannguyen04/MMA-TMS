@@ -54,11 +54,9 @@ describe("T-064: coach hero", () => {
     });
 
     it("H2", () => {
-        for (const bouts of [[], null]) {
-            const html = render({ bouts });
-            expect(html).toContain("Chưa có trận nào trong camp");
-            expect(html).toContain(`href="${routes.coach.newBout}"`);
-        }
+        const html = render({ bouts: [] });
+        expect(html).toContain("Chưa có trận nào trong camp");
+        expect(html).toContain(`href="${routes.coach.newBout}"`);
     });
 
     it("H3", () => {
