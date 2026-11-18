@@ -1,15 +1,19 @@
 import { Module, Global, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Pool } from 'pg';
+import type { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
+import { RetryingPool } from './retrying-pool.js';
 import * as schema from './schema.js';
 
 export const DRIZZLE = Symbol('DRIZZLE');
 
 export type DrizzleDB = ReturnType<typeof drizzle<typeof schema>>;
 
-/** Pool size when `DATABASE_POOL_MAX` is unset. Mind the Supabase plan's pooler limit across every running server. */
-export const DEFAULT_DATABASE_POOL_MAX = 20;
+/**
+ * Pool size when `DATABASE_POOL_MAX` is unset. Supabase's session-mode pooler (port 5432) allows about 15 clients
+ * for the whole project, shared by every running server, so one server must stay well below it.
+ */
+export const DEFAULT_DATABASE_POOL_MAX = 10;
 /** A query waiting this long for a free connection is logged when `DATABASE_POOL_WAIT_LOG=1`. */
 export const POOL_WAIT_WARN_AFTER_MS = 1_000;
 const POOL_WAIT_CHECK_EVERY_MS = 250;
@@ -34,7 +38,7 @@ export function createDatabasePool(config: ConfigService): Pool {
     !connectionString.includes('127.0.0.1') &&
     !connectionString.includes('@postgres:');
 
-  return new Pool({
+  return new RetryingPool({
     connectionString,
     ssl: isRemote ? { rejectUnauthorized: false } : undefined,
     // Reuse warm connections: a fresh TCP + TLS + auth handshake to the remote pooler costs several round trips.

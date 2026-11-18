@@ -61,6 +61,7 @@ Khi nhập biến lên Render, bỏ dấu ngoặc kép bao quanh giá trị (cá
 3. Mở https://mma-tms-demo.vercel.app/login, đăng nhập lần lượt các vai HLV, võ sĩ, bác sĩ bằng tài khoản demo.
 4. Thử AI Gemini: vào một trận, bấm gợi ý chiến thuật trước trận, phải có kết quả trong khoảng 1 phút.
 5. Thử AI video: tải một clip ngắn (dưới 50 MB), xem trạng thái chuyển sang hoàn tất.
+6. Nhắc cả team tắt API đang chạy trên máy (`pnpm --filter nestjs-api start:dev`) nếu nó dùng database chung: mọi server nối vào Supabase chia nhau khoảng 15 kết nối ở cổng 5432.
 
 ## Giới hạn của bản miễn phí
 
@@ -69,5 +70,6 @@ Khi nhập biến lên Render, bỏ dấu ngoặc kép bao quanh giá trị (cá
 | Render Free ngủ sau 15 phút không có request | Request đầu chờ khoảng 1 phút | Mở `/health` trước khi dùng |
 | Render Free 512 MB RAM | Đủ cho demo; nếu bị khởi động lại, xem Render > Events | Không tải nhiều video cùng lúc |
 | Key Value Free không lưu ra đĩa | Khởi động lại thì mất các job video đang chờ | Tải lại video |
+| Supabase cổng 5432 (session mode) cho khoảng 15 kết nối cho cả project, chia cho mọi server | Vượt giới hạn thì Supabase từ chối kết nối, API trả 500 | API mở tối đa 10 kết nối (`DATABASE_POOL_MAX`), tự thử lại khi bị từ chối; web đọc lại một lần khi gặp 5xx; API trên máy dev đặt `DATABASE_POOL_MAX=3` |
 | Gemini theo hạn mức của key | Nhiều người bấm AI cùng lúc có thể bị lỗi hạn mức (429), app hiện lỗi | Chờ 1 phút rồi bấm lại |
 | Worker chạy trên máy Dan | Máy tắt hoặc ngủ thì video đứng ở trạng thái chờ | Giữ máy bật, cắm sạc |

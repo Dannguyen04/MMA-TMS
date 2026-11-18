@@ -19,13 +19,21 @@ export async function GET(request: NextRequest, context: RouteContext<"/api/vide
     try {
         const token = await getPipelineAccessToken();
         const range = request.headers.get("range");
-        const upstream = await fetch(apiEndpoint(`/videos/${encodeURIComponent(videoId)}/content`), {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                ...(range ? { Range: range } : {}),
-            },
-            cache: "no-store",
-        });
+        const read = () =>
+            fetch(apiEndpoint(`/videos/${encodeURIComponent(videoId)}/content`), {
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    ...(range ? { Range: range } : {}),
+                },
+                cache: "no-store",
+            });
+        let upstream = await read();
+        // A brief overload answers 5xx before any byte is streamed; one more try usually gets the footage.
+        if (upstream.status >= 500) {
+            await upstream.body?.cancel().catch(() => undefined);
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            upstream = await read();
+        }
         const headers = new Headers({ "Cache-Control": "private, no-store" });
         for (const name of forwardedHeaders) {
             const value = upstream.headers.get(name);

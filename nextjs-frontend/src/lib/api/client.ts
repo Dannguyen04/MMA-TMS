@@ -76,35 +76,52 @@ const successEnvelopeSchema = z.object({ success: z.literal(true), message: z.st
 /** `API_TIMING_LOG=1` prints each backend call's path, status and time on the server, to find slow pages in API mode. */
 const timingLog = process.env.API_TIMING_LOG === "1";
 
-/** Gọi API nội bộ, không cache và luôn kiểm tra cả envelope lẫn dữ liệu. */
+/** Statuses a read is sent again for once: the service or its database was briefly overloaded. */
+const RETRYABLE_READ_STATUSES = new Set([500, 502, 503, 504]);
+const READ_RETRY_DELAY_MS = 300;
+
+/**
+ * Gọi API nội bộ, không cache và luôn kiểm tra cả envelope lẫn dữ liệu. A GET that fails with a 5xx is sent once more
+ * after a short pause; writes are never repeated, so nothing is recorded twice.
+ */
 export async function apiRequest<T extends z.ZodType>(path: string, dataSchema: T, options: ApiRequestOptions = {}): Promise<z.output<T>> {
     const { accessToken, timeoutMs = defaultTimeoutMs, headers, ...init } = options;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const method = (init.method ?? "GET").toUpperCase();
     const startedAt = timingLog ? performance.now() : 0;
-    let response: Response;
 
-    try {
-        response = await fetch(apiEndpoint(path), {
-            ...init,
-            cache: "no-store",
-            signal: controller.signal,
-            headers: {
-                Accept: "application/json",
-                ...(init.body ? { "Content-Type": "application/json" } : {}),
-                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                ...headers,
-            },
-        });
-    } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-            throw new ApiError({ message: "The service took too long to respond.", kind: "timeout", code: "API_TIMEOUT" });
+    const send = async (): Promise<Response> => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            return await fetch(apiEndpoint(path), {
+                ...init,
+                cache: "no-store",
+                signal: controller.signal,
+                headers: {
+                    Accept: "application/json",
+                    ...(init.body ? { "Content-Type": "application/json" } : {}),
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...headers,
+                },
+            });
+        } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") {
+                throw new ApiError({ message: "The service took too long to respond.", kind: "timeout", code: "API_TIMEOUT" });
+            }
+            throw new ApiError({ message: "The service can't be reached right now.", kind: "network", code: "API_UNAVAILABLE" });
+        } finally {
+            clearTimeout(timer);
         }
-        throw new ApiError({ message: "The service can't be reached right now.", kind: "network", code: "API_UNAVAILABLE" });
-    } finally {
-        clearTimeout(timer);
+    };
+
+    let response = await send();
+    if ((method === "GET" || method === "HEAD") && RETRYABLE_READ_STATUSES.has(response.status)) {
+        if (timingLog) console.log(`[api] ${method} ${path} ${response.status}, retrying once`);
+        await response.body?.cancel().catch(() => undefined);
+        await new Promise((resolve) => setTimeout(resolve, READ_RETRY_DELAY_MS));
+        response = await send();
     }
-    if (timingLog) console.log(`[api] ${init.method ?? "GET"} ${path} ${response.status} ${Math.round(performance.now() - startedAt)}ms`);
+    if (timingLog) console.log(`[api] ${method} ${path} ${response.status} ${Math.round(performance.now() - startedAt)}ms`);
 
     const raw: unknown = await response.json().catch(() => null);
     if (!response.ok) {

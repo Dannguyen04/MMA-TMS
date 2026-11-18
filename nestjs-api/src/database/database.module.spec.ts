@@ -12,10 +12,10 @@ function config(values: Record<string, string | undefined>): ConfigService {
 }
 
 describe('databasePoolMax', () => {
-  it('defaults to 20', () => {
-    expect(DEFAULT_DATABASE_POOL_MAX).toBe(20);
-    expect(databasePoolMax(undefined)).toBe(20);
-    expect(databasePoolMax('  ')).toBe(20);
+  it('defaults to 10', () => {
+    expect(DEFAULT_DATABASE_POOL_MAX).toBe(10);
+    expect(databasePoolMax(undefined)).toBe(10);
+    expect(databasePoolMax('  ')).toBe(10);
   });
 
   it.each(['10', '30'])('reads DATABASE_POOL_MAX=%s', (raw) => {
@@ -31,8 +31,8 @@ describe('createDatabasePool', () => {
   const url = 'postgresql://user:pass@localhost:5432/db';
 
   it.each([
-    [undefined, 20],
-    ['10', 10],
+    [undefined, 10],
+    ['5', 5],
     ['30', 30],
   ])('sizes the pool from DATABASE_POOL_MAX=%s', async (raw, expected) => {
     const pool = createDatabasePool(
