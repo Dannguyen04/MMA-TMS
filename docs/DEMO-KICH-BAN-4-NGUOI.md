@@ -76,7 +76,7 @@ Slide còn lại để dành cho phần hỏi đáp, không chiếu hết.
 
 | # | Màn | Thao tác | Câu nói |
 | --- | --- | --- | --- |
-| P3a | **Phòng video** `/coach/video-analysis` | Chỉ **Hàng chờ duyệt** và danh sách **Đang xử lý hoặc cần kiểm tra** | "Võ sĩ hoặc HLV tải video tập lên, AI phân tích xong thì video vào hàng chờ HLV duyệt." |
+| P3a | **Phòng video** `/coach/video-analysis` | Chỉ danh sách **Tất cả video** và nhãn **AI đã xong** trên từng video | "Võ sĩ hoặc HLV tải video tập lên, AI phân tích xong thì video chờ HLV duyệt." |
 | P3b | Mở **Bao cát — 19/11/2026** (Kenji Morita, **AI đã xong**, **Chờ HLV duyệt**) | Bấm phát; bật **Khung xương** và **Nhãn đòn**; chỉ **Tóm tắt của AI** (**Đòn nhận diện** 5, **Độ tin cậy tư thế** 90%) và **Chỉ số thi đấu** (**Số đòn mỗi phút**) | "AI dựng khung xương, đánh dấu từng đòn trên dòng thời gian, tính số đòn mỗi phút." |
 | P3c | Cùng màn | Chỉ dòng **Kết quả AI là gợi ý. Hãy xác nhận hoặc sửa trước khi chia sẻ.** | "AI chỉ gợi ý. HLV xác nhận, sửa hoặc bác bỏ từng đòn trước khi võ sĩ thấy." |
 | P3d | **Cửa sổ võ sĩ** (Minh): menu **Video** `/fighter/videos` | Chỉ nút **Tải video lên để AI phân tích** và danh sách video của Minh. Thẻ **Kiểm tra kỹ thuật trực tiếp** (**Thử nghiệm**) → **Bắt đầu kiểm tra**, đứng trước webcam đá vòng cầu 2–3 lần | "Phía võ sĩ: tự quay video tập gửi lên cho AI và HLV. Muốn sửa đòn ngay thì bật camera: app đo độ co gối, độ duỗi chân và tốc độ ngay trên máy, không ghi hình, không tải lên." |
