@@ -84,6 +84,7 @@ export const enScreens = {
     "screens.shared.required": "(required)",
     "screens.shared.loadingTraining": "Loading training",
     "screens.shared.termHint": "What is {term}?",
+    "screens.shared.infoHint": "About {label}",
     "screens.shared.glossary.rpe.term": "RPE",
     "screens.shared.glossary.rpe.definition": "Rate of Perceived Exertion: how hard the work should feel, from 1 (very easy) to 10 (all-out).",
     "screens.shared.glossary.sets.term": "Sets",

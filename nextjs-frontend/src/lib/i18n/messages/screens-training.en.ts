@@ -133,6 +133,8 @@ export const enScreensTraining = {
     "screens.training.exerciseRows.added": "Added",
     "screens.training.exerciseRows.add": "Add",
     "screens.training.exerciseRows.more": "{n} more. Keep typing to narrow the list.",
+    "screens.training.exerciseRows.moreBrowse": "{n} more in the library. Type a name to find one.",
+    "screens.training.exerciseRows.browse": "Exercises in the library",
     "screens.training.formSteps.fillIn": "Fill in {fields} to continue.",
     "screens.training.formSteps.fillInRequired": "Fill in the required fields to continue.",
     "screens.training.formSteps.nav": "Form steps",

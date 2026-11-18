@@ -135,6 +135,8 @@ export const viScreensTraining = {
     "screens.training.exerciseRows.added": "Đã thêm",
     "screens.training.exerciseRows.add": "Thêm",
     "screens.training.exerciseRows.more": "Còn {n} bài. Gõ tiếp để thu hẹp danh sách.",
+    "screens.training.exerciseRows.moreBrowse": "Thư viện còn {n} bài. Gõ tên để tìm.",
+    "screens.training.exerciseRows.browse": "Bài tập trong thư viện",
     "screens.training.formSteps.fillIn": "Điền {fields} để tiếp tục.",
     "screens.training.formSteps.fillInRequired": "Điền các mục bắt buộc để tiếp tục.",
     "screens.training.formSteps.nav": "Các bước",

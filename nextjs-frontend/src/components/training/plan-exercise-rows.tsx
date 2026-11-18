@@ -233,7 +233,8 @@ function LibraryPicker({ idPrefix, library, addedIds, onAdd }: { idPrefix: strin
     }
 
     const needle = foldName(query);
-    const matches = needle ? library.filter((exercise) => foldName(`${exercise.name} ${exerciseCategoryLabel(t, exercise.category)}`).includes(needle)) : [];
+    // With nothing typed, the first exercises of the library show with their Add buttons, so adding never starts from a blank search.
+    const matches = needle ? library.filter((exercise) => foldName(`${exercise.name} ${exerciseCategoryLabel(t, exercise.category)}`).includes(needle)) : library;
     const shown = matches.slice(0, MAX_RESULTS);
 
     return (
@@ -252,7 +253,7 @@ function LibraryPicker({ idPrefix, library, addedIds, onAdd }: { idPrefix: strin
                         // Enter adds the only match instead of moving to the next step.
                         if (event.key !== "Enter") return;
                         event.preventDefault();
-                        const only = shown.length === 1 ? shown[0] : undefined;
+                        const only = needle && shown.length === 1 ? shown[0] : undefined;
                         if (only && !addedIds.has(only.id)) onAdd(only);
                     }}
                     placeholder={t("screens.training.exerciseRows.search", { n: library.length })}
@@ -264,7 +265,7 @@ function LibraryPicker({ idPrefix, library, addedIds, onAdd }: { idPrefix: strin
             <div id={resultsId} aria-live="polite">
                 {needle && shown.length === 0 && <p className="px-1 py-1 text-[13px] text-fg-muted">{t("screens.training.exerciseRows.noMatch", { query: query.trim() })}</p>}
                 {shown.length > 0 && (
-                    <ul className="flex flex-col gap-1" aria-label={t("screens.training.exerciseRows.matching")}>
+                    <ul className="flex flex-col gap-1" aria-label={needle ? t("screens.training.exerciseRows.matching") : t("screens.training.exerciseRows.browse")}>
                         {shown.map((exercise) => {
                             const added = addedIds.has(exercise.id);
                             return (
@@ -281,7 +282,7 @@ function LibraryPicker({ idPrefix, library, addedIds, onAdd }: { idPrefix: strin
                             );
                         })}
                         {matches.length > shown.length && (
-                            <li className="px-1 text-xs text-fg-subtle">{t("screens.training.exerciseRows.more", { n: matches.length - shown.length })}</li>
+                            <li className="px-1 text-xs text-fg-subtle">{t(needle ? "screens.training.exerciseRows.more" : "screens.training.exerciseRows.moreBrowse", { n: matches.length - shown.length })}</li>
                         )}
                     </ul>
                 )}
