@@ -1,6 +1,6 @@
 # T-075: thêm "2 hiệp" vào form tạo trận
 
-- Trạng thái: **READY** 18/11/2026 (chủ dự án duyệt hôm nay, cần xong và lên bản deploy trước buổi demo 19/11)
+- Trạng thái: **DONE** 18/11/2026. Chủ dự án giao Claude làm trực tiếp (quy tắc sửa nhanh 22/10): commit `0ec349d7` trên `feat/T-075-two-round-choice`, merge `--no-ff` vào `release/final-review` (`8e12557a`, chủ dự án cho phép push), Vercel đã build: ô Số hiệp dự kiến có 2, 3, 5 hiệp, mặc định 3. Kiểm: C3 lỗi trên code cũ rồi qua; vitest nhắm đích 420/420; frontend 1498 qua, 2 skip; lint và typecheck sạch. Không có review độc lập. **Chưa đưa sang `fight-camp`.**
 - Phạm vi: frontend `nextjs-frontend`. Không backend, không migration, không mobile.
 - Người làm: đề xuất Gemini `gemini-3.8-flash-high` (việc theo khuôn, một file chính). Claude review.
 - Phụ thuộc: không.
