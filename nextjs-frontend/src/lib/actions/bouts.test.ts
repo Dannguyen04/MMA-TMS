@@ -102,6 +102,21 @@ describe("bout actions in demo mode", () => {
         expect(created).toMatchObject({ phase: "SCHEDULED", limitKg: 63.5, weightClassLabel: "63.5 kg", rulesetName: "Tự nhập" });
     });
 
+    it("C3: saves a 2-round bout with scheduledRounds 2 (T-075)", async () => {
+        await expect(createBoutAction(IDLE, newBout({ scheduledRounds: "2" }))).rejects.toThrow(/^redirect:\/coach\/bouts\/b-minh-tran-\d+\?notice=created$/);
+        expect(listDemoBouts(["f-minh-tran"])[0]).toMatchObject({ scheduledRounds: 2 });
+    });
+
+    it.each(["3", "5"])("C4: keeps %s rounds as chosen (T-075)", async (rounds) => {
+        await expect(createBoutAction(IDLE, newBout({ scheduledRounds: rounds }))).rejects.toThrow(/^redirect:/);
+        expect(listDemoBouts(["f-minh-tran"])[0]).toMatchObject({ scheduledRounds: Number(rounds) });
+    });
+
+    it("C5: saves a round count outside the choices as not set (T-075)", async () => {
+        await expect(createBoutAction(IDLE, newBout({ scheduledRounds: "4" }))).rejects.toThrow(/^redirect:/);
+        expect(listDemoBouts(["f-minh-tran"])[0]).toMatchObject({ scheduledRounds: null });
+    });
+
     it("keeps a bout in camp when Gate 1 refuses fight week, and lists the missing document", async () => {
         await expect(enterFightWeekAction({ status: "idle" }, form({ boutId: "b-emma-nordic" }))).resolves.toEqual({
             status: "error",
