@@ -17,12 +17,13 @@ import { evidenceError } from "@/screens/media/evidence/errors";
 import { formatPrecise } from "@/screens/media/evidence/evidence-model";
 import { FINDING_DECISIONS, uuidV4 } from "@/screens/media/evidence/review-model";
 import { SheetOption } from "@/screens/media/evidence/sheet-option";
+import { fz, liveSheet } from "@/theme/typography";
 
 function Field({ label, value, onChange, placeholder, multiline, testID, maxLength }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; multiline?: boolean; testID?: string; maxLength?: number }) {
   const c = useFighterPalette();
   return (
     <View style={styles.field}>
-      <Text style={{ color: c.muted, fontSize: 13 }}>{label}</Text>
+      <Text style={{ color: c.muted, fontSize: fz(13) }}>{label}</Text>
       <TextInput
         testID={testID}
         value={value}
@@ -50,7 +51,7 @@ function SaveButton({ busy, disabled, onPress, testID }: { busy: boolean; disabl
       style={[styles.save, { backgroundColor: off ? c.disabled : c.accent }]}
     >
       {busy ? <ActivityIndicator color={c.onAccent} size="small" /> : null}
-      <Text style={{ color: off ? c.disabledInk : c.onAccent, fontWeight: "700", fontSize: 15 }}>{busy ? ev.saving : ev.save}</Text>
+      <Text style={{ color: off ? c.disabledInk : c.onAccent, fontWeight: "700", fontSize: fz(15) }}>{busy ? ev.saving : ev.save}</Text>
     </Pressable>
   );
 }
@@ -74,7 +75,7 @@ function useSubmit(onDone: () => void) {
 
 function ErrorLine({ text }: { text: string }) {
   const c = useFighterPalette();
-  return text ? <Text style={{ color: c.warning, fontSize: 13 }}>{text}</Text> : null;
+  return text ? <Text style={{ color: c.warning, fontSize: fz(13) }}>{text}</Text> : null;
 }
 
 function Shell({ visible, title, onClose, footer, children }: { visible: boolean; title: string; onClose: () => void; footer: ReactNode; children: ReactNode }) {
@@ -136,8 +137,8 @@ function SheetTitle({ title, detail }: { title: string; detail?: string }) {
   const c = useFighterPalette();
   return (
     <View style={{ gap: 2, paddingBottom: 4 }}>
-      <Text style={{ color: c.ink, fontWeight: "700", fontSize: 15 }}>{title}</Text>
-      {detail ? <Text style={{ color: c.muted, fontSize: 13 }}>{detail}</Text> : null}
+      <Text style={{ color: c.ink, fontWeight: "700", fontSize: fz(15) }}>{title}</Text>
+      {detail ? <Text style={{ color: c.muted, fontSize: fz(13) }}>{detail}</Text> : null}
     </View>
   );
 }
@@ -166,7 +167,7 @@ export function SummarySheet({ visible, analysisId, initial, onClose, onSaved }:
       onClose={onClose}
       footer={<SaveButton busy={submit.busy} disabled={rating == null || !text.trim()} onPress={save} testID="summary-save" />}
     >
-      <Text style={{ color: c.muted, fontSize: 13 }}>{ev.rating}</Text>
+      <Text style={{ color: c.muted, fontSize: fz(13) }}>{ev.rating}</Text>
       <View style={styles.rating}>
         {[1, 2, 3, 4, 5].map((n) => {
           const on = rating === n;
@@ -180,7 +181,7 @@ export function SummarySheet({ visible, analysisId, initial, onClose, onSaved }:
               onPress={() => setRating(n)}
               style={[styles.rate, { borderColor: on ? c.accent : c.line, backgroundColor: on ? c.accent : c.surface }]}
             >
-              <Text style={{ color: on ? c.onAccent : c.ink, fontWeight: "700", fontSize: 16 }}>{n}</Text>
+              <Text style={{ color: on ? c.onAccent : c.ink, fontWeight: "700", fontSize: fz(16) }}>{n}</Text>
             </Pressable>
           );
         })}
@@ -249,7 +250,6 @@ export function WindowReviewSheet({
       ))}
       {decision === "corrected" ? (
         <View style={styles.field}>
-          <Text style={{ color: c.muted, fontSize: 13 }}>{ev.rangeHint}</Text>
           <View style={styles.rating}>
             {([0, 1] as const).map((k) => (
               <Pressable
@@ -260,7 +260,7 @@ export function WindowReviewSheet({
                 onPress={() => setRange((r) => (k ? [r[0], playheadMs] : [playheadMs, r[1]]))}
                 style={[styles.rangeBtn, { borderColor: c.line, backgroundColor: c.surface, opacity: inWindow ? 1 : 0.5 }]}
               >
-                <Text style={{ color: c.ink, fontWeight: "600", fontSize: 13 }}>
+                <Text style={{ color: c.ink, fontWeight: "600", fontSize: fz(13) }}>
                   {k ? ev.setEnd(formatPrecise(range[1])) : ev.setStart(formatPrecise(range[0]))}
                 </Text>
               </Pressable>
@@ -275,13 +275,13 @@ export function WindowReviewSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   body: { gap: 12, paddingBottom: 8 },
   field: { gap: 6 },
-  input: { minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: 15 },
+  input: { minHeight: 44, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 10, fontSize: fz(15) },
   multi: { minHeight: 84, textAlignVertical: "top" },
   save: { minHeight: 48, borderRadius: 12, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
   rating: { flexDirection: "row", gap: 8 },
   rate: { flex: 1, minHeight: 44, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   rangeBtn: { flex: 1, minHeight: 40, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-});
+}));

@@ -1,6 +1,6 @@
-import { CoachNotificationsScreen } from "@/screens/coach/nav/coach-notifications-screen";
+import { CoachInboxScreen } from "@/screens/coach/me/coach-inbox";
 
-/** Mở từ chuông ở header (không còn là tab), có nút back. */
+/** Coach Thông báo, opened from the bell (redesign step 19). */
 export default function CoachNotificationsRoute() {
-  return <CoachNotificationsScreen />;
+  return <CoachInboxScreen />;
 }

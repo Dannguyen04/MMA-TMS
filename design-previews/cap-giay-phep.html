@@ -1,0 +1,454 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xem trước · Cấp giấy phép</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,800&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Bản xem trước tĩnh, không phải code của app. Màu và font lấy đúng từ nextjs-frontend/src/app/globals.css. */
+:root {
+  --bg: #eef1f5; --surface: #fff; --surface-muted: #f2f4f8; --border: #d8dee7; --control-border: #7a8699;
+  --fg: #0e1a2b; --fg-muted: #4a5668; --fg-subtle: #5b6778;
+  --primary: #1846c4; --primary-hover: #133a9e; --primary-fg: #fff; --primary-soft: #e6ecfb; --primary-soft-fg: #173b9e; --ring: #3b6be0;
+  --corner-red: #c92637;
+  --success-soft: #e6f5eb; --success-fg: #176b34; --success-solid: #1a7a3d;
+  --warning-soft: #fcf2da; --warning-fg: #855600; --warning-solid: #c98200;
+  --danger-soft: #fce9ea; --danger-fg: #b0222c; --danger-solid: #cf2f3d;
+  --neutral-soft: #edf0f4; --neutral-fg: #4a5263;
+  --shadow-sm: 0 1px 2px rgba(14, 26, 43, .06);
+  --shadow-card: 0 1px 2px rgba(14, 26, 43, .05), 0 4px 14px -6px rgba(14, 26, 43, .10);
+  --body: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
+  --disp: "Barlow Condensed", "Arial Narrow", sans-serif;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0d1626; --surface: #142036; --surface-muted: #18263f; --border: #243552; --control-border: #6b7c99;
+  --fg: #e9eef6; --fg-muted: #aab6ca; --fg-subtle: #8e9bb2;
+  --primary: #3a6be6; --primary-hover: #4d7cf0; --primary-soft: rgba(96, 140, 255, .16); --primary-soft-fg: #a9c1ff; --ring: #6e93f5;
+  --corner-red: #f05a67;
+  --success-soft: rgba(42, 165, 90, .14); --success-fg: #74d49c; --success-solid: #218049;
+  --warning-soft: rgba(224, 160, 30, .14); --warning-fg: #f0c263; --warning-solid: #c98a12;
+  --danger-soft: rgba(230, 70, 82, .15); --danger-fg: #ff8d95; --danger-solid: #d93a48;
+  --neutral-soft: rgba(255, 255, 255, .06); --neutral-fg: #c3ccdb;
+  --shadow-sm: 0 1px 2px rgba(3, 7, 15, .45);
+  --shadow-card: 0 1px 2px rgba(3, 7, 15, .5), 0 6px 18px -8px rgba(3, 7, 15, .6);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; margin: 0; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--body); font-variant-numeric: tabular-nums; }
+::selection { background: var(--primary-soft); color: var(--primary-soft-fg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.ico { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+[hidden] { display: none !important; }
+
+/* Khung app rút gọn */
+.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
+.side { background: var(--surface); border-right: 1px solid var(--border); padding: 18px 14px; display: grid; align-content: start; gap: 4px; position: sticky; top: 0; height: 100vh; }
+.brand { font: italic 800 20px/1 var(--disp); padding: 4px 10px 18px; }
+.brand small { display: block; font: 500 11px var(--body); color: var(--fg-muted); font-style: normal; margin-top: 3px; }
+.side h6 { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--fg-subtle); padding: 14px 10px 6px; }
+.side a { display: flex; padding: 8px 10px; border-radius: 8px; color: var(--fg-muted); text-decoration: none; font-size: 14px; font-weight: 500; }
+.side a[aria-current] { background: var(--primary-soft); color: var(--primary-soft-fg); font-weight: 600; }
+.main { min-width: 0; padding: 22px 32px 64px; display: grid; gap: 22px; align-content: start; }
+
+/* Đầu hồ sơ */
+.back { display: inline-flex; gap: 6px; align-items: center; color: var(--fg-muted); text-decoration: none; font-size: 14px; }
+.top { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 16px; }
+.id { display: flex; gap: 20px; align-items: center; }
+.tag { width: 104px; height: 118px; border-radius: 14px; background: var(--danger-solid); color: #fff; display: grid; place-items: center; align-content: center; gap: 6px; position: relative; }
+.tag::before { content: ""; position: absolute; top: 10px; width: 13px; height: 13px; border-radius: 50%; background: var(--bg); }
+.tag b { font: 800 27px/.9 var(--disp); margin-top: 12px; }
+.tag small { font-size: 11.5px; font-weight: 600; }
+.id h1 { font: italic 800 38px/1.02 var(--disp); }
+.id p { color: var(--fg-muted); margin-top: 6px; }
+.gates { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; list-style: none; padding: 0; }
+.gates li { display: flex; gap: 8px; align-items: center; padding: 6px 12px; border-radius: 10px; font-size: 13.5px; background: var(--danger-soft); color: var(--danger-fg); }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); font-weight: 600; font-size: 14px; cursor: pointer; text-decoration: none; color: var(--fg); }
+.btn.primary { background: var(--primary); border-color: var(--primary); color: var(--primary-fg); box-shadow: var(--shadow-sm); }
+.btn.danger { background: var(--danger-solid); border-color: var(--danger-solid); color: #fff; }
+.btn.pressed { background: var(--primary-soft); color: var(--primary-soft-fg); border-color: var(--primary); }
+.btn.sm { min-height: 32px; padding: 0 12px; font-size: 13px; }
+.btn.ghost { border-color: transparent; background: transparent; color: var(--fg-muted); }
+.btn.block { width: 100%; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); position: sticky; top: -1px; z-index: 5; background: var(--bg); margin: 0 -32px; padding: 5px 32px 0; }
+.tabs a { padding: 10px 14px; font-size: 14px; font-weight: 600; color: var(--fg-muted); text-decoration: none; border-bottom: 2.5px solid transparent; white-space: nowrap; }
+.tabs a[aria-current] { color: var(--fg); border-color: var(--corner-red); }
+
+.ex-title h2 { font: 800 26px/1.15 var(--disp); }
+.ex-title p { color: var(--fg-muted); margin-top: 4px; max-width: 70ch; }
+.ex { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow-card); }
+.sec { padding: 24px 28px 28px; display: grid; gap: 18px; }
+.sec + .sec { border-top: 1px solid var(--border); }
+.sec-h { display: flex; justify-content: space-between; gap: 16px; }
+.sec-h h3 { font-size: 17px; font-weight: 700; line-height: 1.3; }
+.sec-h p { color: var(--fg-muted); font-size: 13.5px; margin-top: 2px; max-width: 62ch; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 20px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px 20px; }
+.field { display: grid; gap: 6px; align-content: start; min-width: 0; }
+.field > label, .lbl { font-size: 14px; font-weight: 500; display: flex; gap: 6px; align-items: center; }
+.req { color: var(--danger-fg); }
+.opt { font-size: 13px; font-weight: 400; color: var(--fg-subtle); }
+.hint { font-size: 13px; color: var(--fg-subtle); }
+.input, .select, .textarea { width: 100%; min-height: 42px; border: 1px solid var(--control-border); border-radius: 8px; background: var(--surface); padding: 9px 12px; }
+.textarea { min-height: 96px; resize: vertical; }
+.input::placeholder, .textarea::placeholder { color: var(--fg-subtle); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip { border: 1px solid var(--border); background: var(--surface); border-radius: 999px; padding: 5px 12px; font-size: 13px; font-weight: 500; cursor: pointer; color: var(--fg-muted); }
+.chip[aria-pressed="true"] { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-soft-fg); font-weight: 600; }
+.private { display: inline-flex; gap: 6px; align-items: center; font-size: 12.5px; font-weight: 600; padding: 3px 9px; border-radius: 999px; background: var(--neutral-soft); color: var(--neutral-fg); }
+.note { display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; padding: 10px 12px; border-radius: 8px; background: var(--primary-soft); color: var(--primary-soft-fg); }
+.note svg { margin-top: 2px; }
+/* Cột phải dính theo */
+.rail { position: sticky; top: 68px; display: grid; }
+.rail-sec { padding: 18px 20px; display: grid; gap: 10px; }
+.rail-sec + .rail-sec { border-top: 1px solid var(--border); }
+.rail h4 { font-size: 13px; font-weight: 600; color: var(--fg-muted); }
+.steps { list-style: none; padding: 0; display: grid; gap: 2px; }
+.steps a { display: grid; grid-template-columns: 20px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 10px; margin: 0 -10px; border-radius: 8px; color: var(--fg); text-decoration: none; font-size: 14px; font-weight: 500; }
+.steps small { font-size: 12.5px; color: var(--fg-subtle); }
+.steps [data-s="done"] small { color: var(--success-fg); }
+.pie { width: 20px; height: 20px; }
+.pie .ring { fill: none; stroke: var(--control-border); stroke-width: 1.5; }
+.pie .fill { fill: var(--primary); }
+[data-s="done"] .pie .ring { stroke: var(--success-solid); }
+[data-s="done"] .pie .fill { fill: var(--success-solid); }
+.pie .tick { fill: none; stroke: #fff; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+/* Thanh demo */
+.demo { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px 14px; align-items: center; padding: 12px 16px; border: 1px dashed color-mix(in oklab, var(--primary) 45%, var(--border)); border-radius: 12px; background: color-mix(in oklab, var(--primary-soft) 55%, transparent); }
+.demo > svg { width: 20px; height: 20px; color: var(--primary-soft-fg); }
+.demo b { font-size: 14px; }
+.demo p { font-size: 13px; color: var(--fg-muted); margin-top: 2px; }
+
+/* Điều khiển bản xem trước */
+.pv { position: fixed; right: 16px; bottom: 16px; z-index: 10; display: flex; gap: 4px; padding: 6px; border-radius: 12px; background: var(--fg); box-shadow: 0 6px 20px -6px rgba(0, 0, 0, .4); flex-wrap: wrap; max-width: calc(100vw - 32px); }
+.pv button { border: 0; border-radius: 8px; padding: 6px 12px; font-size: 13px; font-weight: 600; background: transparent; color: var(--bg); cursor: pointer; }
+.pv button[aria-pressed="true"] { background: var(--bg); color: var(--fg); }
+.pv i { width: 1px; background: color-mix(in oklab, var(--bg) 30%, transparent); margin: 4px 2px; }
+
+/* ===== Cấp giấy phép ===== */
+.word { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; }
+.word.ok { color: var(--success-fg); } .word.warn { color: var(--warning-fg); }
+
+/* Căn cứ: đầu phiếu khám */
+.basis-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: start; }
+.basis-head h4 { font-size: 15.5px; font-weight: 700; }
+.basis-head p { font-size: 13.5px; color: var(--fg-muted); }
+.reason { display: grid; gap: 4px; padding: 12px 14px; border-radius: 10px; background: var(--surface-muted); }
+.reason small { font-size: 12.5px; font-weight: 600; color: var(--fg-muted); }
+.reason p { font-size: 14px; white-space: pre-line; }
+.reason .valid { font-size: 13px; color: var(--fg-muted); }
+
+/* Cần chú ý: hàng chỉ số bất thường */
+.attn h5 { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; color: var(--warning-fg); font-size: 13.5px; font-weight: 600; }
+.vt { width: 100%; border-collapse: collapse; font-size: 14px; }
+.vt th { text-align: left; font-size: 12.5px; font-weight: 600; color: var(--fg-subtle); padding: 0 12px 6px 0; }
+.vt td { padding: 10px 12px 10px 0; border-top: 1px solid var(--border); vertical-align: top; }
+.vt td:last-child, .vt th:last-child { padding-right: 0; }
+.vt .v { font-weight: 700; white-space: nowrap; }
+.vt .v small { font-weight: 500; color: var(--fg-muted); font-size: 12.5px; margin-left: 2px; }
+.vt .rng { color: var(--fg-muted); font-size: 13px; }
+.attn .vt td:first-child { font-weight: 600; }
+
+/* Phần bình thường: gấp lại */
+.fold { border: 1px solid var(--border); border-radius: 10px; }
+.fold summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 14px; font-size: 13.5px; }
+.fold summary::-webkit-details-marker { display: none; }
+.fold summary .sum { color: var(--fg-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fold summary .chev { transition: transform .2s cubic-bezier(.25, 1, .5, 1); color: var(--fg-muted); }
+.fold[open] summary .chev { transform: rotate(180deg); }
+.fold[open] summary { border-bottom: 1px solid var(--border); }
+.fold-body { padding: 4px 14px 8px; }
+.fold-body .vt td { border-top: 0; border-bottom: 1px solid var(--border); padding-top: 8px; padding-bottom: 8px; }
+.fold-body .vt tr:last-child td { border-bottom: 0; }
+.allgood { display: flex; gap: 8px; align-items: center; padding: 11px 14px; border-radius: 10px; background: var(--success-soft); color: var(--success-fg); font-size: 14px; font-weight: 600; }
+
+/* Loại giấy phép */
+.types { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.type { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 4px 10px; padding: 13px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface); cursor: pointer; text-align: left; }
+.type .rad { width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--control-border); margin-top: 2px; display: grid; place-items: center; }
+.type b { font-size: 14.5px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.type b em { font-style: normal; font-size: 12.5px; font-weight: 600; color: var(--primary-soft-fg); }
+.type small { grid-column: 2; font-size: 13px; color: var(--fg-muted); }
+.type[aria-checked="true"] { border-color: var(--primary); background: var(--primary-soft); }
+.type[aria-checked="true"] .rad { border-color: var(--primary); }
+.type[aria-checked="true"] .rad::after { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--primary); }
+.why { font-size: 13px; color: var(--fg-muted); }
+.dates { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 11px 14px; border-radius: 10px; background: var(--surface-muted); font-size: 13.5px; color: var(--fg-muted); }
+.dates b { color: var(--fg); font-weight: 600; }
+.dates .ico { vertical-align: -3px; margin-right: 6px; }
+
+/* Giới hạn: công tắc + ô chọn (giống RestrictionFields trong app) */
+.lim { border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; display: grid; gap: 12px; }
+.sw { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; cursor: pointer; }
+.sw input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.sw .tr { width: 36px; height: 20px; border-radius: 999px; background: var(--control-border); position: relative; margin-top: 2px; transition: background-color .2s; }
+.sw .tr::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: transform .2s cubic-bezier(.25, 1, .5, 1); }
+.sw input:checked + .tr { background: var(--primary); }
+.sw input:checked + .tr::after { transform: translateX(16px); }
+.sw input:focus-visible + .tr { outline: 2px solid var(--ring); outline-offset: 2px; }
+.sw b { display: block; font-size: 14px; font-weight: 600; }
+.sw small { font-size: 13px; color: var(--fg-muted); }
+.opts { border: 0; padding: 0; display: grid; gap: 8px; min-width: 0; }
+.opts legend { font-size: 13px; font-weight: 500; margin-bottom: 8px; padding: 0; }
+.boxes { display: flex; flex-wrap: wrap; gap: 6px; }
+.box { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; color: var(--fg-muted); cursor: pointer; background: var(--surface); }
+.box input { width: 14px; height: 14px; accent-color: var(--primary); }
+.box:has(input:checked) { border-color: var(--primary); background: color-mix(in oklab, var(--primary-soft) 50%, var(--surface)); color: var(--fg); font-weight: 500; }
+
+/* Giấy phép xem trước (giống thẻ ở tab Giấy phép) */
+.who { display: flex; gap: 6px; align-items: center; }
+.lic { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.lic header { display: grid; gap: 4px; padding: 12px 16px 10px; border-bottom: 1px solid var(--border); background: var(--neutral-soft); border-left: 4px solid var(--border); transition: background-color .25s, border-color .25s; }
+.lic[data-tone="ok"] header { background: var(--success-soft); border-left-color: var(--success-solid); }
+.lic[data-tone="warn"] header { background: var(--warning-soft); border-left-color: var(--warning-solid); }
+.lic header b { font-size: 15.5px; font-weight: 700; }
+.lic header .word { font-size: 12.5px; }
+.lic-body { padding: 12px 16px 14px; display: grid; gap: 10px; font-size: 13.5px; }
+.lic-dates { display: flex; justify-content: space-between; gap: 12px; }
+.lic-dates span { display: grid; } .lic-dates span:last-child { text-align: right; }
+.lic small { color: var(--fg-subtle); font-size: 12px; }
+.lic-can { display: grid; gap: 2px; }
+.lic-can p { font-weight: 500; }
+.lic-note { color: var(--fg-muted); border-top: 1px dashed var(--border); padding-top: 8px; }
+.lic-empty { color: var(--fg-subtle); font-size: 13.5px; padding: 18px 16px; text-align: center; }
+@keyframes pie-pop { 0% { transform: scale(1); } 45% { transform: scale(1.22) translateY(-2px); } 100% { transform: scale(1); } }
+.pie.pop { animation: pie-pop .42s cubic-bezier(.34, 1.56, .64, 1); transform-origin: center; }
+@media (prefers-reduced-motion: reduce) { .pie.pop { animation: none; } .fold summary .chev, .lic header { transition: none; } }
+
+@media (max-width: 1280px) { .ex { grid-template-columns: minmax(0, 1fr); } .rail { position: static; } }
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; } .side { display: none; } .main { padding: 16px 16px 120px; } .tabs { margin: 0 -16px; padding: 5px 16px 0; overflow-x: auto; }
+  .grid2, .types { grid-template-columns: 1fr; } .sec { padding: 20px 16px; } .demo { grid-template-columns: auto 1fr; } .demo-actions { grid-column: 1 / -1; }
+  .vt .rng-col { display: none; }
+}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4M12 17h.01"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+  <symbol id="i-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="m21.64 3.64-1.28-1.28a1.21 1.21 0 0 0-1.72 0L2.36 18.64a1.21 1.21 0 0 0 0 1.72l1.28 1.28a1.2 1.2 0 0 0 1.72 0L21.64 5.36a1.2 1.2 0 0 0 0-1.72M14 7l3 3M5 6v4M19 14v4M10 2v2M7 8H3M21 16h-4M11 3H9"/></symbol>
+  <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21M22 21H7M5 11l9 9"/></symbol>
+</svg>
+
+<div class="app">
+  <nav class="side" aria-label="Điều hướng (rút gọn)">
+    <div class="brand">MMA-TMS<small>Khu làm việc bác sĩ</small></div>
+    <h6>Hằng ngày</h6><a href="#">Hôm nay</a><a href="#" aria-current="page">Võ sĩ</a><a href="#">Yêu cầu xem xét</a><a href="#">Quan sát AI</a>
+    <h6>Hồ sơ y tế</h6><a href="#">Phiếu khám</a><a href="#">Chấn thương</a><a href="#">Kế hoạch phục hồi</a><a href="#">Giấy phép</a><a href="#">Lịch sử y tế</a>
+  </nav>
+
+  <main class="main">
+    <a class="back" href="#"><svg class="ico"><use href="#i-left"/></svg>Võ sĩ</a>
+    <div class="top">
+      <div class="id">
+        <div class="tag" role="img" aria-label="Thẻ Chặn"><b>Chặn</b><small>Thẻ hôm nay</small></div>
+        <div>
+          <h1>Lucas Ferreira</h1>
+          <p>Hạng bán trung 77 kg · 27 tuổi · Thuận tay phải</p>
+          <ul class="gates"><li><svg class="ico"><use href="#i-x"/></svg><b>Tập luyện</b> Chưa có giấy phép tập luyện</li></ul>
+        </div>
+      </div>
+      <button class="btn pressed" type="button">Cấp giấy phép</button>
+    </div>
+    <nav class="tabs" aria-label="Mục hồ sơ">
+      <a href="#">Tổng quan</a><a href="#">Phiếu khám</a><a href="#">Chấn thương</a><a href="#">Phục hồi</a><a href="#" aria-current="page">Giấy phép</a><a href="#">Lịch sử</a>
+    </nav>
+
+    <header class="ex-title"><h2>Cấp giấy phép</h2><p>Cấp từ phiếu khám đạt hiện hành. HLV và võ sĩ thấy giấy phép ngay khi cấp.</p></header>
+
+    <div class="demo" role="region" aria-label="Dữ liệu mẫu cho demo">
+      <svg class="ico"><use href="#i-wand"/></svg>
+      <div><b>Điền nhanh dữ liệu mẫu</b><p>Chọn loại giấy phép theo gợi ý và điền sẵn ghi chú. Giới hạn và thời hạn giữ theo phiếu khám. Chưa có gì được cấp cho tới khi bạn bấm Cấp giấy phép.</p></div>
+      <div class="chips demo-actions"><button class="btn sm" type="button" id="clear"><svg class="ico"><use href="#i-eraser"/></svg>Xóa hết</button><button class="btn sm primary" type="button" id="fill"><svg class="ico"><use href="#i-wand"/></svg>Điền dữ liệu mẫu</button></div>
+    </div>
+
+    <div class="ex">
+      <div class="card">
+        <section class="sec" id="s-basis">
+          <div class="sec-h"><div><h3>Căn cứ</h3><p>Kiểm tra kết quả phiếu khám trước khi cấp. Phần cần chú ý hiện trước, phần bình thường được gấp lại.</p></div></div>
+          <div class="basis-head">
+            <div><h4>Phiếu khám tập luyện · Khám nền</h4><p>05/10/2026, 23:09</p></div>
+            <span class="word ok"><svg class="ico"><use href="#i-check-c"/></svg>Đủ điều kiện</span>
+          </div>
+          <div class="reason"><small>Kết quả và lập luận</small><p>OK</p><span class="valid">Quyết định không có thời hạn.</span></div>
+
+          <div class="attn" id="attn">
+            <h5><svg class="ico"><use href="#i-alert"/></svg>Cần chú ý · 3 chỉ số</h5>
+            <table class="vt">
+              <thead><tr><th>Chỉ số</th><th>Giá trị</th><th>Đánh giá</th><th class="rng-col">Mức tham chiếu</th></tr></thead>
+              <tbody>
+                <tr><td>SpO₂</td><td class="v">80<small>%</small></td><td><span class="word warn"><svg class="ico"><use href="#i-alert"/></svg>Cần kiểm tra</span></td><td class="rng rng-col">Bình thường từ 95% trở lên</td></tr>
+                <tr><td>Huyết áp</td><td class="v">120/140<small>mmHg</small></td><td><span class="word warn"><svg class="ico"><use href="#i-alert"/></svg>Cần kiểm tra</span></td><td class="rng rng-col">Mục tiêu 90–139 / 55–89</td></tr>
+                <tr><td>Nhịp tim lúc nghỉ</td><td class="v">100<small>bpm</small></td><td><span class="word warn"><svg class="ico"><use href="#i-alert"/></svg>Cần kiểm tra</span></td><td class="rng rng-col">Mức vận động viên 38–75 bpm</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="allgood" id="allgood" hidden><svg class="ico"><use href="#i-check-c"/></svg>Tất cả chỉ số và vùng đánh giá đều bình thường.</div>
+
+          <details class="fold">
+            <summary><span class="word ok"><svg class="ico"><use href="#i-check-c"/></svg>Bình thường</span><span class="sum" id="fold-sum">3 chỉ số · 3 vùng đánh giá</span><svg class="ico chev"><use href="#i-down"/></svg></summary>
+            <div class="fold-body">
+              <table class="vt"><tbody>
+                <tr><td>Cân nặng</td><td class="v">76.0<small>kg</small></td><td class="rng rng-col">Trong giới hạn hạng cân 77.1 kg</td></tr>
+                <tr><td>Nhiệt độ</td><td class="v">37.0<small>°C</small></td><td class="rng rng-col">Bình thường 36.0–37.5 °C</td></tr>
+                <tr><td>Mức độ nước</td><td class="v">Tốt</td><td class="rng rng-col">Đủ nước</td></tr>
+                <tr><td>Tim mạch</td><td class="v">Bình thường</td><td class="rng rng-col">Vùng đánh giá</td></tr>
+                <tr><td>Thần kinh</td><td class="v">Bình thường</td><td class="rng rng-col">Vùng đánh giá</td></tr>
+                <tr><td>Cơ xương khớp</td><td class="v">Bình thường</td><td class="rng rng-col">Vùng đánh giá</td></tr>
+              </tbody></table>
+            </div>
+          </details>
+        </section>
+
+        <section class="sec" id="s-lic">
+          <div class="sec-h"><div><h3>Giấy phép</h3><p>Cho phép võ sĩ làm gì và trong thời gian nào.</p></div></div>
+          <div class="field">
+            <span class="lbl">Loại <span class="req">*</span></span>
+            <div class="types" role="radiogroup" aria-label="Loại giấy phép">
+              <button type="button" class="type" role="radio" aria-checked="false" data-v="TRAINING"><span class="rad"></span><b>Tập luyện</b><small>Giấy phép tập luyện thường quy.</small></button>
+              <button type="button" class="type" role="radio" aria-checked="false" data-v="RFI"><span class="rad"></span><b>Trở lại sau chấn thương <em>Gợi ý</em></b><small>Trở lại tập sau chấn thương, thường có giới hạn.</small></button>
+            </div>
+            <span class="why">Gợi ý vì võ sĩ có 1 chấn thương đang hồi phục.</span>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="from">Bắt đầu <span class="opt">không bắt buộc</span></label><input class="input" type="date" id="from" min="2026-10-05"><span class="hint">Để trống để bắt đầu ngay khi cấp.</span></div>
+            <div class="field"><label for="until">Kết thúc <span class="opt">không bắt buộc</span></label><input class="input" type="date" id="until" min="2026-11-10"><span class="hint">Để trống nếu không thời hạn (phiếu khám không đặt thời hạn).</span></div>
+          </div>
+          <div class="chips" aria-label="Chọn nhanh thời hạn"><span class="hint">Chọn nhanh:</span><button type="button" class="chip" data-days="7">7 ngày</button><button type="button" class="chip" data-days="30">30 ngày</button><button type="button" class="chip" data-days="90">90 ngày</button><button type="button" class="chip" data-days="0">Không thời hạn</button></div>
+        </section>
+
+        <section class="sec" id="s-limits">
+          <div class="sec-h"><div><h3>Giới hạn</h3><p>Sao chép từ phiếu khám. Có thể thu hẹp, không thể mở rộng.</p></div></div>
+          <div class="lim" data-g="sessions">
+            <label class="sw"><input type="checkbox" role="switch"><span class="tr"></span><span><b>Giới hạn loại buổi tập</b><small>Tắt nghĩa là mọi loại buổi tập đều được phép.</small></span></label>
+            <fieldset class="opts" hidden><legend>Loại buổi tập võ sĩ được làm</legend><div class="boxes"></div></fieldset>
+          </div>
+          <div class="lim" data-g="techniques">
+            <label class="sw"><input type="checkbox" role="switch"><span class="tr"></span><span><b>Giới hạn kỹ thuật</b><small>Tắt nghĩa là mọi kỹ thuật đều được phép.</small></span></label>
+            <fieldset class="opts" hidden><legend>Kỹ thuật võ sĩ được dùng</legend><div class="boxes"></div></fieldset>
+          </div>
+          <fieldset class="opts" data-g="joints"><legend>Khớp cần tránh khi tập</legend><div class="boxes"></div><span class="hint">Bỏ trống nếu không cần bảo vệ khớp nào.</span></fieldset>
+          <div class="field">
+            <label for="notes">Ghi chú <span class="opt">không bắt buộc</span></label>
+            <textarea class="textarea" id="notes" rows="3" placeholder="VD: Khởi động kỹ, báo bác sĩ nếu đau tái phát."></textarea>
+            <span class="hint">Hiển thị cùng giấy phép cho HLV và võ sĩ.</span>
+          </div>
+        </section>
+      </div>
+
+      <aside class="rail card" aria-label="Tiến độ và xem trước">
+        <div class="rail-sec"><h4>Tiến độ</h4><ol class="steps" id="steps"></ol></div>
+        <div class="rail-sec"><h4 class="who"><svg class="ico"><use href="#i-eye"/></svg>HLV và võ sĩ sẽ thấy</h4><div class="lic" id="lic"></div></div>
+        <div class="rail-sec">
+          <button class="btn primary block" type="button" id="submit" disabled>Cấp giấy phép</button>
+          <button class="btn block" type="button">Hủy</button>
+          <p class="after">Giấy phép không sửa được: muốn thay đổi, hãy thu hồi và cấp mới.</p>
+        </div>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<div class="pv" role="toolbar" aria-label="Điều khiển bản xem trước">
+  <button type="button" data-th="light" aria-pressed="true">Sáng</button><button type="button" data-th="dark" aria-pressed="false">Tối</button><i></i>
+  <button type="button" data-ab="1" aria-pressed="true">Có chỉ số bất thường</button><button type="button" data-ab="0" aria-pressed="false">Tất cả bình thường</button>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s), $$ = (s) => [...document.querySelectorAll(s)];
+const TYPES = { TRAINING: "Tập luyện", RFI: "Trở lại sau chấn thương" };
+/* Nhãn lấy đúng từ medical-contract.ts */
+const OPTS = {
+  sessions: ["Đánh gió", "Đánh đích", "Đánh bao", "Đấu tập", "Vật", "Sức mạnh & thể lực", "Phục hồi", "Vật lý trị liệu"],
+  techniques: ["Đấm thẳng tay trước", "Đấm thẳng tay sau", "Móc tay trước", "Móc tay sau", "Móc lên tay trước", "Móc lên tay sau", "Đá thấp chân trước", "Đá thấp chân sau", "Đá tầm trung chân trước", "Đá tầm trung chân sau", "Đá cao chân trước", "Đá cao chân sau", "Đạp trước"],
+  joints: ["Vai trái", "Vai phải", "Khuỷu tay trái", "Khuỷu tay phải", "Cổ tay trái", "Cổ tay phải", "Hông trái", "Hông phải", "Gối trái", "Gối phải", "Cổ chân trái", "Cổ chân phải", "Cột sống và vùng lõi"],
+};
+const blank = () => ({ type: "", notes: "", from: "", until: "", on: { sessions: false, techniques: false }, pick: { sessions: [], techniques: [], joints: [] } });
+let st = blank();
+const TODAY = "2026-11-10";
+const addDays = (n) => { const d = new Date(TODAY + "T12:00:00"); d.setDate(d.getDate() + n); return d.toISOString().slice(0, 10); };
+/* Dựng các ô chọn một lần. */
+Object.keys(OPTS).forEach((g) => {
+  $('[data-g="' + g + '"] .boxes').innerHTML = OPTS[g].map((v) => '<label class="box"><input type="checkbox" value="' + v + '">' + v + "</label>").join("");
+});
+const fmt = (d) => d.split("-").reverse().join("/");
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;");
+/* Hình quạt lấp từ 12 giờ, ngược chiều kim đồng hồ (giống phiếu khám). */
+const sector = (p) => {
+  if (p <= 0) return "";
+  if (p >= 1) return "M3 10 a7 7 0 1 0 14 0 a7 7 0 1 0 -14 0";
+  const a = -Math.PI / 2 - p * 2 * Math.PI, x = 10 + 7 * Math.cos(a), y = 10 + 7 * Math.sin(a);
+  return "M10 10 L10 3 A7 7 0 " + (p > .5 ? 1 : 0) + " 0 " + x.toFixed(2) + " " + y.toFixed(2) + " Z";
+};
+const prev = {};
+function render() {
+  const lims = [];
+  if (st.on.sessions) lims.push("Chỉ: " + (st.pick.sessions.join(", ") || "chưa chọn buổi tập nào"));
+  if (st.on.techniques) lims.push("Kỹ thuật: " + (st.pick.techniques.join(", ") || "chưa chọn kỹ thuật nào"));
+  if (st.pick.joints.length) lims.push("Tránh: " + st.pick.joints.join(", "));
+  const narrowed = lims.length > 0;
+  const steps = [
+    { k: "basis", l: "Căn cứ", p: 1, t: "Khám 05/10/2026" },
+    { k: "lic", l: "Giấy phép", p: st.type ? 1 : 0, t: st.type ? TYPES[st.type] : "Chọn loại" },
+    { k: "limits", l: "Giới hạn", p: 1, t: narrowed ? "Đã thu hẹp" : "Theo phiếu khám" },
+  ];
+  $("#steps").innerHTML = steps.map((s) =>
+    '<li><a href="#s-' + s.k + '" data-s="' + (s.p >= 1 ? "done" : "todo") + '"><svg class="pie" data-k="' + s.k + '" viewBox="0 0 20 20"><circle class="ring" cx="10" cy="10" r="8.5"/><path class="fill" d="' + sector(s.p) + '"/>' +
+    (s.p >= 1 ? '<path class="tick" d="m6.6 10.2 2.3 2.3 4.5-4.6"/>' : "") + "</svg><span>" + s.l + "</span><small>" + s.t + "</small></a></li>").join("");
+  steps.forEach((s) => { if (s.p >= 1 && prev[s.k] !== undefined && prev[s.k] < 1) $('.pie[data-k="' + s.k + '"]').classList.add("pop"); prev[s.k] = s.p; });
+
+  const lic = $("#lic");
+  if (!st.type) { lic.removeAttribute("data-tone"); lic.innerHTML = '<p class="lic-empty">Chọn loại giấy phép để xem trước.</p>'; }
+  else {
+    lic.dataset.tone = narrowed ? "warn" : "ok";
+    const status = (narrowed ? "Có giới hạn · " : "Đang hiệu lực · ") + (st.until ? "đến " + fmt(st.until) : "không thời hạn");
+    const can = narrowed ? lims.map(esc).join("<br>") : "Tập đầy đủ, không giới hạn";
+    lic.innerHTML = "<header><b>" + TYPES[st.type] + '</b><span class="word ' + (narrowed ? "warn" : "ok") + '"><svg class="ico"><use href="#' + (narrowed ? "i-alert" : "i-check-c") + '"/></svg>' + status + "</span></header>" +
+      '<div class="lic-body"><div class="lic-dates"><span><small>Từ</small>' + (st.from ? fmt(st.from) : "Khi cấp") + "</span><span><small>Đến</small>" + (st.until ? fmt(st.until) : "Không giới hạn") + "</span></div>" +
+      '<div class="lic-can"><small>Được phép</small><p>' + can + "</p></div>" + (st.notes ? '<p class="lic-note">' + esc(st.notes) + "</p>" : "") + "</div>";
+  }
+  $$(".type").forEach((b) => b.setAttribute("aria-checked", String(b.dataset.v === st.type)));
+  ["sessions", "techniques"].forEach((g) => { const box = $('.lim[data-g="' + g + '"]'); box.querySelector(".sw input").checked = st.on[g]; box.querySelector(".opts").hidden = !st.on[g]; });
+  Object.keys(OPTS).forEach((g) => $$('[data-g="' + g + '"] .box input').forEach((i) => { i.checked = st.pick[g].includes(i.value); }));
+  $$("[data-days]").forEach((c) => c.setAttribute("aria-pressed", String(c.dataset.days === "0" ? !st.until : st.until === addDays(+c.dataset.days))));
+  if ($("#notes").value !== st.notes) $("#notes").value = st.notes;
+  $("#from").value = st.from; $("#until").value = st.until;
+  $("#submit").disabled = !st.type;
+}
+$$(".type").forEach((b) => { b.onclick = () => { st.type = b.dataset.v; render(); }; });
+["sessions", "techniques"].forEach((g) => { $('.lim[data-g="' + g + '"] .sw input').onchange = (e) => { st.on[g] = e.target.checked; render(); }; });
+Object.keys(OPTS).forEach((g) => $$('[data-g="' + g + '"] .box input').forEach((i) => { i.onchange = () => { st.pick[g] = OPTS[g].filter((v) => (v === i.value ? i.checked : st.pick[g].includes(v))); render(); }; }));
+$$("[data-days]").forEach((c) => { c.onclick = () => { st.until = c.dataset.days === "0" ? "" : addDays(+c.dataset.days); render(); }; });
+$("#notes").oninput = (e) => { st.notes = e.target.value; render(); };
+$("#from").oninput = (e) => { st.from = e.target.value; render(); };
+$("#until").oninput = (e) => { st.until = e.target.value; render(); };
+$("#fill").onclick = () => {
+  st = blank();
+  Object.assign(st, { type: "RFI", until: addDays(30), notes: "Đủ điều kiện theo phiếu khám. Khởi động kỹ trước buổi tập, báo bác sĩ ngay nếu đau đầu, chóng mặt hoặc đau tái phát." });
+  st.on.sessions = true; st.pick.sessions = ["Đánh gió", "Đánh đích", "Đánh bao", "Sức mạnh & thể lực", "Phục hồi"];
+  st.pick.joints = ["Gối phải"];
+  render();
+};
+$("#clear").onclick = () => { st = blank(); render(); };
+$$(".pv [data-th]").forEach((b) => { b.onclick = () => { document.documentElement.dataset.theme = b.dataset.th; $$(".pv [data-th]").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }; });
+$$(".pv [data-ab]").forEach((b) => { b.onclick = () => {
+  const ab = b.dataset.ab === "1";
+  $("#attn").hidden = !ab; $("#allgood").hidden = ab;
+  $("#fold-sum").textContent = ab ? "3 chỉ số · 3 vùng đánh giá" : "6 chỉ số · 3 vùng đánh giá";
+  $$(".pv [data-ab]").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+}; });
+render();
+</script>
+</body>
+</html>

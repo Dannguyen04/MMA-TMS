@@ -91,7 +91,7 @@ export const coachRo = {
     settings: "Cài đặt",
     appearance: "Giao diện",
     logout: "Đăng xuất",
-    logoutConfirm: "Đăng xuất khỏi tài khoản này?",
+    logoutConfirm: "Đăng xuất khỏi tài khoản?",
     cancel: "Hủy",
   },
   schedule: {

@@ -1,14 +1,10 @@
-import { Stack, useLocalSearchParams } from "expo-router";
+import { Redirect, useLocalSearchParams, type Href } from "expo-router";
 
-import { EvidenceRoute } from "@/screens/media/evidence/evidence-route";
+import { COACH_VIDEO_PAGE } from "@/screens/coach/video/video-model";
 
-/** `/video-analysis/review?id=<videoId>` — video, khung xương, duyệt bằng chứng. */
-export default function CoachVideoReviewRoute() {
-  const params = useLocalSearchParams<{ id?: string; jobId?: string }>();
-  return (
-    <>
-      <Stack.Screen options={{ headerShown: false }} />
-      <EvidenceRoute role="coach" params={params} listHref="/video-analysis" canRequestAnalysis />
-    </>
-  );
+/** Old `review?id=` / `review?jobId=` links land on the one coach video page (redesign step 19). */
+export default function CoachVideoReviewRedirect() {
+  const { id, jobId } = useLocalSearchParams<{ id?: string; jobId?: string }>();
+  const params = id ? { id } : jobId ? { jobId } : {};
+  return <Redirect href={{ pathname: COACH_VIDEO_PAGE, params } as unknown as Href} />;
 }

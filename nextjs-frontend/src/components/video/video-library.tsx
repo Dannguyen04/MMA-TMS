@@ -6,8 +6,9 @@ import { FilterBar, type FilterDefinition } from "@/components/ui/filter-bar";
 import { EmptyState } from "@/components/ui/states";
 import { Pagination } from "@/components/ui/table";
 import { accessibleFighterIds } from "@/lib/auth/access";
-import { TRAINING_TYPE_LABELS, VIDEO_STATUS_LABELS, VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
+import { TRAINING_TYPE_LABELS, VIDEO_TRAINING_TYPES } from "@/lib/domain/labels";
 import type { User, VideoStatus } from "@/lib/domain/types";
+import { createTranslator } from "@/lib/i18n/translate";
 
 import { hrefWith, paginate, parseEnum, type SearchParams } from "@/lib/query";
 import { listFighters } from "@/lib/services/people";
@@ -37,6 +38,7 @@ export interface VideoLibraryProps {
 export async function VideoLibrary({ user, role, pathname, searchParams, fighterId, uploadHref, now, headingLevel = 3, hideStatuses = [] }: VideoLibraryProps) {
     const copy = await getDemoCopy();
     const locale = await getLocale();
+    const t = createTranslator(locale);
     const scope = fighterId ? [fighterId] : accessibleFighterIds(user);
     const showFighterFilter = role === "coach" && !fighterId;
     // ?fighter= is checked against record access up front, so the filter options and the videos load in parallel.
@@ -63,7 +65,7 @@ export async function VideoLibrary({ user, role, pathname, searchParams, fighter
             ? [{ type: "select" as const, name: "fighter", label: copy("Fighters"), options: fighters.map((f) => ({ value: f.id, label: f.name })) }]
             : []),
         { type: "select", name: "type", label: copy("Training types"), options: VIDEO_TRAINING_TYPES.map((t) => ({ value: t, label: copy(TRAINING_TYPE_LABELS[t]) })) },
-        { type: "select", name: "status", label: copy("Statuses"), options: STATUSES.map((s) => ({ value: s, label: copy(VIDEO_STATUS_LABELS[s]) })) },
+        { type: "select", name: "status", label: copy("Statuses"), options: STATUSES.map((s) => ({ value: s, label: t(`videoStatus.${s}`) })) },
     ];
 
     const clearHref = hrefWith(pathname, searchParams, { q: null, fighter: null, type: null, status: null, page: null });

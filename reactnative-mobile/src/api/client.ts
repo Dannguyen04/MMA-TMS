@@ -4,9 +4,12 @@ import {
   clearSession,
   getMemorySession,
   loadStoredSession,
+  notifySessionExpired,
   persistSession,
+  secondsLeft,
 } from "./tokens";
 import type { AuthResponse, AuthSession } from "./types";
+import { devLog } from "@/utils/dev-log";
 
 type SuccessEnvelope<T> = {
   success: true;
@@ -19,7 +22,21 @@ export type ApiFetchOptions = RequestInit & {
   skipRefresh?: boolean;
 };
 
-let refreshInFlight: Promise<AuthSession | null> | null = null;
+/**
+ * ok: new tokens saved. expired: the server rejected the refresh token, so the session is over (tokens cleared, the
+ * app is told). unavailable: offline, rate-limited or a server error — the tokens stay, the user stays signed in.
+ */
+export type RefreshResult = { kind: "ok"; session: AuthSession } | { kind: "expired" } | { kind: "unavailable" };
+
+let refreshInFlight: Promise<RefreshResult> | null = null;
+
+/** Refresh this long before the access token runs out, so requests rarely meet a 401. */
+export const REFRESH_EARLY_SECONDS = 60;
+
+/** Only a 400/401/403 answer to /auth/refresh means the refresh token itself is bad. */
+export function refreshTokenRejected(cause: unknown): boolean {
+  return cause instanceof ApiError && (cause.status === 400 || cause.status === 401 || cause.status === 403);
+}
 
 function joinUrl(path: string): string {
   if (path.startsWith("http://") || path.startsWith("https://")) return path;
@@ -56,15 +73,13 @@ function shouldAttemptRefresh(path: string, options: ApiFetchOptions): boolean {
   return !path.startsWith("/auth/");
 }
 
-async function refreshSession(): Promise<AuthSession | null> {
+/** One refresh at a time; every caller waits for the same answer. */
+export async function refreshSession(): Promise<RefreshResult> {
   if (refreshInFlight) return refreshInFlight;
 
-  refreshInFlight = (async () => {
+  refreshInFlight = (async (): Promise<RefreshResult> => {
     const current = getMemorySession() ?? (await loadStoredSession());
-    if (!current?.refreshToken) {
-      await clearSession();
-      return null;
-    }
+    if (!current?.refreshToken) return { kind: "expired" };
 
     try {
       const data = await apiFetch<AuthResponse>("/auth/refresh", {
@@ -74,10 +89,15 @@ async function refreshSession(): Promise<AuthSession | null> {
         body: JSON.stringify({ refreshToken: current.refreshToken }),
       });
       await persistSession(data.session);
-      return data.session;
-    } catch {
-      await clearSession();
-      return null;
+      return { kind: "ok", session: data.session };
+    } catch (cause) {
+      if (!refreshTokenRejected(cause)) return { kind: "unavailable" };
+      // Another refresh may have rotated the tokens meanwhile; only end the session we tried to refresh.
+      if (getMemorySession()?.refreshToken === current.refreshToken) {
+        await clearSession();
+        notifySessionExpired();
+      }
+      return { kind: "expired" };
     }
   })();
 
@@ -98,7 +118,14 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   }
 
   if (!skipAuth) {
-    const session = getMemorySession() ?? (await loadStoredSession());
+    let session = getMemorySession() ?? (await loadStoredSession());
+    // Refresh ahead of expiry (app reopened after an hour, phone woke up) instead of waiting for a 401.
+    const left = session ? secondsLeft(session) : null;
+    if (session && left != null && left < REFRESH_EARLY_SECONDS && shouldAttemptRefresh(path, options)) {
+      const next = await refreshSession();
+      if (next.kind === "ok") session = next.session;
+      else if (next.kind === "expired") session = null;
+    }
     if (session?.accessToken) {
       headerBag.set("Authorization", `Bearer ${session.accessToken}`);
     }
@@ -111,13 +138,13 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     const name = cause instanceof Error ? cause.name : "unknown";
     const detail = cause instanceof Error ? cause.message : String(cause);
     // TypeError / failed to fetch — device never reached Nest (offline, no reverse, cleartext).
-    console.log("[api] NETWORK_ERROR", { url, name, detail });
+    devLog("[api] NETWORK_ERROR", { url, name, detail });
     throw new ApiError(0, "NETWORK_ERROR", "Network request failed");
   }
 
   if (response.status === 401 && shouldAttemptRefresh(path, options)) {
     const next = await refreshSession();
-    if (next) {
+    if (next.kind === "ok") {
       return apiFetch<T>(path, { ...options, skipRefresh: true });
     }
   }
@@ -126,7 +153,7 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
   if (!response.ok) {
     const err = apiErrorFromBody(response.status, body);
     // HTTP 401 JSON (INVALID_CREDENTIALS) is not a network failure.
-    console.log("[api] http error", {
+    devLog("[api] http error", {
       url,
       status: err.status,
       code: err.code,

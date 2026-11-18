@@ -40,6 +40,7 @@ import type {
   Transaction,
 } from '../shared/utils/audit-context.util.js';
 import type { UserRole } from '../shared/types/user.role.js';
+import type { MedicalStatusValue } from './medical-status.js';
 import {
   ACTIVE_INJURY_STATUSES,
   MEDICAL_FIGHTER_LOCK_NAMESPACE,
@@ -388,6 +389,19 @@ function toAssignment(row: AssignmentRow, doctorName?: string): DoctorAssignment
   };
 }
 
+/** Groups rows by Fighter, keeping the query's order within each group. */
+function groupByFighter<T extends { fighterId: string }>(
+  rows: readonly T[],
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const list = grouped.get(row.fighterId) ?? [];
+    list.push(row);
+    grouped.set(row.fighterId, list);
+  }
+  return grouped;
+}
+
 function offsetOf(query: { page: number; limit: number }): number {
   return (query.page - 1) * query.limit;
 }
@@ -553,6 +567,36 @@ export class MedicalRepository {
     return rows.length > 0;
   }
 
+  /** Stores the derived summary status; true when it changed. */
+  async updateFighterMedicalStatus(
+    fighterId: string,
+    status: MedicalStatusValue,
+    database: DatabaseExecutor = this.db,
+  ): Promise<boolean> {
+    const rows = await database
+      .update(fighters)
+      .set({ currentMedicalStatus: status })
+      .where(
+        and(
+          eq(fighters.id, fighterId),
+          sql`${fighters.currentMedicalStatus} <> ${status}::medical_status`,
+        ),
+      )
+      .returning({ id: fighters.id });
+    return rows.length > 0;
+  }
+
+  /** Every active Fighter, for the periodic status refresh. */
+  async listActiveFighterIds(
+    database: DatabaseExecutor = this.db,
+  ): Promise<string[]> {
+    const rows = await database
+      .select({ id: fighters.id })
+      .from(fighters)
+      .where(eq(fighters.isActive, true));
+    return rows.map((row) => row.id);
+  }
+
   async lockFighterMedicalState(
     fighterId: string,
     transaction: Transaction,
@@ -579,6 +623,92 @@ export class MedicalRepository {
       requestId,
       details: { view },
     });
+  }
+
+  /** One multi-row INSERT for a batch read: one row per Fighter, metadata only. */
+  async insertMedicalReadAudits(
+    actorUserId: string,
+    fighterIds: readonly string[],
+    view: MedicalReadView,
+    requestId: string,
+    database: DatabaseExecutor = this.db,
+  ): Promise<void> {
+    if (fighterIds.length === 0) return;
+    await database.insert(auditLogs).values(
+      fighterIds.map((fighterId) => ({
+        actorUserId,
+        actorType: 'USER' as const,
+        action: MEDICAL_READ_AUDIT.ACTION,
+        resourceType: MEDICAL_READ_AUDIT.RESOURCE_TYPE,
+        resourceId: fighterId,
+        requestId,
+        details: { view },
+      })),
+    );
+  }
+
+  /**
+   * Medical read scope (D1) for several Fighters in one query. With
+   * `fighterIds`, returns every non-deleted Fighter among them and whether the
+   * actor may read it (missing ids are simply absent). Without, returns the
+   * Fighters the actor may read, at most `limit` rows. Same rules as
+   * `MedicalAccessService.canReadFighter`.
+   */
+  async findFightersInMedicalReadScope(
+    actor: { id: string; role: UserRole },
+    fighterIds: readonly string[] | undefined,
+    limit: number,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ id: string; inScope: boolean }[]> {
+    // `fighters.id` is written out qualified on purpose: drizzle renders a
+    // column of a single-table select list as a bare "id", which inside the
+    // EXISTS would bind to coach_fighters/coaches instead of the outer row.
+    let inScope: SQL<boolean>;
+    switch (actor.role) {
+      case 'ADMIN':
+        inScope = sql<boolean>`true`;
+        break;
+      case 'FIGHTER':
+        inScope = sql<boolean>`(fighters.user_id = ${actor.id})`;
+        break;
+      case 'COACH':
+        inScope = sql<boolean>`EXISTS (
+          SELECT 1 FROM public.coaches c
+          JOIN public.coach_fighters cf ON cf.coach_id = c.id
+          WHERE c.user_id = ${actor.id} AND c.is_active AND c.deleted_at IS NULL
+            AND cf.fighter_id = fighters.id
+            AND cf.starts_at <= now() AND (cf.ends_at IS NULL OR cf.ends_at > now()))`;
+        break;
+      case 'DOCTOR':
+        inScope = sql<boolean>`EXISTS (
+          SELECT 1 FROM public.sports_doctors d
+          JOIN public.doctor_fighters df ON df.doctor_id = d.id
+          WHERE d.user_id = ${actor.id} AND d.is_active AND d.deleted_at IS NULL
+            AND df.fighter_id = fighters.id
+            AND df.starts_at <= now() AND (df.ends_at IS NULL OR df.ends_at > now()))`;
+        break;
+      default:
+        inScope = sql<boolean>`false`;
+    }
+
+    if (fighterIds !== undefined) {
+      if (fighterIds.length === 0) return [];
+      const rows = await database
+        .select({ id: fighters.id, inScope })
+        .from(fighters)
+        .where(
+          and(inArray(fighters.id, [...fighterIds]), isNull(fighters.deletedAt)),
+        );
+      return rows.map((row) => ({ id: row.id, inScope: row.inScope === true }));
+    }
+
+    const rows = await database
+      .select({ id: fighters.id })
+      .from(fighters)
+      .where(and(isNull(fighters.deletedAt), inScope))
+      .orderBy(fighters.id)
+      .limit(limit);
+    return rows.map((row) => ({ id: row.id, inScope: true }));
   }
 
   // --- Doctor assignments ---
@@ -1305,6 +1435,172 @@ export class MedicalRepository {
     );
   }
 
+  // --- Batch dossier reads (T-064): one query per sub-table for many Fighters ---
+
+  async listActiveInjuriesForFighters(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Map<string, Injury[]>> {
+    if (fighterIds.length === 0) return new Map();
+    const rows = await database
+      .select()
+      .from(injuryRecords)
+      .where(
+        and(
+          inArray(injuryRecords.fighterId, [...fighterIds]),
+          inArray(injuryRecords.status, [...ACTIVE_INJURY_STATUSES]),
+          isNull(injuryRecords.deletedAt),
+        ),
+      )
+      .orderBy(desc(injuryRecords.occurredAt));
+    return groupByFighter(rows.map(toInjury));
+  }
+
+  async listActiveRecoveryPlansForFighters(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Map<string, RecoveryPlan[]>> {
+    if (fighterIds.length === 0) return new Map();
+    const rows = await database
+      .select()
+      .from(recoveryPlans)
+      .where(
+        and(
+          inArray(recoveryPlans.fighterId, [...fighterIds]),
+          eq(recoveryPlans.status, 'ACTIVE'),
+          isNull(recoveryPlans.deletedAt),
+        ),
+      )
+      .orderBy(desc(recoveryPlans.startDate));
+    return groupByFighter(rows.map(toRecoveryPlan));
+  }
+
+  async listActiveClearancesForFighters(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Map<string, Clearance[]>> {
+    if (fighterIds.length === 0) return new Map();
+    return groupByFighter(
+      await this.selectClearances(
+        and(
+          inArray(medicalClearances.fighterId, [...fighterIds]),
+          eq(medicalClearances.status, 'ACTIVE'),
+          isNull(medicalClearances.deletedAt),
+        ),
+        database,
+      ),
+    );
+  }
+
+  async listOpenReviewRequestsForFighters(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Map<string, ReviewRequest[]>> {
+    if (fighterIds.length === 0) return new Map();
+    const rows = await database
+      .select()
+      .from(medicalReviewRequests)
+      .where(
+        and(
+          inArray(medicalReviewRequests.fighterId, [...fighterIds]),
+          eq(medicalReviewRequests.status, 'OPEN'),
+        ),
+      )
+      .orderBy(desc(medicalReviewRequests.requestedAt));
+    return groupByFighter(rows.map(toReviewRequest));
+  }
+
+  /**
+   * The current examination per Fighter and scope (highest issuance order),
+   * keyed `${fighterId}:${scope}`; `DISTINCT ON (fighter_id, scope)`.
+   */
+  async findCurrentExaminationsForFighters(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Map<string, ExaminationRow>> {
+    if (fighterIds.length === 0) return new Map();
+    const rows = await database
+      .selectDistinctOn([
+        medicalExaminations.fighterId,
+        medicalExaminations.scope,
+      ])
+      .from(medicalExaminations)
+      .where(inArray(medicalExaminations.fighterId, [...fighterIds]))
+      .orderBy(
+        medicalExaminations.fighterId,
+        medicalExaminations.scope,
+        desc(medicalExaminations.sequenceNo),
+      );
+    return new Map(
+      rows.map((row) => [`${row.fighterId}:${row.scope}`, row] as const),
+    );
+  }
+
+  /** Fighters among `fighterIds` with a BASELINE on file or the 016 exemption. */
+  async findFightersWithBaselineOnFile(
+    fighterIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<Set<string>> {
+    if (fighterIds.length === 0) return new Set();
+    const ids = sql.join(
+      fighterIds.map((id) => sql`${id}::uuid`),
+      sql`, `,
+    );
+    const result = await database.execute<{ fighter_id: string }>(sql`
+      SELECT d.fighter_id FROM public.medical_examination_details d
+       WHERE d.fighter_id IN (${ids}) AND d.examination_type = 'BASELINE'
+      UNION
+      SELECT x.fighter_id FROM public.medical_baseline_exemptions x
+       WHERE x.fighter_id IN (${ids})
+    `);
+    return new Set(result.rows.map((row) => row.fighter_id));
+  }
+
+  /**
+   * Clearances of several examinations in one query, keyed by examination id,
+   * newest issuance first; `clearanceType` lets the caller apply the scope's
+   * clearance types (`CLEARANCE_TYPES_BY_SCOPE`).
+   */
+  async listClearancesForExaminations(
+    examinationIds: readonly string[],
+    database: DatabaseExecutor = this.db,
+  ): Promise<
+    Map<string, (ClearanceEligibilityRow & { clearanceType: ClearanceType })[]>
+  > {
+    if (examinationIds.length === 0) return new Map();
+    const rows = await database
+      .select({
+        examinationId: medicalClearances.examinationId,
+        clearanceType: medicalClearances.clearanceType,
+        status: medicalClearances.status,
+        validFrom: medicalClearances.validFrom,
+        validUntil: medicalClearances.validUntil,
+        allowedSessionTypes: medicalClearances.allowedSessionTypes,
+        allowedTechniqueTypes: medicalClearances.allowedTechniqueTypes,
+        excludedJoints: medicalClearances.excludedJoints,
+        createdAt: medicalClearances.createdAt,
+      })
+      .from(medicalClearances)
+      .where(
+        and(
+          inArray(medicalClearances.examinationId, [...examinationIds]),
+          isNull(medicalClearances.deletedAt),
+        ),
+      )
+      .orderBy(desc(medicalClearances.issueSequence));
+    const byExamination = new Map<
+      string,
+      (ClearanceEligibilityRow & { clearanceType: ClearanceType })[]
+    >();
+    for (const { examinationId, ...row } of rows) {
+      if (examinationId === null) continue;
+      const list = byExamination.get(examinationId) ?? [];
+      list.push(row);
+      byExamination.set(examinationId, list);
+    }
+    return byExamination;
+  }
+
   // --- History report ---
 
   async listHistory(
@@ -1312,47 +1608,11 @@ export class MedicalRepository {
     query: ListMedicalHistoryQuery,
     database: DatabaseExecutor = this.db,
   ): Promise<{ data: MedicalHistoryEntry[]; total: number }> {
-    const recordType = query.recordType ?? null;
-    const history = sql`(
-      SELECT 'INJURY' AS record_type, r.injury_id AS record_id, r.revision,
-             r.source::text AS source, r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.injury_record_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'RECOVERY_PLAN', r.recovery_plan_id, r.revision, r.source::text,
-             r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.recovery_plan_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'MEDICAL_CLEARANCE', r.clearance_id, r.revision, r.source::text,
-             r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.medical_clearance_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'MEDICAL_REVIEW_REQUEST', r.review_request_id, r.revision, r.source::text,
-             r.recorded_at, r.recorded_by_user_id, r.snapshot
-        FROM public.medical_review_request_revisions r WHERE r.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'TREATMENT', t.id, 1, NULL, t.created_at, NULL::uuid, to_jsonb(t)
-        FROM public.treatments t
-        JOIN public.injury_records i ON i.id = t.injury_id
-       WHERE i.fighter_id = ${fighterId}
-      UNION ALL
-      SELECT 'MEDICAL_EXAMINATION', e.id, 1, NULL, e.created_at, e.recorded_by_id,
-             to_jsonb(e) || jsonb_build_object('details', to_jsonb(d) - 'examination_id' - 'fighter_id')
-        FROM public.medical_examinations e
-        LEFT JOIN public.medical_examination_details d ON d.examination_id = e.id
-       WHERE e.fighter_id = ${fighterId}
-    ) AS h`;
-    const filter = sql`(${recordType}::text IS NULL OR h.record_type = ${recordType}::text)`;
+    const history = historyUnion(sql`= ${fighterId}`);
+    const filter = historyRecordTypeFilter(query.recordType);
 
     const [rowsResult, countResult] = await Promise.all([
-      database.execute<{
-        record_type: MedicalHistoryRecordType;
-        record_id: string;
-        revision: number;
-        source: 'APPLICATION' | 'MIGRATION_BASELINE' | null;
-        recorded_at: string | Date;
-        recorded_by_user_id: string | null;
-        snapshot: unknown;
-      }>(sql`
+      database.execute<HistoryRow>(sql`
         SELECT h.* FROM ${history} WHERE ${filter}
         ORDER BY h.recorded_at DESC, h.record_id, h.revision DESC
         LIMIT ${query.limit} OFFSET ${offsetOf(query)}
@@ -1363,16 +1623,106 @@ export class MedicalRepository {
     ]);
 
     return {
-      data: rowsResult.rows.map((row) => ({
-        recordType: row.record_type,
-        recordId: row.record_id,
-        revision: row.revision,
-        source: row.source,
-        recordedAt: new Date(row.recorded_at),
-        recordedByUserId: row.recorded_by_user_id,
-        snapshot: projectSnapshot(row.record_type, row.snapshot),
-      })),
+      data: rowsResult.rows.map(toHistoryEntry),
       total: countResult.rows[0]?.count ?? 0,
     };
   }
+
+  /**
+   * History of several Fighters in one query (batch form of `listHistory`):
+   * the same entries, in the same order (newest first), each tagged with its
+   * Fighter. At most `limit` rows are read; the caller passes its cap + 1 to
+   * detect an over-large batch instead of truncating it.
+   */
+  async listHistoryForFighters(
+    fighterIds: readonly string[],
+    recordType: MedicalHistoryRecordType | undefined,
+    limit: number,
+    database: DatabaseExecutor = this.db,
+  ): Promise<{ fighterId: string; entry: MedicalHistoryEntry }[]> {
+    if (fighterIds.length === 0) return [];
+    const ids = sql.join(
+      fighterIds.map((id) => sql`${id}::uuid`),
+      sql`, `,
+    );
+    const history = historyUnion(sql`IN (${ids})`);
+    const result = await database.execute<HistoryRow>(sql`
+      SELECT h.* FROM ${history}
+       WHERE ${historyRecordTypeFilter(recordType)}
+      ORDER BY h.recorded_at DESC, h.record_id, h.revision DESC
+      LIMIT ${limit}
+    `);
+    return result.rows.map((row) => ({
+      fighterId: row.fighter_id,
+      entry: toHistoryEntry(row),
+    }));
+  }
+}
+
+// --- History report helpers ---
+
+type HistoryRow = {
+  fighter_id: string;
+  record_type: MedicalHistoryRecordType;
+  record_id: string;
+  revision: number;
+  source: 'APPLICATION' | 'MIGRATION_BASELINE' | null;
+  recorded_at: string | Date;
+  recorded_by_user_id: string | null;
+  snapshot: unknown;
+};
+
+/**
+ * Every history entry of the Fighters matching `fighterMatch` (a condition on
+ * the Fighter id, e.g. `= $1` or `IN ($1, $2)`), shared by the single and the
+ * batch history reads so both return the same entries.
+ */
+function historyUnion(fighterMatch: SQL): SQL {
+  return sql`(
+      SELECT r.fighter_id, 'INJURY' AS record_type, r.injury_id AS record_id, r.revision,
+             r.source::text AS source, r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.injury_record_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT r.fighter_id, 'RECOVERY_PLAN', r.recovery_plan_id, r.revision, r.source::text,
+             r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.recovery_plan_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT r.fighter_id, 'MEDICAL_CLEARANCE', r.clearance_id, r.revision, r.source::text,
+             r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.medical_clearance_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT r.fighter_id, 'MEDICAL_REVIEW_REQUEST', r.review_request_id, r.revision, r.source::text,
+             r.recorded_at, r.recorded_by_user_id, r.snapshot
+        FROM public.medical_review_request_revisions r WHERE r.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT i.fighter_id, 'TREATMENT', t.id, 1, NULL, t.created_at, NULL::uuid, to_jsonb(t)
+        FROM public.treatments t
+        JOIN public.injury_records i ON i.id = t.injury_id
+       WHERE i.fighter_id ${fighterMatch}
+      UNION ALL
+      SELECT e.fighter_id, 'MEDICAL_EXAMINATION', e.id, 1, NULL, e.created_at, e.recorded_by_id,
+             to_jsonb(e) || jsonb_build_object('details', to_jsonb(d) - 'examination_id' - 'fighter_id')
+        FROM public.medical_examinations e
+        LEFT JOIN public.medical_examination_details d ON d.examination_id = e.id
+       WHERE e.fighter_id ${fighterMatch}
+    ) AS h`;
+}
+
+function historyRecordTypeFilter(
+  recordType: MedicalHistoryRecordType | undefined,
+): SQL {
+  const value = recordType ?? null;
+  return sql`(${value}::text IS NULL OR h.record_type = ${value}::text)`;
+}
+
+function toHistoryEntry(row: HistoryRow): MedicalHistoryEntry {
+  return {
+    recordType: row.record_type,
+    recordId: row.record_id,
+    revision: row.revision,
+    source: row.source,
+    recordedAt: new Date(row.recorded_at),
+    recordedByUserId: row.recorded_by_user_id,
+    snapshot: projectSnapshot(row.record_type, row.snapshot),
+  };
 }

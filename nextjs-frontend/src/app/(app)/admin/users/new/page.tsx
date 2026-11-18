@@ -1,7 +1,7 @@
-import { KeyRound, LockKeyhole, MailCheck, ShieldAlert, Stethoscope, UserRoundCheck, UsersRound } from "lucide-react";
+import { KeyRound, LockKeyhole, MailCheck, ShieldAlert, Stethoscope, UserRoundCheck, UsersRound, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
 
-import { CLINICAL_PERMISSIONS, ROLE_ORDER } from "@/components/admin/admin-format";
+import { CLINICAL_PERMISSIONS, roleDescription, roleLabel, ROLE_ORDER } from "@/components/admin/admin-format";
 import { CreateAccountForm } from "@/components/admin/create-account-form";
 import { InviteUserForm } from "@/components/admin/invite-user-form";
 import type { RoleOption } from "@/components/admin/role-options";
@@ -11,6 +11,8 @@ import { PageHeader } from "@/components/ui/page-header";
 import { requireRole } from "@/lib/auth/session";
 import type { Role } from "@/lib/domain/types";
 import { dayKey } from "@/lib/format";
+import { getTranslator } from "@/lib/i18n/server";
+import type { MessageKey } from "@/lib/i18n/translate";
 import { parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listRoleDefinitions } from "@/lib/services/admin";
@@ -23,53 +25,30 @@ async function presetRoleFrom(searchParams: PageProps<"/admin/users/new">["searc
 }
 
 export async function generateMetadata({ searchParams }: PageProps<"/admin/users/new">): Promise<Metadata> {
+    const { t } = await getTranslator();
     const fighter = (await presetRoleFrom(searchParams)) === "fighter";
-    return { title: usesUserServiceForms() ? (fighter ? "Add fighter" : "Add user") : "Invite user" };
+    return {
+        title: usesUserServiceForms() ? (fighter ? t("screens.admin.common.addFighter") : t("screens.admin.common.addUser")) : t("screens.admin.common.inviteUser"),
+    };
 }
 
-const ACCESS_STEP = {
-    icon: KeyRound,
-    title: "Access follows the role",
-    body: "Permissions come from the role, so changing a role's permissions updates everyone who has it.",
-};
+/** One "what happens next" step; its title and body are `screens.admin.newUser.steps.<id>.*`. */
+interface Step {
+    id: "access" | "password" | "doctor" | "rosters" | "email" | "link";
+    icon: LucideIcon;
+}
+
+const ACCESS_STEP: Step = { id: "access", icon: KeyRound };
 
 /** The user service creates accounts ready to sign in, with the profile filled in up front. */
-const ACCOUNT_STEPS = [
-    {
-        icon: LockKeyhole,
-        title: "They sign in with the password you set",
-        body: "Share it privately. They can choose their own at any time with “Forgot password” on the sign-in page.",
-    },
-    {
-        icon: Stethoscope,
-        title: "A new fighter needs a sports doctor",
-        body: "They can't train until a sports doctor records their baseline exam. Assign the doctor, and a coach, from the fighter's account page.",
-    },
-    {
-        icon: UsersRound,
-        title: "Rosters come next",
-        body: "Coaches and doctors see the fighters assigned to them.",
-    },
-    ACCESS_STEP,
-];
+const ACCOUNT_STEPS: Step[] = [{ id: "password", icon: LockKeyhole }, { id: "doctor", icon: Stethoscope }, { id: "rosters", icon: UsersRound }, ACCESS_STEP];
 
-const INVITATION_STEPS = [
-    {
-        icon: MailCheck,
-        title: "They receive an invitation email",
-        body: "The link lets them set a password. Until then the account shows as Invited and can't sign in.",
-    },
-    {
-        icon: UserRoundCheck,
-        title: "Their profile is linked on first sign-in",
-        body: "Fighter, coach and doctor profiles are connected during onboarding, then rosters can be assigned.",
-    },
-    ACCESS_STEP,
-];
+const INVITATION_STEPS: Step[] = [{ id: "email", icon: MailCheck }, { id: "link", icon: UserRoundCheck }, ACCESS_STEP];
 
 /** API mode creates the account outright; the demo invites the person to set their own password. */
 export default async function NewUserPage({ searchParams }: PageProps<"/admin/users/new">) {
     await requireRole("admin");
+    const { t } = await getTranslator();
     const serviceForms = usesUserServiceForms();
     const [definitions, presetRole] = await Promise.all([listRoleDefinitions(), presetRoleFrom(searchParams)]);
     const addingFighter = serviceForms && presetRole === "fighter";
@@ -80,8 +59,8 @@ export default async function NewUserPage({ searchParams }: PageProps<"/admin/us
         return [
             {
                 role,
-                label: definition.label,
-                description: definition.description,
+                label: roleLabel(t, role),
+                description: roleDescription(t, role, definition.description),
                 permissionCount: definition.permissions.length,
                 clinical: definition.permissions.some((permission) => CLINICAL_PERMISSIONS.includes(permission)),
             },
@@ -91,20 +70,20 @@ export default async function NewUserPage({ searchParams }: PageProps<"/admin/us
     return (
         <>
             <PageHeader
-                back={{ href: routes.admin.users, label: "Users" }}
-                title={serviceForms ? (addingFighter ? "Add fighter" : "Add user") : "Invite user"}
+                back={{ href: routes.admin.users, label: t("screens.admin.common.users") }}
+                title={serviceForms ? (addingFighter ? t("screens.admin.common.addFighter") : t("screens.admin.common.addUser")) : t("screens.admin.common.inviteUser")}
                 description={
                     serviceForms
                         ? addingFighter
-                            ? "Create the fighter's account with a first password and their profile."
-                            : "Create an account with a first password and the person's profile."
-                        : "Create an account and send the person an invitation to set their password."
+                            ? t("screens.admin.newUser.descriptionFighter")
+                            : t("screens.admin.newUser.descriptionAdd")
+                        : t("screens.admin.newUser.descriptionInvite")
                 }
             />
 
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <Card className="min-w-0 overflow-hidden lg:col-span-2">
-                    <CardHeader title="Account details" description="Fields marked * are required." />
+                    <CardHeader title={t("screens.admin.newUser.details")} description={t("screens.admin.newUser.requiredNote")} />
                     {serviceForms ? (
                         <CreateAccountForm roles={roles} defaultRole="fighter" presetRole={presetRole} today={dayKey(new Date())} />
                     ) : (
@@ -114,20 +93,20 @@ export default async function NewUserPage({ searchParams }: PageProps<"/admin/us
 
                 <div className="flex min-w-0 flex-col gap-6">
                     <Card>
-                        <CardHeader title="What happens next" />
+                        <CardHeader title={t("screens.admin.newUser.next")} />
                         <CardContent>
                             <ol className="flex flex-col gap-4">
                                 {(serviceForms ? ACCOUNT_STEPS : INVITATION_STEPS).map((step, index) => {
                                     const Icon = step.icon;
                                     return (
-                                        <li key={step.title} className="flex gap-3">
+                                        <li key={step.id} className="flex gap-3">
                                             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-surface-muted text-fg-muted ring-1 ring-border ring-inset">
                                                 <Icon aria-hidden className="size-4" />
-                                                <span className="sr-only">Step {index + 1}</span>
+                                                <span className="sr-only">{t("screens.admin.newUser.step", { n: index + 1 })}</span>
                                             </span>
                                             <div className="min-w-0">
-                                                <p className="text-sm font-medium text-fg">{step.title}</p>
-                                                <p className="mt-0.5 text-[13px] text-fg-muted">{step.body}</p>
+                                                <p className="text-sm font-medium text-fg">{t(`screens.admin.newUser.steps.${step.id}.title` as MessageKey)}</p>
+                                                <p className="mt-0.5 text-[13px] text-fg-muted">{t(`screens.admin.newUser.steps.${step.id}.body` as MessageKey)}</p>
                                             </div>
                                         </li>
                                     );
@@ -135,8 +114,8 @@ export default async function NewUserPage({ searchParams }: PageProps<"/admin/us
                             </ol>
                         </CardContent>
                     </Card>
-                    <Callout tone="warning" icon={ShieldAlert} title="Clinical access">
-                        The sports doctor role opens medical records, injuries and Medical Clearance. Only give it to licensed sports medicine staff.
+                    <Callout tone="warning" icon={ShieldAlert} title={t("screens.admin.newUser.clinicalTitle")}>
+                        {t("screens.admin.newUser.clinicalBody")}
                     </Callout>
                 </div>
             </div>

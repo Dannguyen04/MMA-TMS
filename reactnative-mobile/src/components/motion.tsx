@@ -19,7 +19,10 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 
-import { motion, radius, useThemePreference } from "@/theme";
+import { useThemePreference } from "@/theme";
+// Direct modules: screens that mock "@/theme" in tests still get timings and radii.
+import { motion } from "@/theme/motion";
+import { radius } from "@/theme/radius";
 
 /**
  * Primitive chuyển động dùng chung (Phương án B). Mọi hiệu ứng tắt khi bật Giảm chuyển động.
@@ -94,16 +97,21 @@ export function StaggerList({
   children,
   gap,
   style,
+  offset = 0,
+  testID,
 }: {
   children: ReactNode;
   gap?: number;
   style?: StyleProp<ViewStyle>;
+  /** Start later in the page's sequence (blocks above already took these steps). */
+  offset?: number;
+  testID?: string;
 }) {
   const items = Children.toArray(children);
   return (
-    <View style={[gap != null ? { gap } : null, style]}>
+    <View testID={testID} style={[gap != null ? { gap } : null, style]}>
       {items.map((child, i) => (
-        <FadeInView key={i} index={i}>
+        <FadeInView key={i} index={i + offset}>
           {child}
         </FadeInView>
       ))}

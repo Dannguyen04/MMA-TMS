@@ -1,11 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { BoutOutcome, CompetitionRuleset } from "@/lib/domain/bout";
 import { boutGate1, canEnterFightWeek, requirementsOverdue } from "@/lib/domain/bout-rules";
+import { liveSuspensions } from "@/lib/domain/fighter-suspension-view";
 import { nutritionPhaseFor } from "@/lib/domain/nutrition";
-import type { TrainingPlan } from "@/lib/domain/types";
+import type { TrainingPlan, User } from "@/lib/domain/types";
 import { academyWallClockToIso, addDaysToKey, dayKey } from "@/lib/format";
+import { db } from "@/lib/mocks/db";
+import { mockUsers } from "@/lib/mocks/people";
 import { VMMAF_2021_ID, AIBA_REFERENCE_ID } from "@/lib/mocks/rulesets";
+import { TODAY_KEY } from "@/lib/mocks/time";
 
 import {
     addDemoRequirement,
@@ -16,6 +20,7 @@ import {
     demoBlockingSuspensions,
     demoCampStore,
     demoCheckinsFor,
+    demoKnockoutHistory,
     demoWeightTrack,
     enterDemoFightWeek,
     getDemoBout,
@@ -24,6 +29,7 @@ import {
     getDemoCurrentBout,
     linkDemoCamp,
     listDemoBouts,
+    listDemoSuspensions,
     listDemoWeightAlerts,
     recordDemoCheckin,
     recordDemoResult,
@@ -34,6 +40,7 @@ import {
     updateDemoRequirement,
     type NewBout,
 } from "./bouts.demo";
+import { clearSuspension, listSuspensions } from "./suspensions.demo";
 
 const TODAY = "2026-10-20";
 const NOW = new Date("2026-10-20T01:00:00.000Z");
@@ -311,51 +318,219 @@ describe("official weigh-in and result (T-006)", () => {
     });
 });
 
-describe("suspensions and Gate 2 (T-007)", () => {
-    it("blocks the session types a suspension names, and only while it is active", () => {
+/** Rafael as the suspensions store checks him: a coach with the fighters these tests use on his roster. */
+const RAFAEL_USER: User = {
+    ...mockUsers.find((user) => user.id === "u-rafael-costa")!,
+    effectiveCapabilities: ["fighters:read"],
+    assignmentScope: { fighterIds: ["f-diego-alvarez", "f-linh-pham", "f-marcus-hale", "f-minh-tran"] },
+};
+
+/** Starts the suspensions store (`db()`) again from its seed, which is anchored on the real academy day. */
+function resetSuspensionsStore() {
+    delete (globalThis as Record<string, unknown>).__mmaMockDb;
+}
+
+const outcome = (overrides: Partial<BoutOutcome>): BoutOutcome => ({
+    result: "LOSS",
+    method: "KO",
+    round: 2,
+    knockedDown: true,
+    lossOfConsciousness: "UNDER_1_MIN",
+    stoppedByHeadStrikes: null,
+    injuryNote: null,
+    notes: null,
+    recordedAt: new Date().toISOString(),
+    ...overrides,
+});
+
+describe("suspensions and Gate 2 read the one suspensions store (T-007, T-030)", () => {
+    beforeEach(resetSuspensionsStore);
+
+    it("blocks the session types a suspension names, and only while it is in force", () => {
         resetDemoCampStore(TODAY);
-        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", TODAY)).toHaveLength(1);
-        expect(demoBlockingSuspensions("f-diego-alvarez", "pad_work", TODAY)).toEqual([]);
-        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", day(-7))).toEqual([]);
+        const on = (offset: number) => addDaysToKey(TODAY_KEY, offset);
+        // Marcus: the sample KO from ten days ago, 30 days, every type but recovery.
+        expect(demoBlockingSuspensions("f-marcus-hale", "sparring", TODAY_KEY).map((item) => item.id)).toEqual(["susp-active-ko"]);
+        expect(demoBlockingSuspensions("f-marcus-hale", "recovery_mobility", TODAY_KEY)).toEqual([]);
+        expect(demoBlockingSuspensions("f-marcus-hale", "sparring", on(-11))).toEqual([]);
         // A knockout suspension waits for clearance after its last day.
-        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", day(40))).toHaveLength(1);
+        expect(demoBlockingSuspensions("f-marcus-hale", "sparring", on(40)).map((item) => item.id)).toEqual(["susp-active-ko"]);
     });
 
-    it("saves a suspension after a knockout loss and blocks everything but recovery under AIBA", () => {
+    it("saves a suspension confirmed on the bout page as POST /suspensions would, and only one per bout", () => {
         resetDemoCampStore(TODAY);
         const rules = demoCampStore().rulesets.find((item) => item.id === AIBA_REFERENCE_ID)!;
-        expect(
-            createDemoSuspension(
-                "f-linh-pham",
-                "b-linh-saigon",
-                {
-                    reason: "KO",
-                    startsOn: TODAY,
-                    endsOn: day(90),
-                    suggestedDays: 90,
-                    overrideReason: null,
-                    blockedSessionTypes: rules.defaultBlockedSessionTypes,
-                    requiresClearance: true,
-                    note: null,
-                },
-                RAFAEL,
-                NOW,
-            ),
-        ).toEqual({ ok: true });
+        const draft = {
+            reason: "KO" as const,
+            startsOn: TODAY,
+            endsOn: day(90),
+            suggestedDays: 90,
+            overrideReason: null,
+            blockedSessionTypes: rules.defaultBlockedSessionTypes,
+            requiresClearance: false,
+            note: null,
+        };
+        expect(createDemoSuspension("f-linh-pham", "b-linh-saigon", draft, RAFAEL, NOW)).toEqual({ ok: true });
+        const saved = db().suspensions.filter((item) => item.boutId === "b-linh-saigon");
+        // 90 days with the start as day 1; a KO always needs clearance; AIBA blocks everything but recovery.
+        expect(saved).toEqual([
+            expect.objectContaining({ reason: "KO", startsOn: TODAY, endsOn: day(89), requiresClearance: true, maxAllowedTier: 1, issuedBy: "CLUB" }),
+        ]);
         expect(demoBlockingSuspensions("f-linh-pham", "pad_work", day(1))).toHaveLength(1);
         expect(demoBlockingSuspensions("f-linh-pham", "recovery_mobility", day(1))).toEqual([]);
+        expect(createDemoSuspension("f-linh-pham", "b-linh-saigon", draft, RAFAEL, NOW)).toEqual({ ok: false, message: "This bout already has a suspension." });
+        expect(db().suspensions.filter((item) => item.boutId === "b-linh-saigon")).toHaveLength(1);
     });
 
-    it("clears a fighter before the last day without changing the end date", () => {
+    it("clears only once the suspension awaits clearance (T-049), and then stops blocking", async () => {
         resetDemoCampStore(TODAY);
-        const end = demoCampStore().suspensions.find(item => item.id === "sus-diego-sparring")!.endsOn;
-        expect(clearDemoSuspension("sus-diego-sparring", "Neurologist cleared, CT normal", RAFAEL, NOW)).toEqual({ ok: true });
-        expect(demoCampStore().suspensions.find(item => item.id === "sus-diego-sparring")!.endsOn).toBe(end);
-        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", TODAY)).toEqual([]);
-        resetDemoCampStore(TODAY);
-        const after = new Date(`${day(25)}T03:00:00.000Z`);
-        expect(clearDemoSuspension("sus-diego-sparring", "Neurologist cleared, CT normal", RAFAEL, after)).toEqual({ ok: true });
-        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", day(25))).toEqual([]);
+        expect(await clearDemoSuspension("susp-active-ko", "Neurologist cleared, CT normal", RAFAEL_USER)).toEqual({
+            ok: false,
+            message: "The suspension can only be cleared while it is awaiting clearance.",
+        });
+        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", TODAY_KEY).map((item) => item.id)).toEqual(["susp-awaiting-clearance"]);
+        expect(await clearDemoSuspension("susp-awaiting-clearance", "Neurologist cleared, CT normal", RAFAEL_USER)).toEqual({ ok: true });
+        expect(demoBlockingSuspensions("f-diego-alvarez", "sparring", TODAY_KEY)).toEqual([]);
+    });
+
+    it("warns when a new bout falls inside a suspension", () => {
+        resetDemoCampStore(TODAY_KEY);
+        const at = (offset: number, time: string) => academyWallClockToIso(addDaysToKey(TODAY_KEY, offset), time);
+        const marcus = minhBout({ fighterId: "f-marcus-hale", fighterName: "Marcus Hale", weighInAt: at(2, "10:00"), boutAt: at(3, "19:00") });
+        expect(createDemoBout(marcus, RAFAEL, new Date())).toMatchObject({ ok: true, warning: expect.stringContaining("Marcus Hale is suspended") });
+        expect(createDemoBout(minhBout({ weighInAt: at(2, "10:00"), boutAt: at(3, "19:00") }), RAFAEL, new Date())).toMatchObject({ ok: true, warning: null });
+    });
+});
+
+describe("a bout's result saves its suspensions where the API would (R27)", () => {
+    // On the real clock: the suspensions store's seed is anchored on today, and the seeded bouts fight today.
+    let now: Date;
+    let today: string;
+    beforeEach(() => {
+        resetSuspensionsStore();
+        now = new Date();
+        today = dayKey(now);
+        resetDemoCampStore(today);
+    });
+    const coach = { id: "u-rafael-costa", name: "Rafael Costa" };
+    const weighInLinh = () => recordDemoWeighIn("b-linh-saigon", { weightKg: 59.8, hydrationCheck: null, decision: null, catchweightKg: null, note: null }, coach, now);
+    const boutRows = (boutId: string) => db().suspensions.filter((item) => item.boutId === boutId);
+
+    it("saves a KO loss's suspension with the coach's days when the ruleset suggests none, with the T-030 fields", async () => {
+        expect(recordDemoResult("bout-weighed-in", outcome({}), coach, now, 30)).toEqual({ ok: true });
+        const [ko, ...others] = boutRows("bout-weighed-in");
+        expect(others).toEqual([]);
+        expect(ko).toMatchObject({
+            fighterId: "f-diego-alvarez",
+            reason: "KO",
+            startsOn: today,
+            endsOn: addDaysToKey(today, 29),
+            lossOfConsciousness: "UNDER_1_MIN",
+            suggestedDays: null,
+            overrideReason: null,
+            // VMMAF 2021 blocks sparring and grappling: tiers 1 to 3 stay open.
+            blockedSessionTypes: ["SPARRING", "GRAPPLING"],
+            maxAllowedTier: 3,
+            requiresClearance: true,
+            clearedAt: null,
+            createdById: "u-rafael-costa",
+            status: "ACTIVE",
+            gradedReturn: null,
+            issuedBy: "CLUB",
+            issuerReference: null,
+        });
+
+        // The Suspensions page and the fighter's card read it, 30 days, active.
+        const listed = (await listSuspensions({ fighterId: "f-diego-alvarez" }, RAFAEL_USER)).find((item) => item.id === ko.id);
+        expect(listed).toMatchObject({ status: "ACTIVE", startsOn: today, endsOn: addDaysToKey(today, 29) });
+        expect(liveSuspensions(await listSuspensions({ fighterId: "f-diego-alvarez" }, RAFAEL_USER)).map((item) => item.id)).toContain(ko.id);
+        // The bout page reads the same row, under the same id.
+        expect(listDemoSuspensions(["f-diego-alvarez"]).filter((item) => item.boutId === "bout-weighed-in")).toEqual([
+            expect.objectContaining({ id: ko.id, reason: "KO", days: 30, blockedSessionTypes: ["sparring", "grappling"], requiresClearance: true, createdBy: "Rafael Costa" }),
+        ]);
+        // Gate 2 and the next suggestion see it.
+        expect(demoBlockingSuspensions("f-diego-alvarez", "grappling", today).map((item) => item.id)).toContain(ko.id);
+        expect(demoKnockoutHistory("f-diego-alvarez")).toContain(today);
+    });
+
+    it("refuses like the service when the days are missing or differ from the suggestion, and saves nothing", () => {
+        // VMMAF 2021 suggests no length for a KO.
+        expect(recordDemoResult("bout-weighed-in", outcome({}), coach, now, null)).toEqual({
+            ok: false,
+            message: "This bout's ruleset suggests no suspension length. Enter the days the event rules set, then save again.",
+            fieldErrors: { suspensionDays: expect.any(String) },
+        });
+        expect(getDemoBout("bout-weighed-in")?.phase).toBe("WEIGHED_IN");
+        expect(boutRows("bout-weighed-in")).toEqual([]);
+
+        // AIBA: Linh's KO five weeks ago makes this one her second within 90 days, so 90 days.
+        weighInLinh();
+        const second = outcome({ lossOfConsciousness: "NONE" });
+        expect(recordDemoResult("b-linh-saigon", second, coach, now, 30)).toMatchObject({
+            ok: false,
+            message: "This bout's ruleset suggests 90 days of suspension. Leave the days empty to use them, or enter 90.",
+        });
+        expect(boutRows("b-linh-saigon")).toEqual([]);
+        expect(recordDemoResult("b-linh-saigon", second, coach, now, null)).toEqual({ ok: true });
+        expect(boutRows("b-linh-saigon")).toEqual([expect.objectContaining({ reason: "KO", suggestedDays: 90, endsOn: addDaysToKey(today, 89), maxAllowedTier: 1 })]);
+    });
+
+    it("saves a head-strike TKO, but nothing for a TKO without head strikes or a win", () => {
+        expect(recordDemoResult("bout-weighed-in", outcome({ method: "TKO", lossOfConsciousness: null, stoppedByHeadStrikes: false }), coach, now, null)).toEqual({ ok: true });
+        expect(boutRows("bout-weighed-in")).toEqual([]);
+
+        weighInLinh();
+        expect(recordDemoResult("b-linh-saigon", outcome({ method: "TKO", lossOfConsciousness: null, stoppedByHeadStrikes: true }), coach, now, null)).toEqual({ ok: true });
+        expect(boutRows("b-linh-saigon")).toEqual([expect.objectContaining({ reason: "TKO", requiresClearance: true })]);
+    });
+
+    it("cancels the fighter's scheduled sessions it blocks and moves her fight-camp plan to rehab (R28)", () => {
+        const template = db().trainingSessions.find((item) => item.fighterId === "f-linh-pham")!;
+        const tomorrow = academyWallClockToIso(addDaysToKey(today, 1), "17:00");
+        db().trainingSessions.push(
+            { ...template, id: "ts-r28-sparring", type: "sparring", status: "scheduled", scheduledAt: tomorrow },
+            { ...template, id: "ts-r28-recovery", type: "recovery_mobility", status: "scheduled", scheduledAt: tomorrow },
+        );
+        const plan = db().trainingPlans.find((item) => item.fighterId === "f-linh-pham")!;
+        db().trainingPlans.push({ ...plan, id: "tp-r28-camp", phase: "fight_camp", status: "active" });
+
+        weighInLinh();
+        expect(recordDemoResult("b-linh-saigon", outcome({ lossOfConsciousness: "NONE" }), coach, now, null)).toEqual({ ok: true });
+        const session = (id: string) => db().trainingSessions.find((item) => item.id === id);
+        expect(session("ts-r28-sparring")?.status).toBe("cancelled");
+        expect(session("ts-r28-recovery")?.status).toBe("scheduled");
+        expect(db().trainingPlans.find((item) => item.id === "tp-r28-camp")?.phase).toBe("rehab");
+    });
+
+    it("saves the ruleset's mandatory rest after any bout, beside the knockout's suspension", () => {
+        demoCampStore().rulesets.find((item) => item.id === VMMAF_2021_ID)!.restDaysAfterBout = 7;
+        expect(recordDemoResult("bout-weighed-in", outcome({ method: "KO" }), coach, now, 30)).toEqual({ ok: true });
+        expect(boutRows("bout-weighed-in").map((item) => [item.reason, item.startsOn, item.endsOn, item.requiresClearance])).toEqual([
+            ["KO", today, addDaysToKey(today, 29), true],
+            ["MANDATORY_REST", today, addDaysToKey(today, 6), false],
+        ]);
+
+        weighInLinh();
+        demoCampStore().rulesets.find((item) => item.id === AIBA_REFERENCE_ID)!.restDaysAfterBout = 7;
+        expect(recordDemoResult("b-linh-saigon", outcome({ result: "WIN", method: "DECISION", round: null, knockedDown: false, lossOfConsciousness: null }), coach, now, null)).toEqual({ ok: true });
+        expect(boutRows("b-linh-saigon")).toEqual([expect.objectContaining({ reason: "MANDATORY_REST", suggestedDays: 7, requiresClearance: false, status: "ACTIVE" })]);
+    });
+
+    it("keeps one copy: no second suspension for the bout, and a clearance on the Suspensions page is seen by Gate 2", async () => {
+        weighInLinh();
+        expect(recordDemoResult("b-linh-saigon", outcome({ lossOfConsciousness: "NONE" }), coach, now, null)).toEqual({ ok: true });
+        expect(recordDemoResult("b-linh-saigon", outcome({ lossOfConsciousness: "NONE" }), coach, now, null)).toMatchObject({ ok: false });
+        const [ko] = boutRows("b-linh-saigon");
+        const draft = { reason: "KO" as const, startsOn: today, endsOn: addDaysToKey(today, 90), suggestedDays: 90, overrideReason: null, blockedSessionTypes: ["sparring" as const], requiresClearance: true, note: null };
+        expect(createDemoSuspension("f-linh-pham", "b-linh-saigon", draft, coach, now)).toMatchObject({ ok: false });
+        expect(boutRows("b-linh-saigon")).toHaveLength(1);
+
+        // Ninety days on, it awaits clearance and still blocks; cleared on the Suspensions page, it blocks nowhere.
+        Object.assign(ko, { startsOn: addDaysToKey(today, -90), endsOn: addDaysToKey(today, -1) });
+        expect(demoBlockingSuspensions("f-linh-pham", "sparring", today).map((item) => item.id)).toEqual([ko.id]);
+        await clearSuspension(ko.id, "Neurologist cleared, CT normal", RAFAEL_USER);
+        expect(demoBlockingSuspensions("f-linh-pham", "sparring", today)).toEqual([]);
+        expect(listDemoSuspensions(["f-linh-pham"]).find((item) => item.id === ko.id)).toMatchObject({ clearedBy: "Rafael Costa", clearanceNote: "Neurologist cleared, CT normal" });
     });
 });
 

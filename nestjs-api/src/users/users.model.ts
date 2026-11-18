@@ -36,6 +36,8 @@ export const weightClasses = [
   'HEAVYWEIGHT',
 ] as const;
 export const fighterStances = ['ORTHODOX', 'SOUTHPAW', 'SWITCH'] as const;
+/** Picks the 3D body the web draws; null when unknown (migration 034). */
+export const fighterSexes = ['MALE', 'FEMALE'] as const;
 
 const requiredName = trimmedTextSchema(100);
 
@@ -48,6 +50,7 @@ export const fighterProfileSchema = z.strictObject({
   heightCm: optionalNullablePositiveNumberSchema(300),
   reachCm: optionalNullablePositiveNumberSchema(300),
   dominantStance: z.enum(fighterStances).nullable().optional(),
+  sex: z.enum(fighterSexes).nullable().optional(),
   leftArmCm: optionalNullablePositiveNumberSchema(150),
   rightArmCm: optionalNullablePositiveNumberSchema(150),
   leftLegCm: optionalNullablePositiveNumberSchema(150),
@@ -178,6 +181,18 @@ export const publicUserSchema = z.strictObject({
   profile: publicProfileSchema.nullable(),
 });
 
+/**
+ * The Fighters a COACH or DOCTOR may currently see, so the client does not read the roster after `/users/me`.
+ * Same rules as `GET /fighters` (COACH) and `GET /doctors/:id/fighters` (DOCTOR). Absent for other roles.
+ */
+export const assignmentScopeSchema = z.strictObject({
+  fighterIds: z.array(z.uuid()),
+});
+
+export const currentUserSchema = publicUserSchema.extend({
+  assignmentScope: assignmentScopeSchema.optional(),
+});
+
 export const publicUserListSchema = z.strictObject({
   items: z.array(publicUserSchema),
   total: z.number().int().nonnegative(),
@@ -189,5 +204,7 @@ export type FighterProfileInput = z.infer<typeof fighterProfileSchema>;
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
 export type PublicUser = z.input<typeof publicUserSchema>;
+export type AssignmentScope = z.infer<typeof assignmentScopeSchema>;
+export type CurrentUser = z.input<typeof currentUserSchema>;
 export type ListUsersQuery = z.infer<typeof listUsersQuerySchema>;
 export type PublicUserList = z.input<typeof publicUserListSchema>;

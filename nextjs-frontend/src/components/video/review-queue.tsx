@@ -22,7 +22,6 @@ export async function ReviewQueue({ items, now }: { items: ReviewQueueItem[]; no
             <CardHeader
                 icon={<Sparkles />}
                 title={copy("Review queue")}
-                description={copy("Completed AI analyses waiting for your review. Confirm or correct findings before fighters rely on them.")}
                 action={
                     items.length > 0 && (
                         <Badge tone="warning" size="md" className="max-sm:hidden">
@@ -43,7 +42,7 @@ export async function ReviewQueue({ items, now }: { items: ReviewQueueItem[]; no
                         const lowConfidence = locale === "vi" ? [...(lowConfidenceFindings > 0 ? [copy("{n} low-confidence findings", { n: lowConfidenceFindings })] : []), ...(lowConfidenceDetections > 0 ? [copy("{n} low-confidence detections", { n: lowConfidenceDetections })] : [])] : formatReviewCounts({ lowConfidenceFindings, lowConfidenceDetections });
                         return (
                             <li key={analysis.id} className="flex flex-col gap-3 px-5 py-4 md:flex-row md:items-center md:gap-4">
-                                <VideoThumb locale={locale} trainingType={video.trainingType} durationSec={video.durationSec} size="sm" className="hidden w-28 shrink-0 rounded-lg md:block" />
+                                <VideoThumb locale={locale} trainingType={video.trainingType} durationSec={video.durationSec} src={video.sourceUrl} size="sm" className="hidden w-28 shrink-0 rounded-lg md:block" />
                                 <div className="min-w-0 flex-1">
                                     <FighterIdentity fighter={fighter} size="sm" showMeta={false} />
                                     <p className="mt-1.5 truncate text-sm font-medium text-fg">{video.title}</p>

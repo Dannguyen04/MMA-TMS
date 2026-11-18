@@ -26,10 +26,8 @@ export default async function NewBoutPage({ searchParams }: PageProps<"/coach/bo
     return (
         <>
             <PageHeader
-                eyebrow={t("coachBouts.new.eyebrow")}
                 back={{ href: routes.coach.bouts, label: t("coachBouts.new.back") }}
                 title={t("coachBouts.new.title")}
-                description={t("coachBouts.new.description")}
             />
             <BoutForm
                 fighters={fighters.map((fighter) => ({ id: fighter.id, name: fighter.name }))}

@@ -1,5 +1,8 @@
-import { ImpairmentAlertList } from "@/screens/doctor/impairment-alerts";
+import { Redirect, type Href } from "expo-router";
 
-export default function DoctorAiAlertsRoute() {
-  return <ImpairmentAlertList />;
+import { doctorAiListHref } from "@/screens/doctor/redesign/doctor-paths";
+
+/** Old AI list (redesign step 21): now the Cảnh báo AI tab of Võ sĩ. */
+export default function DoctorAiAlertsOldRoute() {
+  return <Redirect href={doctorAiListHref() as unknown as Href}/>;
 }

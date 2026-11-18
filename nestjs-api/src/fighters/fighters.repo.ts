@@ -86,6 +86,7 @@ export function mapFighterRow(row: typeof fighters.$inferSelect): PublicFighter 
     heightCm: row.heightCm,
     reachCm: row.reachCm,
     dominantStance: row.dominantStance as PublicFighter['dominantStance'],
+    sex: row.sex as PublicFighter['sex'],
     leftArmCm: row.leftArmCm,
     rightArmCm: row.rightArmCm,
     leftLegCm: row.leftLegCm,

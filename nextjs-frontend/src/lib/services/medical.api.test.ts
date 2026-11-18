@@ -406,6 +406,19 @@ describe("medical service reads in API mode", () => {
         expect(clearances[1]).toMatchObject({ reason: "Baseline", revokedReason: "Knee injury", isCurrentlyValid: false });
     });
 
+    it("reads a clearance that starts later as scheduled, and a lapsed one as expired", async () => {
+        const later = { ...clearance, id: "cl-later", validFrom: "2099-01-01T00:00:00.000Z", validUntil: null, isCurrentlyValid: false };
+        const lapsed = { ...clearance, id: "cl-lapsed", validFrom: "2026-01-01T00:00:00.000Z", validUntil: "2026-02-01T00:00:00.000Z", isCurrentlyValid: false };
+        respond({
+            [`/fighters/${FIGHTER}/medical/history`]: history("MEDICAL_CLEARANCE", []),
+            [`/fighters/${FIGHTER}/medical`]: { ...dossier, activeClearances: [later, lapsed] },
+        });
+
+        const clearances = await listClearances({ fighterIds: [FIGHTER] });
+
+        expect(Object.fromEntries(clearances.map((c) => [c.id, c.status]))).toEqual({ "cl-later": "scheduled", "cl-lapsed": "expired" });
+    });
+
     it("leaves out fighters whose records the caller can't read", async () => {
         authenticatedApiRequest.mockRejectedValue(new ApiError({ message: "denied", kind: "http", status: 403, code: "MEDICAL_ACCESS_DENIED" }));
         await expect(getFighterHealthSummary(FIGHTER)).resolves.toBeNull();

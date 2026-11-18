@@ -9,6 +9,7 @@ import Toast, {
 
 import { type ColorTokens, useThemePreference } from "@/theme";
 import { hapticSuccess } from "@/components/motion";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 export type AppToastTone = "success" | "error" | "info";
 
@@ -65,7 +66,7 @@ function toastCard(colors: ColorTokens, tone: AppToastTone) {
         text1NumberOfLines={6}
         text1Style={[styles.text, { color: accent }]}
         text2NumberOfLines={2}
-        text2Style={{ color: colors.ink, fontSize: 16, lineHeight: 22, fontWeight: "700", textDecorationLine: "underline", paddingBottom: 2 }}
+        text2Style={{ color: colors.ink, fontSize: fz(16), lineHeight: lh(22), fontWeight: "700", textDecorationLine: "underline", paddingBottom: 2 }}
       />
     );
   };
@@ -96,7 +97,7 @@ export function AppToastHost() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   card: {
     height: undefined,
     minHeight: 64,
@@ -110,8 +111,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   text: {
-    fontSize: 14,
+    fontSize: fz(14),
     fontWeight: "600",
-    lineHeight: 20,
+    lineHeight: lh(20),
   },
-});
+}));

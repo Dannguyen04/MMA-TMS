@@ -4,6 +4,7 @@ import { DatabaseModule } from '../database/database.module.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 import { AcademySettingsModule } from '../academy-settings/academy-settings.module.js';
 import { DoctorAssignmentReminder } from './doctor-assignment-reminder.service.js';
+import { MedicalStatusRefresher } from './medical-status-refresher.service.js';
 import { MedicalAccessService } from './medical-access.service.js';
 import { MedicalAssignmentController } from './medical-assignment.controller.js';
 import { MedicalController } from './medical.controller.js';
@@ -27,6 +28,7 @@ import { MedicalService } from './medical.service.js';
     MedicalAccessService,
     MedicalService,
     DoctorAssignmentReminder,
+    MedicalStatusRefresher,
   ],
   exports: [MedicalAccessService, MedicalService, DoctorAssignmentReminder],
 })

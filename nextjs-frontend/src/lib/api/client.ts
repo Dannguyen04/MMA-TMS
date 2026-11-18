@@ -1,6 +1,7 @@
 import "server-only";
 
 import { cookies } from "next/headers";
+import { cache } from "react";
 import { z } from "zod";
 
 import { ACCESS_EXPIRES_COOKIE, ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from "@/lib/auth/constants";
@@ -72,33 +73,55 @@ export interface DrainCursorOptions extends ApiRequestOptions {
 
 const successEnvelopeSchema = z.object({ success: z.literal(true), message: z.string(), data: z.unknown() });
 
-/** Gọi API nội bộ, không cache và luôn kiểm tra cả envelope lẫn dữ liệu. */
+/** `API_TIMING_LOG=1` prints each backend call's path, status and time on the server, to find slow pages in API mode. */
+const timingLog = process.env.API_TIMING_LOG === "1";
+
+/** Statuses a read is sent again for once: the service or its database was briefly overloaded. */
+const RETRYABLE_READ_STATUSES = new Set([500, 502, 503, 504]);
+const READ_RETRY_DELAY_MS = 300;
+
+/**
+ * Gọi API nội bộ, không cache và luôn kiểm tra cả envelope lẫn dữ liệu. A GET that fails with a 5xx is sent once more
+ * after a short pause; writes are never repeated, so nothing is recorded twice.
+ */
 export async function apiRequest<T extends z.ZodType>(path: string, dataSchema: T, options: ApiRequestOptions = {}): Promise<z.output<T>> {
     const { accessToken, timeoutMs = defaultTimeoutMs, headers, ...init } = options;
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    let response: Response;
+    const method = (init.method ?? "GET").toUpperCase();
+    const startedAt = timingLog ? performance.now() : 0;
 
-    try {
-        response = await fetch(apiEndpoint(path), {
-            ...init,
-            cache: "no-store",
-            signal: controller.signal,
-            headers: {
-                Accept: "application/json",
-                ...(init.body ? { "Content-Type": "application/json" } : {}),
-                ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-                ...headers,
-            },
-        });
-    } catch (error) {
-        if (error instanceof Error && error.name === "AbortError") {
-            throw new ApiError({ message: "The service took too long to respond.", kind: "timeout", code: "API_TIMEOUT" });
+    const send = async (): Promise<Response> => {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        try {
+            return await fetch(apiEndpoint(path), {
+                ...init,
+                cache: "no-store",
+                signal: controller.signal,
+                headers: {
+                    Accept: "application/json",
+                    ...(init.body ? { "Content-Type": "application/json" } : {}),
+                    ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+                    ...headers,
+                },
+            });
+        } catch (error) {
+            if (error instanceof Error && error.name === "AbortError") {
+                throw new ApiError({ message: "The service took too long to respond.", kind: "timeout", code: "API_TIMEOUT" });
+            }
+            throw new ApiError({ message: "The service can't be reached right now.", kind: "network", code: "API_UNAVAILABLE" });
+        } finally {
+            clearTimeout(timer);
         }
-        throw new ApiError({ message: "The service can't be reached right now.", kind: "network", code: "API_UNAVAILABLE" });
-    } finally {
-        clearTimeout(timer);
+    };
+
+    let response = await send();
+    if ((method === "GET" || method === "HEAD") && RETRYABLE_READ_STATUSES.has(response.status)) {
+        if (timingLog) console.log(`[api] ${method} ${path} ${response.status}, retrying once`);
+        await response.body?.cancel().catch(() => undefined);
+        await new Promise((resolve) => setTimeout(resolve, READ_RETRY_DELAY_MS));
+        response = await send();
     }
+    if (timingLog) console.log(`[api] ${method} ${path} ${response.status} ${Math.round(performance.now() - startedAt)}ms`);
 
     const raw: unknown = await response.json().catch(() => null);
     if (!response.ok) {
@@ -112,24 +135,33 @@ export async function apiRequest<T extends z.ZodType>(path: string, dataSchema: 
     }
 
     const envelope = successEnvelopeSchema.safeParse(raw);
-    const parsed = envelope.success ? dataSchema.safeParse(envelope.data.data) : null;
-    if (!parsed?.success) {
-        throw new ApiError({
-            message: "The service sent an unexpected response.",
-            kind: "invalid_response",
-            status: response.status,
-            code: "INVALID_API_RESPONSE",
-            details: parsed?.error.flatten(),
-        });
-    }
+    if (!envelope.success) throw invalidResponse(response.status);
+    return parseData(envelope.data.data, dataSchema, response.status);
+}
+
+function invalidResponse(status: number, details?: unknown): ApiError {
+    return new ApiError({ message: "The service sent an unexpected response.", kind: "invalid_response", status, code: "INVALID_API_RESPONSE", details });
+}
+
+function parseData<T extends z.ZodType>(data: unknown, dataSchema: T, status: number): z.output<T> {
+    const parsed = dataSchema.safeParse(data);
+    if (!parsed.success) throw invalidResponse(status, parsed.error.flatten());
     return parsed.data;
 }
+
+/**
+ * One plain GET per path and session for the length of a server render. A layout and its page, or two parts of one
+ * page, often read the same list (a fighter's bouts, the rulesets); in API mode each extra call queues behind the
+ * others on the service's database pool. Outside a render (server actions, tests) React's `cache` doesn't memoize.
+ */
+const renderScopedGet = cache((path: string, accessToken: string) => apiRequest(path, z.unknown(), { accessToken }));
 
 /** Gọi endpoint bằng access token HTTP-only của phiên hiện tại. */
 export async function authenticatedApiRequest<T extends z.ZodType>(path: string, dataSchema: T, options: ApiRequestOptions = {}) {
     const store = await cookies();
     const token = store.get(ACCESS_TOKEN_COOKIE)?.value;
     if (!token) throw sessionExpiredError();
+    if (Object.keys(options).length === 0) return parseData(await renderScopedGet(path, token), dataSchema, 200);
     return apiRequest(path, dataSchema, { ...options, accessToken: token });
 }
 

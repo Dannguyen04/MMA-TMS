@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { FadeInView, PressableScale } from "@/components/motion";
 import { StateIllustration, type StateKind } from "@/components/state-illustration";
 import { radius, spacing, type, useThemePreference } from "@/theme";
+import { lh, liveSheet } from "@/theme/typography";
 
 /** Khối trạng thái chung: minh họa + tiêu đề + mô tả + hành động (tùy chọn). */
 export function StateView({
@@ -57,7 +58,7 @@ export function StateView({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   box: {
     alignItems: "center",
     borderWidth: 1,
@@ -68,7 +69,7 @@ const styles = StyleSheet.create({
   },
   compact: { paddingVertical: spacing.lg },
   title: { fontWeight: "600", textAlign: "center" },
-  body: { textAlign: "center", lineHeight: 18 },
+  body: { textAlign: "center", lineHeight: lh(18) },
   action: {
     minHeight: 44,
     paddingHorizontal: spacing.lg,
@@ -78,4 +79,4 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: spacing.xs,
   },
-});
+}));

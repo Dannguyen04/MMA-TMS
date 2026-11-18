@@ -311,23 +311,39 @@ export async function updateRolePermissions(
     unsupportedOperation("Changing a role's permissions", "role permission lists");
 }
 
+/** System settings are the same for every viewer, so a successful read is kept this long in this process. */
+const SETTINGS_TTL_MS = 60_000;
+let settingsCache: { expiresAt: number; settings: SystemSettings } | null = null;
+
+/** Forgets the cached settings, so the next read asks the service. */
+export function clearSettingsCache(): void {
+    settingsCache = null;
+}
+
+function cacheSettings(settings: SystemSettings): void {
+    settingsCache = { expiresAt: Date.now() + SETTINGS_TTL_MS, settings: structuredClone(settings) };
+}
+
 export async function getSettings(): Promise<SystemSettings> {
     if (isDemoAuthEnabled()) return (await demoService()).getSettings();
     if (!platformFeatureAvailable("systemSettings")) return DEFAULT_SYSTEM_SETTINGS;
-    return authenticatedApiRequest("/settings", settingsSchema);
+    if (settingsCache && settingsCache.expiresAt > Date.now()) return structuredClone(settingsCache.settings);
+    const settings = await authenticatedApiRequest("/settings", settingsSchema);
+    cacheSettings(settings);
+    return settings;
 }
 
 export async function updateSettings(patch: Partial<SystemSettings>, actor: User): Promise<UpdateSettingsResult> {
     if (isDemoAuthEnabled()) return (await demoService()).updateSettings(patch, actor);
     if (!platformFeatureAvailable("systemSettings")) unsupportedOperation("Saving system settings", "system settings");
     try {
-        return {
-            ok: true,
-            settings: await authenticatedMutableApiRequest("/settings", settingsSchema, {
-                method: "PATCH",
-                body: JSON.stringify(patch),
-            }),
-        };
+        const settings = await authenticatedMutableApiRequest("/settings", settingsSchema, {
+            method: "PATCH",
+            body: JSON.stringify(patch),
+        });
+        // The saved settings replace the cached ones, so the next read shows the change at once.
+        cacheSettings(settings);
+        return { ok: true, settings };
     } catch (error) {
         if (error instanceof ApiError && normalizedCode(error) === "invalid") {
             const field = z.enum(Object.keys(settingsSchema.shape) as [keyof SystemSettings, ...(keyof SystemSettings)[]]).safeParse(

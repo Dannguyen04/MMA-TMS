@@ -83,7 +83,6 @@ export default async function CoachSessionsPage({ searchParams }: PageProps<"/co
         <>
             <PageHeader
                 title={t("training.coachSessions.title")}
-                description={t("training.coachSessions.description")}
                 actions={scheduleButton}
             />
 
@@ -207,7 +206,6 @@ function WeekView({
                                 compact
                                 icon={<ClipboardCheck />}
                                 title={t("training.coachSessions.allCaughtUpTitle")}
-                                description={t("training.coachSessions.allCaughtUpDesc")}
                             />
                         </CardContent>
                     ) : (

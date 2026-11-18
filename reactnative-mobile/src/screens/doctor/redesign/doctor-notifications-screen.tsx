@@ -1,32 +1,32 @@
 import { useCallback } from "react";
-import { Text, View } from "react-native";
+import { ActivityIndicator } from "react-native";
+import { useRouter } from "expo-router";
 
 import { doctorRoApi } from "@/api/doctor-ro";
-import { Icon } from "@/components/icon";
-import { doctorRo } from "@/i18n/doctor-ro";
-import { RoRow, RoScreen, RowSkeletons, Stack, useGo } from "@/screens/coach/readonly/ro-ui";
-import { ConnectionBanner, MessageCard, TEXT, useDelayedFlag } from "@/screens/fighter/bout-states";
-import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { StaggerList } from "@/components/motion";
+import { EmptyLine, RolePage } from "@/components/role-page";
+import { coachInbox as t } from "@/i18n/coach-video";
+import { doctorFighterHref } from "@/screens/doctor/detail/exam-model";
+import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useLoad } from "@/screens/fighter/use-load";
+import { useMarkRead } from "@/screens/one-tap/notification-read";
+import { relTime } from "@/screens/video-ai/ai-model";
+import { useThemePreference } from "@/theme";
 
 import { notificationFighterId } from "./doctor-format";
-import { DOCTOR_DETAIL_PATH } from "./doctor-fighters-screen";
 import { useDoctorRoster } from "./doctor-roster";
 import { useDoctorUnread } from "./doctor-unread";
-import { useMarkRead } from "@/screens/one-tap/notification-read";
 
-function when(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("vi-VN", { dateStyle: "short", timeStyle: "short", timeZone: "Asia/Ho_Chi_Minh" });
-}
-
-/** Tab Thông báo của Doctor (GET /notifications); thông báo về võ sĩ mở thẳng chi tiết võ sĩ đó. */
+/**
+ * Doctor Thông báo (redesign step 21), opened from the bell: the coach inbox grammar. One row per notification (bell,
+ * title, "when · message"); unread rows carry an ink bell and a small red square. A notification about a fighter opens
+ * the fighter page; opening marks it read.
+ */
 export function DoctorNotificationsScreen() {
+  const router = useRouter();
+  const { colors: c } = useThemePreference();
   const roster = useDoctorRoster();
-  const go = useGo();
   const unread = useDoctorUnread();
-  const p = useFighterPalette();
   const run = useCallback(() => doctorRoApi.listNotifications({ page: 1, limit: 30 }), []);
   const list = useLoad(roster.enabled, "doctor-inbox", run, { keepOnError: true });
   const reads = useMarkRead(() => {
@@ -34,55 +34,24 @@ export function DoctorNotificationsScreen() {
     void list.refresh().catch(() => undefined);
   });
   const rows = list.data?.data ?? [];
-  const firstLoad = list.loading && !list.data;
-  const skeleton = useDelayedFlag(firstLoad);
-  const empty = Boolean(list.data) && rows.length === 0;
-  const disabledEmpty = !roster.enabled;
-
-  return (
-    <RoScreen title={doctorRo.notifications.title} onRefresh={() => {
-        unread.refresh();
-        return list.refresh();
-      }} refreshing={firstLoad}>
-      <Stack>
-        {list.error ? <ConnectionBanner error={list.error} onRetry={list.reload} retrying={list.loading} hasData={Boolean(list.data)} /> : null}
-        {firstLoad && !list.error && skeleton ? <RowSkeletons count={4} height={88} /> : null}
-        {empty || disabledEmpty ? (
-          <MessageCard icon="notifications" title={doctorRo.notifications.emptyTitle} description={doctorRo.notifications.emptyDesc} />
-        ) : null}
-        {rows.map((row) => {
-          const fighterId = notificationFighterId(row.payload);
-          const lines = [row.message, when(row.createdAt)].filter(Boolean);
-          const isRead = reads.isRead(row);
-          const open = () => {
-            if (!isRead) reads.mark(row.id);
-            if (fighterId) go(DOCTOR_DETAIL_PATH, fighterId);
-          };
-          return (
-            <RoRow
-              key={row.id}
-              title={row.title}
-              lines={lines}
-              label={[isRead ? "" : doctorRo.notifications.unread, row.title, ...lines, fighterId ? doctorRo.notifications.openFighter : ""]
-                .filter(Boolean)
-                .join(", ")}
-              leading={
-                <View style={{ width: 24, alignItems: "center" }}>
-                  <Icon name="notifications" size={24} color={isRead ? p.ink : p.activeInk} />
-                </View>
-              }
-              onPress={fighterId || !isRead ? open : undefined}
-            >
-              {!isRead ? (
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: p.activeInk }} />
-                  <Text style={[TEXT.captionBold, { color: p.activeInk }]}>{doctorRo.notifications.unread}</Text>
-                </View>
-              ) : null}
-            </RoRow>
-          );
-        })}
-      </Stack>
-    </RoScreen>
-  );
+  const back = () => (router.canGoBack() ? router.back() : router.replace("/(doctor)/hom-nay" as never));
+  return <RolePage testID="doctor-inbox" title={t.title} onBack={back} onRefresh={() => { unread.refresh(); return list.refresh(); }}>
+    {list.loading && !list.data ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 32 }}/> : null}
+    {list.error && !list.data ? <RetryRow message={t.failed} retry={t.retry} onRetry={list.reload}/> : null}
+    {(list.data && !rows.length) || !roster.enabled ? <EmptyLine testID="inbox-empty" title={t.empty}/> : null}
+    {rows.length ? <StaggerList testID="inbox-list">
+      {rows.map((row, k) => {
+        const fighterId = notificationFighterId(row.payload);
+        const isRead = reads.isRead(row);
+        const line = [relTime(row.createdAt), row.message].filter(Boolean).join(" · ");
+        const open = () => {
+          if (!isRead) reads.mark(row.id);
+          if (fighterId) router.push(doctorFighterHref(fighterId) as never);
+        };
+        return <SlipRow key={row.id} testID={`inbox-${row.id}`} icon="notifications" leadTone={isRead ? "dim" : undefined} dot={!isRead}
+          title={row.title} line={line} a11y={[isRead ? "" : t.unread, row.title, line].filter(Boolean).join(", ")}
+          onPress={fighterId || !isRead ? open : undefined} last={k === rows.length - 1}/>;
+      })}
+    </StaggerList> : null}
+  </RolePage>;
 }

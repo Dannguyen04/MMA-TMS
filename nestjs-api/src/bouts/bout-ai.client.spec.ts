@@ -223,3 +223,87 @@ describe('T-033 supported URL parity', () => {
     'https://youtube.com/watch?v=abc',
   ])('rejects %s', (url) => expect(isSupportedVideoUrl(url)).toBe(false));
 });
+describe('BoutAiClient Gemini key rotation (mock fetch only)', () => {
+  const keyOf = (call: unknown[]) =>
+    (call[1] as { headers: Record<string, string> }).headers['x-goog-api-key'];
+  function setupKeys(values: Record<string, string>) {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    return { client: new BoutAiClient(new ConfigService(values)), fetch };
+  }
+
+  it('retries the same request with the next key after a quota error and keeps using it', async () => {
+    const { client, fetch } = setupKeys({
+      GEMINI_API_KEYS: 'fake-key-1, fake-key-2,fake-key-3',
+      GEMINI_API_KEY: 'fake-single',
+    });
+    fetch
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockImplementation(() => Promise.resolve(response()));
+    expect((await client.generate('BETWEEN_ROUNDS', { a: 1 })).ok).toBe(true);
+    expect(fetch.mock.calls.map(keyOf)).toEqual(['fake-key-1', 'fake-key-2']);
+    expect(fetch.mock.calls[0][1].body).toBe(fetch.mock.calls[1][1].body);
+
+    fetch.mockClear();
+    expect((await client.generate('BETWEEN_ROUNDS', {})).ok).toBe(true);
+    expect(fetch.mock.calls.map(keyOf)).toEqual(['fake-key-2']);
+  });
+
+  it('skips an invalid key and falls back to GEMINI_API_KEY when no list is set', async () => {
+    const { client, fetch } = setupKeys({ GEMINI_API_KEY: 'fake-single' });
+    fetch.mockImplementation(() => Promise.resolve(response()));
+    expect((await client.generate('BETWEEN_ROUNDS', {})).ok).toBe(true);
+    expect(fetch.mock.calls.map(keyOf)).toEqual(['fake-single']);
+
+    const rotating = setupKeys({ GEMINI_API_KEYS: 'fake-key-1,fake-key-2' });
+    rotating.fetch
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({ error: { details: [{ reason: 'API_KEY_INVALID' }] } }),
+          { status: 400 },
+        ),
+      )
+      .mockImplementation(() => Promise.resolve(response()));
+    expect((await rotating.client.generate('BETWEEN_ROUNDS', {})).ok).toBe(true);
+    expect(rotating.fetch.mock.calls.map(keyOf)).toEqual(['fake-key-1', 'fake-key-2']);
+  });
+
+  it('returns QUOTA once every key is out of quota, trying each key once', async () => {
+    const { client, fetch } = setupKeys({ GEMINI_API_KEYS: 'fake-key-1,fake-key-2,fake-key-3' });
+    fetch.mockImplementation(() => Promise.resolve(new Response('', { status: 429 })));
+    expect(await client.generate('PRE_BOUT_TACTICS', {})).toEqual({
+      ok: false,
+      error: 'QUOTA',
+    });
+    expect(fetch.mock.calls.map(keyOf)).toEqual(['fake-key-1', 'fake-key-2', 'fake-key-3']);
+  });
+
+  it('returns UPSTREAM when every key is invalid', async () => {
+    const { client, fetch } = setupKeys({ GEMINI_API_KEYS: 'fake-key-1,fake-key-2' });
+    fetch.mockImplementation(() => Promise.resolve(new Response('', { status: 403 })));
+    expect(await client.generate('BETWEEN_ROUNDS', {})).toEqual({
+      ok: false,
+      error: 'UPSTREAM',
+    });
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the 5xx retry on the same key before rotating', async () => {
+    const { client, fetch } = setupKeys({ GEMINI_API_KEYS: 'fake-key-1,fake-key-2' });
+    fetch
+      .mockResolvedValueOnce(new Response('', { status: 503 }))
+      .mockResolvedValueOnce(new Response('', { status: 429 }))
+      .mockImplementation(() => Promise.resolve(response()));
+    expect((await client.generate('BETWEEN_ROUNDS', {})).ok).toBe(true);
+    expect(fetch.mock.calls.map(keyOf)).toEqual(['fake-key-1', 'fake-key-1', 'fake-key-2']);
+  });
+
+  it('is NOT_CONFIGURED when both variables are empty', async () => {
+    const { client, fetch } = setupKeys({ GEMINI_API_KEYS: ' , ', GEMINI_API_KEY: '' });
+    expect(await client.generate('BETWEEN_ROUNDS', {})).toEqual({
+      ok: false,
+      error: 'NOT_CONFIGURED',
+    });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+});

@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation";
 
 import { useT } from "@/components/i18n/locale-provider";
 import { TabNav } from "@/components/ui/tabs";
-import { navLabel } from "@/lib/i18n/translate";
+import { navLabel } from "@/lib/i18n/translate-client";
 import type { Role } from "@/lib/domain/types";
 import { hubTabsFor } from "./navigation";
 

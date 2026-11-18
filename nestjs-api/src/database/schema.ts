@@ -117,6 +117,8 @@ export const weightClassEnum = pgEnum('weight_class', [
   'LIGHT_HEAVYWEIGHT',
   'HEAVYWEIGHT',
 ]);
+export const fighterSexEnum = pgEnum('fighter_sex', ['MALE', 'FEMALE']);
+
 export const fighterStanceEnum = pgEnum('fighter_stance', [
   'ORTHODOX',
   'SOUTHPAW',
@@ -1830,6 +1832,7 @@ export const fighters = pgTable(
     heightCm: doublePrecision('height_cm'),
     reachCm: doublePrecision('reach_cm'),
     dominantStance: fighterStanceEnum('dominant_stance'),
+    sex: fighterSexEnum('sex'),
     leftArmCm: doublePrecision('left_arm_cm'),
     rightArmCm: doublePrecision('right_arm_cm'),
     leftLegCm: doublePrecision('left_leg_cm'),

@@ -19,7 +19,6 @@ jest.mock("@/api/doctor-ro", () => ({ doctorRoApi: {
   getMedicalSummary: jest.fn(), listDoctors: jest.fn(),
 } }));
 
-jest.mock("@/screens/video-ai/ai-ui", () => ({ AiAlertsBlock: () => null }));
 
 describe("Doctor original body map", () => {
   beforeEach(() => jest.clearAllMocks());

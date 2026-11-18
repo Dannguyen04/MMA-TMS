@@ -45,6 +45,7 @@ function repositoryMock() {
     createFighter: vi.fn().mockResolvedValue(undefined),
     createRoleProfile: vi.fn().mockResolvedValue(undefined),
     findActiveById: vi.fn().mockResolvedValue(fighter),
+    findAssignedFighterIds: vi.fn().mockResolvedValue([]),
     updateRoleProfile: vi.fn().mockResolvedValue(undefined),
     softDelete: vi.fn().mockResolvedValue(undefined),
   };
@@ -180,6 +181,80 @@ describe('UsersService', () => {
     ).resolves.toEqual({ id: fighter.id, deleted: true });
     expect(repository.softDelete).toHaveBeenCalledWith(fighter, {
       scope: 'transaction',
+    });
+  });
+
+  describe('findMe', () => {
+    const fighterIds = [
+      '7c0b6a51-5d0e-4f4c-9d11-2a7c3b1d8e01',
+      '7c0b6a51-5d0e-4f4c-9d11-2a7c3b1d8e02',
+    ];
+
+    function serviceFor(role: AuthenticatedUser['role']) {
+      const repository = repositoryMock();
+      repository.findActiveById.mockResolvedValue({
+        ...fighter,
+        id: actor.id,
+        role,
+        profile: null,
+      });
+      repository.findAssignedFighterIds.mockResolvedValue(fighterIds);
+      const service = new UsersService(
+        repository as unknown as UsersRepository,
+        adminClientMock() as never,
+        {} as never,
+      );
+      return { service, repository, me: { ...actor, role } };
+    }
+
+    it.each([USER.COACH, USER.DOCTOR])(
+      'adds the assignment scope for a %s with one extra query',
+      async (role) => {
+        const { service, repository, me } = serviceFor(role);
+
+        const result = await service.findMe(me);
+
+        expect(result.assignmentScope).toEqual({ fighterIds });
+        expect(repository.findAssignedFighterIds).toHaveBeenCalledTimes(1);
+        expect(repository.findAssignedFighterIds).toHaveBeenCalledWith(
+          actor.id,
+          role,
+        );
+        expect(repository.findActiveById).toHaveBeenCalledWith(
+          actor.id,
+          undefined,
+          undefined,
+          role,
+        );
+      },
+    );
+
+    it('returns an empty scope rather than omitting it when nothing is assigned', async () => {
+      const { service, repository, me } = serviceFor(USER.COACH);
+      repository.findAssignedFighterIds.mockResolvedValueOnce([]);
+
+      await expect(service.findMe(me)).resolves.toMatchObject({
+        assignmentScope: { fighterIds: [] },
+      });
+    });
+
+    it.each([USER.FIGHTER, USER.ADMIN, USER.GUEST])(
+      'has no assignmentScope field and no extra query for a %s',
+      async (role) => {
+        const { service, repository, me } = serviceFor(role);
+
+        const result = await service.findMe(me);
+
+        expect(result).not.toHaveProperty('assignmentScope');
+        expect(repository.findAssignedFighterIds).not.toHaveBeenCalled();
+      },
+    );
+
+    it('answers 404 when the user row is gone', async () => {
+      const { service, repository, me } = serviceFor(USER.DOCTOR);
+      repository.findActiveById.mockResolvedValueOnce(undefined);
+
+      await expect(service.findMe(me)).rejects.toBeInstanceOf(HttpException);
     });
   });
 });

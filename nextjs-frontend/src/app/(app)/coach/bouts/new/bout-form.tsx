@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { InfoHint } from "@/components/domain/term-hint";
 import { useT } from "@/components/i18n/locale-provider";
 import { Card, CardContent } from "@/components/ui/card";
 import { Field, FormFooter, FormSection, Select } from "@/components/ui/form";
@@ -121,7 +122,7 @@ export function BoutForm({ fighters, rulesets, defaults, todayOn }: BoutFormProp
 
                     <FormSection title={t("coachBouts.form.event")}>
                         <EventFields form={form} defaults={defaults} />
-                        <Field label={t("coachBouts.form.rounds")} htmlFor={rounds.id} hint={t("coachBouts.form.roundsHint")}>
+                        <Field label={t("coachBouts.form.rounds")} htmlFor={rounds.id} info={<InfoHint label={t("screens.shared.infoHint", { label: t("coachBouts.form.rounds") })} content={t("coachBouts.form.roundsHint")} />}>
                             <Select {...rounds} defaultValue={String(SCHEDULED_ROUND_CHOICES[0])}>
                                 {SCHEDULED_ROUND_CHOICES.map((n) => (
                                     <option key={n} value={n}>

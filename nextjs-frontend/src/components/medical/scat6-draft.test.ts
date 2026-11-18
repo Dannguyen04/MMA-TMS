@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { scat6InputSchema } from "@/lib/domain/scat6";
+import { createTranslator } from "@/lib/i18n/translate";
 import {
     anyGaitTrialIncomplete,
     delayedRecallEarliest,
@@ -19,6 +20,8 @@ import {
 } from "./scat6-draft";
 
 const START = "2026-09-01T09:00";
+/** The screens render in Vietnamese by default; the expectations below are its wording. */
+const t = createTranslator("vi");
 
 /** Applies a quick fill that must apply. */
 const must = (result: { draft: Scat6Draft } | null): Scat6Draft => {
@@ -32,20 +35,20 @@ function filledDraft(): Scat6Draft {
     draft.examinerAttestation = true;
     draft.athlete.dominantHand = "RIGHT";
     draft.concussionHistory.priorDiagnosedConcussions = "0";
-    draft = must(skipPart(draft, "immediateAssessment"));
-    draft = must(fillNoBackground(draft));
-    draft = must(fillNoSymptoms(draft));
+    draft = must(skipPart(draft, "immediateAssessment", t));
+    draft = must(fillNoBackground(draft, t));
+    draft = must(fillNoSymptoms(draft, t));
     draft.symptoms.percentOfNormal = "100";
-    draft = must(fillToggleRow(draft, "orientation.answers", true));
+    draft = must(fillToggleRow(draft, "orientation.answers", true, t));
     draft.immediateMemory.wordList = "A";
-    for (const index of [0, 1, 2]) draft = must(fillToggleRow(draft, `immediateMemory.trials.${index}`, true));
+    for (const index of [0, 1, 2]) draft = must(fillToggleRow(draft, `immediateMemory.trials.${index}`, true, t));
     draft.immediateMemory.lastTrialCompletedAt = "2026-09-01T09:06";
     draft.digitsBackward.digitList = "C";
     draft.digitsBackward.strings = [
         { trial1: true, trial2: null },
         { trial1: false, trial2: false },
     ];
-    draft = must(fillToggleRow(draft, "monthsReverse.correctResponses", true));
+    draft = must(fillToggleRow(draft, "monthsReverse.correctResponses", true, t));
     draft.monthsReverse.timeSeconds = "21";
     draft.monthsReverse.errors = "0";
     draft.mbess.footTested = "LEFT";
@@ -53,9 +56,9 @@ function filledDraft(): Scat6Draft {
     draft.mbess.footwear = "Barefoot";
     for (const stance of [draft.mbess.firm.doubleLeg, draft.mbess.firm.singleLeg, draft.mbess.firm.tandem]) stance.errors = "1";
     draft.tandemGait.trials.forEach((trial, index) => (trial.timeSeconds = String(10 + index)));
-    draft = must(skipPart(draft, "dualTaskGait"));
+    draft = must(skipPart(draft, "dualTaskGait", t));
     draft.delayedRecall.startedAt = "2026-09-01T09:15";
-    draft = must(fillToggleRow(draft, "delayedRecall.words", true));
+    draft = must(fillToggleRow(draft, "delayedRecall.words", true, t));
     draft.differentFromUsualSelf = "NO";
     return draft;
 }
@@ -179,7 +182,7 @@ describe("quick fills", () => {
         const draft = emptyScat6Draft(START);
         draft.symptoms.ratings[3] = "0";
         draft.symptoms.worseWithMentalActivity = true;
-        const result = fillNoSymptoms(draft);
+        const result = fillNoSymptoms(draft, t);
         expect(result?.filled).toContain("21 mục đánh giá được đặt về 0");
         expect(result?.draft.symptoms.ratings.every((rating) => rating === "0")).toBe(true);
         expect(result?.draft.symptoms).toMatchObject({ worseWithPhysicalActivity: false, worseWithMentalActivity: true, percentOfNormal: "" });
@@ -187,42 +190,42 @@ describe("quick fills", () => {
         expect(draft.symptoms.ratings[0]).toBe("");
 
         draft.symptoms.ratings[5] = "2";
-        expect(fillNoSymptoms(draft)).toBeNull();
+        expect(fillNoSymptoms(draft, t)).toBeNull();
     });
 
     it("“None apply” answers only unanswered background conditions, and never after a Yes", () => {
         const draft = emptyScat6Draft(START);
         draft.background.adhd = false;
-        const result = fillNoBackground(draft);
+        const result = fillNoBackground(draft, t);
         expect(result?.filled).toMatch(/^4 tình trạng đặt là Không/);
         expect(result?.draft.background).toMatchObject({ adhd: false, hospitalisedForHeadInjury: false, depressionAnxietyOrOtherPsychological: false });
 
         draft.background.headacheDisorderOrMigraine = true;
-        expect(fillNoBackground(draft)).toBeNull();
+        expect(fillNoBackground(draft, t)).toBeNull();
     });
 
     it("fills a tick row only while nobody has marked it, and an item tick marks the row", () => {
         const draft = emptyScat6Draft(START);
-        const all = fillToggleRow(draft, "orientation.answers", true);
+        const all = fillToggleRow(draft, "orientation.answers", true, t);
         expect(all?.draft.orientation.answers).toEqual([true, true, true, true, true]);
         expect(all?.filled).toBe("Đã đánh dấu 5/5.");
-        expect(fillToggleRow(must(all), "orientation.answers", false)).toBeNull();
+        expect(fillToggleRow(must(all), "orientation.answers", false, t)).toBeNull();
 
         const ticked = toggleItem(draft, "immediateMemory.trials.1", 4, true);
         expect(ticked.immediateMemory.trials[1][4]).toBe(true);
         expect(ticked.marked["immediateMemory.trials.1"]).toBe(true);
-        expect(fillToggleRow(ticked, "immediateMemory.trials.1", true)).toBeNull();
+        expect(fillToggleRow(ticked, "immediateMemory.trials.1", true, t)).toBeNull();
 
-        const none = fillToggleRow(draft, "delayedRecall.words", false);
+        const none = fillToggleRow(draft, "delayedRecall.words", false, t);
         expect(none?.filled).toBe("Không nhớ từ nào: đã đánh dấu 0/10.");
         expect(none?.draft.marked["delayedRecall.words"]).toBe(true);
     });
 
     it("stamps a blank time with the academy clock and never replaces one already entered", () => {
         const draft = emptyScat6Draft(START);
-        const stamped = stampNow(draft, "immediateMemory.lastTrialCompletedAt", "2026-09-01T02:07:30.000Z");
+        const stamped = stampNow(draft, "immediateMemory.lastTrialCompletedAt", "2026-09-01T02:07:30.000Z", t);
         expect(stamped?.draft.immediateMemory.lastTrialCompletedAt).toBe("2026-09-01T09:07");
-        expect(stampNow(must(stamped), "immediateMemory.lastTrialCompletedAt", "2026-09-01T02:20:00.000Z")).toBeNull();
+        expect(stampNow(must(stamped), "immediateMemory.lastTrialCompletedAt", "2026-09-01T02:20:00.000Z", t)).toBeNull();
         expect(delayedRecallEarliest(must(stamped))).toBe("2026-09-01T09:12");
         expect(delayedRecallEarliest(draft)).toBeNull();
     });
@@ -230,20 +233,27 @@ describe("quick fills", () => {
     it("records a usually skipped part as not performed only while unanswered, keeping a reason the doctor wrote", () => {
         const draft = emptyScat6Draft(START);
         draft.dualTaskGait.reason = "Athlete declined.";
-        expect(must(skipPart(draft, "dualTaskGait")).dualTaskGait).toMatchObject({ performed: false, reason: "Athlete declined." });
+        expect(must(skipPart(draft, "dualTaskGait", t)).dualTaskGait).toMatchObject({ performed: false, reason: "Athlete declined." });
         draft.immediateAssessment.performed = true;
-        expect(skipPart(draft, "immediateAssessment")).toBeNull();
+        expect(skipPart(draft, "immediateAssessment", t)).toBeNull();
+    });
+
+    it("writes its notes and the usual skip reason in the doctor's language", () => {
+        const en = createTranslator("en");
+        const draft = emptyScat6Draft(START);
+        expect(fillToggleRow(draft, "delayedRecall.words", false, en)?.filled).toBe("No words recalled: marked 0/10.");
+        expect(must(skipPart(draft, "immediateAssessment", en)).immediateAssessment.reason).toBe(en("doctorScat6.skipReason.immediateAssessment"));
     });
 });
 
 describe("scat6Problems", () => {
     it("has none for a completed form", () => {
-        expect(scat6Problems(filledDraft())).toEqual([]);
+        expect(scat6Problems(filledDraft(), t)).toEqual([]);
     });
 
     it("puts each problem on its step, in plain words, including tick rows nobody marked", () => {
         const draft = emptyScat6Draft(START);
-        const problems = scat6Problems(draft);
+        const problems = scat6Problems(draft, t);
         const byPath = Object.fromEntries(problems.map((problem) => [problem.path, problem]));
         expect(byPath["background.adhd"]).toMatchObject({ step: "history", message: "Hãy trả lời có hoặc không." });
         expect(byPath["immediateAssessment.performed"]).toMatchObject({ step: "history", message: "Hãy cho biết có thực hiện không." });
@@ -258,14 +268,14 @@ describe("scat6Problems", () => {
     it("holds delayed recall to 5 minutes after the last memory trial", () => {
         const draft = filledDraft();
         draft.delayedRecall.startedAt = "2026-09-01T09:09";
-        expect(scat6Problems(draft)).toEqual([{ path: "delayedRecall.startedAt", step: "balance", message: "Bắt đầu nhớ lại có trì hoãn ít nhất 5 phút sau lượt Trí nhớ tức thời cuối." }]);
+        expect(scat6Problems(draft, t)).toEqual([{ path: "delayedRecall.startedAt", step: "balance", message: "Bắt đầu nhớ lại có trì hoãn ít nhất 5 phút sau lượt Trí nhớ tức thời cuối." }]);
         draft.delayedRecall.startedAt = "2026-09-01T09:11";
-        expect(scat6Problems(draft)).toEqual([]);
+        expect(scat6Problems(draft, t)).toEqual([]);
     });
 
     it("lists only the tick rows the record will include", () => {
         const draft = filledDraft();
-        expect(toggleRows(draft).map((row) => row.path)).toEqual([
+        expect(toggleRows(draft, t).map((row) => row.path)).toEqual([
             "orientation.answers",
             "immediateMemory.trials.0",
             "immediateMemory.trials.1",
@@ -275,10 +285,10 @@ describe("scat6Problems", () => {
         ]);
         draft.dualTaskGait.performed = true;
         draft.dualTaskGait.printed[2].completed = false;
-        expect(toggleRows(draft).map((row) => row.path)).toEqual(
+        expect(toggleRows(draft, t).map((row) => row.path)).toEqual(
             expect.arrayContaining(["dualTaskGait.practice.correctResponses", "dualTaskGait.sequence.trials.0.correctResponses", "dualTaskGait.sequence.trials.1.correctResponses"]),
         );
-        expect(toggleRows(draft).map((row) => row.path)).not.toContain("dualTaskGait.sequence.trials.2.correctResponses");
+        expect(toggleRows(draft, t).map((row) => row.path)).not.toContain("dualTaskGait.sequence.trials.2.correctResponses");
     });
 });
 

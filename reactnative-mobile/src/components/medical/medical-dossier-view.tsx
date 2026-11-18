@@ -37,6 +37,7 @@ import { doctor } from "@/i18n/doctor";
 import { medical } from "@/i18n/medical";
 import { type, useThemePreference } from "@/theme";
 import { StatusBadge } from "@/screens/doctor/status-badge";
+import { lh } from "@/theme/typography";
 
 export function EligibilityLine({ eligibility, label }: { eligibility: MedicalEligibility; label: string }) {
   const { colors } = useThemePreference();
@@ -103,7 +104,7 @@ function ExamBlock({
   const restrictions: MedicalRestrictions | null = exam.restrictions;
   return (
     <View style={medicalStyles.row}>
-      <Text style={[type.caption, { color: colors.inkMuted, lineHeight: 16 }]}>{label}</Text>
+      <Text style={[type.caption, { color: colors.inkMuted, lineHeight: lh(16) }]}>{label}</Text>
       {audience === "doctor" ? (
         <StatusBadge id={`exam.${exam.decision}`} label={decisionLabel(exam.decision)} />
       ) : (

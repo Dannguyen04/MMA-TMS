@@ -1,5 +1,5 @@
-import { StaffListScreen } from "@/screens/admissions/staff-list";
+import { AdminAdmissionsScreen } from "@/screens/admissions/redesign/admin-admissions";
 
 export default function AdminAdmissions() {
-  return <StaffListScreen audience="admin" />;
+  return <AdminAdmissionsScreen />;
 }

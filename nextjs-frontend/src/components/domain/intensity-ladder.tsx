@@ -9,7 +9,7 @@ import {
     type SessionIntensityTier,
 } from "@/lib/domain/intensity-tiers";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { TRAINING_TYPE_ICONS } from "./training-type-icon";
 
@@ -51,7 +51,7 @@ const HEIGHT_CLASSES: Record<"sm" | "md" | "lg", Record<SessionIntensityTier, st
 };
 
 const SEGMENT_CLASSES: Record<LadderSegmentStatus, string> = {
-    allowed: "bg-success-solid text-white border-success-solid",
+    allowed: "bg-success-solid text-primary-fg border-success-solid",
     blocked: "ladder-pattern-blocked text-neutral-fg border-neutral-border",
     blocked_ceiling: "ladder-pattern-ceiling text-info-fg border-info-border",
 };

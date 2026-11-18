@@ -10,10 +10,11 @@ import type { BoardRow, DoctorBoard } from "@/lib/services/doctor-board";
 import * as doctorBoardService from "@/lib/services/doctor-board";
 import * as medicalService from "@/lib/services/medical";
 import * as peopleService from "@/lib/services/people";
-import DoctorExaminationsPage from "./examinations/page";
 import DoctorFightersPage from "./fighters/page";
-import DoctorHistoryPage from "./history/page";
-import DoctorInjuriesPage from "./injuries/page";
+// The list pages render these views; the views are what read the data, so the tests render them directly.
+import { ExaminationsView } from "@/components/doctor/views/examinations-view";
+import { HistoryView } from "@/components/doctor/views/history-view";
+import { InjuriesView } from "@/components/doctor/views/injuries-view";
 import DoctorReviewRequestsPage from "./review-requests/page";
 
 const mockDoctor: User = {
@@ -211,10 +212,7 @@ describe("T-055 Ca kiểm thử L1–L4", () => {
         vi.mocked(medicalService.listClearances).mockResolvedValueOnce([]);
         vi.mocked(medicalService.listReviewRequests).mockResolvedValueOnce([]);
 
-        const pageElement = await DoctorHistoryPage({
-            params: Promise.resolve({}),
-            searchParams: Promise.resolve({}),
-        });
+        const pageElement = await HistoryView({ query: {} });
         const html = renderToStaticMarkup(pageElement);
 
         const rows = extractTableRows(html);
@@ -224,7 +222,8 @@ describe("T-055 Ca kiểm thử L1–L4", () => {
         // hàng có đúng 1 a.yt-rowlink (href = e.href)
         const rowlinks = extractRowLinks(row);
         expect(rowlinks).toHaveLength(1);
-        expect(rowlinks[0]).toBe(routes.doctor.examination("exam-1"));
+        // Records open inside their fighter's profile.
+        expect(rowlinks[0]).toBe(routes.doctor.fighterExamination("f-1", "exam-1"));
 
         // 1 link võ sĩ không mang lớp yt-rowlink
         const fighterLinkMatch = row.match(/<a[^>]*href="\/doctor\/fighters\/f-1"[^>]*>/);
@@ -255,10 +254,7 @@ describe("T-055 Ca kiểm thử L1–L4", () => {
         vi.mocked(peopleService.listFighters).mockResolvedValueOnce([f1]);
         vi.mocked(medicalService.listExaminations).mockResolvedValueOnce([exam1]);
 
-        const examPageElement = await DoctorExaminationsPage({
-            params: Promise.resolve({}),
-            searchParams: Promise.resolve({}),
-        });
+        const examPageElement = await ExaminationsView({ query: {} });
         const examHtml = renderToStaticMarkup(examPageElement);
         const examRows = extractTableRows(examHtml);
         expect(examRows).toHaveLength(1);
@@ -292,10 +288,7 @@ describe("T-055 Ca kiểm thử L1–L4", () => {
             recordedBy: null,
         });
 
-        const injuryPageElement = await DoctorInjuriesPage({
-            params: Promise.resolve({}),
-            searchParams: Promise.resolve({}),
-        });
+        const injuryPageElement = await InjuriesView({ query: {} });
         const injuryHtml = renderToStaticMarkup(injuryPageElement);
         const injuryRows = extractTableRows(injuryHtml);
         expect(injuryRows).toHaveLength(1);

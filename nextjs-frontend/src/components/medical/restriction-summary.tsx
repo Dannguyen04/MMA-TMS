@@ -20,9 +20,9 @@ export function RestrictionSummary({
     className?: string;
     locale?: Locale;
 }) {
-    const t = locale ? createTranslator(locale) : null;
+    const t = createTranslator(locale ?? "vi");
     return (
-        <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label={t ? t("clearanceCard.restrictions") : "Hạn chế"}>
+        <ul className={cn("flex flex-wrap gap-1.5", className)} aria-label={t("clearanceCard.restrictions")}>
             {restrictions.map((restriction) => {
                 const { icon: Icon, tone } = RESTRICTION_SEVERITY_META[restrictionSeverity(restriction)];
                 return (

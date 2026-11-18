@@ -1,6 +1,6 @@
 import { formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type MessageKey } from "@/lib/i18n/translate";
+import { createTranslator, type MessageKey } from "@/lib/i18n/translate-client";
 import { SESSION_TYPES, type SessionType } from "./medical-contract";
 import { addDaysToDate } from "./suspension-rules";
 import type { GradedReturn, TrainingType } from "./types";

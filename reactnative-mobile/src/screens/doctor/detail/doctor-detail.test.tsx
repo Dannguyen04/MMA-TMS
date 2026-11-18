@@ -3,6 +3,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ApiError } from "@/api/errors";
 import type { MedicalHistoryEntry, PublicFighter } from "@/api/types";
+import { doctorClinical as c } from "@/i18n/doctor-clinical";
 import { doctorRo } from "@/i18n/doctor-ro";
 import { mapFighterError } from "@/screens/fighter/errors";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
@@ -110,34 +111,40 @@ describe("DoctorFighterDetailScreen", () => {
     const s = await renderScreen();
     expect(s.getByText("Huy Phạm")).toBeTruthy();
     expect(s.getByText(/179[\s\u00A0]cm[\s\u00A0]· Tầm[\s\u00A0]với[\s\u00A0]183[\s\u00A0]cm[\s\u00A0]· Thuận[\s\u00A0]phải/)).toBeTruthy();
-    expect(await s.findByText(t.injuries, {}, { timeout: 3000 })).toBeTruthy();
+    expect(await s.findByText(c.injuries, {}, { timeout: 3000 })).toBeTruthy();
     expect(await s.findByText("Căng dây chằng · Gối phải")).toBeTruthy();
     expect(s.getByText("Phục hồi gối phải – giai đoạn 1")).toBeTruthy();
-    expect(s.getByText(t.noClearance)).toBeTruthy();
+    // One licence row per scope, from that scope's current exam; this fighter has none yet.
+    expect(s.getByLabelText("Tập luyện, Chưa khám, Chưa khám để tập luyện.")).toBeTruthy();
+    expect(s.getByLabelText("Thi đấu, Chưa khám, Chưa khám để thi đấu.")).toBeTruthy();
     expect(await s.findByText("Lan Phạm", {}, { timeout: 3000 })).toBeTruthy();
     expect(s.queryByText("Vũ Thanh Bình")).toBeNull();
     expect(s.getByLabelText(t.tabBadge(t.tabs.exams, 1))).toBeTruthy();
 
     await fireEvent.press(s.getByLabelText(t.tabBadge(t.tabs.exams, 1)));
-    expect(await s.findByText("Khám tập luyện · Lần 3", {}, { timeout: 3000 })).toBeTruthy();
-    expect(s.getByText("Khám thi đấu · Lần 2")).toBeTruthy();
+    expect(await s.findByText("Tập luyện #3", {}, { timeout: 3000 })).toBeTruthy();
+    expect(s.getByText("Thi đấu #2")).toBeTruthy();
     await fireEvent.press(s.getByText("Thi đấu"));
-    expect(await s.findByText("Khám thi đấu · Lần 2", {}, { timeout: 3000 })).toBeTruthy();
-    await s.findByText(t.filterAll);
+    expect(await s.findByText("Thi đấu #2", {}, { timeout: 3000 })).toBeTruthy();
+    await s.findByText(c.all);
 
     await fireEvent.press(s.getByText(t.tabs.history));
     expect((await s.findAllByText(/Tháng \d+\/2026/, {}, { timeout: 3000 })).length).toBeGreaterThan(0);
     expect(s.getByText("Gối phải · Căng dây chằng · Trung bình · Đang chấn thương", { exact: false })).toBeTruthy();
   });
 
-  it("Video AI: cảnh báo nhóm theo khớp + câu tham khảo; chỉ của võ sĩ này", async () => {
+  it("AI: one section per joint, one row per alert, two disclaimer lines; only this fighter", async () => {
     const s = await renderScreen();
-    await s.findByText(t.injuries, {}, { timeout: 3000 });
-    await fireEvent.press(s.getByText("Video AI"));
-    expect(await s.findByText("Gối phải · 2 cảnh báo", {}, { timeout: 3000 })).toBeTruthy();
-    expect(s.getByText("Vai trái · 1 cảnh báo")).toBeTruthy();
+    await s.findByText(c.injuries, {}, { timeout: 3000 });
+    // Tổng quan carries the AI block with "Xem tất cả", which opens the AI tab.
+    expect(await s.findByTestId("ai-see-all", {}, { timeout: 3000 })).toBeTruthy();
+    await fireEvent.press(s.getByTestId("ai-see-all"));
+    expect(await s.findByText("Gối phải", {}, { timeout: 3000 })).toBeTruthy();
+    expect(s.getByText("Vai trái")).toBeTruthy();
+    expect(s.getAllByText(/biên độ \d+% · video \d\d\/\d\d/).length).toBeGreaterThanOrEqual(3);
     expect(s.queryByText(/Cổ chân trái/)).toBeNull();
-    expect(s.getByText("Kết quả AI chỉ để tham khảo, quyết định y tế do bác sĩ đưa ra.")).toBeTruthy();
+    expect(s.getByText("Kết quả AI chỉ để tham khảo.")).toBeTruthy();
+    expect(s.getByText("Quyết định y tế do bác sĩ đưa ra.")).toBeTruthy();
     expect(s.queryByText(/Phân tích lại/)).toBeNull();
   });
 
@@ -150,7 +157,7 @@ describe("DoctorFighterDetailScreen", () => {
   it("rỗng: câu trống từng thẻ", async () => {
     (globalThis as { __DOCTOR_MOCK_SCENARIO__?: string }).__DOCTOR_MOCK_SCENARIO__ = "empty";
     const s = await renderScreen();
-    expect(await s.findByText(t.noInjuries, {}, { timeout: 3000 })).toBeTruthy();
-    expect(await s.findByText(t.noDoctors, {}, { timeout: 3000 })).toBeTruthy();
+    expect(await s.findByText(c.noInjuries, {}, { timeout: 3000 })).toBeTruthy();
+    expect(await s.findByText(c.noDoctors, {}, { timeout: 3000 })).toBeTruthy();
   });
 });

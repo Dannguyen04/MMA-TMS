@@ -1,5 +1,5 @@
-import { CoachPlanFormScreen } from "@/screens/coach/plan-form";
+import { CoachPlanFormScreen } from "@/screens/coach/plans/plan-subpages";
 
 export default function CoachNewPlanRoute() {
-  return <CoachPlanFormScreen />;
+  return <CoachPlanFormScreen/>;
 }

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { fz } from "@/theme/typography";
 
 /** One selectable row inside a BottomSheet. `kind="check"` toggles, `kind="radio"` picks one. */
 export function SheetOption({
@@ -31,8 +32,8 @@ export function SheetOption({
       style={({ pressed }) => [styles.row, { borderBottomColor: c.line, opacity: pressed ? 0.7 : 1 }]}
     >
       <View style={styles.copy}>
-        <Text style={{ color: c.ink, fontSize: 15, fontWeight: selected ? "700" : "500" }}>{label}</Text>
-        {detail ? <Text style={{ color: c.muted, fontSize: 13 }}>{detail}</Text> : null}
+        <Text style={{ color: c.ink, fontSize: fz(15), fontWeight: selected ? "700" : "500" }}>{label}</Text>
+        {detail ? <Text style={{ color: c.muted, fontSize: fz(13) }}>{detail}</Text> : null}
       </View>
       <Ionicons name={icon} size={22} color={selected ? c.accent : c.muted} />
     </Pressable>

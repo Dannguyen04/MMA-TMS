@@ -2,7 +2,7 @@ import { TONE_SOLID, type Tone } from "@/components/ui/tone";
 import { bodyRegionLabel } from "@/lib/domain/labels";
 import type { BodyRegion } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { clamp, cn } from "@/lib/utils";
 
 /** Any semantic tone; injury highlights take theirs from INJURY_STATUS_META. */

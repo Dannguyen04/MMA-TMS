@@ -1,15 +1,13 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { type ReactNode } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { KeyboardFrame, KeyboardScroll } from "@/components/keyboard-aware";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useToastMessage } from "@/components/toast/app-toast";
@@ -23,6 +21,7 @@ import { useReadableWidth } from "@/components/readable-width";
 import { ThemedRefreshControl, TopProgress, usePullRefresh } from "@/components/loading";
 import { ArenaFrame } from "@/components/arena/arena-frame";
 import { ArenaTitle } from "@/components/arena/arena-title";
+import { lh, liveSheet } from "@/theme/typography";
 
 type FighterScreenProps = {
   title: string;
@@ -68,8 +67,7 @@ export function FighterScreen({
   const rail = useNavRail();
 
   const body = (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
+    <KeyboardScroll
       stickyHeaderIndices={stickyHeaderIndices}
       refreshControl={onRefresh ? <ThemedRefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} /> : undefined}
       contentContainerStyle={[
@@ -80,7 +78,13 @@ export function FighterScreen({
       ]}
     >
       {children}
-    </ScrollView>
+    </KeyboardScroll>
+  );
+  const bottom = (
+    <>
+      {body}
+      {footer ? <View>{footer}</View> : null}
+    </>
   );
 
   return (
@@ -113,18 +117,8 @@ export function FighterScreen({
         {trailing ? <View style={styles.back}>{trailing}</View> : <View style={styles.back} />}
       </View>
       <TopProgress active={!!refreshing && !pull.refreshing} />
-      {keyboard ? (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={8}
-        >
-          {body}
-        </KeyboardAvoidingView>
-      ) : (
-        body
-      )}
-      {footer}
+      {/* The footer (the page's save button) rides on the keyboard with the scroll view. */}
+      {keyboard ? <KeyboardFrame style={styles.flex}>{bottom}</KeyboardFrame> : bottom}
       {tabBar && !rail ? <FighterTabBar /> : null}
     </View>
     </FighterRailFrame>
@@ -162,7 +156,7 @@ export function SectionLabel({ text }: { text: string }) {
   return <Text style={[type.label, styles.section, { color: colors.lotus }]}>{text}</Text>;
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   root: { flex: 1 },
   flex: { flex: 1 },
   header: {
@@ -187,5 +181,5 @@ const styles = StyleSheet.create({
   },
   status: { gap: spacing.sm },
   retry: { minHeight: 44, justifyContent: "center" },
-  section: { letterSpacing: 0.8, lineHeight: 18, textTransform: "uppercase" },
-});
+  section: { letterSpacing: 0.8, lineHeight: lh(18), textTransform: "uppercase" },
+}));

@@ -8,6 +8,7 @@ import {
     authenticatedMutableApiRequest,
 } from "@/lib/api/client";
 import { isDemoAuthEnabled } from "@/lib/auth/constants";
+import { liveSuspensions } from "@/lib/domain/fighter-suspension-view";
 import { SESSION_TYPES, type SessionType } from "@/lib/domain/medical-contract";
 import type {
     ConflictAction,
@@ -262,6 +263,14 @@ export async function listSuspensions(
     return items;
 }
 
+/**
+ * T-048: one fighter's suspensions that limit training now or soon (UPCOMING, ACTIVE, AWAITING_CLEARANCE, and ENDED
+ * while graded return runs). Reads every page without `active`, which would drop graded return and UPCOMING.
+ */
+export async function listLiveSuspensions(fighterId: string, actor: User): Promise<Suspension[]> {
+    return liveSuspensions(await listSuspensions({ fighterId }, actor));
+}
+
 export async function createSuspension(input: CreateSuspensionInput, actor: User): Promise<SuspensionCreation> {
     if (isDemoAuthEnabled()) return (await demoService()).createSuspension(input, actor);
 
@@ -323,12 +332,14 @@ export async function getReadiness(
 
 /**
  * Event names of the bouts suspensions point at. Demo mode reads the suspensions store's own bouts, the ones its
- * sample suspensions were made from (T-030 B); API mode asks the bouts service.
+ * sample suspensions were made from (T-030 B), and the camp's bouts, whose results save suspensions there too; API
+ * mode asks the bouts service.
  */
 export async function suspensionBoutNames(fighterIds: string[] | "all"): Promise<Map<string, string>> {
     if (isDemoAuthEnabled()) {
         const { db } = await import("@/lib/mocks/db");
-        return new Map(db().bouts.filter((bout) => fighterIds === "all" || fighterIds.includes(bout.fighterId)).map((bout) => [bout.id, bout.eventName]));
+        const samples = db().bouts.filter((bout) => fighterIds === "all" || fighterIds.includes(bout.fighterId));
+        return new Map([...samples.map((bout): [string, string] => [bout.id, bout.eventName]), ...(await listCampBouts(fighterIds)).map((bout): [string, string] => [bout.id, bout.event])]);
     }
     return new Map((await listCampBouts(fighterIds)).map((bout) => [bout.id, bout.event]));
 }

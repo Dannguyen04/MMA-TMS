@@ -5,6 +5,7 @@ import { RoCard, RowSkeletons } from "@/screens/coach/readonly/ro-ui";
 import { ActionButton, TEXT, useDelayedFlag } from "@/screens/fighter/bout-states";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { fighter } from "@/i18n/fighter";
+import { fz, lh } from "@/theme/typography";
 
 /**
  * Khối dựng đơn giản cho chi tiết Doctor (giao diện tạm, dễ chỉnh):
@@ -73,7 +74,7 @@ export function FilterChips<T extends string>({ items, value, onChange, label }:
             hitSlop={{ top: 6, bottom: 6 }}
             style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, justifyContent: "center", borderWidth: 1, borderColor: on ? p.accentSoft : p.line, backgroundColor: on ? p.accentSoft : p.surface }}
           >
-            <Text style={{ fontSize: 14, lineHeight: 20, fontWeight: on ? "700" : "400", color: on ? p.link : p.ink }}>{it.label}</Text>
+            <Text style={{ fontSize: fz(14), lineHeight: lh(20), fontWeight: on ? "700" : "400", color: on ? p.link : p.ink }}>{it.label}</Text>
           </Pressable>
         );
       })}
@@ -115,7 +116,7 @@ export function DetailTabs<T extends string>({ tabs, value, onChange }: { tabs: 
             </Text>
             {tab.badge ? (
               <View style={{ minWidth: 18, height: 18, borderRadius: 9, paddingHorizontal: tab.badge > 9 ? 4 : 0, backgroundColor: p.accent, alignItems: "center", justifyContent: "center" }}>
-                <Text style={{ fontSize: 11, lineHeight: 14, fontWeight: "700", color: "#FFFFFF" }}>{badgeLabel(tab.badge)}</Text>
+                <Text style={{ fontSize: fz(11), lineHeight: lh(14), fontWeight: "700", color: "#FFFFFF" }}>{badgeLabel(tab.badge)}</Text>
               </View>
             ) : null}
           </Pressable>

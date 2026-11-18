@@ -227,27 +227,90 @@ const path = (fighterId: string, rest: string) => `/fighters/${encodeURIComponen
 
 const readDossier = (fighterId: string) => nullIfUnreadable(authenticatedApiRequest(path(fighterId, "/medical"), dossierSchema));
 
-const dossierFor = cache(readDossier);
+const singleDossier = cache(readDossier);
+
+/** Dossiers already requested in this render through the batch endpoint, by fighter id. */
+const batchedDossiers = cache(() => new Map<string, Promise<Dossier | null>>());
+
+const dossierFor = (fighterId: string): Promise<Dossier | null> => batchedDossiers().get(fighterId) ?? singleDossier(fighterId);
+
+const DOSSIER_BATCH_MAX = 100;
+
+/**
+ * Reads the dossiers of several fighters in one request (`GET /medical/dossiers`) and keeps them for this render, so
+ * screens that go through a roster (doctor board, coach roster) don't send one request per fighter. A batch the service
+ * refuses or doesn't know falls back to the per-fighter read, which also tells which fighter was the problem.
+ */
+export function primeDossiers(fighterIds: readonly string[]): void {
+    const store = batchedDossiers();
+    const ids = [...new Set(fighterIds)].filter((id) => !store.has(id));
+    if (ids.length < 2) return;
+    for (let start = 0; start < ids.length; start += DOSSIER_BATCH_MAX) {
+        const chunk = ids.slice(start, start + DOSSIER_BATCH_MAX);
+        const batch = authenticatedApiRequest(`/medical/dossiers?fighterIds=${chunk.join(",")}`, z.array(dossierSchema)).then(
+            (list) => new Map(list.map((dossier) => [dossier.fighterId, dossier] as const)),
+            () => null,
+        );
+        for (const id of chunk) store.set(id, batch.then((found) => found?.get(id) ?? singleDossier(id)));
+    }
+}
 
 const examinationsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-examinations"), examinationSchema))) ?? []);
 
-const historyFor = cache(
+type HistoryEntry = z.output<typeof historyEntrySchema>;
+
+const singleHistory = cache(
     async (fighterId: string, recordType: HistoryRecordType) =>
         (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical/history"), historyEntrySchema, { recordType }))) ?? [],
 );
 
+/** Histories already requested in this render through the batch endpoint, by `${fighterId}|${recordType}`. */
+const batchedHistory = cache(() => new Map<string, Promise<HistoryEntry[]>>());
+
+const historyKey = (fighterId: string, recordType: HistoryRecordType) => `${fighterId}|${recordType}`;
+
+const historyFor = (fighterId: string, recordType: HistoryRecordType): Promise<HistoryEntry[]> =>
+    batchedHistory().get(historyKey(fighterId, recordType)) ?? singleHistory(fighterId, recordType);
+
+const HISTORY_BATCH_MAX = 100;
+
+const historyBatchSchema = z.array(z.object({ fighterId: z.string(), entries: z.array(historyEntrySchema) }));
+
+/**
+ * Reads one record type of the history of several fighters in one request (`GET /medical/history`) and keeps it for
+ * this render, so a list over many fighters sends one history request per record type instead of one per fighter. The
+ * batch is not paginated; one the service refuses (scope, more than 5000 entries) or doesn't know falls back to the
+ * per-fighter read, which also tells which fighter was the problem.
+ */
+function primeHistory(fighterIds: readonly string[], recordType: HistoryRecordType): void {
+    const store = batchedHistory();
+    const ids = [...new Set(fighterIds)].filter((id) => !store.has(historyKey(id, recordType)));
+    if (ids.length < 2) return;
+    for (let start = 0; start < ids.length; start += HISTORY_BATCH_MAX) {
+        const chunk = ids.slice(start, start + HISTORY_BATCH_MAX);
+        const batch = authenticatedApiRequest(`/medical/history?fighterIds=${chunk.join(",")}&recordType=${recordType}`, historyBatchSchema).then(
+            (list) => new Map(list.map((item) => [item.fighterId, item.entries] as const)),
+            () => null,
+        );
+        for (const id of chunk) store.set(historyKey(id, recordType), batch.then((found) => found?.get(id) ?? singleHistory(id, recordType)));
+    }
+}
+
 const reviewRequestsFor = cache(async (fighterId: string) => (await nullIfUnreadable(drainNumberedPages(path(fighterId, "/medical-review-requests"), reviewRequestSchema))) ?? []);
 
 /** The newest revision of each record, parsed; snapshots in a shape the interface can't read are skipped. */
-function snapshots<T extends z.ZodType>(entries: z.output<typeof historyEntrySchema>[], schema: T): z.output<T>[] {
+function snapshots<T extends z.ZodType>(entries: HistoryEntry[], schema: T): z.output<T>[] {
     return latestRevisions(entries).flatMap((entry) => {
         const parsed = schema.safeParse(entry.snapshot);
         return parsed.success ? [parsed.data] : [];
     });
 }
 
+/** The fighters a list covers. Their dossiers are requested together right away, since every list reads them. */
 async function fighterIdsIn(scope: FighterScope | undefined): Promise<string[]> {
-    return scope && scope !== "all" ? scope : listScopedFighterIds();
+    const ids = scope && scope !== "all" ? scope : await listScopedFighterIds();
+    primeDossiers(ids);
+    return ids;
 }
 
 /* ─── Adapters ────────────────────────────────────────────────────────────── */
@@ -337,15 +400,19 @@ function isValidNow(clearance: Pick<ApiClearance, "status" | "validFrom" | "vali
     return clearance.status === "ACTIVE" && clearance.validFrom <= now && (clearance.validUntil === null || clearance.validUntil > now);
 }
 
-/** The service keeps no expiry job: a lapsed clearance can still say ACTIVE, so validity decides. */
+/**
+ * The service keeps no expiry job: a lapsed clearance can still say ACTIVE, so validity decides. One issued with a
+ * later start date is not valid yet either; it reads as scheduled, not expired.
+ */
 function toClearance(clearance: ApiClearance): MedicalClearance {
     const restricted = isRestricted(clearance.restrictions);
+    const notStarted = clearance.status === "ACTIVE" && !clearance.isCurrentlyValid && Date.parse(clearance.validFrom) > Date.now();
     return {
         id: clearance.id,
         fighterId: clearance.fighterId,
         doctorId: clearance.issuedById,
         level: restricted ? "restricted" : "full",
-        status: clearance.status === "REVOKED" ? "revoked" : clearance.status === "EXPIRED" || !clearance.isCurrentlyValid ? "expired" : "active",
+        status: clearance.status === "REVOKED" ? "revoked" : clearance.status === "EXPIRED" ? "expired" : notStarted ? "scheduled" : !clearance.isCurrentlyValid ? "expired" : "active",
         issuedAt: clearance.validFrom,
         validUntil: clearance.validUntil,
         reason: clearance.notes ?? clearance.restrictions.notes ?? "",
@@ -452,8 +519,9 @@ function summaryFrom(stored: Fighter, dossier: Dossier, now: string | Date): Fig
     };
 }
 
-export async function healthSummary(fighterId: string, now: string | Date): Promise<FighterHealthSummary | null> {
-    const [fighter, dossier] = await Promise.all([getFighter(fighterId), dossierFor(fighterId)]);
+/** `known` skips the fighter read when the caller already listed the fighter (the doctor board). */
+export async function healthSummary(fighterId: string, now: string | Date, known?: Fighter): Promise<FighterHealthSummary | null> {
+    const [fighter, dossier] = await Promise.all([known ?? getFighter(fighterId), dossierFor(fighterId)]);
     return fighter && dossier ? summaryFrom(fighter, dossier, now) : null;
 }
 
@@ -476,6 +544,7 @@ async function clearancesOf(fighterId: string, now: string): Promise<MedicalClea
 
 export async function listClearances(filter: ClearanceFilter, now: string): Promise<MedicalClearance[]> {
     const ids = await fighterIdsIn(filter.fighterIds);
+    primeHistory(ids, "MEDICAL_CLEARANCE");
     const all = (await Promise.all(ids.map((id) => clearancesOf(id, now)))).flat();
     return all.filter((c) => (!filter.level || c.level === filter.level) && (!filter.status || c.status === filter.status)).sort(byNewest((c) => c.issuedAt));
 }
@@ -513,6 +582,7 @@ async function injuriesOf(fighterId: string): Promise<Injury[]> {
 
 export async function listInjuries(filter: InjuryFilter): Promise<Injury[]> {
     const ids = await fighterIdsIn(filter.fighterIds);
+    primeHistory(ids, "INJURY");
     const all = (await Promise.all(ids.map(injuriesOf))).flat();
     return all
         .filter(
@@ -569,6 +639,7 @@ export async function getInjuryDetail(id: string): Promise<InjuryDetail | null> 
 
 export async function listRecoveryPlans(filter: RecoveryPlanFilter): Promise<RecoveryPlan[]> {
     const ids = await fighterIdsIn(filter.fighterIds);
+    primeHistory(ids, "RECOVERY_PLAN");
     const all = (await Promise.all(ids.map(plansOf))).flat();
     return all.filter((p) => !filter.status || p.status === filter.status).sort(byNewest((p) => p.startDate));
 }
@@ -604,6 +675,7 @@ async function fightersWithDossiers(scope: FighterScope): Promise<{ fighter: Fig
     if (!user) return [];
     const ids = new Set(await fighterIdsIn(scope));
     const fighters = (await listFighters(user)).filter((fighter) => ids.has(fighter.id));
+    primeDossiers(fighters.map((fighter) => fighter.id));
     const dossiers = await Promise.all(fighters.map((fighter) => dossierFor(fighter.id)));
     return fighters.flatMap((fighter, index) => {
         const dossier = dossiers[index];

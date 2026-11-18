@@ -9,6 +9,7 @@ import { badgeText } from "@/screens/doctor/redesign/doctor-unread";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 
 import { useCoachEnabled } from "../readonly/use-coach";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 export const COACH_NOTIFICATIONS_PATH = "/(coach)/thong-bao";
 /** Làm mới số chưa đọc mỗi 60 giây (coach-nav-v2). */
@@ -90,7 +91,7 @@ export function CoachBell() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   bell: { width: 48, height: 48, margin: -2, alignItems: "center", justifyContent: "center" },
   badge: {
     position: "absolute",
@@ -104,5 +105,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  badgeText: { fontSize: 11, lineHeight: 14, fontWeight: "700", fontVariant: ["tabular-nums"] },
-});
+  badgeText: { fontSize: fz(11), lineHeight: lh(14), fontWeight: "700", fontVariant: ["tabular-nums"] },
+}));

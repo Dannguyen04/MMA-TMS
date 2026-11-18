@@ -1,20 +1,22 @@
 import Link from "next/link";
 
 import { Empty } from "@/components/doctor/ui";
+import { getTranslator } from "@/lib/i18n/server";
 import { routes } from "@/lib/routes";
 
-export default function DoctorNotFound() {
+export default async function DoctorNotFound() {
+    const { t } = await getTranslator();
     return (
         <div className="yt-page">
             <Empty
-                title="Không tìm thấy hồ sơ"
+                title={t("doctorPages.notFound.title")}
                 action={
                     <Link href={routes.doctor.dashboard} className="yt-btn" data-v="primary">
-                        Về Hôm nay
+                        {t("doctorPages.notFound.back")}
                     </Link>
                 }
             >
-                Hồ sơ này không tồn tại hoặc võ sĩ không còn được giao cho bạn.
+                {t("doctorPages.notFound.body")}
             </Empty>
         </div>
     );

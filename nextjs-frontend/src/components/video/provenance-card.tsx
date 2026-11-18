@@ -1,8 +1,12 @@
+"use client";
+
 import { ChevronDown, Cpu } from "lucide-react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import type { AIAnalysis, AIJob, Video } from "@/lib/domain/types";
 import { formatConfidence, formatDateTime, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { confidencePct } from "./video-copy";
 
 export interface ProvenanceCardProps {
     analysis: Pick<AIAnalysis, "id" | "jobId" | "processedAt" | "models" | "trackingQuality" | "overallConfidence" | "confidenceAvailable" | "fps">;
@@ -13,18 +17,20 @@ export interface ProvenanceCardProps {
 
 /** Where the analysis came from: job, timing and model versions. Collapsed by default. */
 export function ProvenanceCard({ analysis, job, video, className }: ProvenanceCardProps) {
+    const t = useT();
+    const locale = useLocale();
     const rows: { label: string; value: string }[] = [
-        { label: "Job", value: job?.id ?? analysis.jobId },
-        { label: "Processed", value: formatDateTime(analysis.processedAt) },
-        { label: "Processing time", value: job?.durationSec != null ? `${formatNumber(job.durationSec)} s` : "—" },
-        { label: "Attempts", value: job ? String(job.attempts) : "—" },
-        { label: "Tracking quality", value: formatConfidence(analysis.trackingQuality) },
-        { label: "Detection confidence", value: analysis.confidenceAvailable === false ? "Unavailable" : formatConfidence(analysis.overallConfidence) },
-        { label: "Source", value: `${video.fileName} · ${video.resolution} · ${formatNumber(analysis.fps)} fps` },
-        { label: "Fighter detection", value: analysis.models.detection },
-        { label: "Pose estimation", value: analysis.models.pose },
-        { label: "Action recognition", value: analysis.models.action },
-        { label: "Movement anomaly", value: analysis.models.anomaly },
+        { label: t("screens.video.job"), value: job?.id ?? analysis.jobId },
+        { label: t("screens.video.provenance.processed"), value: formatDateTime(analysis.processedAt, locale) },
+        { label: t("screens.video.provenance.processingTime"), value: job?.durationSec != null ? `${formatNumber(job.durationSec)} s` : "—" },
+        { label: t("screens.video.provenance.attempts"), value: job ? String(job.attempts) : "—" },
+        { label: t("screens.video.trackingQuality"), value: formatConfidence(analysis.trackingQuality) },
+        { label: t("screens.video.detectionConfidence"), value: analysis.confidenceAvailable === false ? t("screens.video.unavailable") : confidencePct(t, analysis.overallConfidence) },
+        { label: t("screens.video.provenance.source"), value: `${video.fileName} · ${video.resolution} · ${formatNumber(analysis.fps)} fps` },
+        { label: t("screens.video.provenance.fighterDetection"), value: analysis.models.detection },
+        { label: t("screens.video.provenance.pose"), value: analysis.models.pose },
+        { label: t("screens.video.provenance.action"), value: analysis.models.action },
+        { label: t("screens.video.provenance.anomaly"), value: analysis.models.anomaly },
     ];
 
     return (
@@ -34,7 +40,7 @@ export function ProvenanceCard({ analysis, job, video, className }: ProvenanceCa
                     <Cpu className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-fg">Provenance</span>
+                    <span className="block text-sm font-semibold text-fg">{t("screens.video.provenance.title")}</span>
                     <span className="block truncate text-xs text-fg-muted">
                         {analysis.models.pose} · {analysis.models.action}
                     </span>

@@ -7,17 +7,29 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
 import { makeBody, makePaint, makePrePass } from "./materials";
-import { BODY_MODEL } from "./model";
+import type { DoctorBody } from "./model";
 import { EXTRA_REGIONS, PAINT } from "./regions";
 import type { ViewState } from "./types";
 
 type Paint = Record<string, { color: string; R: number; core: number }>;
 
+type SceneProps = { model: DoctorBody; paint: Paint; view: RefObject<ViewState>; light: boolean; background: string; pulse: boolean; onReady: () => void };
+
+/** A body whose region fields sit in their own file (the female model) loads that file too. */
+export function BodyScene(props: SceneProps) {
+  return props.model.fields ? <FieldsScene {...props} fields={props.model.fields} /> : <Scene {...props} fields={null} />;
+}
+
+function FieldsScene({ fields, ...props }: SceneProps & { fields: string }) {
+  const buffer = useLoader(THREE.FileLoader, fields, (l) => l.setResponseType("arraybuffer")) as unknown as ArrayBuffer;
+  return <Scene {...props} fields={buffer} />;
+}
+
 /** Port của mobile body-scene.tsx: useGLTF(drei) → useLoader(GLTFLoader) + MeshoptDecoder; thêm nhịp đập vùng tô. */
-export function BodyScene({ paint, view, light, background, pulse, onReady }: { paint: Paint; view: RefObject<ViewState>; light: boolean; background: string; pulse: boolean; onReady: () => void }) {
-  const gltf = useLoader(GLTFLoader, BODY_MODEL.url, (l) => { (l as GLTFLoader).setMeshoptDecoder(MeshoptDecoder); });
+function Scene({ model, fields, paint, view, light, background, pulse, onReady }: SceneProps & { fields: ArrayBuffer | null }) {
+  const gltf = useLoader(GLTFLoader, model.url, (l) => { (l as GLTFLoader).setMeshoptDecoder(MeshoptDecoder); });
   const { camera } = useThree();
-  const meta = BODY_MODEL.meta;
+  const meta = model.meta;
 
   const built = useMemo(() => {
     const root = gltf.scene.clone(true);
@@ -26,7 +38,14 @@ export function BodyScene({ paint, view, light, background, pulse, onReady }: { 
     root.traverse((o) => { if ((o as THREE.Mesh).isMesh && !mesh) mesh = o as THREE.Mesh; });
     if (!mesh) throw new Error("model has no mesh");
     const m = mesh as THREE.Mesh;
-    const geo = m.geometry as THREE.BufferGeometry;
+    let geo = m.geometry as THREE.BufferGeometry;
+    if (fields) {
+      // Same attribute names the GLTFLoader gives the male file's _GEO0–_GEO3.
+      geo = geo.clone();
+      const count = geo.getAttribute("position").count;
+      for (let slot = 0; slot < 4; slot++) geo.setAttribute(`_geo${slot}`, new THREE.BufferAttribute(new Uint8Array(fields, slot * count * 4, count * 4), 4, true));
+      m.geometry = geo;
+    }
     const box = new THREE.Box3().setFromObject(root);
     const C = box.getCenter(new THREE.Vector3());
     const H = box.max.y - box.min.y;
@@ -40,26 +59,26 @@ export function BodyScene({ paint, view, light, background, pulse, onReady }: { 
       spine: { ...meta.spine, end: PAINT.spineEnd * H },
       maskIndex: meta.mask.slot * 4 + meta.mask.ch,
       extra: (() => {
-        const xs = Object.values(EXTRA_REGIONS);
+        const xs = Object.entries(EXTRA_REGIONS).map(([key, x]) => ({ ...x, centres: model.extras[key] ?? x.centres }));
         const v = (c: readonly number[]) => new THREE.Vector3(c[0], c[1], c[2]);
         return {
           on: xs.map((x) => (paint[x.region] ? 1 : 0)),
           a: xs.map((x) => v(x.centres[0]!)),
           b: xs.map((x) => v(x.centres[1] ?? x.centres[0]!)),
-          R: xs.map((x) => (paint[x.region] ? paint[x.region]!.R : x.R)),
+          R: xs.map((x) => (paint[x.region] ? paint[x.region]!.R : x.R) * model.extraScale),
           colors: xs.map((x) => new THREE.Color(paint[x.region]?.color ?? "#000000")),
           core: xs.map((x) => paint[x.region]?.core ?? PAINT.core),
         };
       })(),
     };
     m.material = makePrePass();
-    const body = new THREE.Mesh(geo, makeBody(BODY_MODEL.face, light)); body.renderOrder = 1;
+    const body = new THREE.Mesh(geo, makeBody(model.face, light)); body.renderOrder = 1;
     const occM = makePaint(input, true), visM = makePaint(input, false);
     const occ = new THREE.Mesh(geo, occM); occ.renderOrder = 2;
     const vis = new THREE.Mesh(geo, visM); vis.renderOrder = 3;
     m.add(body, occ, vis);
     return { root, C, H, paints: [occM, visM] };
-  }, [gltf, paint, light, meta]);
+  }, [gltf, fields, model, paint, light, meta]);
 
   useEffect(() => { onReady(); }, [built, onReady]);
   const t0 = useRef(0);

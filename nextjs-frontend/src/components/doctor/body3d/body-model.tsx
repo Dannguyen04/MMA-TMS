@@ -5,8 +5,9 @@ import dynamic from "next/dynamic";
 import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 import { BodyMap, type BodyMapHighlight } from "@/components/domain/body-map";
-import type { BodyRegion } from "@/lib/domain/types";
-import { BODY_MODEL_CREDIT } from "./model";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
+import type { BodyRegion, Sex } from "@/lib/domain/types";
+import { doctorBodyFor } from "./model";
 import { EXCLUDED_COLOR, STATUS_COLOR, STATUS_TEXT, buildJointRows, paintExcluded, paintRegions, type PaintStatus } from "./regions";
 import type { ViewState } from "./types";
 
@@ -30,8 +31,12 @@ const TONE: Record<PaintStatus, BodyMapHighlight["tone"]> = { injury: "danger", 
 
 export type BodyInjury = { affectedJoint: string; status: string; injuryType: string; severity: string };
 
-export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { injuries: readonly BodyInjury[]; excludedJoints?: readonly string[]; height?: number }) {
-  const rows = useMemo(() => buildJointRows(injuries, [], (s) => s, (s) => s), [injuries]);
+/** The fighter's sex picks the body: the female model for women, the male one otherwise (unknown included). */
+export function BodyModel({ injuries, excludedJoints = [], height = 460, sex }: { injuries: readonly BodyInjury[]; excludedJoints?: readonly string[]; height?: number; sex?: Sex | null }) {
+  const t = useT();
+  const model = doctorBodyFor(sex);
+  const locale = useLocale();
+  const rows = useMemo(() => buildJointRows(t, injuries, [], (s) => s, (s) => s), [t, injuries]);
   const paint = useMemo(() => paintExcluded(paintRegions(rows), excludedJoints), [rows, excludedJoints]);
   const [mode, setMode] = useState<"pending" | "3d" | "fallback">("pending");
   const [ready, setReady] = useState(false);
@@ -44,13 +49,26 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
   useEffect(() => {
     const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
     setMode(reduced || !hasWebGL() ? "fallback" : "3d");
-    if (frame.current) {
+  }, []);
+  // The frame's colour decides the look (dark hologram or light outline); measured again whenever the theme changes.
+  useEffect(() => {
+    const measure = () => {
+      if (!frame.current) return;
       const c = getComputedStyle(frame.current).backgroundColor;
       setBg(c);
       const n = c.match(/\d+(\.\d+)?/g)?.map(Number) ?? [0, 0, 0];
       setLight(0.2126 * n[0] + 0.7152 * n[1] + 0.0722 * n[2] > 140);
-    }
-  }, []);
+    };
+    measure();
+    const media = matchMedia("(prefers-color-scheme: dark)");
+    const theme = new MutationObserver(() => requestAnimationFrame(measure));
+    theme.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
+    media.addEventListener("change", measure);
+    return () => {
+      theme.disconnect();
+      media.removeEventListener("change", measure);
+    };
+  }, [mode]);
   useEffect(() => {
     if (mode !== "3d" || ready) return;
     const t = setTimeout(() => setMode("fallback"), LOAD_TIMEOUT_MS);
@@ -61,17 +79,17 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
 
   const legend = (
     <ul className="b3-legend">
-      {(Object.keys(STATUS_COLOR) as PaintStatus[]).map((s) => <li key={s}><i style={{ background: STATUS_COLOR[s] }} />{STATUS_TEXT[s]}</li>)}
-      <li><i style={{ background: EXCLUDED_COLOR }} />Loại trừ khi tập</li>
+      {(Object.keys(STATUS_COLOR) as PaintStatus[]).map((s) => <li key={s}><i style={{ background: STATUS_COLOR[s] }} />{t(STATUS_TEXT[s])}</li>)}
+      <li><i style={{ background: EXCLUDED_COLOR }} />{t("doctorUi.body.excluded")}</li>
     </ul>
   );
 
   if (mode === "fallback") {
     const hl: BodyMapHighlight[] = [
       ...rows.filter((r) => r.mapped && r.status).map((r) => ({ region: TO_2D(r.joint)!, tone: TONE[r.status!], label: `${r.label} · ${r.statusText}${r.detail ? ` · ${r.detail}` : ""}` })),
-      ...excludedJoints.filter((j) => !rows.some((r) => r.joint === j)).map((j) => ({ region: TO_2D(j)!, tone: "warning" as const, label: "Loại trừ khi tập" })),
+      ...excludedJoints.filter((j) => !rows.some((r) => r.joint === j)).map((j) => ({ region: TO_2D(j)!, tone: "warning" as const, label: t("doctorUi.body.excluded") })),
     ];
-    return <div className="b3-fallback" data-mode="fallback"><BodyMap highlights={hl} size="md" /></div>;
+    return <div className="b3-fallback" data-mode="fallback"><BodyMap highlights={hl} size="md" locale={locale} /></div>;
   }
 
   return (
@@ -81,7 +99,7 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
         className="b3-frame"
         style={{ height }}
         role="img"
-        aria-label={`Mô hình cơ thể 3D. Kéo ngang để xoay. ${rows.map((r) => `${r.label}: ${r.statusText}`).join("; ")}`}
+        aria-label={t("doctorUi.body.aria", { rows: rows.map((r) => `${r.label}: ${r.statusText}`).join("; ") })}
         data-ready={ready}
         onPointerDown={(e) => { drag.current = e.clientX; (e.target as Element).setPointerCapture?.(e.pointerId); }}
         onPointerMove={(e) => { if (drag.current === null) return; const a = view.current.angle - (e.clientX - drag.current) * DRAG_RAD_PER_PX; drag.current = e.clientX; view.current.angle = view.current.target = a; }}
@@ -91,18 +109,17 @@ export function BodyModel({ injuries, excludedJoints = [], height = 460 }: { inj
       >
         {mode === "3d" && (
           <GlBoundary onError={fail}>
-            <BodyCanvas paint={paint} view={view} light={light} background={bg} pulse onReady={onReady} />
+            <BodyCanvas key={model.url} model={model} paint={paint} view={view} light={light} background={bg} pulse onReady={onReady} />
           </GlBoundary>
         )}
         {!ready && <span className="b3-skel" aria-hidden />}
         {paint.SPINE && (
           <button type="button" className="b3-turn" onClick={() => { view.current.target = view.current.angle + Math.PI; }}>
-            <RotateCcw aria-hidden /> Có vùng phía sau · xoay
+            <RotateCcw aria-hidden /> {t("doctorUi.body.turn")}
           </button>
         )}
       </div>
       {legend}
-      <p className="b3-credit">Mô hình “{BODY_MODEL_CREDIT.title}” · {BODY_MODEL_CREDIT.author} · {BODY_MODEL_CREDIT.license}</p>
     </div>
   );
 }

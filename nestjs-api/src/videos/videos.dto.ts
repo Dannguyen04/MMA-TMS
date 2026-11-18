@@ -1,5 +1,6 @@
 import {
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -51,6 +52,28 @@ export class UploadVideoQueryDto {
   @IsString()
   @MaxLength(255)
   originalFilename: string;
+}
+
+export const VIDEO_UPLOAD_MIME_TYPES = [
+  'video/mp4',
+  'video/quicktime',
+  'video/webm',
+] as const;
+
+/**
+ * Body of `POST /videos/upload-url`: the same metadata as the streamed upload,
+ * plus the file's type and size, which the browser declares before it sends
+ * the bytes straight to storage.
+ */
+export class CreateVideoUploadDto extends UploadVideoQueryDto {
+  @IsString()
+  @IsIn(VIDEO_UPLOAD_MIME_TYPES)
+  contentType: (typeof VIDEO_UPLOAD_MIME_TYPES)[number];
+
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  fileSizeBytes: number;
 }
 
 export class ListVideosQueryDto {

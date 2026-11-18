@@ -77,6 +77,43 @@ describe("apiRequest", () => {
         expect(error).toMatchObject({ status: 409, code: "JOB_STATUS_CONFLICT", message: "Terminal state", details: { status: "DONE" } });
     });
 
+    describe("read retry", () => {
+        const failure = (status: number) =>
+            new Response(JSON.stringify({ success: false, error: { statusCode: status, code: "INTERNAL_SERVER_ERROR", message: "Internal server error" } }), {
+                status,
+                headers: { "Content-Type": "application/json" },
+            });
+        const ok = () => new Response(JSON.stringify({ success: true, message: "ok", data: { id: "1" } }), { status: 200, headers: { "Content-Type": "application/json" } });
+
+        it.each([500, 502, 503, 504])("sends a GET once more after %i and returns the second answer", async (status) => {
+            const fetchMock = vi.fn().mockResolvedValueOnce(failure(status)).mockResolvedValueOnce(ok());
+            vi.stubGlobal("fetch", fetchMock);
+            await expect(apiRequest("/videos/1", z.object({ id: z.string() }))).resolves.toEqual({ id: "1" });
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        });
+
+        it("retries only once and then reports the error", async () => {
+            const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(failure(500)));
+            vi.stubGlobal("fetch", fetchMock);
+            await expect(apiRequest("/videos/1", z.object({ id: z.string() }))).rejects.toMatchObject({ status: 500 });
+            expect(fetchMock).toHaveBeenCalledTimes(2);
+        });
+
+        it.each(["POST", "PATCH", "PUT", "DELETE"])("never repeats a %s", async (method) => {
+            const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(failure(500)));
+            vi.stubGlobal("fetch", fetchMock);
+            await expect(apiRequest("/videos/1", z.object({ id: z.string() }), { method, body: "{}" })).rejects.toMatchObject({ status: 500 });
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        });
+
+        it("does not retry client errors", async () => {
+            const fetchMock = vi.fn().mockImplementation(() => Promise.resolve(failure(404)));
+            vi.stubGlobal("fetch", fetchMock);
+            await expect(apiRequest("/videos/1", z.object({ id: z.string() }))).rejects.toMatchObject({ status: 404 });
+            expect(fetchMock).toHaveBeenCalledTimes(1);
+        });
+    });
+
     it("rejects a successful response whose data violates the contract", async () => {
         vi.stubGlobal(
             "fetch",

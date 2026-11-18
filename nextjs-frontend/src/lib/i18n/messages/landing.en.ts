@@ -25,7 +25,7 @@ export const enLanding = {
 
     "landing.analysis.kicker": "AI video analysis",
     "landing.analysis.title": "Every rep, read like a scorecard.",
-    "landing.analysis.text": "Upload shadow boxing, pad work, heavy bag or sparring. The pipeline tracks the fighter, estimates 17 pose keypoints per frame and turns every strike into numbers a coach can check.",
+    "landing.analysis.text": "Upload shadow boxing, pad work, heavy bag or sparring. The AI tracks the fighter and turns every strike into numbers a coach can check.",
     "landing.analysis.results": "What comes back",
     "landing.analysis.confidence": "AI confidence",
     "landing.analysis.reviewLabel": "Coach review:",
@@ -62,7 +62,7 @@ export const enLanding = {
 
     "landing.training.kicker": "Training",
     "landing.training.title": "Plans that move with the camp.",
-    "landing.training.text": "Coaches build phased plans with objectives, focus areas and a weekly session target, then schedule sessions with a target RPE and exercise rounds. Fighters see their week; drafts stay private until a coach activates them.",
+    "landing.training.text": "Coaches build phased plans and schedule sessions with a target RPE and rounds. Fighters see their week.",
     "landing.training.sessionTime": "Tue · 18:00 · 75 min",
     "landing.training.sessionTitle": "Pad work — combinations",
     "landing.training.targetRpe": "Target RPE",

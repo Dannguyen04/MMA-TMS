@@ -1,0 +1,317 @@
+<!doctype html>
+<html lang="vi" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Xem trước · Phiếu trinh sát đối thủ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Bản xem trước tĩnh v2 — "Phiếu trinh sát". Token theo reactnative-mobile/DESIGN.md (Góc đài — The Corner Slip). */
+:root {
+  --bg: #F6F6F8; --surface: #FFFFFF; --ink: #18181B; --muted: #616169; --subtle: #5F6B75; --line: #E4E6E9; --rule: #D4D6DB; --control: #8A8A93;
+  --lotus: #C23A22; --lotus-ink: #C23A22; --danger: #B4123F; --success: #21664B;
+  --disp: "Barlow Condensed", "Arial Narrow", sans-serif; --body: "IBM Plex Sans", system-ui, sans-serif; color-scheme: light;
+}
+:root[data-theme="dark"] { --bg: #0A0A0C; --surface: #16161A; --ink: #F4F4F5; --muted: #A1A1AA; --subtle: #8A8A94; --line: #26262C; --rule: #34343C; --control: #6A6A74; --lotus-ink: #FF8066; --danger: #FF6B81; --success: #6BC48F; color-scheme: dark; }
+* { box-sizing: border-box; margin: 0; }
+html { background: #232327; }
+body { font: 14px/1.45 var(--body); color: var(--ink); min-height: 100vh; display: grid; justify-items: center; padding: 16px 8px 96px; font-variant-numeric: tabular-nums; }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--lotus-ink); outline-offset: 2px; }
+::selection { background: var(--lotus); color: #fff; }
+textarea::placeholder, input::placeholder { color: var(--subtle); }
+[hidden] { display: none !important; }
+.i { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+
+.stage { width: 412px; max-width: 100%; height: 880px; background: var(--bg); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 10px 40px rgba(0,0,0,.45); transition: width .3s cubic-bezier(.25,1,.5,1); }
+.stage[data-size="ipad"] { width: 820px; height: 1040px; }
+.stage[data-size="desk"] { width: 1180px; height: 820px; }
+.wide { --wide: 1; }
+
+/* Đầu màn */
+.head { flex: none; display: grid; grid-template-columns: 48px 1fr 48px; align-items: center; min-height: 54px; padding: 0 12px; border-bottom: 1px solid var(--line); }
+.head button { width: 48px; height: 48px; display: grid; place-items: center; background: none; border: 0; cursor: pointer; }
+.head b { text-align: center; font-weight: 600; }
+.col { flex: 1; min-height: 0; width: 100%; max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; }
+.wide .col { max-width: 1040px; }
+.scroll { flex: 1; overflow-y: auto; padding: 18px 22px 28px; }
+
+/* Phiếu đối thủ: khung cắt góc duy nhất có viền đỏ ở góc */
+.slip { position: relative; background: var(--surface); padding: 16px 18px 14px;
+  clip-path: polygon(0 0, calc(100% - 17px) 0, 100% 17px, 100% 100%, 17px 100%, 0 calc(100% - 17px)); }
+.slip::after { content: ""; position: absolute; inset: 0; pointer-events: none; background:
+  linear-gradient(var(--lotus), var(--lotus)) left top / 26px 2px no-repeat, linear-gradient(var(--lotus), var(--lotus)) left top / 2px 26px no-repeat,
+  linear-gradient(var(--lotus), var(--lotus)) right bottom / 26px 2px no-repeat, linear-gradient(var(--lotus), var(--lotus)) right bottom / 2px 26px no-repeat; }
+.kicker-free { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.opp-name { font: 700 30px/1.05 var(--disp); text-transform: uppercase; letter-spacing: .01em; }
+.vs { color: var(--muted); font-size: 13px; margin-top: 3px; }
+.record { display: flex; align-items: baseline; gap: 6px; margin-top: 14px; font: 700 46px/1 var(--disp); }
+.record input { width: 44px; background: none; border: 0; border-bottom: 1px dashed transparent; padding: 0; font: inherit; text-align: center; outline: none; }
+.record input:hover { border-bottom-color: var(--control); }
+.record input:focus { border-bottom: 2px solid var(--lotus); }
+.record .dash { color: var(--subtle); font-weight: 500; }
+.record-legend { display: flex; gap: 6px; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.record-legend span { min-width: 44px; text-align: center; }
+.record-legend span.gap { min-width: 14px; }
+.traits { margin-top: 14px; border-top: 1px solid var(--line); }
+.trait { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 10px; align-items: center; min-height: 46px; border-bottom: 1px solid var(--line); }
+.trait:last-child { border-bottom: 0; }
+.trait > span { color: var(--muted); }
+.opts { display: flex; flex-wrap: wrap; gap: 2px 14px; }
+.opts button { background: none; border: 0; cursor: pointer; min-height: 44px; padding: 0; color: var(--muted); font-weight: 500; position: relative; }
+.opts button[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
+.opts button[aria-pressed="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: 9px; height: 2px; background: var(--lotus); }
+.summary { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; margin-top: 12px; border-top: 1px solid var(--line); padding-top: 10px; color: var(--ink); }
+.summary > span:first-child { flex: 1; }
+.summary .edit { color: var(--lotus-ink); font-weight: 600; }
+.stage:not(.wide) .trait { grid-template-columns: 1fr; gap: 0; padding-top: 8px; }
+.inline-num { width: 64px; background: none; border: 0; border-bottom: 1px solid var(--rule); padding: 8px 0; outline: none; }
+.inline-num:focus { border-bottom-color: var(--lotus); }
+.unit { color: var(--muted); }
+
+/* Mục (tab): chữ thường + gạch đỏ, không phụ đề */
+.tabs { display: flex; gap: 22px; margin: 24px 0 4px; border-bottom: 1px solid var(--line); }
+.tabs button { background: none; border: 0; cursor: pointer; min-height: 48px; padding: 0; color: var(--muted); font: 600 19px/1 var(--disp); letter-spacing: .03em; text-transform: uppercase; position: relative; }
+.tabs button sup { font: 500 12px/1 var(--body); color: var(--subtle); margin-left: 3px; vertical-align: 6px; letter-spacing: 0; }
+.tabs button[aria-selected="true"] { color: var(--ink); }
+.tabs button[aria-selected="true"]::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px; background: var(--lotus); }
+
+/* Sổ ghi: các dòng kẻ, không thẻ */
+.ledger { list-style: none; padding: 0; }
+.entry { border-bottom: 1px solid var(--line); }
+.entry > button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 74px minmax(0, 1fr) auto; gap: 4px 12px; width: 100%; padding: 14px 0; align-items: baseline; }
+.entry > button:hover .text { text-decoration: underline; text-decoration-color: var(--rule); text-underline-offset: 3px; }
+.entry[data-open="true"] > button { padding-bottom: 6px; }
+.tag { font: 600 13px/1.2 var(--disp); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding-top: 2px; }
+.text { font-weight: 500; }
+.side { font-size: 12.5px; color: var(--muted); text-align: right; white-space: nowrap; }
+.foot-line { grid-column: 2 / 4; font-size: 12.5px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.foot-line .need { color: var(--danger); }
+.foot-line .done { color: var(--success); }
+.qs { font-weight: 600; color: var(--ink); }
+.wide .entry[aria-current="true"] > button { box-shadow: inset 3px 0 0 var(--lotus); padding-left: 10px; margin-left: -10px; width: calc(100% + 10px); }
+
+/* Thêm mục: một dòng hành động ở cuối sổ */
+.add { all: unset; box-sizing: border-box; cursor: pointer; display: flex; align-items: center; gap: 8px; min-height: 52px; color: var(--lotus-ink); font-weight: 600; }
+.add[aria-disabled="true"] { color: var(--subtle); cursor: default; }
+.limit { color: var(--subtle); font-size: 12.5px; margin-left: auto; font-weight: 400; }
+
+/* Trình sửa */
+.editor { display: grid; gap: 16px; padding: 4px 0 18px 86px; }
+.wide .editor-wrap .editor { padding: 0; }
+.field { display: grid; gap: 6px; }
+.field > span { font-size: 13px; color: var(--muted); }
+.field input, .field textarea { width: 100%; background: transparent; border: 0; border-bottom: 1px solid var(--rule); padding: 8px 0; outline: none; resize: none; }
+.field textarea { min-height: 52px; line-height: 1.45; }
+.field input:focus, .field textarea:focus { border-bottom: 2px solid var(--lotus); padding-bottom: 7px; }
+.field small { color: var(--muted); font-size: 12px; }
+.field small.need { color: var(--danger); }
+.pair { display: grid; grid-template-columns: 1fr 120px; gap: 16px; }
+.links { display: grid; }
+.link { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 10px; align-items: start; min-height: 44px; padding: 11px 0; border-bottom: 1px solid var(--line); }
+.box { width: 18px; height: 18px; margin-top: 1px; border: 1.5px solid var(--control); display: grid; place-items: center; }
+.link[aria-checked="true"] .box { background: var(--lotus); border-color: var(--lotus); color: #fff; }
+.link .box .i { width: 13px; height: 13px; stroke-width: 2.6; opacity: 0; }
+.link[aria-checked="true"] .box .i { opacity: 1; }
+.link small { display: block; color: var(--muted); font-size: 12px; }
+.ed-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding-top: 4px; }
+.text-btn { all: unset; cursor: pointer; min-height: 44px; display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.text-btn.remove { color: var(--muted); }
+.text-btn.close { color: var(--ink); }
+.section-label { font: 600 13px/1.2 var(--disp); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+/* Bố cục rộng: sổ trái, phiếu sửa phải (khung cắt góc thứ hai chỉ khi đang sửa) */
+.split { display: block; }
+.wide .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 32px; align-items: start; }
+.wide .editor-wrap { position: sticky; top: 0; }
+.wide .editor-wrap .slip { padding: 18px 20px; }
+.ed-title { font: 700 22px/1.1 var(--disp); text-transform: uppercase; margin-bottom: 12px; }
+.idle { color: var(--muted); padding: 18px 0; border-top: 1px solid var(--line); }
+.wide .top .slip { display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); column-gap: 32px; align-content: start; }
+.wide .top .slip > :not(.traits) { grid-column: 1; }
+.wide .top .slip > .traits { grid-column: 2; grid-row: 1 / span 4; margin-top: 0; border-top: 0; align-self: start; }
+.copy-prior { all: unset; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; color: var(--muted); font-weight: 500; margin-top: 8px; }
+
+/* Chân màn */
+.foot { flex: none; padding: 10px 22px 14px; border-top: 1px solid var(--line); display: flex; align-items: center; gap: 14px; background: var(--bg); }
+.foot .state { font-size: 13px; color: var(--muted); flex: 1; }
+.foot .state.dirty { color: var(--ink); }
+.save { min-height: 50px; padding: 0 22px; border: 0; cursor: pointer; background: var(--lotus); color: #fff; font-weight: 700; font-size: 15px;
+  clip-path: polygon(0 0, calc(100% - 13px) 0, 100% 13px, 100% 100%, 13px 100%, 0 calc(100% - 13px)); }
+.save:disabled { background: var(--surface); color: var(--subtle); cursor: default; }
+
+.pv { position: fixed; left: 50%; transform: translateX(-50%); bottom: 14px; z-index: 10; display: flex; gap: 4px; padding: 6px; border-radius: 12px; background: #111; box-shadow: 0 6px 20px -6px rgba(0,0,0,.6); flex-wrap: wrap; justify-content: center; }
+.pv button { border: 0; border-radius: 8px; padding: 7px 12px; font-size: 13px; font-weight: 600; background: transparent; color: #ddd; cursor: pointer; }
+.pv button[aria-pressed="true"] { background: #f4f4f5; color: #111; }
+.pv i { width: 1px; background: #444; margin: 4px 2px; }
+@media (prefers-reduced-motion: reduce) { .stage { transition: none; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h11v11H9z"/><path d="M5 15H4V4h11v1"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5v14l11-7z"/></symbol>
+</svg>
+
+<div class="stage" id="stage" data-size="phone">
+  <header class="head"><button aria-label="Quay lại"><svg class="i"><use href="#i-back"/></svg></button><b>Fight Camp</b><span></span></header>
+  <div class="col">
+    <div class="scroll" id="scroll"><div id="page"></div></div>
+    <footer class="foot"><span class="state" id="state"></span><button class="save" id="save">Lưu phân tích</button></footer>
+  </div>
+</div>
+
+<div class="pv" role="toolbar" aria-label="Điều khiển bản xem trước">
+  <button data-size="phone" aria-pressed="true">Điện thoại 412</button><button data-size="ipad" aria-pressed="false">iPad dọc 820</button><button data-size="desk" aria-pressed="false">Máy tính</button><i></i>
+  <button data-th="dark" aria-pressed="true">Tối</button><button data-th="light" aria-pressed="false">Sáng</button>
+</div>
+
+<script>
+const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+const icon = id => `<svg class="i" aria-hidden="true"><use href="#i-${id}"/></svg>`;
+const KIND = [["OPENING", "Sơ hở"], ["HABIT", "Thói quen"], ["STRENGTH", "Điểm mạnh"]];
+const CONF = [["ONCE", "Một lần"], ["REPEATED", "Lặp lại"]];
+const STANCE = [["ORTHODOX", "Thuận phải"], ["SOUTHPAW", "Thuận trái"], ["SWITCH", "Đổi thế"]];
+const STYLE = [["STRIKER", "Đánh đứng"], ["WRESTLER", "Vật"], ["GRAPPLER", "Địa chiến"], ["ALL_ROUND", "Toàn diện"]];
+const ROUNDS = 3;
+const SESSIONS = [{ id: "s1", title: "Đối luyện chiến thuật", date: "26/10" }, { id: "s2", title: "Đấm đích phản đòn", date: "24/10" }, { id: "s3", title: "Đối luyện khoảng cách", date: "22/10" }];
+const label = (list, v) => (list.find(x => x[0] === v) || [, ""])[1];
+const st = {
+  tab: "obs", open: { obs: null, tac: null }, dirty: false,
+  p: { wins: 8, losses: 2, draws: 0, stance: "ORTHODOX", style: "STRIKER", height: "170", reach: "173", source: "Video trận gần nhất" },
+  obs: [
+    { id: "o1", kind: "OPENING", text: "Hạ tay phải khi lùi sau tổ hợp đòn.", conf: "REPEATED", url: "", note: "Thấy ở hai hiệp cuối", time: "02:14" },
+    { id: "o2", kind: "HABIT", text: "Đứng yên trước mặt sau khi tung jab đôi.", conf: "ONCE", url: "", note: "", time: "" },
+  ],
+  tac: [
+    { id: "t1", text: "Giữ khoảng cách, dùng đấm thẳng tay trước để dẫn nhịp.", round: null, obs: ["o1"], sessions: ["s1"], brief: "Ép nhẹ sau tổ hợp để luyện phản đòn." },
+    { id: "t2", text: "Đổi góc sau jab; không đứng lại trước mặt đối thủ.", round: 2, obs: ["o1", "o2"], sessions: [], brief: "" },
+  ],
+};
+const wide = () => $("#stage").dataset.size !== "phone";
+const qsNo = id => st.obs.findIndex(o => o.id === id) + 1;
+const opts = (list, value, key, allowNone) => `<div class="opts" role="radiogroup">${list.map(([v, l]) => `<button type="button" data-set="${key}" data-v="${v}" aria-pressed="${String(value === v)}">${l}</button>`).join("")}${allowNone ? `<button type="button" data-set="${key}" data-v="" aria-pressed="${String(!value)}">Chưa rõ</button>` : ""}</div>`;
+const field = (lab, key, value, o = {}) => `<label class="field"><span>${lab}</span>${o.multi ? `<textarea data-f="${key}" rows="2" maxlength="${o.max ?? 300}" placeholder="${esc(o.ph ?? "")}">${esc(value)}</textarea>` : `<input data-f="${key}" value="${esc(value)}" inputmode="${o.mode ?? "text"}" maxlength="${o.max ?? 60}" placeholder="${esc(o.ph ?? "")}">`}${o.help ? `<small class="${o.helpNeed ? "need" : ""}">${o.help}</small>` : ""}</label>`;
+
+function header() {
+  const p = st.p;
+  return `<div class="top"><div class="slip">
+    <div class="opp-name">Somchai Prasert</div>
+    <div class="vs">Đối thủ của Nguyễn Thành Long · Lotus Fight Night · 30/10</div>
+    <div class="record" aria-label="Thành tích ${p.wins} thắng ${p.losses} thua ${p.draws} hoà">
+      <input data-f="p.wins" value="${p.wins}" inputmode="numeric" maxlength="3" aria-label="Số trận thắng"><span class="dash">–</span><input data-f="p.losses" value="${p.losses}" inputmode="numeric" maxlength="3" aria-label="Số trận thua"><span class="dash">–</span><input data-f="p.draws" value="${p.draws}" inputmode="numeric" maxlength="3" aria-label="Số trận hoà">
+    </div>
+    <div class="record-legend"><span>thắng</span><span class="gap"></span><span>thua</span><span class="gap"></span><span>hoà</span></div>
+    ${!wide() && !st.profileOpen ? `<button type="button" class="summary" data-profile aria-expanded="false"><span>${[label(STANCE, p.stance) || "Tư thế chưa rõ", label(STYLE, p.style) || "Lối đánh chưa rõ", p.height ? p.height + " cm" : "", p.reach ? "tầm với " + p.reach : ""].filter(Boolean).join(" · ")}</span><span class="edit">Sửa</span></button>` : `<div class="traits">
+      <div class="trait"><span>Tư thế</span>${opts(STANCE, p.stance, "p.stance", true)}</div>
+      <div class="trait"><span>Lối đánh</span>${opts(STYLE, p.style, "p.style", true)}</div>
+      <div class="trait"><span>Thể hình</span><div class="opts" style="gap:16px;align-items:center"><span><input class="inline-num" data-f="p.height" value="${esc(p.height)}" inputmode="decimal" aria-label="Chiều cao"> <span class="unit">cm cao</span></span><span><input class="inline-num" data-f="p.reach" value="${esc(p.reach)}" inputmode="decimal" aria-label="Tầm với"> <span class="unit">cm tầm với</span></span></div></div>
+      <div class="trait"><span>Nguồn</span><input class="inline-num" style="width:100%" data-f="p.source" value="${esc(p.source)}" placeholder="Ví dụ: video trận gần nhất" aria-label="Nguồn hồ sơ"></div>
+      ${!wide() ? `<button type="button" class="text-btn close" data-profile>Xong</button>` : ""}
+    </div>`}
+  </div>
+  <div>${wide() ? "" : ""}<button class="copy-prior" type="button">${icon("copy")}Chép phân tích lần trước gặp đối thủ này</button></div></div>`;
+}
+
+function obsEntry(o, i) {
+  const open = st.open.obs === o.id, evidence = o.url || o.note;
+  return `<li class="entry" data-open="${open && !wide()}" aria-current="${String(open && wide())}">
+    <button type="button" data-open-id="${o.id}" aria-expanded="${open}">
+      <span class="tag">${label(KIND, o.kind)}</span>
+      <span class="text">${esc(o.text) || "<span style='color:var(--subtle)'>Chưa ghi nội dung</span>"}</span>
+      <span class="side">QS ${i + 1}</span>
+      <span></span><span class="foot-line"><span>${label(CONF, o.conf).toLowerCase()}</span>${o.time ? `<span>${icon("play").replace('class="i"', 'class="i" style="width:11px;height:11px;vertical-align:-1px"')} ${esc(o.time)}</span>` : ""}${evidence ? "" : `<span class="need">chưa có bằng chứng</span>`}</span>
+    </button>${open && !wide() ? `<div class="editor">${obsForm(o)}</div>` : ""}</li>`;
+}
+function tacEntry(t, i) {
+  const open = st.open.tac === t.id;
+  const basis = t.obs.length ? t.obs.map(id => `<span class="qs">QS ${qsNo(id)}</span>`).join(", ") : `<span class="need">chưa chọn quan sát</span>`;
+  return `<li class="entry" data-open="${open && !wide()}" aria-current="${String(open && wide())}">
+    <button type="button" data-open-id="${t.id}" aria-expanded="${open}">
+      <span class="tag">${t.round ? "Hiệp " + t.round : "Mọi hiệp"}</span>
+      <span class="text">${esc(t.text) || "<span style='color:var(--subtle)'>Chưa ghi chiến thuật</span>"}</span>
+      <span class="side">CT ${i + 1}</span>
+      <span></span><span class="foot-line"><span>dựa trên ${basis}</span>${t.sessions.length ? `<span class="done">đã luyện ${t.sessions.length} buổi</span>` : `<span>chưa luyện</span>`}</span>
+    </button>${open && !wide() ? `<div class="editor">${tacForm(t)}</div>` : ""}</li>`;
+}
+
+function obsForm(o) {
+  const evidence = o.url || o.note;
+  return `<div class="field"><span>Loại</span>${opts(KIND, o.kind, "o.kind")}</div>
+    ${field("Đã thấy gì", "o.text", o.text, { multi: true, max: 300, ph: "Ví dụ: hạ tay phải khi lùi sau tổ hợp đòn" })}
+    <div class="field"><span>Số lần thấy</span>${opts(CONF, o.conf, "o.conf")}</div>
+    <div class="section-label">Bằng chứng</div>
+    <div class="pair">${field("Ghi chú", "o.note", o.note, { max: 1000, ph: "Ví dụ: hai hiệp cuối", help: evidence ? "" : "Cần ghi chú hoặc đường dẫn", helpNeed: !evidence })}${field("Mốc video", "o.time", o.time, { max: 30, ph: "02:14" })}</div>
+    ${field("Đường dẫn video", "o.url", o.url, { mode: "url", max: 2000, ph: "https://" })}
+    <div class="ed-actions"><button class="text-btn remove" type="button" data-remove>${icon("trash")}Bỏ quan sát</button><button class="text-btn close" type="button" data-close>Xong</button></div>`;
+}
+function tacForm(t) {
+  const rounds = [["", "Mọi hiệp"], ...Array.from({ length: ROUNDS }, (_, n) => ["r" + (n + 1), "Hiệp " + (n + 1)])];
+  return `${field("Chiến thuật", "t.text", t.text, { multi: true, max: 1000, ph: "Ví dụ: giữ khoảng cách, dẫn nhịp bằng jab" })}
+    <div class="field"><span>Áp dụng</span><div class="opts" role="radiogroup">${rounds.map(([v, l]) => `<button type="button" data-set="t.round" data-v="${v}" aria-pressed="${String((t.round ? "r" + t.round : "") === v)}">${l}</button>`).join("")}</div></div>
+    <div class="field"><span>Dựa trên quan sát ${t.obs.length ? "" : "<b style='color:var(--danger);font-weight:500'>· chọn ít nhất một</b>"}</span><div class="links" role="group">${st.obs.map((o, n) => `<button type="button" class="link" role="checkbox" data-link="obs" data-v="${o.id}" aria-checked="${t.obs.includes(o.id)}"><span class="box">${icon("check")}</span><span>QS ${n + 1} · ${esc(o.text) || "Chưa ghi nội dung"}<small>${label(KIND, o.kind)}</small></span></button>`).join("")}</div></div>
+    <div class="field"><span>Đã luyện ở buổi</span><div class="links" role="group">${SESSIONS.map(s => `<button type="button" class="link" role="checkbox" data-link="sessions" data-v="${s.id}" aria-checked="${t.sessions.includes(s.id)}"><span class="box">${icon("check")}</span><span>${s.title}<small>${s.date}</small></span></button>`).join("")}</div><button class="text-btn close" type="button" style="color:var(--muted);font-weight:500">Xem buổi cũ hơn</button></div>
+    ${field("Dặn bạn tập", "t.brief", t.brief, { multi: true, max: 1000, ph: "Không bắt buộc. Ví dụ: ép nhẹ sau tổ hợp" })}
+    <div class="ed-actions"><button class="text-btn remove" type="button" data-remove>${icon("trash")}Bỏ chiến thuật</button><button class="text-btn close" type="button" data-close>Xong</button></div>`;
+}
+
+function section(kind) {
+  const items = st[kind], max = kind === "obs" ? 6 : 5;
+  const blocked = kind === "tac" && !st.obs.length, full = items.length >= max;
+  const addLabel = kind === "obs" ? "Thêm quan sát" : "Thêm chiến thuật";
+  const ledger = `<ol class="ledger">${items.map(kind === "obs" ? obsEntry : tacEntry).join("")}</ol>
+    <button class="add" type="button" data-add aria-disabled="${blocked || full}">${icon("plus")}${addLabel}<span class="limit">${blocked ? "cần một quan sát trước" : `${items.length}/${max}`}</span></button>`;
+  if (!wide()) return ledger;
+  const sel = items.find(x => x.id === st.open[kind]);
+  const editor = sel ? `<div class="slip"><div class="ed-title">${kind === "obs" ? "Quan sát " + qsNo(sel.id) : "Chiến thuật " + (items.indexOf(sel) + 1)}</div><div class="editor">${kind === "obs" ? obsForm(sel) : tacForm(sel)}</div></div>`
+    : `<p class="idle">${kind === "obs" ? "Chọn một quan sát bên trái để sửa, hoặc thêm quan sát mới." : "Chọn một chiến thuật bên trái để sửa, hoặc thêm chiến thuật mới."}</p>`;
+  return `<div class="split"><div>${ledger}</div><div class="editor-wrap">${editor}</div></div>`;
+}
+
+function render() {
+  $("#stage").classList.toggle("wide", wide());
+  $("#page").innerHTML = `${header()}
+    <nav class="tabs" role="tablist"><button role="tab" data-tab="obs" aria-selected="${st.tab === "obs"}">Quan sát<sup>${st.obs.length}</sup></button><button role="tab" data-tab="tac" aria-selected="${st.tab === "tac"}">Chiến thuật<sup>${st.tac.length}</sup></button></nav>
+    ${section(st.tab)}`;
+  $("#state").textContent = st.dirty ? "Có thay đổi chưa lưu" : "Đã lưu lúc 21:40";
+  $("#state").className = "state" + (st.dirty ? " dirty" : "");
+  $("#save").disabled = !st.dirty;
+  bind();
+}
+const cur = () => st[st.tab].find(x => x.id === st.open[st.tab]);
+const touch = () => { st.dirty = true; $("#state").textContent = "Có thay đổi chưa lưu"; $("#state").className = "state dirty"; $("#save").disabled = false; };
+function bind() {
+  $$("[data-tab]").forEach(b => b.onclick = () => { st.tab = b.dataset.tab; render(); });
+  $$("[data-profile]").forEach(b => b.onclick = () => { st.profileOpen = !st.profileOpen; render(); });
+  $$("[data-open-id]").forEach(b => b.onclick = () => { const k = st.tab, id = b.dataset.openId; st.open[k] = st.open[k] === id && !wide() ? null : id; render(); });
+  $$("[data-close]").forEach(b => b.onclick = () => { st.open[st.tab] = null; render(); });
+  $$("[data-set]").forEach(b => b.onclick = () => {
+    const [scope, key] = b.dataset.set.split("."), v = b.dataset.v;
+    if (scope === "p") st.p[key] = v; else { const it = cur(); it[key] = key === "round" ? (v ? Number(v.slice(1)) : null) : v; }
+    touch(); render();
+  });
+  $$("[data-f]").forEach(f => f.oninput = () => { const [scope, key] = f.dataset.f.split("."); (scope === "p" ? st.p : cur())[key] = f.value; touch(); });
+  $$("[data-f]").forEach(f => f.onchange = () => { if (f.dataset.f.startsWith("p.")) return; const pos = $("#scroll").scrollTop; render(); $("#scroll").scrollTop = pos; });
+  $$("[data-link]").forEach(b => b.onclick = () => { const it = cur(), k = b.dataset.link, v = b.dataset.v; it[k] = it[k].includes(v) ? it[k].filter(x => x !== v) : [...it[k], v]; touch(); const pos = $("#scroll").scrollTop; render(); $("#scroll").scrollTop = pos; });
+  $$("[data-remove]").forEach(b => b.onclick = () => { const k = st.tab, id = st.open[k]; st[k] = st[k].filter(x => x.id !== id); if (k === "obs") st.tac.forEach(t => t.obs = t.obs.filter(x => x !== id)); st.open[k] = null; touch(); render(); });
+  $$("[data-add]").forEach(b => b.onclick = () => {
+    if (b.getAttribute("aria-disabled") === "true") return;
+    const k = st.tab, id = k[0] + Date.now().toString(36);
+    st[k].push(k === "obs" ? { id, kind: "OPENING", text: "", conf: "ONCE", url: "", note: "", time: "" } : { id, text: "", round: null, obs: [], sessions: [], brief: "" });
+    st.open[k] = id; touch(); render();
+  });
+}
+$("#save").onclick = () => { st.dirty = false; render(); };
+$$(".pv [data-size]").forEach(b => b.onclick = () => { $("#stage").dataset.size = b.dataset.size; $$(".pv [data-size]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); render(); });
+$$(".pv [data-th]").forEach(b => b.onclick = () => { document.documentElement.dataset.theme = b.dataset.th; $$(".pv [data-th]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+render();
+</script>
+</body>
+</html>

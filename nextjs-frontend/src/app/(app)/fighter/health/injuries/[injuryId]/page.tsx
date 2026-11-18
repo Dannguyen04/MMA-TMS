@@ -162,9 +162,9 @@ export default async function FighterInjuryPage({ params }: PageProps<"/fighter/
 
                     {recoveryPlan && medicalFeatureAvailable("recoveryPhasesAndCheckIns") && (
                         <Card className="min-w-0">
-                            <CardHeader title={t("fighterInjury.checkIns")} description={t("fighterInjury.checkInsDesc")} icon={<LineChartIcon />} />
+                            <CardHeader title={t("fighterInjury.checkIns")} icon={<LineChartIcon />} />
                             <CardContent className="flex flex-col gap-6">
-                                <CheckInTrends checkIns={recoveryPlan.checkIns} now={now} />
+                                <CheckInTrends locale={locale === "en" ? undefined : locale} checkIns={recoveryPlan.checkIns} now={now} />
                                 {recoveryPlan.checkIns.length >= 2 ? (
                                     <div className="border-t border-border pt-5">
                                         <CheckInCharts checkIns={recoveryPlan.checkIns} audience="fighter" locale={locale} />

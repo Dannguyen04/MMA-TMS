@@ -17,8 +17,17 @@ import { viScreens } from "./screens.vi";
 import { viScreensRoster } from "./screens-roster.vi";
 import { viScreensPerformance } from "./screens-performance.vi";
 import { viScreensTraining } from "./screens-training.vi";
-import type { en } from "./en";
+import { viScreensApp } from "./screens-app.vi";
+import { viScreensVideo } from "./screens-video.vi";
+import { viScreensAdmin } from "./screens-admin.vi";
 import { viScreensMisc } from "./screens-misc.vi";
+import { viDoctorScreens } from "./doctor-screens.vi";
+import { viDoctorViews } from "./doctor-views.vi";
+import { viDoctorMedical } from "./doctor-medical.vi";
+import { viDoctorScat6 } from "./doctor-scat6.vi";
+import { viDoctorClinical } from "./doctor-clinical.vi";
+import { viDoctorPages } from "./doctor-pages.vi";
+import type { en } from "./en";
 
 /** Vietnamese interface text. Must define every key of `en` (enforced by the type below). */
 export const vi = {
@@ -41,7 +50,16 @@ export const vi = {
     ...viScreensRoster,
     ...viScreensPerformance,
     ...viScreensTraining,
+    ...viScreensApp,
+    ...viScreensVideo,
+    ...viScreensAdmin,
     ...viScreensMisc,
+    ...viDoctorScreens,
+    ...viDoctorViews,
+    ...viDoctorMedical,
+    ...viDoctorScat6,
+    ...viDoctorClinical,
+    ...viDoctorPages,
     "nav.Today": "Hôm nay",
     "nav.Bout": "Trận đấu",
     "nav.Bouts": "Trận đấu",
@@ -62,6 +80,19 @@ export const vi = {
     "nav.Patients": "Bệnh nhân",
     "nav.Clinical": "Lâm sàng",
     "nav.Injuries": "Chấn thương",
+    "nav.Daily": "Hằng ngày",
+    "nav.Medical": "Hồ sơ y tế",
+    "nav.Fighters": "Võ sĩ",
+    "nav.Review requests": "Yêu cầu xem xét",
+    "nav.Reviews": "Xem xét",
+    "nav.AI observations": "Quan sát AI",
+    "nav.Examinations": "Phiếu khám",
+    "nav.Recovery plans": "Kế hoạch phục hồi",
+    "nav.Clearances": "Giấy phép",
+    "nav.Medical history": "Lịch sử y tế",
+    "nav.Medical records": "Bệnh án",
+    "nav.Requests": "Yêu cầu",
+    "nav.Recovery": "Phục hồi",
     "nav.Dashboard": "Tổng quan",
     "nav.Access": "Truy cập",
     "nav.People": "Người dùng",
@@ -88,6 +119,8 @@ export const vi = {
     "shell.badge.reviewQueue": "chờ duyệt",
     "shell.badge.newAlerts": "mới",
     "shell.badge.failedJobs": "lỗi",
+    "shell.badge.blockedFighters": "võ sĩ bị chặn",
+    "shell.badge.openReviews": "đang mở",
     "shell.primaryNav": "Điều hướng nhanh",
     "shell.openNav": "Mở menu",
     "shell.closeNav": "Đóng menu",
@@ -100,6 +133,53 @@ export const vi = {
     "shell.profile": "Hồ sơ",
     "shell.preferences": "Tùy chọn",
     "shell.signOut": "Đăng xuất",
+    "doctor.hub.triage": "Phân loại",
+    "doctor.hub.fighters": "Võ sĩ",
+    "doctor.hub.clinical": "Lâm sàng",
+    "doctor.hub.observations": "Quan sát",
+    "doctor.tab.examinations": "Phiếu khám",
+    "doctor.tab.injuries": "Chấn thương",
+    "doctor.tab.recovery": "Phục hồi",
+    "doctor.tab.clearance": "Giấy phép",
+    "doctor.tab.history": "Lịch sử",
+    "doctor.tab.records": "Bệnh án",
+    "doctor.tab.reviews": "Yêu cầu xem xét",
+    "doctor.tab.alerts": "Quan sát AI",
+    "doctor.badge.blocked": "võ sĩ bị chặn",
+    "doctor.badge.attention": "{reviews} yêu cầu đang mở, {alerts} cảnh báo mới",
+    "doctor.brandHome": "MMA-TMS · Y tế, về Hôm nay",
+    "doctor.nav.skip": "Bỏ qua điều hướng",
+    "doctor.nav.daily": "Hằng ngày",
+    "doctor.nav.chart": "Hồ sơ y tế",
+    "doctor.nav.today": "Hôm nay",
+    "doctor.nav.role": "Bác sĩ y học thể thao",
+    "doctor.nav.profile": "Hồ sơ của tôi",
+    "doctor.nav.theme": "Chuyển giao diện sáng/tối",
+    "doctor.nav.themeOn": "Chuyển giao diện sáng/tối · đang dùng giao diện {mode}",
+    "doctor.nav.light": "Sáng",
+    "doctor.nav.dark": "Tối",
+    "doctor.nav.expand": "Mở rộng thanh bên",
+    "doctor.nav.collapse": "Thu gọn thanh bên",
+    "doctor.nav.expandShort": "Mở rộng",
+    "doctor.nav.collapseShort": "Thu gọn",
+    "doctor.nav.notifications": "Thông báo",
+    "doctor.nav.notificationsUnread": "Thông báo: {n} chưa đọc",
+    "doctor.badge.reviews": "yêu cầu đang mở",
+    "doctor.badge.alerts": "cảnh báo mới",
+    "doctor.dashboard.title": "Phân loại hôm nay",
+    "doctor.fighters.title": "Võ sĩ",
+    "doctor.examinations.title": "Phiếu khám",
+    "doctor.injuries.title": "Chấn thương",
+    "doctor.recovery.title": "Kế hoạch phục hồi",
+    "doctor.clearance.title": "Giấy phép",
+    "doctor.history.title": "Lịch sử y tế",
+    "doctor.reviews.title": "Yêu cầu xem xét",
+    "doctor.alerts.title": "Quan sát AI",
+    "shell.logoSubtitle": "Huấn luyện và sức khỏe",
+    "shell.meta.title": "MMA-TMS — Huấn luyện và sức khỏe võ sĩ",
+    "shell.meta.description": "Huấn luyện võ sĩ MMA, phân tích video có AI, theo dõi hiệu suất và y học thể thao trên một nền tảng.",
+    "shell.error.body": "Đã có lỗi khi tải dữ liệu. Hãy thử lại. Nếu vẫn lỗi, hãy báo quản trị viên.",
+    "shell.error.reference": "Mã tham chiếu",
     "theme.light": "Sáng",
     "theme.dark": "Tối",
     "theme.system": "Hệ thống",
@@ -108,6 +188,7 @@ export const vi = {
     "role.fighter": "Võ sĩ",
     "role.coach": "Huấn luyện viên",
     "role.doctor": "Bác sĩ thể thao",
+    "role.applicant": "Ứng viên",
     "role.admin": "Quản trị viên",
 
     "boutStatus.SCHEDULED": "Đã lên lịch",

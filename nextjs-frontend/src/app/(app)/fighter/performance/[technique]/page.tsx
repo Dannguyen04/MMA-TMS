@@ -110,7 +110,6 @@ export default async function TechniqueDetailPage({ params }: PageProps<"/fighte
                 back={back}
                 eyebrow={t("screens.performance.technique")}
                 title={label}
-                description={t("screens.performance.techniqueDetail.desc", { technique: labelInText })}
                 meta={
                     <>
                         <TechniqueChip technique={technique} />
@@ -194,7 +193,6 @@ export default async function TechniqueDetailPage({ params }: PageProps<"/fighte
                                 <h2 id="findings-heading" className="text-base font-semibold text-fg">
                                     {t("screens.performance.techniqueDetail.findings")}
                                 </h2>
-                                <p className="text-[13px] text-fg-muted">{t("screens.performance.techniqueDetail.findingsDesc", { technique: labelInText })}</p>
                             </div>
                             <AINotice audience="fighter" compact locale={locale} />
                             {findings.length === 0 ? (
@@ -266,7 +264,6 @@ export default async function TechniqueDetailPage({ params }: PageProps<"/fighte
                             <CardHeader
                                 title={t("screens.performance.techniqueDetail.tips")}
                                 icon={<MessageSquareText aria-hidden />}
-                                description={t("screens.performance.techniqueDetail.tipsDesc", { technique: label })}
                             />
                             <CardContent>
                                 {tips.length === 0 ? (

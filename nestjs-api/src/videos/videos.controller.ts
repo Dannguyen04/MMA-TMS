@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
@@ -25,7 +26,11 @@ import {
 } from '../shared/guards/auth.guard.js';
 import type { AuthenticatedUser } from '../shared/models/auth-context.model.js';
 import { USER } from '../shared/types/user.role.js';
-import { ListVideosQueryDto, UploadVideoQueryDto } from './videos.dto.js';
+import {
+  CreateVideoUploadDto,
+  ListVideosQueryDto,
+  UploadVideoQueryDto,
+} from './videos.dto.js';
 import { VideosService } from './videos.service.js';
 
 class VideoIdParamsDto {
@@ -47,6 +52,32 @@ export class VideosController {
     @Req() request: Request,
   ) {
     return this.videosService.upload(this.requireActor(actor), query, request);
+  }
+
+  /** Direct upload, step 1: a pending video row and a signed storage upload URL. */
+  @Post('upload-url')
+  @RequireRoles(USER.FIGHTER, USER.COACH, USER.ADMIN)
+  @ResponseMessage('Video upload URL created successfully')
+  createUpload(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Body() body: CreateVideoUploadDto,
+  ) {
+    return this.videosService.createUpload(this.requireActor(actor), body);
+  }
+
+  /** Direct upload, step 2: the file is in storage, mark the video ready. */
+  @Post(':id/complete')
+  @RequireRoles(USER.FIGHTER, USER.COACH, USER.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @ResponseMessage('Video upload completed successfully')
+  completeUpload(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Param() params: VideoIdParamsDto,
+  ) {
+    return this.videosService.completeUpload(
+      this.requireActor(actor),
+      params.id,
+    );
   }
 
   @Get()

@@ -188,7 +188,13 @@ export function useSessionActions({
       </BottomSheet>
     </>
   );
-  return { primary, more, sheets };
+  // Redesign step 18: the coach session page pins its own lit button, so it needs the move itself, not the node.
+  const runPrimary = () => {
+    if (!primaryTo || w.sending) return;
+    setPendingPrimary(true);
+    void send(primaryTo).finally(() => setPendingPrimary(false));
+  };
+  return { primary, more, sheets, primaryTo, runPrimary, primaryPending: pendingPrimary && w.sending, sending: w.sending, forbidden: sheet ? "" : w.forbidden };
 }
 
 /* ───────────── Giáo án (HLV) ───────────── */
@@ -258,8 +264,7 @@ export function usePlanActions({ planId, status, onChanged, onReload }: { planId
 
 export function RevokeClearanceButton({ clearanceId, training, onDone }: { clearanceId: string; training: boolean; onDone: () => void }) {
   const p = useFighterPalette();
-  const [open, setOpen] = useState(false);
-  const w = useWrite(ot.clearanceForbidden);
+  const revoke = useRevokeClearance(onDone);
   return (
     <>
       <View style={{ alignSelf: "stretch" }}>
@@ -267,12 +272,23 @@ export function RevokeClearanceButton({ clearanceId, training, onDone }: { clear
           testID={`revoke-${clearanceId}`}
           label={ot.clearanceRevoke}
           color={p.danger}
-          onPress={() => {
-            w.setForbidden("");
-            setOpen(true);
-          }}
+          onPress={() => revoke.open(clearanceId, training)}
         />
       </View>
+      {revoke.sheet}
+    </>
+  );
+}
+
+/** The revoke sheet (reasons + confirm) opened from anywhere, e.g. a clearance row (redesign step 20). */
+export function useRevokeClearance(onDone: () => void) {
+  const [target, setTarget] = useState<{ id: string; training: boolean } | null>(null);
+  const open = target != null;
+  const setOpen = (v: boolean) => { if (!v) setTarget(null); };
+  const clearanceId = target?.id ?? "";
+  const training = target?.training ?? false;
+  const w = useWrite(ot.clearanceForbidden);
+  const sheet = (
       <ConfirmSheet
         visible={open}
         title={ot.clearanceRevokeTitle}
@@ -303,8 +319,11 @@ export function RevokeClearanceButton({ clearanceId, training, onDone }: { clear
             })
         }
       />
-    </>
   );
+  return {
+    open: (id: string, isTraining: boolean) => { w.setForbidden(""); setTarget({ id, training: isTraining }); },
+    sheet,
+  };
 }
 
 /** Nút viền danger (chữ danger trên nền surface; ≥48dp). */

@@ -10,7 +10,7 @@ import { authorizeAction } from "@/lib/auth/session";
 import { ACCOUNT_LIMITS } from "@/lib/domain/account-contract";
 import { CARE_ROLE_LABELS, CARE_ROLES, END_REASON_MAX } from "@/lib/domain/care-team";
 import { BROADCAST_CHANNEL_LABELS, ROLE_LABELS, WEIGHT_CLASS_ORDER } from "@/lib/domain/labels";
-import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type Stance, type SystemSettings, type UserStatus } from "@/lib/domain/types";
+import { PERMISSIONS, type AIModelStatus, type BroadcastChannel, type Permission, type Role, type Sex, type Stance, type SystemSettings, type UserStatus } from "@/lib/domain/types";
 import type { WriteResult } from "@/lib/domain/write-result";
 import { academyWallClockToIso, formatDateTime, isDateKey, isTimeValue, pluralize } from "@/lib/format";
 import { hrefWith } from "@/lib/query";
@@ -175,7 +175,8 @@ export async function resendInviteAction(_prev: ActionState, formData: FormData)
 
 const STANCES = ["orthodox", "southpaw", "switch"] as const satisfies readonly Stance[];
 /** Profile controls are named `profile.<field>`, so validation and service errors land on them by path. */
-const PROFILE_FIELDS = ["firstName", "lastName", "dateOfBirth", "weightClass", "dominantStance", "nationality", "specialization", "licenseNumber"] as const;
+const SEXES = ["male", "female"] as const satisfies readonly Sex[];
+const PROFILE_FIELDS = ["firstName", "lastName", "dateOfBirth", "weightClass", "dominantStance", "nationality", "sex", "specialization", "licenseNumber"] as const;
 
 const names = { firstName: requiredText("first name", ACCOUNT_LIMITS.name), lastName: requiredText("last name", ACCOUNT_LIMITS.name) };
 const specialization = nullableText("specialisation", ACCOUNT_LIMITS.specialization);
@@ -189,6 +190,7 @@ const staffAccountSchemas = [
             weightClass: z.enum(WEIGHT_CLASS_ORDER, "Choose a weight class."),
             dominantStance: z.preprocess((value) => value || null, z.enum(STANCES, "Choose a stance from the list.").nullable()),
             nationality: nullableText("nationality", ACCOUNT_LIMITS.nationality),
+            sex: z.preprocess((value) => value || null, z.enum(SEXES, "Choose male or female.").nullable()),
         }),
     }),
     z.object({ role: z.literal("coach"), profile: z.object({ ...names, specialization, isHeadCoach: z.boolean() }) }),

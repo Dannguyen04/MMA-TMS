@@ -6,6 +6,7 @@ import { radius, spacing, type, useTypography, type ColorTokens } from "@/theme"
 
 import { StatusChip } from "./primitives";
 import { SESSION_STATUS_TONE, SESSION_TYPE_ICON, toneColors } from "./tone";
+import { fz, liveSheet } from "@/theme/typography";
 
 export type TimelineSession = Pick<TrainingSession, "id" | "title" | "scheduledAt" | "sessionType" | "status">;
 
@@ -190,7 +191,7 @@ export function WeeklyLoad({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   flex: { flex: 1 },
   touch: { minHeight: 44 },
   timelineRow: { flexDirection: "row", gap: spacing.md },
@@ -216,5 +217,5 @@ const styles = StyleSheet.create({
   weekBars: { height: 150, flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between" },
   dayCol: { width: 36, alignItems: "center", gap: spacing.xs },
   dayBar: { width: 20, borderRadius: radius.field },
-  dayLabel: { fontSize: 11 },
-});
+  dayLabel: { fontSize: fz(11) },
+}));

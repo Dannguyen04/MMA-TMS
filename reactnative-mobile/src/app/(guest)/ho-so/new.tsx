@@ -1,5 +1,5 @@
-import { ApplicantFormScreen } from "@/screens/admissions/applicant-form";
+import { ApplicationFormScreen } from "@/screens/admissions/redesign/applicant-screens";
 
 export default function GuestApplicationForm() {
-  return <ApplicantFormScreen />;
+  return <ApplicationFormScreen />;
 }

@@ -1,1 +1,1 @@
-export { FighterSuspensionsScreen as default } from "@/screens/fight-camp/fighter-camp-screen";
+export { FighterSuspensionsV2 as default } from "@/screens/fighter/bout/suspensions-v2";

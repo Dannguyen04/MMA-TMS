@@ -10,7 +10,7 @@ describe("account bodies for the user service", () => {
                 password: "a long first password",
                 account: {
                     role: "fighter",
-                    profile: { firstName: " Linh ", lastName: "Tran ", dateOfBirth: "2001-04-12", weightClass: "light_heavyweight", dominantStance: null, nationality: "  " },
+                    profile: { firstName: " Linh ", lastName: "Tran ", dateOfBirth: "2001-04-12", weightClass: "light_heavyweight", dominantStance: null, nationality: "  ", sex: "female" },
                 },
             }),
         ).toEqual({
@@ -18,7 +18,7 @@ describe("account bodies for the user service", () => {
                 email: "linh.tran@example.test",
                 password: "a long first password",
                 role: "FIGHTER",
-                profile: { firstName: "Linh", lastName: "Tran", dateOfBirth: "2001-04-12", weightClass: "LIGHT_HEAVYWEIGHT", dominantStance: null, nationality: null },
+                profile: { firstName: "Linh", lastName: "Tran", dateOfBirth: "2001-04-12", weightClass: "LIGHT_HEAVYWEIGHT", dominantStance: null, nationality: null, sex: "FEMALE" },
             },
         });
     });

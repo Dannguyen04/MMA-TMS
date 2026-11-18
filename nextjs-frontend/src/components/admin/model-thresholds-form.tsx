@@ -4,6 +4,7 @@ import { Info } from "lucide-react";
 import { useState } from "react";
 
 import { InlineNote } from "@/components/dashboard/inline-note";
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { Field, FormMessage, Input } from "@/components/ui/form";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -30,24 +31,25 @@ function parsePct(value: string): number | null {
 
 /** Confidence and low-confidence thresholds as linked sliders and numeric inputs, with live impact. */
 export function ModelThresholdsForm({ modelId, confidencePct, lowConfidencePct, defaults, disabledReason }: ModelThresholdsFormProps) {
+    const t = useT();
+    const locale = useLocale();
     const toast = useToast();
     const [confidence, setConfidence] = useState(String(confidencePct));
     const [low, setLow] = useState(String(lowConfidencePct));
 
     const form = useActionForm(updateModelThresholdsAction, {
         id: "thresholds",
-        onSuccess: (state) => toast({ title: state.message ?? "Thresholds saved." }),
+        onSuccess: (state) => toast({ title: state.message ?? t("screens.admin.thresholds.saved") }),
     });
 
     const conf = parsePct(confidence);
     const lowValue = parsePct(low);
-    const confError =
-        conf === null || conf < 1 || conf > 98 ? "Enter a whole number between 1% and 98%." : undefined;
+    const confError = conf === null || conf < 1 || conf > 98 ? t("screens.admin.thresholds.confRange") : undefined;
     const lowError =
         lowValue === null || lowValue < 2 || lowValue > 99
-            ? "Enter a whole number between 2% and 99%."
+            ? t("screens.admin.thresholds.lowRange")
             : conf !== null && lowValue <= conf
-              ? `Must be higher than the confidence threshold (${conf}%).`
+              ? t("screens.admin.thresholds.lowAbove", { n: conf })
               : undefined;
     const confidenceMessage = confError ?? form.error("confidencePct");
     const lowMessage = lowError ?? form.error("lowConfidencePct");
@@ -55,8 +57,8 @@ export function ModelThresholdsForm({ modelId, confidencePct, lowConfidencePct, 
     const valid = !confError && !lowError;
     const disabled = disabledReason !== null;
 
-    const confHint = `Detections below this are discarded. Platform default ${defaults.confidencePct}%.`;
-    const lowHint = `Detections below the low-confidence threshold are flagged “Needs review” for coaches. Platform default ${defaults.lowConfidencePct}%.`;
+    const confHint = t("screens.admin.thresholds.confHint", { n: defaults.confidencePct });
+    const lowHint = t("screens.admin.thresholds.lowHint", { n: defaults.lowConfidencePct });
 
     return (
         <form {...form.formProps} className="flex flex-col gap-5">
@@ -67,7 +69,7 @@ export function ModelThresholdsForm({ modelId, confidencePct, lowConfidencePct, 
                 <ThresholdControl
                     id="threshold-confidence"
                     name="confidencePct"
-                    label="Confidence threshold"
+                    label={t("screens.admin.thresholds.confidence")}
                     value={confidence}
                     onChange={(value) => {
                         setConfidence(value);
@@ -80,7 +82,7 @@ export function ModelThresholdsForm({ modelId, confidencePct, lowConfidencePct, 
                 <ThresholdControl
                     id="threshold-low"
                     name="lowConfidencePct"
-                    label="Low-confidence threshold"
+                    label={t("screens.admin.thresholds.low")}
                     value={low}
                     onChange={(value) => {
                         setLow(value);
@@ -93,20 +95,18 @@ export function ModelThresholdsForm({ modelId, confidencePct, lowConfidencePct, 
             </div>
 
             <div className="rounded-lg border border-border bg-surface-muted/50 p-4">
-                <p className="mb-3 text-sm font-medium text-fg">Impact on model output</p>
+                <p className="mb-3 text-sm font-medium text-fg">{t("screens.admin.thresholds.impact")}</p>
                 {valid && conf !== null && lowValue !== null ? (
                     <>
-                        <ThresholdBands confidencePct={conf} lowConfidencePct={lowValue} />
+                        <ThresholdBands confidencePct={conf} lowConfidencePct={lowValue} locale={locale} />
                         <ul className="mt-3 flex list-disc flex-col gap-1 pl-5 text-[13px] text-fg-muted" aria-live="polite">
-                            <li>Detections below {conf}% are discarded and never shown.</li>
-                            <li>
-                                Detections from {conf}% up to {lowValue}% are kept but flagged “Needs review” for coaches.
-                            </li>
-                            <li>Detections at {lowValue}% or above are shown without a review flag.</li>
+                            <li>{t("screens.admin.thresholds.impactDiscarded", { conf })}</li>
+                            <li>{t("screens.admin.thresholds.impactReview", { conf, low: lowValue })}</li>
+                            <li>{t("screens.admin.thresholds.impactShown", { low: lowValue })}</li>
                         </ul>
                     </>
                 ) : (
-                    <p className="text-[13px] text-fg-muted">Fix the thresholds above to preview their effect.</p>
+                    <p className="text-[13px] text-fg-muted">{t("screens.admin.thresholds.fix")}</p>
                 )}
             </div>
 
@@ -115,7 +115,7 @@ export function ModelThresholdsForm({ modelId, confidencePct, lowConfidencePct, 
             <div className="flex flex-wrap items-center justify-end gap-2">
                 {dirty && !disabled && (
                     <p className="mr-auto text-[13px] font-medium text-warning-fg" aria-live="polite">
-                        Unsaved changes
+                        {t("screens.admin.common.unsavedChanges")}
                     </p>
                 )}
                 <Button
@@ -126,10 +126,10 @@ export function ModelThresholdsForm({ modelId, confidencePct, lowConfidencePct, 
                         setLow(String(lowConfidencePct));
                     }}
                 >
-                    Reset
+                    {t("screens.admin.common.reset")}
                 </Button>
-                <SubmitButton pending={form.pending} pendingLabel="Saving…" disabled={!dirty || !valid || disabled}>
-                    Save thresholds
+                <SubmitButton pending={form.pending} pendingLabel={t("screens.admin.common.saving")} disabled={!dirty || !valid || disabled}>
+                    {t("screens.admin.thresholds.save")}
                 </SubmitButton>
             </div>
         </form>
@@ -155,6 +155,7 @@ function ThresholdControl({
     error?: string;
     disabled: boolean;
 }) {
+    const t = useT();
     const numeric = parsePct(value);
     return (
         <Field label={label} htmlFor={id} required hint={hint} error={error}>
@@ -167,7 +168,7 @@ function ThresholdControl({
                     value={numeric ?? 0}
                     disabled={disabled}
                     onChange={(event) => onChange(event.target.value)}
-                    aria-label={`${label} slider`}
+                    aria-label={t("screens.admin.thresholds.slider", { label })}
                     aria-valuetext={`${numeric ?? 0}%`}
                     className="h-2 min-w-0 flex-1 cursor-pointer accent-[var(--primary)] disabled:cursor-not-allowed"
                 />

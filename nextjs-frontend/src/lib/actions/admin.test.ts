@@ -84,7 +84,7 @@ describe("accounts in the user service's terms", () => {
             password: "a long first password",
             account: expect.objectContaining({
                 role: "fighter",
-                profile: { firstName: "Linh", lastName: "Tran", dateOfBirth: "2001-04-12", weightClass: "lightweight", dominantStance: null, nationality: null },
+                profile: { firstName: "Linh", lastName: "Tran", dateOfBirth: "2001-04-12", weightClass: "lightweight", dominantStance: null, nationality: null, sex: null },
             }),
         });
     });

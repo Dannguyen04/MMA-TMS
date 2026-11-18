@@ -5,7 +5,7 @@ import { useState, useTransition, type ReactNode } from "react";
 
 import { ClearanceCard } from "@/components/domain/clearance-card";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
-import { Term, TermHint } from "@/components/domain/term-hint";
+import { glossaryEntry, InfoHint, Term, TermHint } from "@/components/domain/term-hint";
 import { Button, ButtonLink } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ChoiceGroup } from "@/components/ui/choice-group";
@@ -19,7 +19,7 @@ import { appendSuggestion, SuggestionChips } from "@/components/ui/suggestion-ch
 import { useActionForm } from "@/components/ui/use-action-form";
 import type { ActionState } from "@/lib/actions/state";
 import { loadPlanCopy } from "@/lib/actions/training";
-import { GLOSSARY, type GlossaryTerm } from "@/lib/domain/glossary";
+import type { GlossaryTerm } from "@/lib/domain/glossary";
 import { planStatusLabel, techniqueLabel, trainingPhaseLabel } from "@/lib/domain/labels";
 import {
     PHASE_OBJECTIVE_SUGGESTIONS,
@@ -33,7 +33,7 @@ import {
 } from "@/lib/domain/training-templates";
 import type { Exercise, PlanStatus, Technique, TrainingPhase } from "@/lib/domain/types";
 import { addDaysToKey, formatDate, academyDayStartIso, isDateKey } from "@/lib/format";
-import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { Callout } from "./callout";
 import { draftsFromPlanExercises, draftsFromTemplate, sentDrafts, serializePlanExerciseDrafts, type PlanCopy, type PlanExerciseDraft } from "./plan-drafts";
@@ -104,13 +104,22 @@ const STEP_NAMES: Record<string, MessageKey> = {
 
 const PHASES: TrainingPhase[] = ["base", "build", "fight_camp", "taper", "rehab", "maintenance"];
 
-/** A template's card copy in the viewer's language; the template file keeps the English that fills the form. */
+/** A template's copy in the viewer's language: its card and the title, objective and notes it fills in. */
 function templateLabel(t: Translator, template: PlanTemplate): string {
     return t(`screens.training.template.${template.id}.label` as MessageKey);
 }
 
 function templateSummary(t: Translator, template: PlanTemplate): string {
     return t(`screens.training.template.${template.id}.summary` as MessageKey);
+}
+
+function templateText(t: Translator, template: PlanTemplate, field: "objective" | "notes"): string {
+    return t(`screens.training.template.${template.id}.${field}` as MessageKey);
+}
+
+/** The phase's objective chips in the viewer's language (`PHASE_OBJECTIVE_SUGGESTIONS` keeps the English). */
+function objectiveSuggestions(t: Translator, phase: TrainingPhase): string[] {
+    return PHASE_OBJECTIVE_SUGGESTIONS[phase].map((_, index) => t(`screens.training.objectiveSuggestion.${phase}.${index}` as MessageKey));
 }
 
 /** "Fight camp template", or "Template" when the template is gone. */
@@ -225,11 +234,11 @@ export function PlanCreateForm({
         applied(
             { kind: "template", id: template.id },
             {
-                title: template.label,
+                title: templateLabel(t, template),
                 phase: template.phase,
                 endDate: planEndKey(isDateKey(values.startDate) ? values.startDate : today, template.weeks),
-                objective: template.objective,
-                notes: template.notes,
+                objective: templateText(t, template, "objective"),
+                notes: templateText(t, template, "notes"),
             },
             draftsFromTemplate(template, library, t),
         );
@@ -299,7 +308,6 @@ export function PlanCreateForm({
               ? sourceTemplateLabel(t, PLAN_TEMPLATES.find((template) => template.id === source.id))
               : t("screens.training.planCreate.source.copyOf", { title: copyablePlans.find((plan) => plan.id === copied)?.title ?? t("screens.training.planCreate.source.aPlan") });
     const phaseOptions = PHASES.map((value) => ({ value, label: trainingPhaseLabel(t, value) }));
-    const span = spanText(values.startDate, values.endDate, t);
 
     return (
         <form {...form.formProps} className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
@@ -388,11 +396,17 @@ export function PlanCreateForm({
                             )}
                         </FormStep>
 
-                        <FormStep id="basics" title={t("screens.training.planCreate.step.basics")} description={t("screens.training.planCreate.basicsDesc")}>
+                        <FormStep id="basics" title={t("screens.training.planCreate.step.basics")}>
                             <div className="flex flex-col gap-5">
-                                <Field label={t("training.planForm.fighter")} htmlFor="plan-fighterId" required error={error("fighterId")} hint={t("training.planForm.hintFighter")}>
+                                <Field
+                                    label={t("training.planForm.fighter")}
+                                    htmlFor="plan-fighterId"
+                                    required
+                                    error={error("fighterId")}
+                                    info={<InfoHint label={t("screens.shared.infoHint", { label: t("training.planForm.fighter") })} content={t("training.planForm.hintFighter")} />}
+                                >
                                     <Select
-                                        {...form.control("fighterId", { required: true, hint: true })}
+                                        {...form.control("fighterId", { required: true })}
                                         value={values.fighterId}
                                         onChange={(event) => set("fighterId", event.target.value)}
                                     >
@@ -418,7 +432,17 @@ export function PlanCreateForm({
                                     name="phase"
                                     legend={
                                         <span className="inline-flex items-center gap-1.5">
-                                            {t("training.planForm.phase")} <TermHint term="trainingPhase" locale={locale} />
+                                            {t("training.planForm.phase")}{" "}
+                                            <TermHint
+                                                term="trainingPhase"
+                                                locale={locale}
+                                                align="start"
+                                                extra={
+                                                    <>
+                                                        <span className="font-semibold">{trainingPhaseLabel(t, values.phase)}:</span> {glossaryEntry(PHASE_TERM[values.phase], locale).definition}
+                                                    </>
+                                                }
+                                            />
                                         </span>
                                     }
                                     required
@@ -427,7 +451,6 @@ export function PlanCreateForm({
                                     options={phaseOptions}
                                     value={values.phase}
                                     onChange={(next) => set("phase", next)}
-                                    hint={GLOSSARY[PHASE_TERM[values.phase]].definition}
                                     error={error("phase")}
                                 />
 
@@ -436,9 +459,9 @@ export function PlanCreateForm({
                                         <Field label={t("training.planForm.startDate")} htmlFor="plan-startDate" required error={error("startDate")}>
                                             <Input {...form.control("startDate", { required: true })} type="date" value={values.startDate} onChange={(event) => changeStart(event.target.value)} />
                                         </Field>
-                                        <Field label={t("training.planForm.endDate")} htmlFor="plan-endDate" required error={error("endDate")} hint={span ?? undefined}>
+                                        <Field label={t("training.planForm.endDate")} htmlFor="plan-endDate" required error={error("endDate")}>
                                             <Input
-                                                {...form.control("endDate", { required: true, hint: span ?? undefined })}
+                                                {...form.control("endDate", { required: true })}
                                                 type="date"
                                                 value={values.endDate}
                                                 min={values.startDate || undefined}
@@ -489,11 +512,11 @@ export function PlanCreateForm({
                                             htmlFor="plan-weeklySessionTarget"
                                             required
                                             error={error("weeklySessionTarget")}
-                                            hint={t("training.planForm.hintWeekly")}
+                                            info={<InfoHint label={t("screens.shared.infoHint", { label: t("training.planForm.weeklySessionTarget") })} content={t("training.planForm.hintWeekly")} />}
                                             className="sm:max-w-56"
                                         >
                                             <Input
-                                                {...form.control("weeklySessionTarget", { required: true, hint: true })}
+                                                {...form.control("weeklySessionTarget", { required: true })}
                                                 type="number"
                                                 inputMode="numeric"
                                                 min={1}
@@ -511,12 +534,11 @@ export function PlanCreateForm({
                                         label={t("training.planForm.objective")}
                                         htmlFor="plan-objective"
                                         optional
-                                        info={<TermHint term="planObjective" locale={locale} />}
+                                        info={<TermHint term="planObjective" locale={locale} align="start" extra={t("screens.training.planCreate.objectiveHint")} />}
                                         error={error("objective")}
-                                        hint={t("screens.training.planCreate.objectiveHint")}
                                     >
                                         <Textarea
-                                            {...form.control("objective", { hint: true })}
+                                            {...form.control("objective")}
                                             value={values.objective}
                                             onChange={(event) => set("objective", event.target.value)}
                                             rows={2}
@@ -525,12 +547,18 @@ export function PlanCreateForm({
                                     </Field>
                                     <SuggestionChips
                                         label={t("screens.training.planCreate.ideas")}
-                                        suggestions={PHASE_OBJECTIVE_SUGGESTIONS[values.phase].map((suggestion) => ({ label: suggestion }))}
+                                        suggestions={objectiveSuggestions(t, values.phase).map((suggestion) => ({ label: suggestion }))}
                                         onPick={(value) => set("objective", appendSuggestion(values.objective, value))}
                                     />
                                 </div>
-                                <Field label={t("training.plan.coachNotes")} htmlFor="plan-notes" optional error={error("notes")} hint={t("screens.training.planCreate.notesHint")}>
-                                    <Textarea {...form.control("notes", { hint: true })} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
+                                <Field
+                                    label={t("training.plan.coachNotes")}
+                                    htmlFor="plan-notes"
+                                    optional
+                                    error={error("notes")}
+                                    info={<InfoHint label={t("screens.shared.infoHint", { label: t("training.plan.coachNotes") })} content={t("screens.training.planCreate.notesHint")} />}
+                                >
+                                    <Textarea {...form.control("notes")} value={values.notes} onChange={(event) => set("notes", event.target.value)} rows={3} maxLength={1000} />
                                 </Field>
                             </div>
                         </FormStep>

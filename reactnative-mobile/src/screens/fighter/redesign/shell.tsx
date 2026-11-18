@@ -1,13 +1,12 @@
 import { type ReactNode } from "react";
 import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { KeyboardFrame, KeyboardScroll } from "@/components/keyboard-aware";
 
 import { FighterRailFrame, FighterTabBar } from "@/screens/fighter/tab-bar";
 import { useNavRail } from "@/components/nav-rail";
@@ -49,28 +48,18 @@ export function FighterHub({
   const insets = useSafeAreaInsets();
   const rail = useNavRail();
   const body = (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
+    <KeyboardScroll
       refreshControl={onRefresh ? <ThemedRefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} /> : undefined}
       contentContainerStyle={[{ paddingTop: insets.top + 10, paddingBottom: 24 }, readable]}
     >
       {children}
-    </ScrollView>
+    </KeyboardScroll>
   );
 
   return (
     <FighterRailFrame show background={colors.bg}>
     <View style={[styles.root, { backgroundColor: colors.bg }]}>
-      {keyboard ? (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          {body}
-        </KeyboardAvoidingView>
-      ) : (
-        body
-      )}
+      {keyboard ? <KeyboardFrame style={styles.flex}>{body}</KeyboardFrame> : body}
       <View pointerEvents="none" style={[styles.progress, { top: insets.top }]}>
         <TopProgress active={!!refreshing && !pull.refreshing} />
       </View>
@@ -92,29 +81,17 @@ export function FighterStack({
   const readable = useReadableWidth();
   const colors = useFighterPalette();
   const insets = useSafeAreaInsets();
-  const body = (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={[{ paddingBottom: 16 }, readable]}
-    >
-      {children}
-    </ScrollView>
+  const content = (
+    <>
+      <KeyboardScroll contentContainerStyle={[{ paddingBottom: 16 }, readable]}>
+        {children}
+      </KeyboardScroll>
+      {footer ? <View>{footer}</View> : null}
+    </>
   );
-  return (
-    <View style={[styles.root, { backgroundColor: colors.bg, paddingTop: insets.top }]}>
-      {keyboard ? (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : undefined}
-        >
-          {body}
-        </KeyboardAvoidingView>
-      ) : (
-        body
-      )}
-      {footer}
-    </View>
-  );
+  const style = [styles.root, { backgroundColor: colors.bg, paddingTop: insets.top }];
+  // The footer (the page's save button) rides on the keyboard with the scroll view.
+  return keyboard ? <KeyboardFrame style={style}>{content}</KeyboardFrame> : <View style={style}>{content}</View>;
 }
 
 const styles = StyleSheet.create({

@@ -9,7 +9,8 @@ export const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
     timezone: "Asia/Ho_Chi_Minh",
     sessionTimeoutMin: 480,
     requireMfa: false,
-    videoMaxSizeMb: 500,
+    // Supabase Storage on the free plan takes at most 50 MB per file, and videos go straight there.
+    videoMaxSizeMb: 50,
     videoRetentionDays: 365,
     allowedVideoFormats: ["mp4", "mov", "webm"],
     aiConfidenceThreshold: 0.35,

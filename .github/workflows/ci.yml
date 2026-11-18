@@ -3,7 +3,8 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [main]
+    # Render deploys release/final-review only after these checks pass (render.yaml).
+    branches: [main, release/final-review]
 
 permissions:
   contents: read

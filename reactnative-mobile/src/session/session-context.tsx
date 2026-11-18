@@ -8,10 +8,20 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { AppState } from "react-native";
 import type { Href } from "expo-router";
 
 import { getMe, login as loginRequest, logout as logoutRequest } from "@/api/auth";
-import { clearSession, getMemorySession, loadStoredSession, persistSession } from "@/api/tokens";
+import { isApiError } from "@/api/errors";
+import {
+  cacheUser,
+  clearSession,
+  getMemorySession,
+  loadCachedUser,
+  loadStoredSession,
+  onSessionExpired,
+  persistSession,
+} from "@/api/tokens";
 import type { LoginBody, PublicUser, UserRole } from "@/api/types";
 
 export type SessionGate = "loading" | "anonymous" | "guest" | "fighter" | "coach" | "doctor" | "admin";
@@ -98,6 +108,25 @@ function gateFromUser(user: PublicUser): SessionGate {
 }
 
 /**
+ * A failure that says nothing about the session: offline, timeout, rate limit, server error. The user stays signed
+ * in (on the cached profile) and the app tries again later.
+ */
+export function isTransientFailure(cause: unknown): boolean {
+  if (!isApiError(cause)) return true;
+  return cause.status === 0 || cause.status === 408 || cause.status === 429 || cause.status >= 500;
+}
+
+/**
+ * Keep the session after `/users/me` failed? A passing failure always keeps it. A 401 keeps it only while the tokens
+ * are still stored: `refreshSession` clears them itself when the server rejects the refresh token, so stored tokens
+ * after a 401 mean the refresh could not run (offline, rate limit, server error) and will be tried again.
+ */
+export function keepsSession(cause: unknown, tokensStored: boolean): boolean {
+  if (!tokensStored) return false;
+  return isTransientFailure(cause) || (isApiError(cause) && cause.status === 401);
+}
+
+/**
  * Destination after splash/intro once session restore has settled.
  * `null` while `gate === "loading"` so callers can stay on glass (no login flash).
  */
@@ -110,7 +139,7 @@ export function postIntroHref(gate: SessionGate): Href | null {
     case "guest":
       return "/ho-so" as Href;
     case "coach":
-      return "/(coach)/fighters" as Href;
+      return "/(coach)/hom-nay" as Href;
     case "doctor":
       return "/(doctor)" as Href;
     case "admin":
@@ -132,6 +161,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [restoreSettled, setRestoreSettled] = useState(false);
   const isDemoRef = useRef(false);
   const demoGateRef = useRef<SessionGate | null>(null);
+  /** Opened on the cached profile because the server was out of reach; `/users/me` is retried on the next foreground. */
+  const staleRef = useRef(false);
 
   const loadMe = useCallback(async (): Promise<SessionGate> => {
     const me = await getMe();
@@ -144,6 +175,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setIsDemo(false);
     setUser(me);
     setGate(next);
+    staleRef.current = false;
+    void cacheUser(me);
     return next;
   }, []);
 
@@ -155,7 +188,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setIsDemo(false);
     setUser(nextUser);
     setGate(next);
+    void cacheUser(nextUser);
     return next;
+  }, []);
+
+  const toAnonymous = useCallback(() => {
+    staleRef.current = false;
+    setUser(null);
+    setGate("anonymous");
   }, []);
 
   const restore = useCallback(async () => {
@@ -168,17 +208,48 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
     try {
       await loadMe();
-    } catch {
+    } catch (cause) {
       if (isDemoRef.current) return;
+      // Signed in once on this phone: stay signed in while the server cannot be reached (an expired access token
+      // was already refreshed by apiFetch; only a rejected refresh token or a removed account ends the session).
+      if (keepsSession(cause, Boolean(await loadStoredSession()))) {
+        const cached = await loadCachedUser<PublicUser>();
+        if (cached) {
+          staleRef.current = true;
+          setUser(cached);
+          setGate(gateFromUser(cached));
+          return;
+        }
+        setUser(null);
+        setGate("anonymous");
+        return;
+      }
       await clearSession();
-      setUser(null);
-      setGate("anonymous");
+      toAnonymous();
     }
-  }, [loadMe]);
+  }, [loadMe, toAnonymous]);
 
   useEffect(() => {
     void restore().finally(() => setRestoreSettled(true));
   }, [restore]);
+
+  // The server rejected the refresh token (signed out elsewhere, password changed, too long away): show login.
+  useEffect(() => onSessionExpired(() => {
+    if (!isDemoRef.current) toAnonymous();
+  }), [toAnonymous]);
+
+  // Opened offline on the cached profile: check `/users/me` again when the app comes back to the foreground.
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active" || !staleRef.current || isDemoRef.current) return;
+      loadMe().catch(async (cause: unknown) => {
+        if (isDemoRef.current || keepsSession(cause, Boolean(await loadStoredSession()))) return;
+        await clearSession();
+        toAnonymous();
+      });
+    });
+    return () => sub.remove();
+  }, [loadMe, toAnonymous]);
 
   const signIn = useCallback(
     async (body: LoginBody): Promise<SessionGate> => {
@@ -225,9 +296,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     isDemoRef.current = false;
     demoGateRef.current = null;
     setIsDemo(false);
-    setUser(null);
-    setGate("anonymous");
-  }, []);
+    toAnonymous();
+  }, [toAnonymous]);
 
   const value = useMemo<SessionValue>(
     () => ({
@@ -258,7 +328,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 export function useSessionRole(): string | null {
   return use(SessionContext)?.user?.role ?? null;
 }
-
+
 export function useSession(): SessionValue {
   const value = use(SessionContext);
   if (!value) {

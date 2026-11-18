@@ -4,6 +4,7 @@ import { startTransition, useActionState, useEffect, useId, useRef, useState, ty
 
 import type { ActionState } from "@/lib/actions/state";
 import { focusFirstInvalid } from "./form";
+import { useUnsavedChanges } from "./use-unsaved-changes";
 
 export type FormAction<T> = (prev: ActionState<T>, fd: FormData) => Promise<ActionState<T>>;
 
@@ -20,6 +21,8 @@ export interface UseActionFormOptions<T> {
     focusOnError?: boolean;
     /** Field names without a visible control (e.g. serialized hidden inputs); their errors join the form message. */
     hiddenFields?: string[];
+    /** Ask before leaving the page with edits that weren't saved (default true). Off for filters and instant toggles. */
+    guardUnsaved?: boolean;
 }
 
 export interface ActionFormControl {
@@ -76,7 +79,7 @@ function namePrefixes(name: string): string[] {
  * the state, which lets the form submit and render its result without JavaScript (progressive enhancement).
  */
 export function useActionForm<T = undefined>(action: FormAction<T>, options: UseActionFormOptions<T> = {}): ActionForm<T> {
-    const { focusOnError = true, hiddenFields = [] } = options;
+    const { focusOnError = true, hiddenFields = [], guardUnsaved = true } = options;
     const generatedId = useId();
     const formId = options.id ?? generatedId;
     const formRef = useRef<HTMLFormElement>(null);
@@ -119,7 +122,12 @@ export function useActionForm<T = undefined>(action: FormAction<T>, options: Use
     const fieldErrors = state.status === "error" ? (state.fieldErrors ?? {}) : {};
     const error = (name: string) => (namePrefixes(name).some((prefix) => editedNames.has(prefix)) ? undefined : fieldErrors[name]);
 
+    // Edited since the last submit; a refused submit leaves the edits unsaved too.
+    const [dirty, setDirty] = useState(false);
+    useUnsavedChanges(guardUnsaved && (dirty || (state.status === "error" && state !== initialState)));
+
     const dispatchForm = (fd: FormData) => {
+        setDirty(false);
         setResetFrom(null);
         startTransition(() => dispatch(fd));
     };
@@ -172,6 +180,7 @@ export function useActionForm<T = undefined>(action: FormAction<T>, options: Use
             onChange: (event) => {
                 const name = (event.target as Partial<HTMLInputElement>).name;
                 if (name) markEdited(name);
+                setDirty(true);
             },
         },
         submit,
@@ -179,6 +188,7 @@ export function useActionForm<T = undefined>(action: FormAction<T>, options: Use
         control,
         markEdited,
         reset: () => {
+            setDirty(false);
             setResetFrom(latest);
             setEdited({ result: initialState, names: NO_NAMES });
         },

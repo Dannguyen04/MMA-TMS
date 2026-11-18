@@ -1,8 +1,12 @@
 import "server-only";
 
+import { buildBoutReport, type TacticReviewsInput } from "@/lib/domain/bout-report";
+import { SAMPLE_OPPONENT_ANALYSIS, sampleOpponentAnalysisWithSessions } from "@/lib/domain/opponent-analysis-seed";
 import {
     buildCornerCard,
     buildRoundAdvice,
+    nextRoundPlanSchema,
+    opponentAnalysisSchema,
     type OpponentAnalysis,
     type RoundInput,
     type RoundRecord,
@@ -11,12 +15,15 @@ import type { OpponentAnalysisInput } from "@/lib/domain/opponent-analysis-form"
 import type { User } from "@/lib/domain/types";
 import type {
     BoutAnalysisDetail,
+    GetBoutReportResult,
     GetBoutRoundsResult,
     GetCornerCardResult,
     SaveOpponentAnalysisResult,
+    SaveTacticReviewsResult,
     UpsertBoutRoundResult,
 } from "./bout-analysis";
 import { demoCampStore, type DemoBoutRecord } from "./bouts.demo";
+import { listSessions } from "./training";
 
 function findBoutRecord(boutId: string): DemoBoutRecord | null {
     const bout = demoCampStore().bouts.find((b) => b.id === boutId);
@@ -34,10 +41,24 @@ function getRounds(bout: DemoBoutRecord): RoundRecord[] {
     return [...bout.boutRounds].sort((a, b) => a.roundNo - b.roundNo);
 }
 
+/**
+ * API mode gives a bout with no analysis the sample one on first read, linked to the fighter's two latest sessions
+ * (`seedSampleAnalysis` in bout-analysis.ts). Demo does the same, so a new bout has tactics in both modes. A bout
+ * past the stage that accepts an analysis keeps it empty; its corner card shows the sample read-only.
+ */
+async function seedSampleIfEmpty(bout: DemoBoutRecord): Promise<void> {
+    if ((bout.opponentAnalysis?.tactics?.length ?? 0) > 0) return;
+    if (bout.phase === "COMPLETED" || bout.phase === "CANCELLED") return;
+    const sessions = await listSessions({ fighterIds: [bout.fighterId], order: "desc" }).catch(() => []);
+    const ids = sessions.slice(0, 2).map((session) => session.id);
+    bout.opponentAnalysis = opponentAnalysisSchema.parse(ids.length > 0 ? sampleOpponentAnalysisWithSessions(ids) : SAMPLE_OPPONENT_ANALYSIS);
+}
+
 export async function getBoutAnalysisDetail(boutId: string): Promise<BoutAnalysisDetail | null> {
     const bout = findBoutRecord(boutId);
     if (!bout) return null;
 
+    await seedSampleIfEmpty(bout);
     const analysis = getAnalysis(bout);
     return {
         scheduledRounds: bout.scheduledRounds ?? null,
@@ -56,9 +77,12 @@ export async function getCornerCard(boutId: string): Promise<GetCornerCardResult
         return { ok: false, error: "BOUT_INVALID_TRANSITION" };
     }
 
+    await seedSampleIfEmpty(bout);
     const analysis = getAnalysis(bout);
     const rounds = getRounds(bout);
-    const card = buildCornerCard(analysis, rounds, bout.weighIn?.acuteLoss ?? null);
+    // Still empty (the bout is completed): the API shows the sample read-only.
+    const shown = (analysis.tactics?.length ?? 0) > 0 ? analysis : opponentAnalysisSchema.parse(SAMPLE_OPPONENT_ANALYSIS);
+    const card = buildCornerCard(shown, rounds, bout.weighIn?.acuteLoss ?? null);
     return { ok: true, card };
 }
 
@@ -85,6 +109,33 @@ export async function getBoutRounds(boutId: string): Promise<GetBoutRoundsResult
     };
 }
 
+export async function getBoutReport(boutId: string): Promise<GetBoutReportResult> {
+    const bout = findBoutRecord(boutId);
+    if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
+    if (bout.phase !== "COMPLETED") return { ok: false, error: "BOUT_INVALID_TRANSITION" };
+    return { ok: true, report: buildBoutReport(getAnalysis(bout), getRounds(bout), bout.outcome, bout.weighIn?.acuteLoss ?? null) };
+}
+
+export async function saveTacticReviews(boutId: string, input: TacticReviewsInput): Promise<SaveTacticReviewsResult> {
+    const bout = findBoutRecord(boutId);
+    if (!bout) return { ok: false, error: "BOUT_NOT_FOUND" };
+    if (bout.phase !== "COMPLETED") return { ok: false, error: "BOUT_INVALID_TRANSITION" };
+
+    const analysis = getAnalysis(bout);
+    const tactics = analysis.tactics ?? [];
+    if (input.reviews.some((r) => !tactics.some((t) => t.id === r.tacticId))) {
+        return { ok: false, error: "OPPONENT_TACTIC_UNKNOWN" };
+    }
+    bout.opponentAnalysis = {
+        ...analysis,
+        tactics: tactics.map((t) => {
+            const review = input.reviews.find((r) => r.tacticId === t.id);
+            return review ? { ...t, review: { outcome: review.outcome, note: review.note ?? null, auto: false } } : t;
+        }),
+    };
+    return { ok: true };
+}
+
 export async function upsertBoutRound(
     boutId: string,
     roundNo: number,
@@ -107,24 +158,32 @@ export async function upsertBoutRound(
         return { ok: false, error: "BOUT_ROUND_OUT_OF_RANGE" };
     }
 
+    // The same checks as BoutsService.upsertRound (T-037): tactics added at an earlier break can be marked, a plan
+    // can't follow the last round, and every id a plan names must exist.
     const analysis = getAnalysis(bout);
-    const validTacticIds = new Set((analysis.tactics ?? []).map((t) => t.id));
-    const validObsIds = new Set((analysis.observations ?? []).map((o) => o.id));
-
-    if (input.tacticMarks) {
-        for (const key of Object.keys(input.tacticMarks)) {
-            if (!validTacticIds.has(key)) {
-                return { ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" };
-            }
-        }
+    const recorded = getRounds(bout);
+    const addedBy = (rounds: RoundRecord[]) => rounds.flatMap((r) => r.nextRoundPlan?.addedTactics ?? []).map((t) => t.id);
+    const tactics = new Set([...(analysis.tactics ?? []).map((t) => t.id), ...addedBy(recorded.filter((r) => r.roundNo < roundNo))]);
+    const observations = new Set((analysis.observations ?? []).map((o) => o.id));
+    const parsedPlan = input.nextRoundPlan === undefined ? undefined : nextRoundPlanSchema.safeParse(input.nextRoundPlan);
+    if (parsedPlan && !parsedPlan.success) return { ok: false, error: "BOUT_ROUND_INVALID" };
+    const plan = parsedPlan?.data;
+    if (plan && roundNo === scheduledRounds && plan.focusTacticIds.length + plan.addedTactics.length + plan.instructions.length > 0) {
+        return { ok: false, error: "BOUT_NEXT_ROUND_PLAN_LAST_ROUND" };
     }
-
-    if (input.observationMarks) {
-        for (const key of Object.keys(input.observationMarks)) {
-            if (!validObsIds.has(key)) {
-                return { ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" };
-            }
-        }
+    const existingIds = new Set([...tactics, ...observations, ...addedBy(recorded.filter((r) => r.roundNo !== roundNo))]);
+    for (const added of plan?.addedTactics ?? []) {
+        if (existingIds.has(added.id) || added.observationIds.some((id) => !observations.has(id))) return { ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" };
+        existingIds.add(added.id);
+    }
+    const planTactics = new Set([...tactics, ...(plan?.addedTactics ?? []).map((t) => t.id)]);
+    if (
+        plan?.focusTacticIds.some((id) => !planTactics.has(id)) ||
+        plan?.instructions.some((instruction) => instruction.tacticId && !planTactics.has(instruction.tacticId)) ||
+        Object.keys(input.tacticMarks ?? {}).some((id) => !tactics.has(id)) ||
+        Object.keys(input.observationMarks ?? {}).some((id) => !observations.has(id))
+    ) {
+        return { ok: false, error: "BOUT_ROUND_MARK_UNKNOWN" };
     }
 
     if (!bout.boutRounds) {
@@ -147,6 +206,7 @@ export async function upsertBoutRound(
             bleeding: input.bleeding !== undefined ? input.bleeding : current.bleeding,
             fatigued: input.fatigued !== undefined ? input.fatigued : current.fatigued,
             note: input.note !== undefined ? input.note : current.note,
+            nextRoundPlan: plan !== undefined ? plan : current.nextRoundPlan,
             recordedById: actor.id,
             updatedAt: now,
         };
@@ -163,6 +223,7 @@ export async function upsertBoutRound(
             bleeding: input.bleeding ?? false,
             fatigued: input.fatigued ?? false,
             note: input.note ?? null,
+            nextRoundPlan: plan ?? null,
             recordedById: actor.id,
             createdAt: now,
             updatedAt: now,

@@ -4,15 +4,20 @@ import { VideoStatusBadge } from "@/components/domain/status-badges";
 import type { VideoStatus, VideoTrainingType } from "@/lib/domain/types";
 import { formatClock } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { VideoFrame } from "./video-frame";
 
 const OCTAGON = "M47.6 5h64.8L158 34.6v20.8L112.4 85H47.6L2 55.4V34.6Z";
 
-/** Stylised placeholder tile for footage: training-type mark over a mat with octagon lines. Theme surfaces with a visible edge, so it never melts into a dark card. */
+/**
+ * Footage tile: a still from the video when it is stored (`src`), else a training-type mark over a mat with octagon
+ * lines (also shown while the still loads). Theme surfaces with a visible edge, so it never melts into a dark card.
+ */
 export function VideoThumb({
     locale,
     trainingType,
     status,
     durationSec,
+    src,
     size = "md",
     className,
 }: {
@@ -20,12 +25,14 @@ export function VideoThumb({
     trainingType: VideoTrainingType;
     status?: VideoStatus;
     durationSec: number;
+    /** Playable URL of the footage (`Video.sourceUrl`); null for mock footage. */
+    src?: string | null;
     size?: "sm" | "md";
     className?: string;
 }) {
     const Icon = TRAINING_TYPE_ICONS[trainingType];
-    return (
-        <div className={cn("relative aspect-video overflow-hidden bg-surface-muted ring-1 ring-border ring-inset", className)}>
+    const placeholder = (
+        <>
             <svg aria-hidden viewBox="0 0 160 90" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 size-full text-border-strong">
                 <path d={OCTAGON} fill="none" stroke="currentColor" strokeWidth="1.2" />
                 <path d={OCTAGON} fill="none" stroke="currentColor" strokeWidth="0.8" transform="translate(40 22.5) scale(0.5)" opacity="0.7" />
@@ -41,6 +48,11 @@ export function VideoThumb({
                     <Icon />
                 </span>
             </span>
+        </>
+    );
+    return (
+        <div className={cn("relative aspect-video overflow-hidden bg-surface-muted ring-1 ring-border ring-inset", className)}>
+            {src ? <VideoFrame src={src} fallback={placeholder} /> : placeholder}
             {status && size === "md" && (
                 <span className="absolute top-2 left-2 max-sm:hidden">
                     <VideoStatusBadge locale={locale} status={status} size="sm" />

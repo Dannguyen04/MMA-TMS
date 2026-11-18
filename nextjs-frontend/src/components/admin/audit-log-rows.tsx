@@ -3,18 +3,21 @@
 import { Bot, ChevronRight } from "lucide-react";
 import { Fragment, useState } from "react";
 
+import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { Avatar } from "@/components/ui/avatar";
 import { DescriptionList } from "@/components/ui/description-list";
 import type { AuditLog } from "@/lib/domain/types";
 import { formatDateTime, formatRelative } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { actorCaption, AUDIT_RESOURCE_LABELS } from "./admin-format";
+import { actorCaption, auditResourceLabel } from "./admin-format";
 import { AuditStatus } from "./admin-badges";
 
 const COLUMN_COUNT = 7;
 
 /** Audit table body with rows that expand in place to show the full entry. */
 export function AuditLogRows({ entries, now }: { entries: AuditLog[]; now: string }) {
+    const t = useT();
+    const locale = useLocale();
     const [expanded, setExpanded] = useState<string | null>(null);
 
     return (
@@ -22,6 +25,7 @@ export function AuditLogRows({ entries, now }: { entries: AuditLog[]; now: strin
             {entries.map((entry) => {
                 const open = expanded === entry.id;
                 const detailsId = `audit-details-${entry.id}`;
+                const resource = auditResourceLabel(t, entry.resourceType);
                 return (
                     <Fragment key={entry.id}>
                         <tr className={cn("transition-colors hover:bg-surface-muted/50", open && "bg-surface-muted/50")}>
@@ -35,15 +39,15 @@ export function AuditLogRows({ entries, now }: { entries: AuditLog[]; now: strin
                                 >
                                     <ChevronRight aria-hidden className={cn("size-4 transition-transform", open && "rotate-90")} />
                                     <span className="sr-only">
-                                        {open ? "Hide" : "Show"} details for {entry.action} by {entry.actorName}
+                                        {t(open ? "screens.admin.audit.hideDetails" : "screens.admin.audit.showDetails", { action: entry.action, actor: entry.actorName })}
                                     </span>
                                 </button>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap tabular-nums">
                                 <time dateTime={entry.timestamp} className="text-fg">
-                                    {formatDateTime(entry.timestamp)}
+                                    {formatDateTime(entry.timestamp, locale)}
                                 </time>
-                                <span className="block text-xs text-fg-subtle">{formatRelative(entry.timestamp, now)}</span>
+                                <span className="block text-xs text-fg-subtle">{formatRelative(entry.timestamp, now, locale)}</span>
                             </td>
                             <td className="px-4 py-3">
                                 <span className="flex items-center gap-2 whitespace-nowrap">
@@ -56,7 +60,7 @@ export function AuditLogRows({ entries, now }: { entries: AuditLog[]; now: strin
                                     )}
                                     <span className="min-w-0">
                                         <span className="block text-sm font-medium text-fg">{entry.actorName}</span>
-                                        <span className="block text-xs text-fg-subtle">{actorCaption(entry.actorRole)}</span>
+                                        <span className="block text-xs text-fg-subtle">{actorCaption(t, entry.actorRole)}</span>
                                     </span>
                                 </span>
                             </td>
@@ -66,13 +70,13 @@ export function AuditLogRows({ entries, now }: { entries: AuditLog[]; now: strin
                                 </code>
                             </td>
                             <td className="max-w-60 px-4 py-3">
-                                <span className="block text-xs text-fg-subtle">{AUDIT_RESOURCE_LABELS[entry.resourceType]}</span>
+                                <span className="block text-xs text-fg-subtle">{resource}</span>
                                 <span className="block truncate text-sm text-fg" title={entry.resourceLabel}>
                                     {entry.resourceLabel}
                                 </span>
                             </td>
                             <td className="px-4 py-3">
-                                <AuditStatus status={entry.status} compact />
+                                <AuditStatus status={entry.status} compact locale={locale} />
                             </td>
                             <td className="px-4 py-3 pr-5 font-mono text-xs whitespace-nowrap text-fg-muted">{entry.ipAddress}</td>
                         </tr>
@@ -81,13 +85,20 @@ export function AuditLogRows({ entries, now }: { entries: AuditLog[]; now: strin
                                 <DescriptionList
                                     columns={3}
                                     items={[
-                                        { label: "Details", value: entry.details ?? <span className="font-normal text-fg-subtle">No additional details</span>, wide: true },
-                                        { label: "Resource", value: `${AUDIT_RESOURCE_LABELS[entry.resourceType]} · ${entry.resourceLabel}` },
-                                        { label: "Resource ID", value: <code className="font-mono text-[13px]">{entry.resourceId}</code> },
-                                        { label: "Entry ID", value: <code className="font-mono text-[13px]">{entry.id}</code> },
-                                        { label: "Actor ID", value: entry.actorId ? <code className="font-mono text-[13px]">{entry.actorId}</code> : "System process" },
-                                        { label: "Exact time (UTC)", value: <code className="font-mono text-[13px]">{entry.timestamp}</code> },
-                                        { label: "IP address", value: <code className="font-mono text-[13px]">{entry.ipAddress}</code> },
+                                        {
+                                            label: t("screens.admin.common.details"),
+                                            value: entry.details ?? <span className="font-normal text-fg-subtle">{t("screens.admin.audit.noDetails")}</span>,
+                                            wide: true,
+                                        },
+                                        { label: t("screens.admin.audit.resource"), value: `${resource} · ${entry.resourceLabel}` },
+                                        { label: t("screens.admin.audit.resourceId"), value: <code className="font-mono text-[13px]">{entry.resourceId}</code> },
+                                        { label: t("screens.admin.audit.entryId"), value: <code className="font-mono text-[13px]">{entry.id}</code> },
+                                        {
+                                            label: t("screens.admin.audit.actorId"),
+                                            value: entry.actorId ? <code className="font-mono text-[13px]">{entry.actorId}</code> : t("screens.admin.audit.systemProcess"),
+                                        },
+                                        { label: t("screens.admin.audit.exactTime"), value: <code className="font-mono text-[13px]">{entry.timestamp}</code> },
+                                        { label: t("screens.admin.audit.ipAddress"), value: <code className="font-mono text-[13px]">{entry.ipAddress}</code> },
                                     ]}
                                 />
                             </td>

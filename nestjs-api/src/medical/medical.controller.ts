@@ -16,6 +16,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FighterIdParamsDto } from '../fighters/fighters.dto.js';
 import {
   ApiConflictEnvelope,
+  ApiErrorEnvelope,
   ApiForbiddenEnvelope,
   ApiInternalServerErrorEnvelope,
   ApiNotFoundEnvelope,
@@ -47,9 +48,12 @@ import {
   InjuryDto,
   IssueClearanceDto,
   ListExaminationsQueryDto,
+  ListMedicalDossiersQueryDto,
+  ListMedicalHistoryBatchQueryDto,
   ListMedicalHistoryQueryDto,
   ListReviewRequestsQueryDto,
   MedicalDossierDto,
+  MedicalHistoryBatchItemDto,
   MedicalHistoryEntryDto,
   MedicalRecordIdParamsDto,
   RecoveryPlanDto,
@@ -100,6 +104,72 @@ export class MedicalController {
     return this.medicalService.getDossier(
       this.requireActor(actor),
       params.id,
+      randomUUID(),
+    );
+  }
+
+  @Get('medical/dossiers')
+  @RequirePermissions({ allOf: [MEDICAL_PERMISSIONS.READ] })
+  @ApiOperation({
+    summary: 'Get clinical dossiers for several fighters',
+    description:
+      'Batch form of GET /fighters/{id}/medical for boards and rosters: each element is exactly the dossier that endpoint returns for that Fighter. `fighterIds` is repeated (`?fighterIds=a&fighterIds=b`) or comma-separated (`?fighterIds=a,b`), at most 100 uuids, duplicates ignored, results in request order. Without `fighterIds` the batch is every Fighter the caller may read (ADMIN all, FIGHTER self, COACH/DOCTOR currently assigned); if that is more than 100 Fighters the call fails with 400 MEDICAL_DOSSIER_SCOPE_TOO_LARGE. All-or-nothing: an unknown or soft-deleted id is 404 FIGHTER_NOT_FOUND and an id outside the caller\'s scope is 403 MEDICAL_ACCESS_DENIED for the whole call. Every returned Fighter gets one access-audit row (view DOSSIER), written in a single insert before any data is read.',
+  })
+  @ResponseMessage('Get medical dossiers successfully')
+  @ApiSuccessEnvelope({
+    message: 'Get medical dossiers successfully',
+    model: MedicalDossierDto,
+    isArray: true,
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope(READ_SCOPE_FORBIDDEN)
+  @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
+  @ApiInternalServerErrorEnvelope('Medical access audit could not be recorded')
+  async getDossiers(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Query() query: ListMedicalDossiersQueryDto,
+  ) {
+    return this.medicalService.getDossiers(
+      this.requireActor(actor),
+      query,
+      randomUUID(),
+    );
+  }
+
+  @Get('medical/history')
+  @RequirePermissions({ allOf: [MEDICAL_PERMISSIONS.READ] })
+  @ApiOperation({
+    summary: 'Get medical history for several fighters',
+    description:
+      'Batch form of GET /fighters/{id}/medical/history for doctor and coach lists: one element per Fighter, `{ fighterId, entries }`, in request order, where `entries` are exactly the entries that endpoint returns for the Fighter with the same `recordType`, all pages, newest first. `fighterIds` is repeated (`?fighterIds=a&fighterIds=b`) or comma-separated (`?fighterIds=a,b`), at most 100 uuids, duplicates ignored. Without `fighterIds` the batch is every Fighter the caller may read (ADMIN all, FIGHTER self, COACH/DOCTOR currently assigned); if that is more than 100 Fighters the call fails with 400 MEDICAL_DOSSIER_SCOPE_TOO_LARGE. `recordType` is optional, with the same values as the single endpoint. All-or-nothing: an unknown or soft-deleted id is 404 FIGHTER_NOT_FOUND and an id outside the caller scope is 403 MEDICAL_ACCESS_DENIED for the whole call. Not paginated: more than 5000 entries in total fails with 400 MEDICAL_HISTORY_BATCH_TOO_LARGE rather than truncating. Every Fighter in the batch gets one access-audit row (view HISTORY), written in a single insert before any data is read.',
+  })
+  @ResponseMessage('Get medical history successfully')
+  @ApiSuccessEnvelope({
+    message: 'Get medical history successfully',
+    model: MedicalHistoryBatchItemDto,
+    isArray: true,
+  })
+  @ApiErrorEnvelope({
+    status: HttpStatus.BAD_REQUEST,
+    code: 'MEDICAL_HISTORY_BATCH_TOO_LARGE',
+    message:
+      'The requested history has more than 5000 entries; pass fewer fighterIds or a recordType',
+    description:
+      'MEDICAL_HISTORY_BATCH_TOO_LARGE: more than 5000 entries in total; MEDICAL_DOSSIER_SCOPE_TOO_LARGE: no fighterIds and more than 100 Fighters in scope',
+  })
+  @ApiValidationErrorEnvelope()
+  @ApiUnauthorizedEnvelope()
+  @ApiForbiddenEnvelope(READ_SCOPE_FORBIDDEN)
+  @ApiNotFoundEnvelope('FIGHTER_NOT_FOUND', 'Fighter profile not found')
+  @ApiInternalServerErrorEnvelope('Medical access audit could not be recorded')
+  async listHistoryBatch(
+    @CurrentUser() actor: AuthenticatedUser | undefined,
+    @Query() query: ListMedicalHistoryBatchQueryDto,
+  ) {
+    return this.medicalService.listHistoryBatch(
+      this.requireActor(actor),
+      query,
       randomUUID(),
     );
   }

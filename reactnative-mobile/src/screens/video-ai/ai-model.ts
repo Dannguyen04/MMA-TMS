@@ -204,7 +204,7 @@ export function hasCoachReview(state: Pick<AiCoachingState, "findingReviews" | "
   return Boolean(state && (state.findingReviews.length > 0 || state.corrections.length > 0));
 }
 
-export type ImpairmentRow = { jobId: string; videoId: string | null; fighterId: string; joint: string; severity: string; createdAt: string };
+export type ImpairmentRow = { jobId: string; videoId: string | null; fighterId: string; joint: string; severity: string; createdAt: string; count?: number };
 /** Một dòng / job suy giảm: khớp nặng nhất (theo jointStates hoặc cảnh báo), mới nhất trước. */
 export function impairmentRows(jobs: readonly AiJob[], alerts: Record<string, AiHealthAlert[] | undefined>): ImpairmentRow[] {
   return newestFirst(jobs)
@@ -212,6 +212,6 @@ export function impairmentRows(jobs: readonly AiJob[], alerts: Record<string, Ai
     .map((j) => {
       const list = alerts[j.id] ?? [];
       const worst = [...list].sort((a, b) => severityRank(b.severity) - severityRank(a.severity))[0];
-      return { jobId: j.id, videoId: j.videoId, fighterId: j.fighterId!, joint: worst?.joint ?? "", severity: worst?.severity ?? "", createdAt: j.createdAt };
+      return { jobId: j.id, videoId: j.videoId, fighterId: j.fighterId!, joint: worst?.joint ?? "", severity: worst?.severity ?? "", createdAt: j.createdAt, count: list.length };
     });
 }

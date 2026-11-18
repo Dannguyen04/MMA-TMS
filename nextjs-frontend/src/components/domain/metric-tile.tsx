@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import type { StatDelta } from "@/components/ui/stat-card";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 
 const SENTIMENT_CLASS: Record<StatDelta["sentiment"], string> = {

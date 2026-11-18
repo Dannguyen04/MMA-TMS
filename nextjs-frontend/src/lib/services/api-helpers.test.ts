@@ -65,7 +65,7 @@ describe("service API helpers", () => {
         expect(authenticatedApiRequest).toHaveBeenCalledTimes(6);
     });
 
-    it("reads the pages after the first together, in order", async () => {
+    it("reads the pages after the first two at a time, in order", async () => {
         let inFlight = 0;
         let mostInFlight = 0;
         authenticatedApiRequest.mockImplementation(async (path: string) => {
@@ -74,11 +74,11 @@ describe("service API helpers", () => {
             mostInFlight = Math.max(mostInFlight, inFlight);
             await new Promise((resolve) => setTimeout(resolve, 6 - page));
             inFlight -= 1;
-            return { data: [`p${page}`], total: 4, hasNextPage: page < 4 };
+            return { data: [`p${page}`], total: 5, hasNextPage: page < 5 };
         });
 
-        await expect(drainNumberedPages("/items", z.string())).resolves.toEqual(["p1", "p2", "p3", "p4"]);
-        expect(mostInFlight).toBe(3);
+        await expect(drainNumberedPages("/items", z.string())).resolves.toEqual(["p1", "p2", "p3", "p4", "p5"]);
+        expect(mostInFlight).toBe(2);
     });
 
     it("fails instead of truncating an oversized `items` list", async () => {

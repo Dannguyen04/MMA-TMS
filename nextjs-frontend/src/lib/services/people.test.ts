@@ -416,6 +416,116 @@ describe("people API adapter", () => {
             await expect(getFighter("99999999-9999-4999-8999-999999999999")).resolves.toBeNull();
             expect(readCurrentAccount).not.toHaveBeenCalled();
         });
+
+        /** Measurements and coach assignments: the service grants their read permissions to coaches and administrators only. */
+        const expectNoStaffOnlyReads = () => {
+            expect(authenticatedApiRequest).not.toHaveBeenCalledWith(expect.stringContaining("/measurements"), expect.anything());
+            expect(authenticatedApiRequest).not.toHaveBeenCalledWith(expect.stringContaining("/coaches"), expect.anything());
+        };
+
+        it("doesn't ask for a fighter's own measurements or coach assignments, which the service would refuse", async () => {
+            getCurrentUser.mockResolvedValue(viewer);
+            readCurrentAccount.mockResolvedValue({
+                id: userId,
+                email: "an@example.test",
+                role: "FIGHTER",
+                isActive: true,
+                createdAt: "2026-01-01T00:00:00.000Z",
+                updatedAt: "2026-01-02T00:00:00.000Z",
+                profile: { id: fighterId, firstName: "An", lastName: "Nguyen", dateOfBirth: "1995-04-03", weightClass: "LIGHTWEIGHT" },
+            });
+            // Any other request fails the read: `answer` throws a plain error for a path it doesn't know.
+            answer({
+                [`/fighters/${fighterId}/medical-summary`]: { fighterId, currentMedicalStatus: "HEALTHY" },
+                [`/fighters/${fighterId}/doctors`]: emptyPage,
+            });
+
+            await expect(getFighter(fighterId)).resolves.toMatchObject({ id: fighterId, weightKg: null, coachIds: [], doctorIds: [] });
+            expectNoStaffOnlyReads();
+        });
+
+        it("doesn't ask for them for a sports doctor either", async () => {
+            getCurrentUser.mockResolvedValue(doctorViewer);
+            answer({
+                [`/doctors/${doctorId}/fighters`]: { data: [backendFighter], total: 1, hasNextPage: false },
+                [`/fighters/${fighterId}/doctors`]: emptyPage,
+            });
+
+            await expect(getFighter(fighterId)).resolves.toMatchObject({ id: fighterId });
+            expectNoStaffOnlyReads();
+        });
+
+        it("leaves coach names out for a fighter instead of asking for coach assignments", async () => {
+            getCurrentUser.mockResolvedValue({ ...viewer, effectiveCapabilities: ["fighters:read"] });
+            answer({ [`/fighters/${fighterId}/doctors`]: emptyPage });
+
+            await expect(listCoaches()).resolves.toEqual([]);
+            expectNoStaffOnlyReads();
+        });
+
+        describe("for a coach", () => {
+            const coachViewer: User = { ...viewer, role: "coach", profileId: coachId, effectiveCapabilities: ["fighters:read"], assignmentScope: { fighterIds: [fighterId] } };
+            /** The directory profile without the fields the weigh-in and the care team fill. */
+            const bareProfile = { ...backendFighter, weightKg: undefined, coachIds: undefined, primaryCoachId: undefined, doctorIds: undefined };
+            const serverError = new ApiError({ message: "Internal server error", kind: "http", status: 500, code: "INTERNAL_SERVER_ERROR" });
+
+            it("still reads the profile when the weigh-in or the care team can't be read", async () => {
+                getCurrentUser.mockResolvedValue(coachViewer);
+                // Specific paths first: `answer` takes the first prefix that matches.
+                answer({
+                    [`/fighters/${fighterId}/measurements`]: serverError,
+                    [`/fighters/${fighterId}/coaches`]: new ApiError({ message: "Unreachable", kind: "network", code: "API_UNAVAILABLE" }),
+                    [`/fighters/${fighterId}/doctors`]: new ApiError({ message: "Too slow", kind: "timeout", code: "API_TIMEOUT" }),
+                    [`/fighters/${fighterId}`]: bareProfile,
+                });
+
+                await expect(getFighter(fighterId)).resolves.toMatchObject({ id: fighterId, name: "An Nguyen", weightKg: null, coachIds: [], doctorIds: [] });
+                expect(authenticatedApiRequest).toHaveBeenCalledWith(expect.stringContaining(`/fighters/${fighterId}/measurements`), expect.anything());
+            });
+
+            it("fills the weigh-in and the care team when they can be read", async () => {
+                getCurrentUser.mockResolvedValue(coachViewer);
+                answer({
+                    [`/fighters/${fighterId}/measurements`]: {
+                        data: [
+                            { measuredAt: "2026-03-01T07:00:00.000Z", weightKg: 71.2, heightCm: null, reachCm: null },
+                            { measuredAt: "2026-03-08T07:00:00.000Z", weightKg: 70.4, heightCm: null, reachCm: null },
+                        ],
+                        total: 2,
+                        hasNextPage: false,
+                    },
+                    [`/fighters/${fighterId}/coaches`]: [{ id: "a1a1a1a1-a1a1-4a1a-8a1a-a1a1a1a1a1a1", coachId, fighterId, startsAt: "2026-01-01T00:00:00.000Z", endsAt: null }],
+                    [`/fighters/${fighterId}/doctors`]: emptyPage,
+                    [`/fighters/${fighterId}`]: bareProfile,
+                });
+
+                await expect(getFighter(fighterId)).resolves.toMatchObject({ weightKg: 70.4, coachIds: [coachId], doctorIds: [] });
+            });
+
+            it("still fails when the session has lapsed", async () => {
+                getCurrentUser.mockResolvedValue(coachViewer);
+                answer({
+                    [`/fighters/${fighterId}/measurements`]: new ApiError({ message: "Session expired", kind: "unauthorized", status: 401, code: "UNAUTHORIZED" }),
+                    [`/fighters/${fighterId}/coaches`]: [],
+                    [`/fighters/${fighterId}/doctors`]: emptyPage,
+                    [`/fighters/${fighterId}`]: bareProfile,
+                });
+
+                await expect(getFighter(fighterId)).rejects.toMatchObject({ kind: "unauthorized" });
+            });
+
+            it("still fails when the profile itself can't be read", async () => {
+                getCurrentUser.mockResolvedValue(coachViewer);
+                answer({
+                    [`/fighters/${fighterId}/measurements`]: emptyPage,
+                    [`/fighters/${fighterId}/coaches`]: [],
+                    [`/fighters/${fighterId}/doctors`]: emptyPage,
+                    [`/fighters/${fighterId}`]: serverError,
+                });
+
+                await expect(getFighter(fighterId)).rejects.toBe(serverError);
+            });
+        });
     });
 
     it("posts a self-reported weight to the fighter's measurements", async () => {

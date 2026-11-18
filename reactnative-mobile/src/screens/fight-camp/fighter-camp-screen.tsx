@@ -48,7 +48,7 @@ export function FighterCampScreen() {
   const blocking = new Set([...(gate?.missing ?? []), ...(gate?.expiring ?? [])].map(i => i.code));
   const record = () => router.push("/(fighter)/tran/can-nang" as never);
   const over = track?.status === "OVER_LIMIT";
-  return <CampShell title={campText.fighterCampScreen.tranCuaToi} subtitle={campText.fighterCampScreen.lichThiDauVaSo} preview={isDemo}>
+  return <CampShell title={campText.fighterCampScreen.tranCuaToi} preview={isDemo}>
     {state.loading && !state.data ? <Busy/> : null}
     {state.error ? <><Notice title={campText.fighterCampScreen.khongTaiDuocTran} danger>{state.error}</Notice><Action label={campText.fighterCampScreen.thuTaiLai} secondary onPress={() => void state.reload()}/></> : null}
     {state.data ? <FighterSuspensionCard items={state.data.suspensions} error={state.data.suspensions === null} onRetry={() => void state.reload()}/> : null}
@@ -130,7 +130,7 @@ export function FighterSuspensionsScreen() {
     const page = isDemo ? { data: [previewSuspension], nextCursor: null, hasNextPage: false } : await campApi.suspensions();
     setCursor(page.hasNextPage ? page.nextCursor : null); setExtra([]); return page;
   });
-  return <CampShell title={campText.fighterCampScreen.trangThaiDinhChi} subtitle={campText.fighterCampScreen.thongTinTuHoSo} preview={isDemo}>
+  return <CampShell title={campText.fighterCampScreen.trangThaiDinhChi} preview={isDemo}>
     {state.loading ? <Busy/> : null}
     {state.error || error ? <><Notice title={campText.fighterCampScreen.khongTaiDuocHoSo} danger>{state.error || error}</Notice><Action label={campText.fighterCampScreen.thuTaiLai4} secondary onPress={() => { setError(""); void state.reload(); }}/></> : null}
     {state.data && !state.data.data.length ? <Notice title={campText.fighterCampScreen.chuaCoBanGhiDinh}>{campText.fighterCampScreen.khongCoDinhChiNao}</Notice> : null}

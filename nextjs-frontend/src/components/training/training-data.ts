@@ -3,7 +3,7 @@ import "server-only";
 import type { FighterIdentityData } from "@/components/domain/fighter-identity";
 import type { Exercise, Fighter, MedicalClearance, TrainingPlan } from "@/lib/domain/types";
 import { dayKey } from "@/lib/format";
-import { getClearanceStatus } from "@/lib/services/medical";
+import { getClearanceStatus, primeMedicalDossiers } from "@/lib/services/medical";
 import { listCoaches, listDoctors } from "@/lib/services/people";
 import { listExercises } from "@/lib/services/training";
 import type { SessionFormPlan } from "./session-form";
@@ -84,6 +84,8 @@ function toSummaryClearance(clearance: MedicalClearance): MedicalClearance {
 export async function getClearanceSummaries(fighterIds: string[] | Promise<string[]>, now: string): Promise<Record<string, ClearanceSummary>> {
     const [doctors, ids] = await Promise.all([listDoctors(), fighterIds]);
     const doctorNames = new Map(doctors.map((doctor) => [doctor.id, doctor.name]));
+    // One batch read for all of them, as the roster does, instead of one dossier request per fighter.
+    primeMedicalDossiers(ids);
     const statuses = await Promise.all(ids.map((fighterId) => getClearanceStatus(fighterId, now)));
     return Object.fromEntries(
         ids.map((fighterId, index) => {

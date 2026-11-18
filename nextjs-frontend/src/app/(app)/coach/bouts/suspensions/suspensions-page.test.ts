@@ -452,16 +452,16 @@ describe("T-030 Phần B4: Màn /coach/bouts/suspensions (Review Round 1)", () =
     });
 
     // ─── B4-12 ─────────────────────────────────────────────────────────────────
-    it("B4-12: Error boundary: truy cập suspensions/error.tsx hiển thị thông báo lỗi và có nút thử lại gọi reset()", () => {
-        const resetFn = vi.fn();
+    it("B4-12: Error boundary: truy cập suspensions/error.tsx hiển thị thông báo lỗi và có nút thử lại", () => {
+        const retryFn = vi.fn();
         const errorHtml = renderToStaticMarkup(
             createElement(SuspensionsError, {
                 error: new Error("Test connection failure"),
-                reset: resetFn,
+                retry: retryFn,
             }),
         );
         expect(errorHtml).toContain(tVi("suspensions.errorTitle"));
-        expect(errorHtml).toContain("Test connection failure");
+        expect(errorHtml).toContain(tVi("shell.error.body"));
         expect(errorHtml).toContain(tVi("suspensions.errorRetry"));
     });
 

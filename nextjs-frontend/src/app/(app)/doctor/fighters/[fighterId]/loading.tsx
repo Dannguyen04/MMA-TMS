@@ -1,5 +1,12 @@
-import { ListSkeleton } from "@/components/doctor/ui";
+import { OverviewSk, Skel } from "@/components/doctor/skeletons";
+import { getTranslator } from "@/lib/i18n/server";
 
-export default function Loading() {
-    return <ListSkeleton label="Đang tải dữ liệu y tế" />;
+/** Shown under the profile header and tabs (which stay) while this section loads. */
+export default async function Loading() {
+    const { t } = await getTranslator();
+    return (
+        <Skel label={t("doctorPages.loading.profile")}>
+            <OverviewSk />
+        </Skel>
+    );
 }

@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- MMA-TMS select frame, 9-slice source (48x48, slice 16). Use as mask-border / -webkit-mask-box-image. Decorative only. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+  <path d="M6.5,0.5 H39.5 A7.5,7.5 0 0 1 47.5,8 V41.5 L41.5,47.5 H8 A7.5,7.5 0 0 1 0.5,40 V6.5 Z" fill="none" stroke="currentColor" stroke-width="1" stroke-linejoin="miter"/>
+</svg>

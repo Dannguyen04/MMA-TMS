@@ -5,7 +5,7 @@ import { recoveryProgressPct } from "@/lib/domain/rules";
 import type { RecoveryPhase, RecoveryPhaseStatus, RecoveryPlan } from "@/lib/domain/types";
 import { daysBetween, formatDate, formatShortDate } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 import { cn } from "@/lib/utils";
 import { describeDaysUntil } from "./domain-format";
 
@@ -237,7 +237,7 @@ export function RecoveryPhaseDot({ status, index, size = "md" }: { status: Recov
             className={cn(
                 "relative flex shrink-0 items-center justify-center rounded-full text-xs font-semibold",
                 size === "sm" ? "size-6" : "size-7",
-                status === "completed" && "bg-success-solid text-white",
+                status === "completed" && "bg-success-solid text-primary-fg",
                 status === "current" && "bg-info-soft text-info-fg ring-2 ring-info-solid",
                 status === "upcoming" && "bg-surface text-fg-subtle ring-1 ring-border-strong",
             )}

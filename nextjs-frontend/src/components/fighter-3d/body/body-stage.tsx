@@ -2,7 +2,7 @@
 
 import { RotateCcw, ScanLine } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 
 import { BodyMap } from "@/components/domain/body-map";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
@@ -18,9 +18,6 @@ import styles from "./body.module.css";
 import type { BodyModelKind } from "./regions";
 
 const BodyScene = dynamic(() => import("./body-scene"), { ssr: false });
-
-/** Author of the scanned model, credited under every body that shows it (CC BY 4.0). */
-const MODEL_AUTHOR = "Harshit Prajapati";
 
 export interface StageHighlight {
     region: BodyRegion;
@@ -107,14 +104,13 @@ export function BodyStage({
     const labels = useRef<HTMLDivElement>(null);
     const yaw = useRef(0);
     const wake = useRef<(() => void) | null>(null);
-    const drag = useRef<{ x: number; moved: number } | null>(null);
+    const drag = useRef<{ x: number; moved: number; time: number; velocity: number } | null>(null);
+    const coast = useRef<number | null>(null);
     const [hovered, setHovered] = useState<BodyRegion | null>(null);
     const [scan, setScan] = useState(0);
     const [visible, setVisible] = useState(false);
     const [facingBack, setFacingBack] = useState(false);
     const [narrow, setNarrow] = useState(false);
-    const [shown, setShown] = useState<BodyModelKind | null>(null);
-    const onModel = useCallback((kind: BodyModelKind) => setShown(kind), []);
 
     useEffect(() => {
         const el = root.current;
@@ -127,6 +123,7 @@ export function BodyStage({
         return () => {
             observer.disconnect();
             sizes.disconnect();
+            if (coast.current !== null) cancelAnimationFrame(coast.current);
         };
     }, []);
 
@@ -148,7 +145,39 @@ export function BodyStage({
         [tokens, look],
     );
 
+    const stopCoast = () => {
+        if (coast.current !== null) cancelAnimationFrame(coast.current);
+        coast.current = null;
+    };
+
+    /** Snaps the front/back toggle to whichever side now faces the camera. */
+    const syncSide = () => {
+        const turns = ((yaw.current % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+        setFacingBack(turns > Math.PI / 2 && turns < (Math.PI * 3) / 2);
+    };
+
+    /** After a flick the body keeps turning and slows down (~0.25 s time constant). */
+    const coastFrom = (velocity: number) => {
+        stopCoast();
+        let speed = velocity;
+        let last: number | null = null;
+        const step = (now: number) => {
+            const dt = last === null ? 16 : Math.min(48, now - last);
+            last = now;
+            yaw.current += speed * dt;
+            speed *= Math.exp(-dt / 250);
+            wake.current?.();
+            if (Math.abs(speed) > 0.00004) coast.current = requestAnimationFrame(step);
+            else {
+                coast.current = null;
+                syncSide();
+            }
+        };
+        coast.current = requestAnimationFrame(step);
+    };
+
     const turn = (back: boolean) => {
+        stopCoast();
         yaw.current = back ? Math.PI : 0;
         setFacingBack(back);
         wake.current?.();
@@ -167,24 +196,29 @@ export function BodyStage({
             ref={root}
             className={cn("relative isolate", hovered && onSelect ? "cursor-pointer" : "cursor-grab", className)}
             onPointerDown={(e) => {
-                drag.current = { x: e.clientX, moved: 0 };
+                stopCoast();
+                drag.current = { x: e.clientX, moved: 0, time: e.timeStamp, velocity: 0 };
             }}
             onPointerMove={(e) => {
                 const d = drag.current;
                 if (!d || e.buttons === 0) return;
                 const dx = e.clientX - d.x;
+                const dt = Math.max(1, e.timeStamp - d.time);
                 d.x = e.clientX;
+                d.time = e.timeStamp;
                 d.moved += Math.abs(dx);
+                // Radians per millisecond, smoothed over the last few moves.
+                d.velocity = d.velocity * 0.6 + ((dx * 0.012) / dt) * 0.4;
                 yaw.current += dx * 0.012;
                 wake.current?.();
             }}
-            onPointerUp={() => {
+            onPointerUp={(e) => {
                 const d = drag.current;
-                if (d && d.moved > 4) {
-                    // Snap the "back" toggle to whichever side now faces the camera.
-                    const turns = ((yaw.current % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
-                    setFacingBack(turns > Math.PI / 2 && turns < (Math.PI * 3) / 2);
-                }
+                if (!d || d.moved <= 4) return;
+                // A release that follows a quick move keeps turning; a slow drag stops where it is.
+                const fresh = e.timeStamp - d.time < 80;
+                if (!reduced && fresh && Math.abs(d.velocity) > 0.0008) coastFrom(Math.max(-0.012, Math.min(0.012, d.velocity)));
+                else syncSide();
             }}
         >
             {palette && (
@@ -209,7 +243,6 @@ export function BodyStage({
                         labels={labels}
                         ariaLabel={ariaLabel}
                         compact={compact || narrow}
-                        onModel={onModel}
                         wakeRef={wake}
                     />
                 </div>
@@ -269,21 +302,8 @@ export function BodyStage({
                             </button>
                         </div>
                     </div>
-                    {shown === "muscular" && <ModelCredit />}
-                </div>
-            )}
-
-            {bare && shown === "muscular" && (
-                <div className="pointer-events-none absolute inset-x-0 bottom-1">
-                    <ModelCredit />
                 </div>
             )}
         </div>
     );
-}
-
-/** CC BY 4.0 credit for the scanned model, under the figure where it never covers the body. */
-function ModelCredit() {
-    const t = useT();
-    return <p className="pointer-events-none text-right text-[10px] leading-none text-fg-subtle">{t("figure3d.credit", { author: MODEL_AUTHOR })}</p>;
 }

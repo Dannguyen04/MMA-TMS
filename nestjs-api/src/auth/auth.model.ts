@@ -60,7 +60,8 @@ export const resetPasswordBodySchema = z.strictObject({
 });
 
 export const refreshBodySchema = z.strictObject({
-  refreshToken: z.string().min(20).max(4_096),
+  // Supabase refresh tokens are short opaque strings (12 characters today), not JWTs.
+  refreshToken: z.string().trim().min(8).max(4_096),
 });
 
 export const authSessionSchema = z.strictObject({

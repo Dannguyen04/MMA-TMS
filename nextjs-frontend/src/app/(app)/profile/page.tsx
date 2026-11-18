@@ -44,7 +44,7 @@ export default async function ProfilePage() {
 
     return (
         <>
-            <PageHeader title={t("account.profile.title")} description={t("account.profile.description")} />
+            <PageHeader title={t("account.profile.title")} />
             <div className="grid grid-cols-1 items-start gap-6 lg:grid-cols-3">
                 <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
                     <ProfileIdentityCard user={user} nickname={sections.nickname} facts={sections.facts} now={now} locale={locale} />

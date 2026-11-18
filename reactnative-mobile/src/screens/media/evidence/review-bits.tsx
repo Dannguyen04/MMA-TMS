@@ -1,98 +1,66 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Text, View } from "react-native";
 
 import type { HealthAlert } from "@/api/media";
+import { StaggerList } from "@/components/motion";
 import { jointLabel, severityLabel } from "@/components/medical/medical-format";
 import { ev } from "@/i18n/video-evidence";
-import { useFighterPalette } from "@/screens/fighter/redesign/palette";
+import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { sentences } from "@/screens/fight-camp/camp-ui";
+import { EvHead, EvRow, type Word } from "@/screens/media/evidence/evidence-panels";
 import { formatPrecise } from "@/screens/media/evidence/evidence-model";
 import type { FindingReview, WindowReview } from "@/screens/media/evidence/review-model";
-import { useTypography } from "@/theme";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { useThemePreference } from "@/theme";
+import { readableTextStyle, lh } from "@/theme/typography";
 
-export function StatusLine({ text, tone, action, onAction, testID }: { text: string; tone: "done" | "wait" | "no"; action?: string; onAction?: () => void; testID?: string }) {
-  const c = useFighterPalette();
-  const color = tone === "done" ? c.success : tone === "no" ? c.warning : c.muted;
-  return (
-    <View style={styles.status}>
-      <Text style={{ color, fontSize: 12, fontWeight: "600", flex: 1 }}>{text}</Text>
-      {action && onAction ? (
-        <Pressable testID={testID} accessibilityRole="button" onPress={onAction} hitSlop={6} style={[styles.action, { borderColor: c.line }]}>
-          <Text style={{ color: c.ink, fontSize: 13, fontWeight: "600" }}>{action}</Text>
-        </Pressable>
-      ) : null}
-    </View>
-  );
-}
-
-export function findingStatusText(r: FindingReview | null): { text: string; tone: "done" | "wait" | "no" } {
-  if (!r) return { text: ev.waitingReview, tone: "wait" };
+/** The coach's decision on a finding as a word: Chờ duyệt (red, waiting on the coach), Đã xác nhận / Đã sửa (green), Đã bác bỏ. */
+export function findingStatusText(r: FindingReview | null): Word {
+  if (!r) return { word: ev.waitingReview, tone: "warn" };
   const base = ev.decisionDone[r.status] ?? UNKNOWN_VALUE;
-  return { text: r.status === "corrected" && r.correctedLabel ? `${base}: ${r.correctedLabel}` : base, tone: r.status === "rejected" ? "no" : "done" };
+  return { word: r.status === "corrected" && r.correctedLabel ? `${base}: ${r.correctedLabel}` : base, tone: r.status === "rejected" ? undefined : "ok" };
 }
 
-export function windowStatusText(r: WindowReview | null): { text: string; tone: "done" | "wait" | "no" } {
-  if (!r) return { text: ev.waitingReview, tone: "wait" };
+export function windowStatusText(r: WindowReview | null): Word {
+  if (!r) return { word: ev.waitingReview, tone: "warn" };
   const who = ev.reviewedBy[r.reviewerRole] ?? "";
   const range = r.decision === "corrected" && r.startMs != null && r.endMs != null ? ` ${formatPrecise(r.startMs)}–${formatPrecise(r.endMs)}` : "";
-  return { text: `${ev.windowDone[r.decision] ?? UNKNOWN_VALUE}${range}${who ? ` · ${who}` : ""}`, tone: r.decision === "rejected" ? "no" : "done" };
+  return { word: `${ev.windowDone[r.decision] ?? UNKNOWN_VALUE}${range}${who ? ` · ${who}` : ""}`, tone: r.decision === "rejected" ? undefined : "ok" };
 }
 
+/**
+ * Đánh giá tổng (redesign step 19): one row with the technique rating as the lead ("4/5", "–" before rating); the coach
+ * taps it to rate. The written review follows, one sentence per line.
+ */
 export function SummaryCard({ rating, text, canEdit, onEdit }: { rating: number | null; text: string | null; canEdit: boolean; onEdit: () => void }) {
-  const c = useFighterPalette();
-  const live = useTypography();
+  const { colors: c } = useThemePreference();
   const has = rating != null || Boolean(text);
+  const lead = rating != null ? `${Math.round(rating)}/5` : "–";
+  const line = canEdit ? (has ? ev.summaryUpdate : ev.summaryRate) : has ? "" : ev.summaryEmpty;
   return (
-    <View style={[styles.card, { backgroundColor: c.surface, borderColor: c.line }]} testID="summary-card">
-      <View style={styles.cardHead}>
-        <Text style={{ color: c.muted, fontSize: 12, flex: 1 }}>{ev.summary}</Text>
-        {rating != null ? <Text style={{ color: c.ink, fontFamily: live.faces.bold, fontSize: 18 }}>{ev.ratingOf(Math.round(rating))}</Text> : null}
-      </View>
-      <Text style={{ color: has ? c.ink : c.muted, fontSize: 14 }}>{text || ev.summaryEmpty}</Text>
-      {canEdit ? (
-        <Pressable testID="summary-edit" accessibilityRole="button" onPress={onEdit} style={[styles.action, styles.cardBtn, { borderColor: c.line }]}>
-          <Text style={{ color: c.ink, fontSize: 13, fontWeight: "600" }}>{has ? ev.summaryUpdate : ev.summaryRate}</Text>
-        </Pressable>
-      ) : null}
+    <View testID="summary-card" style={{ gap: 10 }}>
+      <EvRow testID={canEdit ? "summary-edit" : undefined} lead={lead} leadTone={rating != null ? undefined : "dim"} title={ev.summary} line={line} last
+        a11y={[ev.summary, rating != null ? `${ev.rating} ${ev.ratingOf(Math.round(rating))}` : ev.summaryEmpty, canEdit ? line : ""].filter(Boolean).join(", ")}
+        onPress={canEdit ? onEdit : undefined}/>
+      {text ? <View style={{ gap: 4 }}>{sentences(text).map((s, i) => <Text key={i} style={{ ...readableTextStyle(15), lineHeight: lh(22), color: c.ink }}>{s}</Text>)}</View> : null}
     </View>
   );
 }
 
+/** Doctor: health alerts as rows (time, joint, severity word in red, range of motion and advice). A tap seeks. */
 export function HealthAlertsSection({ alerts, onSeek }: { alerts: HealthAlert[]; onSeek: (ms: number) => void }) {
-  const c = useFighterPalette();
-  const live = useTypography();
+  const { colors: c } = useThemePreference();
   return (
-    <View style={styles.section} testID="health-alerts">
-      <Text style={{ color: c.ink, fontFamily: live.faces.semibold, fontSize: 16 }}>{ev.healthAlerts}</Text>
-      {alerts.length === 0 ? <Text style={{ color: c.muted }}>{ev.noHealthAlerts}</Text> : null}
-      {alerts.map((a, i) => (
-        <Pressable
-          key={`${a.joint}-${i}`}
-          accessibilityRole="button"
-          onPress={() => onSeek(a.windowStartMs ?? a.triggerTimeMs)}
-          style={[styles.alert, { borderColor: c.line, backgroundColor: c.surface }]}
-          testID={`health-alert-${i}`}
-        >
-          <Text style={{ color: c.muted, fontSize: 13, width: 52 }}>{formatPrecise(a.triggerTimeMs)}</Text>
-          <View style={{ flex: 1, gap: 2 }}>
-            <Text style={{ color: c.warning, fontFamily: live.faces.semibold, fontSize: 14 }}>
-              {jointLabel(a.joint)} · {severityLabel(a.severity)}
-            </Text>
-            <Text style={{ color: c.muted, fontSize: 13 }}>
-              {[Number.isFinite(a.avgRomRatio) ? ev.romRatio(Math.round(a.avgRomRatio * 100)) : null, a.recommendation].filter(Boolean).join(" · ")}
-            </Text>
-          </View>
-        </Pressable>
-      ))}
+    <View style={{ gap: 8 }} testID="health-alerts">
+      <EvHead title={ev.healthAlerts} aside={alerts.length ? String(alerts.length) : undefined}/>
+      {alerts.length === 0 ? <Text style={{ ...readableTextStyle(15), color: c.ink }}>{ev.noHealthAlerts}</Text> : null}
+      {alerts.length ? <StaggerList>
+        {alerts.map((a, i) => {
+          const line = [Number.isFinite(a.avgRomRatio) ? ev.romRatio(Math.round(a.avgRomRatio * 100)) : null, a.recommendation].filter(Boolean).join(" · ");
+          const sev = severityLabel(a.severity);
+          return <EvRow key={`${a.joint}-${i}`} testID={`health-alert-${i}`} lead={formatPrecise(a.triggerTimeMs)} title={jointLabel(a.joint)} word={{ word: sev, tone: "warn" }} line={line}
+            a11y={`${jointLabel(a.joint)}, ${sev}, ${ev.at(formatPrecise(a.triggerTimeMs))}${line ? `, ${line}` : ""}`}
+            onPress={() => onSeek(a.windowStartMs ?? a.triggerTimeMs)} last={i === alerts.length - 1}/>;
+        })}
+      </StaggerList> : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  status: { flexDirection: "row", alignItems: "center", gap: 8, paddingLeft: 68, paddingBottom: 8 },
-  action: { minHeight: 32, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, justifyContent: "center" },
-  card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, padding: 14, gap: 6 },
-  cardHead: { flexDirection: "row", alignItems: "center" },
-  cardBtn: { alignSelf: "flex-start", marginTop: 4 },
-  section: { gap: 8 },
-  alert: { flexDirection: "row", gap: 12, padding: 12, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth },
-});

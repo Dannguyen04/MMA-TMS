@@ -1,197 +1,262 @@
 import type { InjuryType } from "@/lib/domain/types";
+import type { MessageKey } from "@/lib/i18n/translate";
 
 /**
  * Starting points for recovery plans. Durations are typical, not prescriptive — the doctor
- * adjusts phases, dates and milestones to the athlete before saving.
+ * adjusts phases, dates and milestones to the athlete before saving. The text fields are dictionary keys: the
+ * form fills the phases in the viewer's language.
  */
 
 export interface RecoveryTemplatePhase {
-    name: string;
-    goal: string;
+    name: MessageKey;
+    goal: MessageKey;
     durationDays: number;
-    milestones: string[];
+    milestones: MessageKey[];
 }
 
 export interface RecoveryTemplate {
     id: "muscle_strain" | "ligament_sprain" | "fracture" | "concussion" | "general";
-    label: string;
-    summary: string;
+    label: MessageKey;
+    summary: MessageKey;
     phases: RecoveryTemplatePhase[];
 }
 
 export const RECOVERY_TEMPLATES: RecoveryTemplate[] = [
     {
         id: "muscle_strain",
-        label: "Căng cơ",
-        summary: "5 giai đoạn · khoảng 6 tuần",
+        label: "doctorClinical.template.muscleStrain.label",
+        summary: "doctorClinical.template.muscleStrain.summary",
         phases: [
             {
-                name: "Bảo vệ & kiểm soát đau",
-                goal: "Giảm đau và bảo vệ cơ đang lành, đồng thời duy trì vận động phần còn lại của cơ thể.",
+                name: "doctorClinical.template.muscleStrain.phase1.name",
+                goal: "doctorClinical.template.muscleStrain.phase1.goal",
                 durationDays: 5,
-                milestones: ["Đi bộ không đau", "Đã xác định độ căng cơ"],
-            },
-            {
-                name: "Tải sớm & vận động",
-                goal: "Phục hồi biên độ vận động và bắt đầu tải đẳng trường không đau.",
-                durationDays: 9,
-                milestones: ["Giữ đẳng trường không đau ở ba góc khớp", "Biên độ vận động chênh không quá 10° so với bên lành"],
-            },
-            {
-                name: "Tăng sức mạnh dần",
-                goal: "Xây sức mạnh lệch tâm và phục hồi cơ học chạy.",
-                durationDays: 14,
                 milestones: [
-                    "Bài lệch tâm 3×6 không đau",
-                    "Chạy 70% tốc độ tối đa không đau",
-                    "Sức mạnh ≥ 90% bên lành",
+                    "doctorClinical.template.muscleStrain.phase1.milestone1",
+                    "doctorClinical.template.muscleStrain.phase1.milestone2",
                 ],
             },
             {
-                name: "Tái điều kiện chuyên môn",
-                goal: "Đưa lại dần động tác bùng nổ, đá và vật.",
-                durationDays: 8,
-                milestones: ["Chạy nước rút và đổi hướng tốc độ tối đa", "Bài kỹ thuật hết sức không triệu chứng"],
+                name: "doctorClinical.template.muscleStrain.phase2.name",
+                goal: "doctorClinical.template.muscleStrain.phase2.goal",
+                durationDays: 9,
+                milestones: [
+                    "doctorClinical.template.muscleStrain.phase2.milestone1",
+                    "doctorClinical.template.muscleStrain.phase2.milestone2",
+                ],
             },
             {
-                name: "Trở lại tập đầy đủ",
-                goal: "Chịu được các tuần tập đầy đủ, kể cả hiệp đấu thật, trước khi bỏ hạn chế.",
+                name: "doctorClinical.template.muscleStrain.phase3.name",
+                goal: "doctorClinical.template.muscleStrain.phase3.goal",
+                durationDays: 14,
+                milestones: [
+                    "doctorClinical.template.muscleStrain.phase3.milestone1",
+                    "doctorClinical.template.muscleStrain.phase3.milestone2",
+                    "doctorClinical.template.muscleStrain.phase3.milestone3",
+                ],
+            },
+            {
+                name: "doctorClinical.template.muscleStrain.phase4.name",
+                goal: "doctorClinical.template.muscleStrain.phase4.goal",
+                durationDays: 8,
+                milestones: [
+                    "doctorClinical.template.muscleStrain.phase4.milestone1",
+                    "doctorClinical.template.muscleStrain.phase4.milestone2",
+                ],
+            },
+            {
+                name: "doctorClinical.template.muscleStrain.phase5.name",
+                goal: "doctorClinical.template.muscleStrain.phase5.goal",
                 durationDays: 6,
-                milestones: ["Hiệp đấu thật không triệu chứng", "Đạt đánh giá trở lại tập"],
+                milestones: [
+                    "doctorClinical.template.muscleStrain.phase5.milestone1",
+                    "doctorClinical.template.muscleStrain.phase5.milestone2",
+                ],
             },
         ],
     },
     {
         id: "ligament_sprain",
-        label: "Bong gân dây chằng",
-        summary: "4 giai đoạn · khoảng 6 tuần",
+        label: "doctorClinical.template.ligamentSprain.label",
+        summary: "doctorClinical.template.ligamentSprain.summary",
         phases: [
             {
-                name: "Bảo vệ & kiểm soát sưng",
-                goal: "Bảo vệ dây chằng, kiểm soát sưng và duy trì vận động không đau.",
+                name: "doctorClinical.template.ligamentSprain.phase1.name",
+                goal: "doctorClinical.template.ligamentSprain.phase1.goal",
                 durationDays: 7,
-                milestones: ["Sưng giảm dần", "Chịu lực hoàn toàn, không đi khập khiễng"],
+                milestones: [
+                    "doctorClinical.template.ligamentSprain.phase1.milestone1",
+                    "doctorClinical.template.ligamentSprain.phase1.milestone2",
+                ],
             },
             {
-                name: "Biên độ vận động & sức mạnh ban đầu",
-                goal: "Phục hồi đủ biên độ vận động và bắt đầu tập sức mạnh chuỗi đóng.",
-                durationDays: 10,
-                milestones: ["Biên độ vận động đầy đủ", "Đứng thăng bằng một chân 30 giây"],
-            },
-            {
-                name: "Sức mạnh & cảm thụ bản thể",
-                goal: "Xây sức mạnh, độ vững và kiểm soát dưới tải tăng dần.",
-                durationDays: 14,
-                milestones: ["Sức mạnh ≥ 90% bên lành", "Bài bật nhảy chênh không quá 10% so với bên lành", "Vững khi chịu tải ngang"],
-            },
-            {
-                name: "Trở lại chuyên môn",
-                goal: "Trở lại bộ pháp, đòn đá và tập thật, bảo vệ khớp khi cần.",
+                name: "doctorClinical.template.ligamentSprain.phase2.name",
+                goal: "doctorClinical.template.ligamentSprain.phase2.goal",
                 durationDays: 10,
                 milestones: [
-                    "Đánh đích có đá không triệu chứng",
-                    "Đấu tập có kiểm soát, khớp không lỏng",
-                    "Đạt đánh giá trở lại tập",
+                    "doctorClinical.template.ligamentSprain.phase2.milestone1",
+                    "doctorClinical.template.ligamentSprain.phase2.milestone2",
+                ],
+            },
+            {
+                name: "doctorClinical.template.ligamentSprain.phase3.name",
+                goal: "doctorClinical.template.ligamentSprain.phase3.goal",
+                durationDays: 14,
+                milestones: [
+                    "doctorClinical.template.ligamentSprain.phase3.milestone1",
+                    "doctorClinical.template.ligamentSprain.phase3.milestone2",
+                    "doctorClinical.template.ligamentSprain.phase3.milestone3",
+                ],
+            },
+            {
+                name: "doctorClinical.template.ligamentSprain.phase4.name",
+                goal: "doctorClinical.template.ligamentSprain.phase4.goal",
+                durationDays: 10,
+                milestones: [
+                    "doctorClinical.template.ligamentSprain.phase4.milestone1",
+                    "doctorClinical.template.ligamentSprain.phase4.milestone2",
+                    "doctorClinical.template.ligamentSprain.phase4.milestone3",
                 ],
             },
         ],
     },
     {
         id: "fracture",
-        label: "Gãy xương",
-        summary: "4 giai đoạn · khoảng 10 tuần",
+        label: "doctorClinical.template.fracture.label",
+        summary: "doctorClinical.template.fracture.summary",
         phases: [
             {
-                name: "Bất động & bảo vệ",
-                goal: "Bảo vệ ổ gãy, đồng thời duy trì thể lực các vùng lành.",
+                name: "doctorClinical.template.fracture.phase1.name",
+                goal: "doctorClinical.template.fracture.phase1.goal",
                 durationDays: 28,
-                milestones: ["Phim chụp lại xác nhận xương thẳng trục", "Duy trì thể lực mà không tải lên ổ gãy"],
+                milestones: [
+                    "doctorClinical.template.fracture.phase1.milestone1",
+                    "doctorClinical.template.fracture.phase1.milestone2",
+                ],
             },
             {
-                name: "Vận động lại",
-                goal: "Phục hồi biên độ vận động sau bất động và bắt đầu tải nhẹ.",
+                name: "doctorClinical.template.fracture.phase2.name",
+                goal: "doctorClinical.template.fracture.phase2.goal",
                 durationDays: 14,
-                milestones: ["Bác sĩ điều trị xác nhận đã liền", "Biên độ vận động chênh không quá 10% so với bên lành"],
+                milestones: [
+                    "doctorClinical.template.fracture.phase2.milestone1",
+                    "doctorClinical.template.fracture.phase2.milestone2",
+                ],
             },
             {
-                name: "Sức mạnh & chịu tải",
-                goal: "Xây lại sức mạnh và khả năng chịu tải tăng dần.",
+                name: "doctorClinical.template.fracture.phase3.name",
+                goal: "doctorClinical.template.fracture.phase3.goal",
                 durationDays: 14,
-                milestones: ["Lực nắm hoặc lực tải ≥ 85% bên lành", "Tải qua xương đã liền không đau"],
+                milestones: [
+                    "doctorClinical.template.fracture.phase3.milestone1",
+                    "doctorClinical.template.fracture.phase3.milestone2",
+                ],
             },
             {
-                name: "Trở lại va chạm theo bậc",
-                goal: "Đưa lại va chạm dần — bao cát và đích trước khi đấu thật.",
+                name: "doctorClinical.template.fracture.phase4.name",
+                goal: "doctorClinical.template.fracture.phase4.goal",
                 durationDays: 14,
-                milestones: ["Đánh bao và đích nhẹ không đau", "Ra đòn hết lực không đau", "Đạt đánh giá trở lại tập"],
+                milestones: [
+                    "doctorClinical.template.fracture.phase4.milestone1",
+                    "doctorClinical.template.fracture.phase4.milestone2",
+                    "doctorClinical.template.fracture.phase4.milestone3",
+                ],
             },
         ],
     },
     {
         id: "concussion",
-        label: "Chấn động não — trở lại theo bậc",
-        summary: "6 bậc · mỗi bậc ít nhất 24 giờ",
+        label: "doctorClinical.template.concussion.label",
+        summary: "doctorClinical.template.concussion.summary",
         phases: [
             {
-                name: "Hoạt động giới hạn theo triệu chứng",
-                goal: "Nghỉ tương đối 24–48 giờ đầu, sau đó sinh hoạt hằng ngày không gây triệu chứng.",
+                name: "doctorClinical.template.concussion.phase1.name",
+                goal: "doctorClinical.template.concussion.phase1.goal",
                 durationDays: 2,
-                milestones: ["Hoàn tất 24–48 giờ nghỉ tương đối", "Sinh hoạt hằng ngày không làm nặng triệu chứng"],
+                milestones: [
+                    "doctorClinical.template.concussion.phase1.milestone1",
+                    "doctorClinical.template.concussion.phase1.milestone2",
+                ],
             },
             {
-                name: "Tập aerobic nhẹ",
-                goal: "Đi bộ hoặc đạp xe tại chỗ nhịp chậm đến vừa; không tập kháng lực.",
+                name: "doctorClinical.template.concussion.phase2.name",
+                goal: "doctorClinical.template.concussion.phase2.goal",
                 durationDays: 2,
-                milestones: ["Buổi aerobic nhẹ không tăng triệu chứng", "Không triệu chứng khi nghỉ"],
+                milestones: [
+                    "doctorClinical.template.concussion.phase2.milestone1",
+                    "doctorClinical.template.concussion.phase2.milestone2",
+                ],
             },
             {
-                name: "Bài tập chuyên môn (không va chạm)",
-                goal: "Bài tập cá nhân không va chạm — chạy, nhảy dây và đánh gió.",
+                name: "doctorClinical.template.concussion.phase3.name",
+                goal: "doctorClinical.template.concussion.phase3.goal",
                 durationDays: 2,
-                milestones: ["Chạy và nhảy dây không triệu chứng", "Đánh gió không triệu chứng"],
+                milestones: [
+                    "doctorClinical.template.concussion.phase3.milestone1",
+                    "doctorClinical.template.concussion.phase3.milestone2",
+                ],
             },
             {
-                name: "Bài tập không va chạm",
-                goal: "Bài tập nặng hơn không có nguy cơ va chạm đầu, kèm tập kháng lực. Phải hết triệu chứng.",
+                name: "doctorClinical.template.concussion.phase4.name",
+                goal: "doctorClinical.template.concussion.phase4.goal",
                 durationDays: 3,
-                milestones: ["Đánh đích không triệu chứng", "Đã tập lại kháng lực", "Tầm soát chấn động trở về mức nền"],
+                milestones: [
+                    "doctorClinical.template.concussion.phase4.milestone1",
+                    "doctorClinical.template.concussion.phase4.milestone2",
+                    "doctorClinical.template.concussion.phase4.milestone3",
+                ],
             },
             {
-                name: "Tập va chạm toàn phần (sau khi có giấy phép)",
-                goal: "Tập bình thường kể cả va chạm có kiểm soát, chỉ sau khi bác sĩ cấp phép.",
+                name: "doctorClinical.template.concussion.phase5.name",
+                goal: "doctorClinical.template.concussion.phase5.goal",
                 durationDays: 3,
-                milestones: ["Giấy phép tập va chạm", "Đấu tập có kiểm soát không triệu chứng"],
+                milestones: [
+                    "doctorClinical.template.concussion.phase5.milestone1",
+                    "doctorClinical.template.concussion.phase5.milestone2",
+                ],
             },
             {
-                name: "Trở lại thi đấu",
-                goal: "Tập không hạn chế và đủ điều kiện thi đấu.",
+                name: "doctorClinical.template.concussion.phase6.name",
+                goal: "doctorClinical.template.concussion.phase6.goal",
                 durationDays: 2,
-                milestones: ["Một tuần tập đầy đủ không triệu chứng", "Giấy phép được nâng lên đầy đủ"],
+                milestones: [
+                    "doctorClinical.template.concussion.phase6.milestone1",
+                    "doctorClinical.template.concussion.phase6.milestone2",
+                ],
             },
         ],
     },
     {
         id: "general",
-        label: "Trở lại tập luyện chung",
-        summary: "3 giai đoạn · khoảng 3 tuần",
+        label: "doctorClinical.template.general.label",
+        summary: "doctorClinical.template.general.summary",
         phases: [
             {
-                name: "Giảm triệu chứng",
-                goal: "Giảm đau và viêm, đồng thời bảo vệ vùng bị thương.",
+                name: "doctorClinical.template.general.phase1.name",
+                goal: "doctorClinical.template.general.phase1.goal",
                 durationDays: 5,
-                milestones: ["Hết đau khi nghỉ", "Sinh hoạt hằng ngày không đau"],
+                milestones: [
+                    "doctorClinical.template.general.phase1.milestone1",
+                    "doctorClinical.template.general.phase1.milestone2",
+                ],
             },
             {
-                name: "Phục hồi chức năng",
-                goal: "Phục hồi biên độ vận động và sức mạnh bằng bài tập tăng dần.",
+                name: "doctorClinical.template.general.phase2.name",
+                goal: "doctorClinical.template.general.phase2.goal",
                 durationDays: 10,
-                milestones: ["Biên độ vận động đầy đủ", "Sức mạnh gần bằng bên lành"],
+                milestones: [
+                    "doctorClinical.template.general.phase2.milestone1",
+                    "doctorClinical.template.general.phase2.milestone2",
+                ],
             },
             {
-                name: "Trở lại tập luyện",
-                goal: "Trở lại tập đầy đủ dần, bảo vệ vùng bị thương khi cần.",
+                name: "doctorClinical.template.general.phase3.name",
+                goal: "doctorClinical.template.general.phase3.goal",
                 durationDays: 7,
-                milestones: ["Tập kỹ thuật không triệu chứng", "Đạt đánh giá trở lại tập"],
+                milestones: [
+                    "doctorClinical.template.general.phase3.milestone1",
+                    "doctorClinical.template.general.phase3.milestone2",
+                ],
             },
         ],
     },

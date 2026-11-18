@@ -351,8 +351,8 @@ export function WeighInButton({ bout }: { bout: CampBout }) {
 
 /* ─── Weighed in: result (F6) ─────────────────────────────────────────────── */
 
-/** `asksSuspensionDays`: the service creates a knockout's suspension with the result, so the length is asked here. */
-export function ResultButton({ bout, asksSuspensionDays = false }: { bout: CampBout; asksSuspensionDays?: boolean }) {
+/** The service saves a knockout's suspension with the result (R27, both modes), so its length is asked here. */
+export function ResultButton({ bout }: { bout: CampBout }) {
     const [open, setOpen] = useState(false);
     const [result, setResult] = useState("");
     const [method, setMethod] = useState("");
@@ -450,7 +450,7 @@ export function ResultButton({ bout, asksSuspensionDays = false }: { bout: CampB
                                     </Select>
                                 </Field>
                             )}
-                            {asksSuspensionDays && result === "LOSS" && (method === "KO" || method === "TKO") && (
+                            {result === "LOSS" && (method === "KO" || method === "TKO") && (
                                 <Field
                                     label={t("boutDetail.result.suspensionDays")}
                                     htmlFor={suspensionDays.id}

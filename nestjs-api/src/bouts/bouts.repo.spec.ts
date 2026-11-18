@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import type { Pool } from 'pg';
 import type { DrizzleDB } from '../database/database.module.js';
+import { encodeBoutCursor } from './bouts.model.js';
 import { BoutsRepository } from './bouts.repo.js';
 
 function harness() {
@@ -74,6 +75,19 @@ describe('T-010 repository SQL boundaries', () => {
     expect(sql).toContain('"coaches"."user_id" =');
     expect(sql).toContain('"coach_fighters"."ends_at" is null');
     expect(sql).toContain('"coaches"."deleted_at" is null');
+  });
+
+  it('lists newest weigh-in first with a reversed cursor when order is desc', async () => {
+    const { repo, query } = harness();
+    await repo.listBouts({
+      scope: { kind: 'ALL' },
+      order: 'desc',
+      cursor: encodeBoutCursor({ weighInAt: '2026-10-29T02:00:00.000Z', id: fighterId }),
+      limit: 20,
+    });
+    const sql = query.mock.calls[0]?.[0].text as string;
+    expect(sql).toContain('order by "bouts"."weigh_in_at" desc, "bouts"."id" desc');
+    expect(sql).toMatch(/\("bouts"\."weigh_in_at", "bouts"\."id"\) < \(/);
   });
 
   it('writes an explicitly supplied next-round plan on insert and conflict update', async () => {

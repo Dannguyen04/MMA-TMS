@@ -33,7 +33,6 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
         <>
             <PageHeader
                 title={copy("Film room")}
-                description={copy("See what the AI found in your fighters' footage, then confirm or correct it before it shapes training.")}
                 actions={
                     <ButtonLink href={routes.coach.uploadVideo}>
                         <Upload aria-hidden />
@@ -47,7 +46,6 @@ export default async function CoachVideoAnalysisPage({ searchParams }: PageProps
                     <div>
                         <h2 id="library-heading" className="text-lg font-semibold text-fg">
                             {copy("All footage")} </h2>
-                        <p className="mt-0.5 text-sm text-fg-muted">{copy("Analysed footage from your roster, newest first. Filter by status to include processing or failed videos.")} </p>
                     </div>
                     <VideoLibrary
                         user={user}
@@ -76,7 +74,7 @@ async function ReviewSections({ user, now }: { user: User; now: string }) {
             <ReviewQueue items={queue} now={now} />
             {attention.length > 0 && (
                 <Card>
-                    <CardHeader icon={<LoaderCircle />} title={copy("Processing and needs attention")} description={copy("Footage still being analysed, and analyses that didn't finish.")} />
+                    <CardHeader icon={<LoaderCircle />} title={copy("Processing and needs attention")} />
                     <ul className="divide-y divide-border border-t border-border">
                         {attention.map((item) => (
                             <AttentionRow key={item.video.id} item={item} />
@@ -94,7 +92,7 @@ async function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibr
     const inFlight = video.status === "queued" || video.status === "processing";
     return (
         <li className="flex items-center gap-3 px-5 py-3.5 md:gap-4">
-            <VideoThumb trainingType={video.trainingType} durationSec={video.durationSec} size="sm" className="hidden w-24 shrink-0 rounded-lg sm:block" />
+            <VideoThumb trainingType={video.trainingType} durationSec={video.durationSec} src={video.sourceUrl} size="sm" className="hidden w-24 shrink-0 rounded-lg sm:block" />
             <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-fg sm:truncate">{video.title}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
@@ -109,7 +107,7 @@ async function AttentionRow({ item: { video, fighter, job } }: { item: VideoLibr
                 {video.status === "failed" && (
                     <p className="mt-1.5 flex items-start gap-1 text-xs text-danger-fg">
                         <CircleX aria-hidden className="mt-px size-3.5 shrink-0" />
-                        {describeJobFailure(job?.errorCode ?? null).title}
+                        {describeJobFailure(job?.errorCode ?? null, locale).title}
                     </p>
                 )}
             </div>

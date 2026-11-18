@@ -65,7 +65,7 @@ export const appearance = {
   modes: {
     light: "Sáng",
     dark: "Tối",
-    system: "Hệ thống",
+    system: "Theo máy",
     trueBlack: "Đen tuyền",
   } satisfies Record<BrightnessMode, string>,
   darkVariants: { dark: "Tối", trueBlack: "Đen tuyền" } satisfies Record<DarkVariant, string>,

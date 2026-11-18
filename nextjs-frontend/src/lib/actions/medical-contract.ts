@@ -334,7 +334,7 @@ export async function recordExaminationDecisionAction(_prev: ActionState<Medical
     revalidateClinical();
     // A positive decision still needs a clearance before the fighter can train: go straight to issuing it.
     if (input.decision === "NOT_ELIGIBLE") redirect(hrefWith(routes.doctor.fighter(input.fighterId), {}, { notice: "examination-not-eligible" }));
-    redirect(hrefWith(routes.doctor.grantClearance, {}, { fighter: input.fighterId, exam: examinationId, notice: "examination-recorded" }));
+    redirect(hrefWith(routes.doctor.fighterGrantClearance(input.fighterId), {}, { exam: examinationId, notice: "examination-recorded" }));
 }
 
 /* ─── Clearances ──────────────────────────────────────────────────────────── */

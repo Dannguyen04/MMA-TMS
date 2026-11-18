@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  KeyboardAvoidingView,
   Modal,
   PanResponder,
   Platform,
@@ -21,9 +22,11 @@ import Animated, {
 import { SafeAreaInsetsContext } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/icon";
+import { useRevealFocusedField } from "@/components/ui/reveal-focused-field";
 import { filterText } from "@/i18n/filter";
 import { fonts, motion, radius, spacing, useThemePreference } from "@/theme";
 import { mixHex } from "@/theme/appearance/color-math";
+import { fz, liveSheet } from "@/theme/typography";
 
 export type FilterOption<T extends string> = { value: T; label: string; hint?: string };
 
@@ -234,6 +237,7 @@ export function BottomSheet({
   const fade = useSharedValue(0);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
+  const { scrollRef, contentRef } = useRevealFocusedField(mounted);
 
   useEffect(() => {
     const duration = reduced ? 0 : motion.base;
@@ -277,7 +281,8 @@ export function BottomSheet({
 
   return (
     <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <View style={styles.fill}>
+      {/* The sheet rides on the keyboard and shrinks to fit, so no field or footer button sits under it. */}
+      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === "ios" ? "padding" : "height"}>
         <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, backdropStyle]}>
           <Pressable accessibilityRole="button" accessibilityLabel={filterText.backdrop} style={styles.flex} onPress={onClose} />
         </Animated.View>
@@ -289,7 +294,8 @@ export function BottomSheet({
               backgroundColor: colors.surface,
               borderColor: colors.line,
               paddingBottom: insets.bottom + spacing.md,
-              maxHeight: height * 0.8,
+              // Of the space above the keyboard, not of the window, so it shrinks when the keyboard opens.
+              maxHeight: "80%",
             },
             sheetStyle,
           ]}
@@ -306,19 +312,24 @@ export function BottomSheet({
             </View>
           </View>
           <ScrollView
+            ref={scrollRef}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="interactive"
             style={Platform.OS === "web" ? ({ scrollbarWidth: "none" } as ViewStyle) : undefined}
           >
-            {children}
+            <View ref={contentRef} collapsable={false}>
+              {children}
+            </View>
           </ScrollView>
           {footer}
         </Animated.View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   flex: { flex: 1 },
   fill: { flex: 1, justifyContent: "flex-end" },
   backdrop: { backgroundColor: "rgba(0,0,0,0.45)" },
@@ -333,9 +344,9 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: spacing.md,
   },
-  triggerText: { flexShrink: 1, fontFamily: fonts.uiMedium, fontSize: 14 },
+  triggerText: { flexShrink: 1, fontFamily: fonts.uiMedium, fontSize: fz(14) },
   badge: { minWidth: 20, height: 20, borderRadius: 10, alignItems: "center", justifyContent: "center", paddingHorizontal: 5 },
-  badgeText: { fontFamily: fonts.uiSemi, fontSize: 12 },
+  badgeText: { fontFamily: fonts.uiSemi, fontSize: fz(12) },
   sheet: {
     width: "100%",
     maxWidth: 640,
@@ -350,7 +361,7 @@ const styles = StyleSheet.create({
   grab: { paddingTop: spacing.sm },
   handle: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, marginBottom: spacing.sm },
   head: { flexDirection: "row", alignItems: "center", gap: spacing.md, minHeight: 44 },
-  title: { flex: 1, fontFamily: fonts.uiSemi, fontSize: 17 },
+  title: { flex: 1, fontFamily: fonts.uiSemi, fontSize: fz(17) },
   close: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   option: {
     minHeight: 52,
@@ -362,10 +373,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xs,
   },
   optionText: { flex: 1, gap: 2 },
-  optionLabel: { fontFamily: fonts.ui, fontSize: 16 },
-  hint: { fontFamily: fonts.ui, fontSize: 13 },
+  optionLabel: { fontFamily: fonts.ui, fontSize: fz(16) },
+  hint: { fontFamily: fonts.ui, fontSize: fz(13) },
   box: { width: 22, height: 22, borderRadius: 6, borderWidth: 1.5, alignItems: "center", justifyContent: "center" },
   footer: { flexDirection: "row", gap: spacing.md, paddingTop: spacing.sm },
   button: { flex: 1, minHeight: 48, borderRadius: radius.field, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  buttonText: { fontFamily: fonts.uiSemi, fontSize: 15 },
-});
+  buttonText: { fontFamily: fonts.uiSemi, fontSize: fz(15) },
+}));

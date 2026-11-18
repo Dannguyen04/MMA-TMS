@@ -2,7 +2,7 @@ import type { WeightClass } from "@/lib/domain/types";
 import { WEIGHT_CLASS_LIMIT_KG, WEIGHT_CLASS_ORDER, weightClassLabel } from "@/lib/domain/labels";
 import { formatDate, isDateKey } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator } from "@/lib/i18n/translate";
+import { createTranslator } from "@/lib/i18n/translate-client";
 
 /*
  * Pure pieces of the application form: the weight-class choices and the summary on its review step.

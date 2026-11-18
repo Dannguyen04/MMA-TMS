@@ -4,7 +4,6 @@ import { coach as coachLegacy } from "@/i18n/coach";
 import { THEME_PALETTES, SYNTHETIC_LIGHT } from "@/theme/appearance/theme-palettes";
 import { paletteFromTokens } from "@/screens/fighter/redesign/palette";
 import { ADMIN_FIGHTER_DOCTORS_ENABLED } from "./admin-flags";
-import { countText } from "./admin-overview-screen";
 import { doctorRows, fighterIdOf, roleLabel, statusChip, toPaginated, userDisplayName } from "./admin-format";
 
 const user = (over: Partial<PublicUser> = {}): PublicUser => ({
@@ -58,15 +57,6 @@ describe("bác sĩ phụ trách", () => {
     expect(out.map((r) => r.name)).toEqual(["Bác sĩ", "BS. Lan", "BS. A"]);
     expect(out.map((r) => r.current)).toEqual([true, true, false]);
     expect(doctorRows([])).toEqual([]);
-  });
-});
-
-describe("ô số tổng quan", () => {
-  it("định dạng hàng nghìn kiểu Việt Nam, không âm", () => {
-    expect(countText(0)).toBe("0");
-    expect(countText(1234)).toBe("1.234");
-    expect(countText(1234567)).toBe("1.234.567");
-    expect(countText(-3)).toBe("0");
   });
 });
 

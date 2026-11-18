@@ -30,14 +30,14 @@ export async function PerformanceChapter() {
                     </p>
                     <Panel data-reveal className="mt-6 p-4">
                         <div className="mb-3 flex items-center justify-between">
-                            <p className="text-sm font-semibold text-white">{t("landing.performance.techniqueScores")}</p>
+                            <p className="text-sm font-semibold text-nav-fg-active">{t("landing.performance.techniqueScores")}</p>
                             <SampleTag>{t("landing.sampleTag.fighter")}</SampleTag>
                         </div>
                         <ul className="grid grid-cols-2 gap-x-5 gap-y-2">
                             {SAMPLE_SCORES.map(({ id, techniqueKey, score, baseline }) => (
                                 <li key={id} className="flex items-baseline justify-between gap-2 text-[13px]">
                                     <span className="truncate text-nav-fg">{t(techniqueKey)}</span>
-                                    <span className="font-mono text-white">
+                                    <span className="font-mono text-nav-fg-active">
                                         <span data-count-to={score}>{score}</span>
                                         <span className={`ml-1.5 text-[11px] ${score >= baseline ? "text-landing-success" : "text-landing-danger"}`}>
                                             {score >= baseline ? "+" : "−"}
@@ -52,7 +52,7 @@ export async function PerformanceChapter() {
 
                 <div className="w-full max-w-[24rem] space-y-3">
                     <Panel data-reveal className="p-5">
-                        <p className="flex items-center justify-between text-sm font-semibold text-white">
+                        <p className="flex items-center justify-between text-sm font-semibold text-nav-fg-active">
                             {t("landing.performance.trendTitle")}
                             <span className="font-mono text-xs font-normal text-nav-fg">{t("landing.performance.trendDuration")}</span>
                         </p>
@@ -76,17 +76,17 @@ export async function PerformanceChapter() {
                         </svg>
                     </Panel>
                     <Panel data-reveal className="p-5">
-                        <p className="text-sm font-semibold text-white">{t("landing.performance.goals")}</p>
+                        <p className="text-sm font-semibold text-nav-fg-active">{t("landing.performance.goals")}</p>
                         <ul className="mt-3 space-y-3">
                             {SAMPLE_GOALS.map((goal) => (
                                 <li key={goal.id} data-goal>
                                     <p className="flex items-baseline justify-between gap-3 text-[13px]">
-                                        <span className="text-white">
+                                        <span className="text-nav-fg-active">
                                             {t(goal.goalKey)} <span className="text-nav-fg">· {t(goal.targetKey)}</span>
                                         </span>
                                         <span className={`shrink-0 text-[11px] font-semibold ${TONE_TEXT[goal.tone]}`}>{t(goal.statusKey)}</span>
                                     </p>
-                                    <div className="mt-1.5 h-1 rounded-full bg-white/10">
+                                    <div className="mt-1.5 h-1 rounded-full bg-nav-fg-active/10">
                                         <div data-goal-bar className={`h-full origin-left rounded-full ${TONE_BG[goal.tone]}`} style={{ width: `${goal.progress * 100}%` }} />
                                     </div>
                                 </li>

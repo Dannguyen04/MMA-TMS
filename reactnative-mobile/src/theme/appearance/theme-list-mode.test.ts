@@ -47,7 +47,7 @@ describe("batch31: danh sách chủ đề + chế độ riêng", () => {
   });
 
   it("Độ sáng: Hệ thống / Sáng / Tối, chỉ cho Đỏ võ đài", () => {
-    expect(MODE_OPTIONS.map((m) => appearance.modes[m])).toEqual(["Hệ thống", "Sáng", "Tối"]);
+    expect(MODE_OPTIONS.map((m) => appearance.modes[m])).toEqual(["Theo máy", "Sáng", "Tối"]);
     expect(hasModeSelector("system")).toBe(true);
     for (const id of THEME_LIST_IDS.filter((x) => x !== "system")) expect(hasModeSelector(id)).toBe(false);
   });

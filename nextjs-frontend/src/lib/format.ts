@@ -166,7 +166,7 @@ const relativeFmts: Record<Locale, Intl.RelativeTimeFormat> = {
     en: new Intl.RelativeTimeFormat("en", { numeric: "auto" }),
     vi: new Intl.RelativeTimeFormat("vi", { numeric: "auto" }),
 };
-const JUST_NOW: Record<Locale, string> = { en: "vừa xong", vi: "vừa xong" };
+const JUST_NOW: Record<Locale, string> = { en: "just now", vi: "vừa xong" };
 
 /** "in 3 days", "yesterday", "5 min ago". `now` must come from the server when rendered on the client. */
 export function formatRelative(value: string | Date, now: string | Date = new Date(), locale: Locale = "en"): string {

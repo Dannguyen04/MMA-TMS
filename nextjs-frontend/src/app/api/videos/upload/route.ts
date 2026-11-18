@@ -3,20 +3,9 @@ import { z } from "zod";
 
 import { apiEndpoint, apiErrorResponse } from "@/lib/api/client";
 import { getPipelineAccessToken, resolvePipelineFighterId } from "@/lib/api/pipeline-auth";
+import { backendVideoMetadata, videoUploadMetadataSchema } from "@/lib/api/video-upload-metadata";
 
 export const runtime = "nodejs";
-
-const metadataSchema = z.object({
-    fighterId: z.string().min(1).max(100),
-    title: z.string().trim().min(3).max(200),
-    description: z.string().max(2_000).optional(),
-    trainingType: z.enum(["shadow_boxing", "pad_work", "heavy_bag", "sparring"]),
-    cameraAngle: z.enum(["front", "side", "diagonal"]),
-    sessionId: z.string().min(1).max(100).optional(),
-    durationMs: z.coerce.number().int().positive(),
-    originalFilename: z.string().min(1).max(255),
-    fileSizeBytes: z.coerce.number().int().positive(),
-});
 
 const backendEnvelopeSchema = z.object({
     success: z.literal(true),
@@ -29,25 +18,20 @@ function failure(message: string, status: number, code?: string) {
     return Response.json({ message, ...(code ? { code } : {}) }, { status, headers: noStore });
 }
 
-/** Truyền stream video sang backend; token HTTP-only không bao giờ đi vào JavaScript trình duyệt. */
+/**
+ * Truyền stream video sang backend; token HTTP-only không bao giờ đi vào JavaScript trình duyệt.
+ * On Vercel the request body is capped (~4.5 MB), so the wizard now uploads straight to storage
+ * (`/api/videos/direct-upload`); this route stays for small files and older clients.
+ */
 export async function POST(request: NextRequest) {
-    const parsed = metadataSchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
+    const parsed = videoUploadMetadataSchema.safeParse(Object.fromEntries(request.nextUrl.searchParams));
     if (!parsed.success || !request.body) return failure("Video metadata is invalid.", 400, "VIDEO_METADATA_INVALID");
 
     try {
         const token = await getPipelineAccessToken();
         const metadata = parsed.data;
         const fighterId = await resolvePipelineFighterId(metadata.fighterId, token);
-        const query = new URLSearchParams({
-            fighterId,
-            title: metadata.title,
-            trainingType: metadata.trainingType.toUpperCase(),
-            cameraAngle: metadata.cameraAngle.toUpperCase(),
-            durationMs: String(metadata.durationMs),
-            originalFilename: metadata.originalFilename,
-        });
-        if (metadata.description) query.set("description", metadata.description);
-        if (metadata.sessionId && z.string().uuid().safeParse(metadata.sessionId).success) query.set("sessionId", metadata.sessionId);
+        const query = new URLSearchParams(Object.entries(backendVideoMetadata(metadata, fighterId)).map(([key, value]) => [key, String(value)]));
 
         const response = await fetch(apiEndpoint(`/videos/upload?${query.toString()}`), {
             method: "POST",

@@ -25,26 +25,26 @@ export async function MedicineChapter() {
                             <Radar aria-hidden className="size-3.5" />
                             {t("landing.medicine.observationHeading")}
                         </p>
-                        <p className="mt-2 text-[14px] leading-6 text-white">{t("landing.medicine.observationText")}</p>
+                        <p className="mt-2 text-[14px] leading-6 text-nav-fg-active">{t("landing.medicine.observationText")}</p>
                         <p className="mt-1 text-[12px] text-nav-fg">{t("landing.medicine.observationNote")}</p>
                     </Panel>
 
                     <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
                         <Panel data-reveal className="p-4">
-                            <p className="text-sm font-semibold text-white">{t("landing.medicine.recoveryCheckIn")}</p>
+                            <p className="text-sm font-semibold text-nav-fg-active">{t("landing.medicine.recoveryCheckIn")}</p>
                             <ul className="mt-3 space-y-2.5">
                                 {RECOVERY_CHECK_IN.map((metric) => (
                                     <li key={metric.id} className="text-[13px]">
                                         <p className="flex justify-between">
                                             <span className="text-nav-fg">{t(metric.labelKey)}</span>
-                                            <span className="font-mono text-white">
+                                            <span className="font-mono text-nav-fg-active">
                                                 <span data-recovery-value data-from={metric.from} data-to={metric.to}>
                                                     {metric.to}
                                                 </span>
                                                 {t(metric.unitKey)}
                                             </span>
                                         </p>
-                                        <div className="mt-1 h-1 rounded-full bg-white/10">
+                                        <div className="mt-1 h-1 rounded-full bg-nav-fg-active/10">
                                             <div
                                                 data-recovery-bar
                                                 data-from={metric.lowerIsBetter ? metric.from / 10 : metric.from / 100}
@@ -58,7 +58,7 @@ export async function MedicineChapter() {
                             </ul>
                         </Panel>
                         <Panel data-reveal className="p-4">
-                            <p className="flex items-center gap-2 text-sm font-semibold text-white">
+                            <p className="flex items-center gap-2 text-sm font-semibold text-nav-fg-active">
                                 <ShieldCheck aria-hidden className="size-4 text-landing-success" />
                                 {t("landing.medicine.clearanceTitle")}
                             </p>

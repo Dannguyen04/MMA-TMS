@@ -4,7 +4,6 @@
 export const enAccount = {
     /* Preferences */
     "account.preferences.title": "Preferences",
-    "account.preferences.description": "Choose how MMA-TMS looks, what it tells you about, and how dates and times read.",
     "account.preferences.profileButton": "Profile",
     "account.preferences.sectionsNav": "Preference sections",
     "account.preferences.nav.appearance": "Appearance",
@@ -15,7 +14,6 @@ export const enAccount = {
 
     /* Appearance */
     "account.appearance.title": "Appearance",
-    "account.appearance.description": "Light, dark, or match your device.",
     "account.appearance.systemDesc": "Following your device{status}. Applies instantly and is remembered on this browser.",
     "account.appearance.deviceDark": " — currently dark",
     "account.appearance.deviceLight": " — currently light",
@@ -25,7 +23,6 @@ export const enAccount = {
     "account.regional.title": "Language & region",
     "account.regional.description": "Dates and times always use academy time.",
     "account.regional.language": "Language",
-    "account.regional.languageHint": "Vietnamese (Tiếng Việt) is coming soon.",
     "account.regional.timezone": "Time zone",
     "account.regional.timezoneHint": "Set by the academy so session times read the same for everyone, wherever they sign in from.",
     "account.regional.formatTitle": "Date and time format",
@@ -39,7 +36,6 @@ export const enAccount = {
 
     /* Accessibility */
     "account.a11y.title": "Accessibility",
-    "account.a11y.description": "Motion and keyboard support.",
     "account.a11y.reduceMotion": "Reduce motion",
     "account.a11y.reduceMotionDesc": "Follows your operating system. When it's on, animations, progress transitions and chart effects are kept to a minimum. Change it in your device settings — on Windows under Accessibility › Visual effects › Animation effects, on macOS and iOS under Accessibility › Motion.",
     "account.a11y.checking": "Checking…",
@@ -75,7 +71,6 @@ export const enAccount = {
 
     /* Notification preferences */
     "account.notifications.title": "Notifications",
-    "account.notifications.description": "Choose which updates alert you in the app and which also arrive by email.",
     "account.notifications.tableCaption": "Notification delivery by category",
     "account.notifications.thCategory": "Category",
     "account.notifications.thInApp": "In-app",
@@ -91,7 +86,6 @@ export const enAccount = {
 
     /* Profile page & Identity */
     "account.profile.title": "Profile",
-    "account.profile.description": "Your account details and how you appear to the rest of the academy.",
     "account.profile.loading": "Loading profile",
     "account.profile.email": "Email",
     "account.profile.phone": "Phone",
@@ -100,7 +94,6 @@ export const enAccount = {
     "account.profile.lastActive": "Last active",
     "account.profile.notSignedInYet": "Not signed in yet",
     "account.profile.editTitle": "Edit profile",
-    "account.profile.editDescription": "How your name and contact details appear to your team.",
     "account.profile.fullName": "Full name",
     "account.profile.phoneHint": "Include the country code, e.g. +84 90 123 4567. Your coaches and doctors can see it.",
     "account.profile.accountHint": "Email and job title are managed by your academy administrator.",
@@ -167,7 +160,6 @@ export const enAccount = {
 
     /* Care team */
     "account.careTeam.title": "Care team",
-    "account.careTeam.description": "The coaches and sports doctors assigned to you.",
     "account.careTeam.coaches": "Coaches",
     "account.careTeam.noCoaches": "No coaches assigned yet. The academy will assign a head coach.",
     "account.careTeam.primaryCoach": "Primary coach",

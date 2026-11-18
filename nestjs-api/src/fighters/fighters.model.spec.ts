@@ -60,6 +60,12 @@ describe('fighters Zod contracts', () => {
     },
   );
 
+  it('accepts the fighter sex for the 3D body, clears it with null, and rejects other values', () => {
+    expect(updateFighterProfileSchema.safeParse({ sex: 'FEMALE' }).success).toBe(true);
+    expect(updateFighterProfileSchema.safeParse({ sex: null }).success).toBe(true);
+    expect(updateFighterProfileSchema.safeParse({ sex: 'OTHER' }).success).toBe(false);
+  });
+
   it('rejects negative profile measurements, empty updates, and unknown fields', () => {
     expect(
       updateFighterProfileSchema.safeParse({ heightCm: -10 }).success,

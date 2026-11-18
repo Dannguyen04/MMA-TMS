@@ -29,10 +29,10 @@ export interface BodyModel {
 
 /**
  * "muscular": the scanned anatomy model (`public/models/fighter-body.glb`), male.
- * "mannequin": the procedural capsule figure, sex-neutral; used for female fighters and as the
- * fallback while (or if) the model cannot load.
+ * "female": the female anatomy model (`public/models/fighter-body-female.glb`).
+ * "mannequin": the procedural capsule figure, sex-neutral; the fallback while (or if) a model cannot load.
  */
-export type BodyModelKind = "muscular" | "mannequin";
+export type BodyModelKind = "muscular" | "female" | "mannequin";
 
 /** Every model lists its spots in this order; ribs take two spots, one on each flank. */
 export const SPOT_REGIONS: readonly BodyRegion[] = [

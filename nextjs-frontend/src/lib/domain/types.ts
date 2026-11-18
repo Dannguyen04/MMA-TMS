@@ -941,7 +941,8 @@ export interface RecoveryPlan {
 
 export type ClearanceLevel = "full" | "restricted" | "not_cleared";
 
-export type ClearanceStatus = "active" | "expired" | "revoked" | "superseded";
+/** `scheduled`: issued with a start date still ahead (the doctor picked "valid from"); not in effect yet. */
+export type ClearanceStatus = "active" | "scheduled" | "expired" | "revoked" | "superseded";
 
 export interface TrainingRestriction {
     id: string;

@@ -4,10 +4,11 @@ import { figureParams } from "../figure-params";
 import { bodyModelFor, figureBuild } from "./build";
 
 describe("bodyModelFor", () => {
-    it("draws the scanned male model only for male fighters", () => {
+    it("draws the female model for women; men and unknown sex get the male scan like the doctor map", () => {
         expect(bodyModelFor("male")).toBe("muscular");
-        expect(bodyModelFor("female")).toBe("mannequin");
-        expect(bodyModelFor(undefined)).toBe("mannequin");
+        expect(bodyModelFor("female")).toBe("female");
+        expect(bodyModelFor(undefined)).toBe("muscular");
+        expect(bodyModelFor(null)).toBe("muscular");
     });
 });
 

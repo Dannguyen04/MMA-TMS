@@ -24,6 +24,7 @@ import { FadeInView, PressableScale } from "@/components/motion";
 import { FilterSelect } from "@/components/filter-sheet";
 import { SkeletonCards } from "@/components/loading";
 import { Skeleton } from "@/components/motion";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 type SessionList = {
   rows: TrainingSessionSummary[];
@@ -211,27 +212,27 @@ export function FighterSessionsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   header: { paddingHorizontal: 20, paddingBottom: 16, gap: 2 },
-  eyebrow: { fontSize: 12, lineHeight: 17 },
-  title: { fontSize: 26, lineHeight: 36, fontWeight: "700" },
+  eyebrow: { fontSize: fz(12), lineHeight: lh(17) },
+  title: { fontSize: fz(26), lineHeight: lh(36), fontWeight: "700" },
   pad: { paddingHorizontal: 20, gap: 16 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   chip: { borderRadius: 99, paddingHorizontal: 11, paddingVertical: 8, minHeight: 36, justifyContent: "center" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between" },
-  kicker: { fontSize: 12, fontWeight: "600", letterSpacing: 0.2 },
+  kicker: { fontSize: fz(12), fontWeight: "600", letterSpacing: 0.2 },
   empty: { minHeight: 220, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, gap: 8 },
   emptyIcon: { width: 80, height: 80, borderRadius: 40, alignItems: "center", justifyContent: "center" },
-  emptyTitle: { fontSize: 22, lineHeight: 30, fontWeight: "700", textAlign: "center" },
-  emptyBody: { fontSize: 14, lineHeight: 20, textAlign: "center" },
+  emptyTitle: { fontSize: fz(22), lineHeight: lh(30), fontWeight: "700", textAlign: "center" },
+  emptyBody: { fontSize: fz(14), lineHeight: lh(20), textAlign: "center" },
   session: { paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, gap: 3 },
-  sessionTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600" },
-  meta: { fontSize: 12, lineHeight: 17 },
+  sessionTitle: { fontSize: fz(14), lineHeight: lh(20), fontWeight: "600" },
+  meta: { fontSize: fz(12), lineHeight: lh(17) },
   readiness: { borderRadius: 12, padding: 16, gap: 12 },
   elig: { flexDirection: "row", gap: 10, alignItems: "center" },
   flex: { flex: 1, gap: 2 },
   outline: { height: 48, borderRadius: 12, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  link: { fontSize: 14, fontWeight: "600" },
+  link: { fontSize: fz(14), fontWeight: "600" },
   planRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -240,4 +241,4 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     minHeight: 48,
   },
-});
+}));

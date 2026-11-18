@@ -85,6 +85,7 @@ export const viScreens = {
     "screens.shared.required": "(bắt buộc)",
     "screens.shared.loadingTraining": "Đang tải buổi tập",
     "screens.shared.termHint": "{term} là gì?",
+    "screens.shared.infoHint": "Thông tin về {label}",
     "screens.shared.glossary.rpe.term": "RPE",
     "screens.shared.glossary.rpe.definition": "Mức gắng sức cảm nhận: bài tập nên nặng đến mức nào, từ 1 (rất nhẹ) đến 10 (dốc hết sức).",
     "screens.shared.glossary.sets.term": "Số set",

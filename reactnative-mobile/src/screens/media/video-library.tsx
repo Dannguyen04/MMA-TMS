@@ -20,6 +20,7 @@ import {
 import { useTypography } from "@/theme";
 import { SkeletonRows } from "@/components/loading";
 import { videoTitle } from "@/i18n/server-text";
+import { fz, lh, liveSheet } from "@/theme/typography";
 
 function messageFor(error: unknown): string {
   if (!isApiError(error)) return media.generic;
@@ -126,7 +127,7 @@ export function VideoLibraryContent({
             <Text style={[styles.headingTitle, { color: colors.ink, fontFamily: live.faces.semibold }]}>
               {media.yourVideos}
             </Text>
-            <Text style={{ color: colors.muted, fontSize: 12 }}>{videoCountLabel(items.length)}</Text>
+            <Text style={{ color: colors.muted, fontSize: fz(12) }}>{videoCountLabel(items.length)}</Text>
           </View>
           {items.map((video) => {
             const job = jobForVideo(jobs, video.id);
@@ -179,7 +180,7 @@ export function VideoLibraryContent({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   list: { gap: 20, paddingTop: 12 },
   upload: {
     minHeight: 50,
@@ -190,19 +191,19 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 16,
   },
-  uploadLabel: { fontSize: 15 },
+  uploadLabel: { fontSize: fz(15) },
   centerRow: { flexDirection: "row", alignItems: "center", gap: 8 },
   group: { gap: 12 },
   heading: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 },
-  headingTitle: { fontSize: 16, flexShrink: 1 },
+  headingTitle: { fontSize: fz(16), flexShrink: 1 },
   card: { borderWidth: 1, borderRadius: 14, padding: 14, gap: 12 },
   identity: { flexDirection: "row", alignItems: "center", gap: 12 },
   tile: { width: 54, height: 54, borderRadius: 10, alignItems: "center", justifyContent: "center" },
   identityText: { flex: 1, gap: 4, minWidth: 0 },
-  cardTitle: { fontSize: 16 },
-  date: { fontSize: 12 },
+  cardTitle: { fontSize: fz(16) },
+  date: { fontSize: fz(12) },
   metaRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
-  meta: { fontSize: 12, flexShrink: 1 },
+  meta: { fontSize: fz(12), flexShrink: 1 },
   result: { flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 0 },
   badge: {
     flexDirection: "row",
@@ -212,8 +213,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-  badgeText: { fontSize: 12, fontWeight: "600" },
-  score: { fontSize: 12, fontWeight: "600" },
+  badgeText: { fontSize: fz(12), fontWeight: "600" },
+  score: { fontSize: fz(12), fontWeight: "600" },
   note: { flexDirection: "row", alignItems: "flex-start", gap: 8 },
-  noteText: { flex: 1, fontSize: 12, lineHeight: 18 },
-});
+  noteText: { flex: 1, fontSize: fz(12), lineHeight: lh(18) },
+}));

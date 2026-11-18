@@ -1,6 +1,6 @@
-import { ExaminationReadScreen } from "@/screens/doctor/clinical-read";
+import { DoctorOldRoute } from "@/screens/doctor/detail/old-route";
 
-/** Chi tiết kết luận khám: /(doctor)/examinations/xem?examId=… (route tĩnh, không phụ thuộc file bracket). */
+/** Redesign step 20: an old exam link goes to the one exam page. */
 export default function DoctorExamReadRoute() {
-  return <ExaminationReadScreen />;
+  return <DoctorOldRoute tab="exams" exam/>;
 }

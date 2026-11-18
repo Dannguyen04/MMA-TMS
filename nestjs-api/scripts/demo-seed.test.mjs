@@ -1,4 +1,4 @@
-// T-040 B test cases S1-S18 & T-066 test cases T1-T19. Run: node --test scripts/demo-seed.test.mjs
+// T-040 B test cases S1-S18 & T-073 test cases T1-T19. Run: node --test scripts/demo-seed.test.mjs
 // The fake API keeps real in-memory state between runs; nothing touches the network.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -597,7 +597,7 @@ test('S12 (ticket): --only clearance on an empty API writes only fighter 7, then
   assert.ok(!again.some((r) => r.path === '/users' && r.body.user.email === 't040.fighter7@example.com'));
 });
 
-test('S15: a normal run on an empty API creates fighter 7 user, bout and MEDICAL 1-day suspension with fighters 1-6', async () => {
+test('S15: --stage early on D−1 then the main run on D creates fighter 7 user, bout and MEDICAL 1-day suspension with fighters 1-6 (the main run alone skips f7, see T2)', async () => {
   const api = createFakeApi({ now: DEMO_PREV_DAY });
   await runSeed(api, { argv: ['--stage', 'early'], now: DEMO_PREV_DAY });
   const { code, stderr } = await runSeed(api, { now: DEMO_DAY });
@@ -637,7 +637,7 @@ test('S18: --bogus exits non-zero, names the bad argument, sends nothing', async
 });
 
 // ---------------------------------------------------------------------------
-// Ticket T-066 test cases T1-T19
+// Ticket T-073 test cases T1-T19
 // ---------------------------------------------------------------------------
 
 test('T1: Chạy --stage early lúc D−1 trên API rỗng, rồi chạy chính lúc D trên cùng API', async () => {

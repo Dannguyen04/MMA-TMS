@@ -1,21 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { BackHandler, Platform, View } from "react-native";
+import { BackHandler, Platform, Pressable, View } from "react-native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { campApi, type CampDetail, type CampBout, type WeighResult, type Hydration, type CursorPage, type Suspension } from "@/api/fight-camp";
 import { getFighter } from "@/api/fighters";
 import { useSession } from "@/session/session-context";
 import { useThemePreference } from "@/theme";
-import { Action, Busy, CampShell, Choices, Copy, Fact, Field, Frame, Notice, SvgTitle, WeightSlip } from "./camp-ui";
+import { Action, Busy, CampShell, Choices, Copy, Fact, Field, Frame, Notice, SectionTitle, WeightSlip } from "./camp-ui";
 import { campError, dateLabel, gate1, gateDecides, kg, liveSuspensions, readKg, requirementLabel, statusLabel } from "./camp-rules";
 import { SuspensionCard } from "./camp-suspension";
 import { previewBout, previewSuspension } from "./camp-preview";
-import { CornerScreen, RoundScreen, AdviceScreen, ReportScreen, type RoundDraftState } from "./round-screens";
+import { CornerScreen, RoundScreen, ReportScreen, type RoundDraftState } from "./round-screens";
 import { OpponentEditor } from "./opponent-editor";
 import { pendingVi } from "@/i18n/pending-vi";
 import { CampInputError } from "./camp-input-error";
 import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 import { boutReport } from "@/i18n/bout-report";
-import { CampColumns } from "./camp-columns";
+import { BoutDetailTabs, type DetailTab } from "./bout-detail-tabs";
+import { boutTabs } from "@/i18n/bout-tabs";
+import { readableTextStyle } from "@/theme/typography";
+import { Text } from "react-native";
 import { campText } from "@/i18n/fight-camp";
 
 export function CoachCampList() {
@@ -26,36 +29,60 @@ export function CoachCampList() {
   const load = useCallback(async (more = false) => {
     setBusy(true); setError("");
     try {
-      const next = isDemo ? { data: [previewBout], hasNextPage: false, nextCursor: null } : await campApi.list({ limit: 20, cursor: more && page?.nextCursor ? page.nextCursor : undefined });
+      const next = isDemo ? { data: [previewBout], hasNextPage: false, nextCursor: null } : await campApi.list({ limit: 20, cursor: more && page?.nextCursor ? page.nextCursor : undefined, order: "desc" });
       if (alive.current) setPage(p => ({ ...next, data: more ? [...(p?.data ?? []), ...next.data] : next.data }));
     } catch (e) { if (alive.current) setError(campError(e)); } finally { if (alive.current) setBusy(false); }
   }, [isDemo, page?.nextCursor]);
   useEffect(() => { alive.current = true; void load(); return () => { alive.current = false; }; }, [isDemo]);
-  return <CampShell title={campText.coachCampScreen.tranThiDau} subtitle={campText.coachCampScreen.canChinhThucChuanBi} preview={isDemo}>
-    <Action label={campText.coachCampScreen.xemBanMauGiaoDien} secondary onPress={() => router.push({ pathname: "/(coach)/fight-camp/bout", params: { id: "preview", preview: "1" } } as never)}/>
+  const [showDone, setShowDone] = useState(false);
+  // Live bouts need the coach now: nearest fight first. Finished and cancelled stay newest first, folded below.
+  const all = page?.data ?? [];
+  const live = all.filter(b => !DONE.includes(b.status)).sort((a, b) => a.boutAt.localeCompare(b.boutAt));
+  const done = all.filter(b => DONE.includes(b.status));
+  const open = (b: CampBout) => router.push({ pathname: "/(coach)/fight-camp/bout", params: { id: b.id, preview: isDemo ? "1" : "0" } } as never);
+  return <CampShell title={campText.coachCampScreen.tranThiDau} preview={isDemo}>
     {error ? <Notice title={campText.coachCampScreen.khongTaiDuocDanhSach} danger>{error}</Notice> : null}
     {busy && !page ? <Busy/> : null}
     {!busy && !error && page?.data.length === 0 ? <Notice title={campText.coachCampScreen.chuaCoTranThiDau}>{campText.coachCampScreen.cacTranCuaVoSi}</Notice> : null}
-    {page?.data.map(b => <Frame key={b.id}>
-      <Copy muted>{statusLabel[b.status]} · {dateLabel(b.boutAt)}</Copy>
-      <SvgTitle small>{b.eventName}</SvgTitle>
-      <Copy large strong>{campText.coachCampScreen.doiThu}{b.opponentName || campText.coachCampScreen.chuaXacDinh}</Copy>
-      <Fact label={campText.coachCampScreen.gioiHan} value={`${kg(b.catchweightKg ?? b.weightLimitKg)} kg`}/>
-      <Action label={campText.coachCampScreen.moChiTietTran} onPress={() => router.push({ pathname: "/(coach)/fight-camp/bout", params: { id: b.id, preview: isDemo ? "1" : "0" } } as never)}/>
-    </Frame>)}
+    {page && all.length ? <View testID="camp-live" style={{ gap: 12 }}>
+      <Copy strong>{campText.coachCampScreen.dangChuanBi(live.length)}</Copy>
+      {live.length ? live.map(b => <BoutCard key={b.id} bout={b} onPress={() => open(b)}/>) : <Copy muted>{campText.coachCampScreen.khongCoTranDangChuanBi}</Copy>}
+    </View> : null}
+    {done.length ? <View style={{ gap: 12 }}>
+      <Action label={campText.coachCampScreen.daXong(done.length)} secondary onPress={() => setShowDone(v => !v)}/>
+      {showDone ? done.map(b => <BoutCard key={b.id} bout={b} onPress={() => open(b)}/>) : null}
+    </View> : null}
     <Action label={page?.hasNextPage ? campText.coachCampScreen.taiThemTran : campText.coachCampScreen.taiLaiDanhSach} secondary pending={busy} onPress={() => void load(!!page?.hasNextPage)}/>
   </CampShell>;
 }
 
-type Screen = "detail" | "weigh" | "decision" | "catch" | "cancel" | "corner" | "rounds" | "advice" | "opponent" | "report";
-const titles: Record<Screen, string> = { detail: campText.coachCampScreen.chiTietTran, weigh: campText.coachCampScreen.canChinhThuc, decision: campText.coachCampScreen.ketQuaCan, catch: campText.coachCampScreen.thoaThuan(pendingVi.catchweight), cancel: campText.coachCampScreen.xacNhanHuyTran, corner: campText.coachCampScreen.theGocDai, rounds: campText.coachCampScreen.ghiChuVaGhiHiep, advice: campText.coachCampScreen.loiDanGiuaHiep, opponent: campText.coachCampScreen.phanTichDoiThu, report: campText.coachCampScreen.baoCaoTran };
+const DONE: readonly CampBout["status"][] = ["COMPLETED", "CANCELLED"];
+/** One bout in the list: the whole card opens it. No per-card button or vector title (one title per screen). */
+function BoutCard({ bout: b, onPress }: { bout: CampBout; onPress: () => void }) {
+  const { colors: c } = useThemePreference();
+  const finished = DONE.includes(b.status);
+  return <Pressable accessibilityRole="button" accessibilityLabel={`${b.eventName}, ${statusLabel[b.status]}, ${dateLabel(b.boutAt)}`} accessibilityHint={campText.coachCampScreen.moChiTietTran} onPress={onPress}>
+    <Frame pad={16}>
+      <Copy muted>{statusLabel[b.status]} · {dateLabel(b.boutAt)}</Copy>
+      <Copy large strong color={finished ? c.inkMuted : undefined}>{b.eventName}</Copy>
+      <Copy muted>{campText.coachCampScreen.doiThu}{b.opponentName || campText.coachCampScreen.chuaXacDinh} · {kg(b.catchweightKg ?? b.weightLimitKg)} kg</Copy>
+    </Frame>
+  </Pressable>;
+}
+
+type Screen = "detail" | "weigh" | "decision" | "catch" | "cancel" | "corner" | "rounds" | "opponent" | "report";
+const titles: Record<Screen, string> = { detail: campText.coachCampScreen.chiTietTran, weigh: campText.coachCampScreen.canChinhThuc, decision: campText.coachCampScreen.ketQuaCan, catch: campText.coachCampScreen.thoaThuan(pendingVi.catchweight), cancel: campText.coachCampScreen.xacNhanHuyTran, corner: campText.coachCampScreen.theGocDai, rounds: campText.coachCampScreen.ghiChuVaGhiHiep, opponent: campText.coachCampScreen.phanTichDoiThu, report: campText.coachCampScreen.baoCaoTran };
 export function CoachCampBout() {
-  const params = useLocalSearchParams<{ id: string; preview?: string }>(); const router = useRouter(); const { isDemo } = useSession();
+  const params = useLocalSearchParams<{ id: string; preview?: string; view?: string }>(); const router = useRouter(); const { isDemo } = useSession();
   const preview = params.preview === "1" || isDemo;
   const [bout, setBout] = useState<CampDetail | null>(null); const [name, setName] = useState("");
-  const [view, setView] = useState<Screen>("detail"); const [history, setHistory] = useState<Screen[]>([]);
+  // Hôm nay's stage action opens straight on weigh-in or the corner card; back still lands on the bout detail.
+  const entry: Screen = params.view === "weigh" || params.view === "corner" ? params.view : "detail";
+  const [view, setView] = useState<Screen>(entry); const [history, setHistory] = useState<Screen[]>(entry === "detail" ? [] : ["detail"]);
   const [roundDraftState, setRoundDraftState] = useState<RoundDraftState>({ round: 0, values: {} });
-  useEffect(() => { setRoundDraftState({ round: 0, values: {} }); }, [params.id, preview]);
+  const [detailTab, setDetailTab] = useState<DetailTab>("overview");
+  // A different bout starts on its overview tab.
+  useEffect(() => { setRoundDraftState({ round: 0, values: {} }); setDetailTab("overview"); }, [params.id, preview]);
   const [loading, setLoading] = useState(true); const [pending, setPending] = useState(false);
   const lock = useRef(false); const [error, setError] = useState(""); const [success, setSuccess] = useState("");
   const [weight, setWeight] = useState(""); const [hydration, setHydration] = useState<Hydration>("NOT_APPLICABLE"); const [notes, setNotes] = useState("");
@@ -81,6 +108,14 @@ export function CoachCampBout() {
     if (history.length) { setView(history[history.length - 1]); setHistory(h => h.slice(0, -1)); setError(""); setSuccess(""); }
     else router.back();
   }, [history, router]);
+  // In-bout screens (corner card, round entry, between-round advice) hide the coach tab bar: more room for the round
+  // and no accidental tab taps at ringside. The back chevron still leaves.
+  const inBout = view === "corner" || view === "rounds";
+  useEffect(() => {
+    const tabs = navigation.getParent();
+    tabs?.setOptions({ tabBarStyle: inBout ? { display: "none" } : undefined });
+    return () => { tabs?.setOptions({ tabBarStyle: undefined }); };
+  }, [inBout, navigation]);
   useEffect(() => { if (Platform.OS === "web") return; const sub = BackHandler.addEventListener("hardwareBackPress", () => { back(); return true; }); return () => sub.remove(); }, [back]);
   // iOS edge-swipe (and any other pop) steps back one sub-view instead of leaving the bout and dropping the draft.
   const historyRef = useRef(history); historyRef.current = history;
@@ -117,45 +152,18 @@ export function CoachCampBout() {
         <Action label={campText.coachCampScreen.xacNhanHuyTran2} danger pending={pending} onPress={() => void mutate(async () => { if (reason.trim().length < 3) throw new CampInputError(campText.coachCampScreen.lyDoHuyCanIt); const b = preview ? { ...bout, status: "CANCELLED" as const } : await campApi.cancel(bout.id, reason.trim()); clearToDetail(b, campText.coachCampScreen.daHuyTran); })}/>
         <Action label={campText.coachCampScreen.giuTranQuayLai} secondary disabled={pending} onPress={back}/>
     </> : undefined;
-  // Phase 5 E: bout detail in two columns from 900 (bout, weight loss, actions | gate, suspensions, requirements).
-  const detail = bout ? {
-    info: <>
-      <Frame><Copy color={c.lotus} strong>{statusLabel[bout.status]}</Copy><Copy large strong>{name || campText.coachCampScreen.voSi}</Copy><Copy muted>{campText.coachCampScreen.dauVoi}</Copy><Copy large strong>{bout.opponentName || campText.coachCampScreen.doiThuChuaXacDinh}</Copy><Fact label={campText.coachCampScreen.canChinhThuc2} value={dateLabel(bout.weighInAt)}/><Fact label={campText.coachCampScreen.thiDau} value={dateLabel(bout.boutAt)}/><Fact label={campText.coachCampScreen.diaDiem} value={bout.venue || campText.coachCampScreen.chuaXacDinh2}/><Fact label={campText.coachCampScreen.gioiHan2} value={`${kg(limit)} kg`}/><Fact label={campText.coachCampScreen.soHiep} value={bout.scheduledRounds == null ? campText.coachCampScreen.chuaDat : String(bout.scheduledRounds)}/></Frame>
-    </>,
-    gate: <>
-      {gateBlocked && gate ? <Notice title={campText.coachCampScreen.chuaDuHoSoDe} danger>
-        {[gate.missing.length ? campText.coachCampScreen.conThieu(gate.missing.map(i => i.label).join(", ")) : "", gate.expiring.length ? campText.coachCampScreen.hetHanTruocNgayThi(gate.expiring.map(i => i.label).join(", ")) : ""].filter(Boolean).join(" ")} {campText.coachCampScreen.mucBatBuocPhaiDuoc}</Notice> : null}
-    </>,
-    suspension: <>
-      {liveSusp.length ? <View style={{ gap: 12 }}>
-        <Notice title={campText.coachCampScreen.voSiDangCoDinh} danger>{campText.coachCampScreen.buoiTapThuocLoaiBi}</Notice>
-        {liveSusp.map(s => <SuspensionCard key={s.id} s={s}/>)}
-      </View> : null}
-      {suspensionError ? <Notice title={campText.coachCampScreen.chuaTaiDuocTrangThai} danger>{suspensionError}</Notice> : null}
-    </>,
-    acute: <>
-      {acute ? <Notice title={campText.coachCampScreen.giamCanCapTocVuot} danger>{campText.coachCampScreen.giam}{kg(bout.acuteLoss?.lossPct)}{campText.coachCampScreen.nguongTheoBoLuatLa}{kg(bout.acuteLoss?.limitPct)}%.</Notice> : null}
-    </>,
-    actions: <>
-      {bout.status === "FIGHT_WEEK" ? <Action label={campText.coachCampScreen.ghiCanChinhThuc2} onPress={() => go("weigh")}/> : null}
-      {bout.status === "COMPLETED" ? <Action label={boutReport.openReport} onPress={() => go("report")}/> : null}
-      {privateReady ? <><Action label={campText.coachCampScreen.moTheGocDai} secondary={bout.status === "COMPLETED"} onPress={() => go("corner")}/><Action label={campText.coachCampScreen.ghiChuVaGhiHiep2} secondary onPress={() => go("rounds")}/></> : <Copy muted>{campText.coachCampScreen.theGocDaiVaGhi}</Copy>}
-      <Action label={campText.coachCampScreen.phanTichDoiThu2} secondary onPress={() => go("opponent")}/>
-    </>,
-    requirements: <>
-      <SvgTitle small>{campText.coachCampScreen.hoSoThiDau}</SvgTitle>
-      {bout.requirements.length ? bout.requirements.map(r => <Fact key={r.code} label={r.label} danger={gateDecides(bout.status) && blocking.has(r.code)} value={requirementLabel[r.status] ?? UNKNOWN_VALUE}/>) : <Copy muted>{campText.coachCampScreen.chuaCoMucHoSo}</Copy>}
-    </>,
-  } : null;
-  return <CampShell columns={view === "detail" || view === "rounds" || view === "report"} title={titles[view]} compactTitle={view === "rounds"} subtitle={bout ? `${name || campText.coachCampScreen.voSi2} · ${bout.eventName}` : undefined} onBack={back} preview={preview} footer={footer}>
+  // Fixed on every bout view (owner 2026-11-11): fighter vs opponent, then status · event.
+  const top = bout ? <View testID="bout-who">
+    <Text style={{ ...readableTextStyle(16.5, true), color: c.ink }}>{name || campText.coachCampScreen.voSi2} <Text style={{ ...readableTextStyle(16.5), color: c.inkMuted }}>{boutTabs.vs}</Text> {bout.opponentName || boutTabs.opponentTbd}</Text>
+    <Text style={{ ...readableTextStyle(13.5), color: c.inkMuted }}>{statusLabel[bout.status]} · {bout.eventName}</Text>
+  </View> : undefined;
+  return <CampShell columns={view === "detail" || view === "rounds" || view === "report" || view === "opponent"} title={titles[view]} top={top} onBack={back} preview={preview} footer={footer}>
     {loading ? <Busy/> : null}
     {error ? <><Notice title={campText.coachCampScreen.chuaThucHienDuoc} danger>{error}</Notice>{!bout ? <Action label={campText.coachCampScreen.thuTaiLai} onPress={() => void load()}/> : null}</> : null}
     {success ? <Notice title={success} success/> : null}
     {bout && !loading ? <>
-      {preview && view === "detail" ? <Choices label={campText.coachCampScreen.trangThaiMauDeXem} value={bout.status} options={[{ value: "FIGHT_WEEK", label: campText.coachCampScreen.tuanThiDau }, { value: "WEIGHED_IN", label: campText.coachCampScreen.daCan }, { value: "COMPLETED", label: campText.coachCampScreen.ketThuc }]} onChange={s => setBout({ ...bout, status: s })}/> : null}
-      {view === "detail" && detail ? <CampColumns left={<>{detail.info}{detail.acute}{detail.actions}</>} right={<>{detail.gate}{detail.suspension}{detail.requirements}</>}>
-        {detail.info}{detail.gate}{detail.suspension}{detail.acute}{detail.actions}{detail.requirements}
-      </CampColumns> : null}
+      {view === "detail" ? <BoutDetailTabs bout={bout} preview={preview} tab={detailTab} onTab={setDetailTab} liveSusp={liveSusp} suspensionError={suspensionError}
+        gate={gate} gateBlocked={gateBlocked} blocking={blocking} onGo={go} onPreviewStatus={st => setBout({ ...bout, status: st })}/> : null}
       {view === "weigh" ? <>
         <WeightSlip value={weight} onChange={setWeight} limit={kg(limit)} disabled={pending}/>
         <Choices<Hydration> label={campText.coachCampScreen.kiemTraNuoc} value={hydration} onChange={setHydration} disabled={pending} options={[{ value: "NOT_APPLICABLE", label: campText.coachCampScreen.khongApDung }, { value: "PASSED", label: campText.coachCampScreen.dat }, { value: "FAILED", label: campText.coachCampScreen.khongDat }]}/>
@@ -167,7 +175,6 @@ export function CoachCampBout() {
         {result.acuteLoss?.status === "EXCEEDED" ? <Notice title={campText.coachCampScreen.giamCanCapTocVuot3} danger>{campText.coachCampScreen.giam2}{kg(result.acuteLoss.lossPct)}{campText.coachCampScreen.nguongTheoBoLuatLa2}{kg(result.acuteLoss.limitPct)}%.</Notice> : null}
         {result.weighIn.outcome === "PASSED" ? <Action label={campText.coachCampScreen.veChiTietTran} onPress={() => clearToDetail(result, campText.coachCampScreen.daGhiCanChinhThuc)}/> : <>
           <Copy large strong>{campText.coachCampScreen.hlvMuonXuLyThe}</Copy>
-          <Copy muted>{campText.coachCampScreen.tranVanOTuanThi}</Copy>
           {result.weighIn.options.includes("CATCHWEIGHT") ? <Action label={campText.coachCampScreen.thoaThuan2(pendingVi.catchweight)} onPress={() => go("catch")}/> : null}
           {result.weighIn.options.includes("CANCEL") ? <Action label={campText.coachCampScreen.huyTran} secondary danger onPress={() => go("cancel")}/> : null}
         </>}
@@ -182,8 +189,7 @@ export function CoachCampBout() {
         <Field label={campText.coachCampScreen.lyDoHuyTran} value={reason} onChangeText={setReason} multiline maxLength={500} editable={!pending} helper={campText.coachCampScreen.tu3Den500Ky}/>
       </> : null}
       {view === "corner" ? <CornerScreen bout={bout} name={name} preview={preview} onRounds={() => go("rounds")}/> : null}
-      {view === "rounds" ? <RoundScreen bout={bout} preview={preview} onAdvice={() => go("advice")} onReport={() => go("report")} draftState={roundDraftState} onDraftStateChange={setRoundDraftState}/> : null}
-      {view === "advice" ? <AdviceScreen bout={bout} preview={preview}/> : null}
+      {view === "rounds" ? <RoundScreen bout={bout} preview={preview} onReport={() => go("report")} draftState={roundDraftState} onDraftStateChange={setRoundDraftState} onBoutChange={setBout}/> : null}
       {view === "opponent" ? <OpponentEditor bout={bout} preview={preview} onSaved={(analysis, missing) => setBout({ ...bout, opponentAnalysis: analysis, tacticsWithoutSessions: missing })}/> : null}
       {view === "report" ? <ReportScreen bout={bout} preview={preview} onRounds={() => go("rounds")}/> : null}
     </> : null}

@@ -3,6 +3,7 @@
 import { CalendarClock, CircleCheck, CircleX, PenLine } from "lucide-react";
 import { useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button } from "@/components/ui/button";
 import { ChoiceGroup, type ChoiceOption } from "@/components/ui/choice-group";
 import { Field, FormMessage, Textarea } from "@/components/ui/form";
@@ -16,15 +17,7 @@ import { DoctorReviewBlock } from "./doctor-review-block";
 
 const DECISION_ICONS = { acknowledged: CircleCheck, follow_up: CalendarClock, dismissed: CircleX } as const;
 
-const DECISION_OPTIONS: ChoiceOption<DoctorDecision>[] = (["acknowledged", "follow_up", "dismissed"] as const).map((value) => ({
-    value,
-    label: DOCTOR_DECISION_COPY[value].title,
-    description: DOCTOR_DECISION_COPY[value].description,
-    icon: DECISION_ICONS[value],
-    tone: DOCTOR_DECISION_META[value].tone,
-}));
-
-const NOTE_HINT = "Lý do bạn đưa ra quyết định. Được lưu cùng quan sát và các bác sĩ phụ trách khác xem được.";
+const DECISIONS = ["acknowledged", "follow_up", "dismissed"] as const;
 
 export interface AlertDecisionPanelProps {
     alertId: string;
@@ -34,6 +27,15 @@ export interface AlertDecisionPanelProps {
 /** The doctor's decision on an AI observation: the recorded decision, or a form to record or change it. */
 export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps) {
     const toast = useToast();
+    const t = useT();
+    const decisionOptions: ChoiceOption<DoctorDecision>[] = DECISIONS.map((value) => ({
+        value,
+        label: t(DOCTOR_DECISION_COPY[value].title),
+        description: t(DOCTOR_DECISION_COPY[value].description),
+        icon: DECISION_ICONS[value],
+        tone: DOCTOR_DECISION_META[value].tone,
+    }));
+    const noteHint = t("doctorClinical.decisionForm.noteHint");
     const [editing, setEditing] = useState(review === null);
     const [decision, setDecision] = useState<DoctorDecision | "">(review?.decision ?? "");
     const [note, setNote] = useState("");
@@ -43,10 +45,10 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
         onSuccess: (state) => {
             setEditing(false);
             setNote("");
-            toast({ title: "Đã ghi quyết định", description: state.message });
+            toast({ title: t("doctorClinical.decisionForm.recorded"), description: state.message });
         },
     });
-    const noteControl = form.control("note", { hint: NOTE_HINT, required: true });
+    const noteControl = form.control("note", { hint: noteHint, required: true });
 
     if (!editing && review) {
         return (
@@ -63,7 +65,7 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
                     }}
                 >
                     <PenLine aria-hidden />
-                    Đổi quyết định
+                    {t("doctorClinical.decisionForm.change")}
                 </Button>
             </div>
         );
@@ -75,22 +77,22 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
             <ChoiceGroup
                 id={form.control("decision").id}
                 name="decision"
-                legend="Quyết định"
+                legend={t("doctorClinical.decisionForm.legend")}
                 required
-                options={DECISION_OPTIONS}
+                options={decisionOptions}
                 value={decision}
                 onChange={setDecision}
                 error={form.error("decision")}
             />
 
-            <Field label="Ghi chú lâm sàng" htmlFor={noteControl.id} required error={form.error("note")} hint={NOTE_HINT}>
+            <Field label={t("doctorClinical.decisionForm.note")} htmlFor={noteControl.id} required error={form.error("note")} hint={noteHint}>
                 <Textarea
                     {...noteControl}
                     rows={4}
                     value={note}
                     maxLength={1000}
                     onChange={(event) => setNote(event.target.value)}
-                    placeholder="VD: Đã xem các đoạn video; phù hợp với mệt mỏi ở hiệp 3. Kiểm tra lại ở buổi tập tuần sau."
+                    placeholder={t("doctorClinical.decisionForm.notePlaceholder")}
                 />
             </Field>
 
@@ -99,11 +101,11 @@ export function AlertDecisionPanel({ alertId, review }: AlertDecisionPanelProps)
             <div className="flex flex-wrap justify-end gap-2">
                 {review && (
                     <Button variant="secondary" onClick={() => setEditing(false)} disabled={form.pending}>
-                        Hủy
+                        {t("doctorClinical.common.cancel")}
                     </Button>
                 )}
                 <Button type="submit" loading={form.pending}>
-                    {form.pending ? "Đang ghi…" : "Ghi quyết định"}
+                    {form.pending ? t("doctorClinical.decisionForm.recording") : t("doctorClinical.decisionForm.record")}
                 </Button>
             </div>
         </form>

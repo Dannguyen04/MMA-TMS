@@ -3,6 +3,7 @@
 import { ShieldOff } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
+import { useT } from "@/components/i18n/locale-provider";
 import { Button, type ButtonSize } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { Field, Textarea } from "@/components/ui/form";
@@ -23,10 +24,9 @@ export interface RevokeClearanceButtonProps {
     className?: string;
 }
 
-const REASON_HINT = "Lưu vào lịch sử giấy phép và chia sẻ với các bác sĩ khác phụ trách võ sĩ này.";
-
 /** Revokes an active clearance after a confirmation that requires a clinical reason. */
 export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, size = "sm", emphasis = "default", className }: RevokeClearanceButtonProps) {
+    const t = useT();
     const toast = useToast();
     const reasonId = useId();
     const reasonRef = useRef<HTMLTextAreaElement>(null);
@@ -37,8 +37,8 @@ export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, siz
         onSuccess: () =>
             toast({
                 tone: "warning",
-                title: `${fighterName} hiện chưa được tập`,
-                description: "Võ sĩ và HLV đã được thông báo. Võ sĩ không được tập cho đến khi có giấy phép mới.",
+                title: t("doctorMedical.revoke.toastTitle", { name: fighterName }),
+                description: t("doctorMedical.revoke.toastDescription"),
             }),
         onError: (state) => {
             if (!state.fieldErrors?.reason) return;
@@ -61,16 +61,16 @@ export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, siz
                 }}
             >
                 <ShieldOff aria-hidden />
-                Thu hồi
-                <span className="sr-only"> {fighterName}— giấy phép</span>
+                {t("doctorMedical.revoke.button")}
+                <span className="sr-only"> {t("doctorMedical.revoke.buttonSr", { name: fighterName })}</span>
             </Button>
             <ConfirmDialog
                 {...revoke.dialogProps}
-                title={`Thu hồi giấy phép của ${fighterName}?`}
-                description="Võ sĩ và HLV sẽ được thông báo ngay; võ sĩ không được tập cho đến khi có giấy phép mới."
-                confirmLabel="Thu hồi giấy phép"
+                title={t("doctorMedical.revoke.confirmTitle", { name: fighterName })}
+                description={t("doctorMedical.revoke.confirmDescription")}
+                confirmLabel={t("doctorMedical.revoke.confirm")}
             >
-                <Field label="Lý do thu hồi" htmlFor={reasonId} required hint={REASON_HINT} error={reasonError}>
+                <Field label={t("doctorMedical.revoke.reason")} htmlFor={reasonId} required hint={t("doctorMedical.revoke.reasonHint")} error={reasonError}>
                     <Textarea
                         ref={reasonRef}
                         id={reasonId}
@@ -82,7 +82,7 @@ export function RevokeClearanceButton({ clearanceId, fighterId, fighterName, siz
                             setReason(event.target.value);
                             setReasonEdited(true);
                         }}
-                        placeholder="VD: Va chạm đầu khi đấu tập — thu hồi chờ tầm soát chấn động."
+                        placeholder={t("doctorMedical.revoke.reasonPlaceholder")}
                     />
                 </Field>
             </ConfirmDialog>

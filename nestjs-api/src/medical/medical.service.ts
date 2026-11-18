@@ -37,6 +37,7 @@ import {
   medicalClearanceNotFound,
   medicalReferenceNotFound,
   medicalExaminationNotFound,
+  medicalHistoryBatchTooLarge,
   medicalRecordConflict,
   medicalReviewRequestNotFound,
   medicalSupervisionDisabled,
@@ -52,19 +53,24 @@ import type {
   CreateInjuryInput,
   CreateRecoveryPlanInput,
   CreateReviewRequestInput,
+  ClearanceType,
   CreateTreatmentInput,
   DoctorAssignment,
   EndDoctorAssignmentInput,
   Examination,
+  ExaminationDetails,
   ExaminationScope,
   Injury,
   IssueClearanceInput,
   ListDoctorAssignmentsQuery,
   ListExaminationsQuery,
+  ListMedicalDossiersQuery,
+  ListMedicalHistoryBatchQuery,
   ListMedicalHistoryQuery,
   ListReviewRequestsQuery,
   MedicalDossier,
   MedicalEligibility,
+  MedicalHistoryBatchItem,
   MedicalHistoryEntry,
   Paginated,
   CreateRecoveryMilestoneInput,
@@ -78,7 +84,12 @@ import type {
   UpdateInjuryInput,
   UpdateRecoveryPlanInput,
 } from './medical.model.js';
-import { standardRecoveryMilestonesSchema } from './medical.model.js';
+import {
+  MEDICAL_DOSSIER_BATCH_MAX,
+  MEDICAL_HISTORY_BATCH_MAX,
+  MEDICAL_HISTORY_BATCH_MAX_ENTRIES,
+  standardRecoveryMilestonesSchema,
+} from './medical.model.js';
 import {
   isClearanceCurrentlyValid,
   MedicalRepository,
@@ -86,6 +97,7 @@ import {
   type ClearanceEligibilityRow,
   type ExaminationDetailsInsert,
 } from './medical.repo.js';
+import { deriveMedicalStatus, type MedicalStatusValue } from './medical-status.js';
 import type { Scat6Input } from './scat6.model.js';
 import { scoreScat6 } from './scat6.scoring.js';
 
@@ -302,6 +314,81 @@ function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+type CurrentExaminationRow = Awaited<
+  ReturnType<MedicalRepository['findCurrentExamination']>
+>;
+
+/** Only a positive current decision can have a governing clearance. */
+function examinationHasClearances(
+  exam: NonNullable<CurrentExaminationRow>,
+): boolean {
+  return exam.decision !== 'NOT_ELIGIBLE';
+}
+
+/** Everything a dossier is computed from, read either per Fighter or per batch. */
+export interface MedicalDossierSources {
+  fighterId: string;
+  activeInjuries: Injury[];
+  activeRecoveryPlans: RecoveryPlan[];
+  activeClearances: Clearance[];
+  openReviewRequests: ReviewRequest[];
+  trainingExam: CurrentExaminationRow;
+  competitionExam: CurrentExaminationRow;
+  /** Clearances of the current TRAINING examination, newest issuance first. */
+  trainingClearances: readonly ClearanceEligibilityRow[];
+  /** Clearances of the current COMPETITION examination, newest issuance first. */
+  competitionClearances: readonly ClearanceEligibilityRow[];
+  baselineOnFile: boolean;
+  supervision: 'DOCTOR' | 'NONE';
+  /** Examination details keyed by examination id (may hold other ids). */
+  details: ReadonlyMap<string, ExaminationDetails>;
+  now: Date;
+}
+
+/**
+ * Pure dossier assembly shared by `GET /fighters/:id/medical` and
+ * `GET /medical/dossiers`, so both return the same shape and eligibility.
+ */
+export function buildMedicalDossier(
+  sources: MedicalDossierSources,
+): MedicalDossier {
+  const withDetails = (exam: CurrentExaminationRow) =>
+    exam ? toExamination(exam, sources.details.get(exam.id) ?? null) : null;
+  return {
+    fighterId: sources.fighterId,
+    activeInjuries: sources.activeInjuries,
+    activeRecoveryPlans: sources.activeRecoveryPlans,
+    currentExaminations: {
+      training: withDetails(sources.trainingExam),
+      competition: withDetails(sources.competitionExam),
+    },
+    activeClearances: sources.activeClearances,
+    openReviewRequests: sources.openReviewRequests,
+    eligibility: {
+      training: evaluateEligibility({
+        scope: 'TRAINING',
+        supervision: sources.supervision,
+        openReviewRequests: sources.openReviewRequests.length,
+        baselineOnFile: sources.baselineOnFile,
+        currentExamination: sources.trainingExam,
+        clearances: sources.trainingClearances,
+        now: sources.now,
+        sessionType: undefined,
+      }),
+      competition: evaluateEligibility({
+        scope: 'COMPETITION',
+        supervision: sources.supervision,
+        openReviewRequests: 0,
+        baselineOnFile: true,
+        currentExamination: sources.competitionExam,
+        clearances: sources.competitionClearances,
+        now: sources.now,
+        sessionType: undefined,
+      }),
+    },
+  };
+}
+
 @Injectable()
 export class MedicalService {
   constructor(
@@ -310,19 +397,36 @@ export class MedicalService {
     private readonly academySettingsRepo: AcademySettingsRepository,
   ) {}
 
+  /**
+   * Runs a write in one transaction. With `fighterId` (every clinical write),
+   * the Fighter's summary medical status is re-derived in the same transaction
+   * after the work, so staff lists never lag the record.
+   */
   private async write<T>(
     actor: AuthenticatedUser,
     requestId: string,
     work: (transaction: Transaction) => Promise<T>,
+    fighterId?: string,
   ): Promise<T> {
     try {
       return await this.repo.transaction(async (transaction) => {
         await setAuditContext(actor.authSubject, requestId, transaction);
-        return work(transaction);
+        const result = await work(transaction);
+        if (fighterId) await this.syncMedicalStatus(fighterId, transaction);
+        return result;
       });
     } catch (error) {
       throw mapMedicalPersistenceError(error);
     }
+  }
+
+  private writeFor<T>(
+    fighterId: string,
+    actor: AuthenticatedUser,
+    requestId: string,
+    work: (transaction: Transaction) => Promise<T>,
+  ): Promise<T> {
+    return this.write(actor, requestId, work, fighterId);
   }
 
   // --- Doctor assignments ---
@@ -464,48 +568,119 @@ export class MedicalService {
       this.repo.hasBaselineOnFile(fighterId),
       this.academySettingsRepo.getMedicalSupervision(),
     ]);
-    const [training, competition, details] = await Promise.all([
-      this.eligibilityFrom(
-        'TRAINING',
-        trainingExam,
-        openReviewRequests.length,
-        baselineOnFile,
-        now,
-        undefined,
-        undefined,
-        supervision,
-      ),
-      this.eligibilityFrom(
-        'COMPETITION',
-        competitionExam,
-        0,
-        true,
-        now,
-        undefined,
-        undefined,
-        supervision,
-      ),
-      this.repo.findExaminationDetails(
-        [trainingExam?.id, competitionExam?.id].filter(
-          (id): id is string => id !== undefined,
+    const clearancesFor = (
+      scope: ExaminationScope,
+      exam: CurrentExaminationRow,
+    ): Promise<ClearanceEligibilityRow[]> =>
+      exam && examinationHasClearances(exam)
+        ? this.repo.listClearancesForExamination(
+            exam.id,
+            CLEARANCE_TYPES_BY_SCOPE[scope],
+          )
+        : Promise.resolve([]);
+    const [trainingClearances, competitionClearances, details] =
+      await Promise.all([
+        clearancesFor('TRAINING', trainingExam),
+        clearancesFor('COMPETITION', competitionExam),
+        this.repo.findExaminationDetails(
+          [trainingExam?.id, competitionExam?.id].filter(
+            (id): id is string => id !== undefined,
+          ),
         ),
-      ),
-    ]);
-    const withDetails = (exam: typeof trainingExam) =>
-      exam ? toExamination(exam, details.get(exam.id) ?? null) : null;
+      ]);
 
-    return {
+    return buildMedicalDossier({
       fighterId,
       activeInjuries,
       activeRecoveryPlans,
-      currentExaminations: {
-        training: withDetails(trainingExam),
-        competition: withDetails(competitionExam),
-      },
       activeClearances,
       openReviewRequests,
-      eligibility: { training, competition },
+      trainingExam,
+      competitionExam,
+      trainingClearances,
+      competitionClearances,
+      baselineOnFile,
+      supervision,
+      details,
+      now,
+    });
+  }
+
+  /**
+   * Batch dossier read (T-064): the same `MedicalDossier` as `getDossier` for
+   * every requested Fighter (or the caller's whole read scope), with one scope
+   * query, one multi-row audit INSERT and one query per sub-table for the
+   * whole batch: 11 queries whatever the batch size.
+   */
+  async getDossiers(
+    actor: AuthenticatedUser,
+    query: ListMedicalDossiersQuery,
+    requestId: string,
+  ): Promise<MedicalDossier[]> {
+    const fighterIds = await this.access.authorizeClinicalBatchRead(
+      actor,
+      query.fighterIds,
+      MEDICAL_READ_VIEW.DOSSIER,
+      requestId,
+      MEDICAL_DOSSIER_BATCH_MAX,
+    );
+    if (fighterIds.length === 0) return [];
+
+    const now = new Date();
+    const [
+      injuries,
+      recoveryPlans,
+      clearances,
+      reviewRequests,
+      examinations,
+      withBaseline,
+      supervision,
+    ] = await Promise.all([
+      this.repo.listActiveInjuriesForFighters(fighterIds),
+      this.repo.listActiveRecoveryPlansForFighters(fighterIds),
+      this.repo.listActiveClearancesForFighters(fighterIds),
+      this.repo.listOpenReviewRequestsForFighters(fighterIds),
+      this.repo.findCurrentExaminationsForFighters(fighterIds),
+      this.repo.findFightersWithBaselineOnFile(fighterIds),
+      this.academySettingsRepo.getMedicalSupervision(),
+    ]);
+    const currentExams = [...examinations.values()];
+    const [clearancesByExam, details] = await Promise.all([
+      this.repo.listClearancesForExaminations(
+        currentExams.filter(examinationHasClearances).map((exam) => exam.id),
+      ),
+      this.repo.findExaminationDetails(currentExams.map((exam) => exam.id)),
+    ]);
+    const clearancesFor = (
+      scope: ExaminationScope,
+      exam: CurrentExaminationRow,
+    ): ClearanceEligibilityRow[] => {
+      if (!exam || !examinationHasClearances(exam)) return [];
+      const types: readonly ClearanceType[] = CLEARANCE_TYPES_BY_SCOPE[scope];
+      return (clearancesByExam.get(exam.id) ?? [])
+        .filter((row) => types.includes(row.clearanceType))
+        .map(({ clearanceType: _type, ...row }) => row);
     };
+
+    return fighterIds.map((fighterId) => {
+      const trainingExam = examinations.get(`${fighterId}:TRAINING`);
+      const competitionExam = examinations.get(`${fighterId}:COMPETITION`);
+      return buildMedicalDossier({
+        fighterId,
+        activeInjuries: injuries.get(fighterId) ?? [],
+        activeRecoveryPlans: recoveryPlans.get(fighterId) ?? [],
+        activeClearances: clearances.get(fighterId) ?? [],
+        openReviewRequests: reviewRequests.get(fighterId) ?? [],
+        trainingExam,
+        competitionExam,
+        trainingClearances: clearancesFor('TRAINING', trainingExam),
+        competitionClearances: clearancesFor('COMPETITION', competitionExam),
+        baselineOnFile: withBaseline.has(fighterId),
+        supervision,
+        details,
+        now,
+      });
+    });
   }
 
   async listHistory(
@@ -521,6 +696,47 @@ export class MedicalService {
       requestId,
     );
     return paginate(await this.repo.listHistory(fighterId, query), query);
+  }
+
+  /**
+   * Batch history read: for every requested Fighter (or the caller's whole
+   * read scope) the entries `listHistory` returns, unpaginated, in the same
+   * order. One scope query, one multi-row audit INSERT (view HISTORY) and one
+   * history query whatever the batch size. More than
+   * `MEDICAL_HISTORY_BATCH_MAX_ENTRIES` entries is a 400, never a truncation.
+   */
+  async listHistoryBatch(
+    actor: AuthenticatedUser,
+    query: ListMedicalHistoryBatchQuery,
+    requestId: string,
+  ): Promise<MedicalHistoryBatchItem[]> {
+    const fighterIds = await this.access.authorizeClinicalBatchRead(
+      actor,
+      query.fighterIds,
+      MEDICAL_READ_VIEW.HISTORY,
+      requestId,
+      MEDICAL_HISTORY_BATCH_MAX,
+    );
+    if (fighterIds.length === 0) return [];
+
+    const rows = await this.repo.listHistoryForFighters(
+      fighterIds,
+      query.recordType,
+      MEDICAL_HISTORY_BATCH_MAX_ENTRIES + 1,
+    );
+    if (rows.length > MEDICAL_HISTORY_BATCH_MAX_ENTRIES) {
+      throw medicalHistoryBatchTooLarge(MEDICAL_HISTORY_BATCH_MAX_ENTRIES);
+    }
+    const byFighter = new Map<string, MedicalHistoryEntry[]>(
+      fighterIds.map((id) => [id, []]),
+    );
+    for (const { fighterId, entry } of rows) {
+      byFighter.get(fighterId)?.push(entry);
+    }
+    return fighterIds.map((fighterId) => ({
+      fighterId,
+      entries: byFighter.get(fighterId) ?? [],
+    }));
   }
 
   async listExaminations(
@@ -589,6 +805,69 @@ export class MedicalService {
   }
 
   /**
+   * Re-derives and stores `fighters.current_medical_status` from the clinical
+   * record (see `deriveMedicalStatus`). Returns the status and whether it
+   * changed. Uses the same TRAINING eligibility rule as the start gate.
+   */
+  async syncMedicalStatus(
+    fighterId: string,
+    database?: DatabaseExecutor,
+    now: Date = new Date(),
+  ): Promise<{ status: MedicalStatusValue; changed: boolean }> {
+    const [injuries, plans, openReviewRequests, exam, baselineOnFile, supervision] =
+      await Promise.all([
+        this.repo.listActiveInjuries(fighterId, database),
+        this.repo.listActiveRecoveryPlans(fighterId, database),
+        this.repo.countOpenReviewRequests(fighterId, database),
+        this.repo.findCurrentExamination(fighterId, 'TRAINING', database),
+        this.repo.hasBaselineOnFile(fighterId, database),
+        this.academySettingsRepo.getMedicalSupervision(database),
+      ]);
+    const eligibility = await this.eligibilityFrom(
+      'TRAINING',
+      exam,
+      openReviewRequests,
+      baselineOnFile,
+      now,
+      database,
+      undefined,
+      supervision,
+    );
+    const status = deriveMedicalStatus({
+      injuryStatuses: injuries
+        .map((injury) => injury.status)
+        .filter((s): s is 'ACTIVE' | 'RECOVERING' => s === 'ACTIVE' || s === 'RECOVERING'),
+      activeRecoveryPlans: plans.length,
+      trainingEligible: eligibility.eligible,
+      restricted: exam?.decision === 'ELIGIBLE_WITH_RESTRICTIONS',
+    });
+    const changed = await this.repo.updateFighterMedicalStatus(
+      fighterId,
+      status,
+      database,
+    );
+    return { status, changed };
+  }
+
+  /**
+   * Refreshes every active Fighter's summary status (start-up backfill and the
+   * periodic pass for time-driven changes: a clearance starting or expiring).
+   * One Fighter's failure never stops the rest. Returns how many changed.
+   */
+  async syncAllMedicalStatuses(now: Date = new Date()): Promise<number> {
+    const ids = await this.repo.listActiveFighterIds();
+    let changed = 0;
+    for (const id of ids) {
+      try {
+        if ((await this.syncMedicalStatus(id, undefined, now)).changed) changed += 1;
+      } catch {
+        // Skipped; the next pass retries it.
+      }
+    }
+    return changed;
+  }
+
+  /**
    * Training start gate. Takes the per-Fighter medical lock inside the caller's
    * transaction so a concurrent review request, negative decision or revoke
    * cannot interleave with the start.
@@ -639,7 +918,7 @@ export class MedicalService {
       throw medicalSupervisionDisabled();
     }
     const fighter = await this.access.requireFighter(fighterId);
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       await this.access.assertReviewRequestScope(actor, fighter, tx);
       await this.repo.lockFighterMedicalState(fighterId, tx);
       return this.repo.insertReviewRequest(
@@ -661,7 +940,7 @@ export class MedicalService {
     requestId: string,
   ): Promise<Injury> {
     await this.access.requireFighter(fighterId);
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -680,7 +959,7 @@ export class MedicalService {
     const injury = await this.repo.findInjury(injuryId);
     if (!injury) throw injuryNotFound();
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(injury.fighterId, actor, requestId, async (tx) => {
       await this.access.requireAssignedDoctor(actor, injury.fighterId, tx);
       const current = await this.repo.lockInjury(injuryId, tx);
       if (!current) throw injuryNotFound();
@@ -739,7 +1018,7 @@ export class MedicalService {
     requestId: string,
   ): Promise<RecoveryPlan> {
     await this.access.requireFighter(fighterId);
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -768,7 +1047,7 @@ export class MedicalService {
     const plan = await this.repo.findRecoveryPlan(planId);
     if (!plan) throw recoveryPlanNotFound();
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(plan.fighterId, actor, requestId, async (tx) => {
       await this.access.requireAssignedDoctor(actor, plan.fighterId, tx);
       const current = await this.repo.lockRecoveryPlan(planId, tx);
       if (!current) throw recoveryPlanNotFound();
@@ -839,7 +1118,7 @@ export class MedicalService {
     await this.access.requireFighter(fighterId);
     const examinedAt = new Date(input.examinedAt);
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -975,7 +1254,7 @@ export class MedicalService {
   ): Promise<Clearance> {
     await this.access.requireFighter(fighterId);
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         fighterId,
@@ -1065,7 +1344,7 @@ export class MedicalService {
     const clearance = await this.repo.findClearance(clearanceId);
     if (!clearance) throw medicalClearanceNotFound();
 
-    return this.write(actor, requestId, async (tx) => {
+    return this.writeFor(clearance.fighterId, actor, requestId, async (tx) => {
       const doctorId = await this.access.requireAssignedDoctor(
         actor,
         clearance.fighterId,

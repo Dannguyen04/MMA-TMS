@@ -1,5 +1,5 @@
-import { FighterCampScreen } from "@/screens/fight-camp/fighter-camp-screen";
+import { FighterBoutV2 } from "@/screens/fighter/bout/bout-screen";
 
 export default function TranRoute() {
-  return <FighterCampScreen />;
+  return <FighterBoutV2 />;
 }

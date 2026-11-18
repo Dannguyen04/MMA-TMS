@@ -1,7 +1,6 @@
 import { useState, type ReactNode } from "react";
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -13,6 +12,7 @@ import {
   type TextInputProps,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { KeyboardFrame, KeyboardScroll } from "@/components/keyboard-aware";
 
 import { coach } from "@/i18n/coach";
 import { radius, spacing, type, useThemePreference } from "@/theme";
@@ -20,6 +20,7 @@ import { FadeInView, PressableScale } from "@/components/motion";
 import { StateView } from "@/components/state-view";
 import { useReadableWidth } from "@/components/readable-width";
 import { ThemedRefreshControl, usePullRefresh } from "@/components/loading";
+import { lh } from "@/theme/typography";
 
 export function CoachScaffold({
   title,
@@ -42,8 +43,7 @@ export function CoachScaffold({
   const { colors } = useThemePreference();
   const insets = useSafeAreaInsets();
   const body = (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
+    <KeyboardScroll
       keyboardDismissMode="on-drag"
       refreshControl={onRefresh ? <ThemedRefreshControl refreshing={pull.refreshing} onRefresh={pull.onRefresh} /> : undefined}
       contentContainerStyle={[
@@ -54,7 +54,7 @@ export function CoachScaffold({
     >
       <Text style={[type.title, { color: colors.ink }]}>{title}</Text>
       {children}
-    </ScrollView>
+    </KeyboardScroll>
   );
 
   const column = (
@@ -76,13 +76,7 @@ export function CoachScaffold({
       ]}
     >
       {keyboard ? (
-        <KeyboardAvoidingView
-          style={styles.flex}
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          keyboardVerticalOffset={inStack ? 64 : insets.top}
-        >
-          {column}
-        </KeyboardAvoidingView>
+        <KeyboardFrame style={styles.flex}>{column}</KeyboardFrame>
       ) : (
         column
       )}
@@ -136,7 +130,7 @@ export function CoachField({
   const { colors } = useThemePreference();
   return (
     <View style={styles.field}>
-      <Text style={[type.label, { color: error ? colors.danger : colors.inkMuted, lineHeight: 18 }]}>
+      <Text style={[type.label, { color: error ? colors.danger : colors.inkMuted, lineHeight: lh(18) }]}>
         {label}
       </Text>
       <TextInput
@@ -152,9 +146,9 @@ export function CoachField({
         {...props}
       />
       {error ? (
-        <Text style={[type.caption, { color: colors.danger, lineHeight: 16 }]}>{error}</Text>
+        <Text style={[type.caption, { color: colors.danger, lineHeight: lh(16) }]}>{error}</Text>
       ) : helper ? (
-        <Text style={[type.caption, { color: colors.inkSubtle, lineHeight: 16 }]}>{helper}</Text>
+        <Text style={[type.caption, { color: colors.inkSubtle, lineHeight: lh(16) }]}>{helper}</Text>
       ) : null}
     </View>
   );
@@ -220,7 +214,7 @@ export function CoachChip<T extends string>({
         },
       ]}
     >
-      <Text style={[type.caption, { color: selected ? colors.onCta : colors.ink, lineHeight: 16 }]}>
+      <Text style={[type.caption, { color: selected ? colors.onCta : colors.ink, lineHeight: lh(16) }]}>
         {label}
       </Text>
     </Pressable>
@@ -246,7 +240,7 @@ export function CoachPicker<T extends string>({
 
   return (
     <View style={styles.field}>
-      <Text style={[type.label, { color: colors.inkMuted, lineHeight: 18 }]}>{label}</Text>
+      <Text style={[type.label, { color: colors.inkMuted, lineHeight: lh(18) }]}>{label}</Text>
       <Pressable
         accessibilityRole="button"
         onPress={() => setOpen(true)}

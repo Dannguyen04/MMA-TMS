@@ -16,7 +16,7 @@ export function Kicker({ index, children, className }: { index?: string; childre
 /** Chapter heading; `data-split` lets the motion layer reveal it line by line. */
 export function ChapterTitle({ id, children, className }: { id: string; children: ReactNode; className?: string }) {
     return (
-        <h2 id={id} data-split className={cn("mt-4 text-[clamp(2.1rem,4.4vw,4rem)] leading-[0.95] font-semibold tracking-[-0.045em] text-balance text-white", className)}>
+        <h2 id={id} data-split className={cn("mt-4 text-[clamp(2.1rem,4.4vw,4rem)] leading-[0.95] font-semibold tracking-[-0.045em] text-balance text-nav-fg-active", className)}>
             {children}
         </h2>
     );
@@ -33,7 +33,7 @@ export function Panel({ children, className, ...props }: { children: ReactNode; 
 
 /** A small caption that marks illustrative numbers as sample data. */
 export function SampleTag({ children }: { children?: ReactNode }) {
-    return <span className="rounded-full border border-white/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.14em] text-nav-fg/70 uppercase">{children}</span>;
+    return <span className="rounded-full border border-nav-fg-active/15 px-2 py-0.5 font-mono text-[10px] tracking-[0.14em] text-nav-fg/70 uppercase">{children}</span>;
 }
 
 export const TONE_TEXT = {

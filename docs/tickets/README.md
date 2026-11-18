@@ -53,8 +53,8 @@ Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([qu
 | [T-048](./T-048-fighter-suspension-view.md) | Võ sĩ xem đình chỉ, mức được tập, lộ trình tập lại và buổi "Chờ xếp lại" trên điện thoại (phần võ sĩ còn lại của T-036 B, T-045 B, T-007 C) | Điện thoại | Fon | T-030 B đã merge | READY 30/10 |
 | [T-049](./T-049-clear-only-when-awaiting.md) | Chỉ xác nhận được tập lại khi đình chỉ đang chờ xác nhận; API đang cho xác nhận cả khi đình chỉ còn chạy (sai nghiệp vụ). Mã lỗi mới `SUSPENSION_NOT_AWAITING_CLEARANCE` 409 (chủ dự án duyệt 31/10) | Backend + Frontend | Ken | T-007, T-030 B | DONE 31/10 ([handover](./T-049-HANDOVER.md), [review](./T-049-REVIEW.md)), merge `fight-camp` 31/10. Không migration. Mã lỗi mới đã báo Dan trong review |
 | [T-050](./T-050-early-end-by-doctor-exam.md) | Kết thúc sớm đình chỉ `MEDICAL` có căn cứ: phiếu khám của bác sĩ được phân (đình chỉ CLB) hoặc văn bản gỡ của ban tổ chức; sau đó tập lại theo bậc. Migration 033, 2 mã lỗi | Backend + Frontend | Ken | T-049, T-045 | DONE 03/11 ([review](./T-050-REVIEW.md)), merge vào `fight-camp` (`a4aad3b`). Ken áp migration 033 lên Supabase |
-| [T-052](./T-052-demo-doctor-mode.md) | Dữ liệu demo có bác sĩ: tài khoản, phân công, khám BASELINE/TRAINING, chế độ `DOCTOR` | Backend (script) | Ken | T-040 B | Bỏ 12/11, thay bằng T-066 |
-| [T-066](./T-066-demo-seed-all-roles.md) | Seed demo API mode đủ Admin/HLV/bác sĩ/võ sĩ và mọi tình huống F1–F8; dọn dữ liệu thử ([SQL](./T-066-cleanup.sql)) | Backend (script) | Ken | T-040 B | APPROVED 12/11 ([review](./T-066-REVIEW.md)) |
+| [T-052](./T-052-demo-doctor-mode.md) | Dữ liệu demo có bác sĩ: tài khoản, phân công, khám BASELINE/TRAINING, chế độ `DOCTOR` | Backend (script) | Ken | T-040 B | Bỏ 12/11, thay bằng T-073 |
+| [T-073](./T-073-demo-seed-all-roles.md) | Seed demo API mode đủ Admin/HLV/bác sĩ/võ sĩ và mọi tình huống F1–F8; dọn dữ liệu thử ([SQL](./T-073-cleanup.sql)). Trên `User_Feature` là T-066 (`bf65913`) | Backend (script) | Ken | T-040 B | APPROVED 15/11 ([review](./REVIEW-KEN-T066-DEMO-SEED.md)); số ticket, trạng thái, comment và số ca test do Claude sửa giúp. Còn chờ chủ dự án xác nhận file SQL dọn dữ liệu |
 | [T-053](./T-053-early-end-dialog-context.md) | Hộp thoại kết thúc sớm cho thấy đình chỉ, căn cứ (phiếu khám dạng radio, văn bản gốc của ban tổ chức) và lộ trình tập lại theo bậc | Frontend | Ken | T-050 | APPROVED 04/11 ([review](./T-053-REVIEW.md)), chưa commit |
 | [T-054](./T-054-doctor-dashboard-polish.md) | Polish và bớt chói bảng "Phân loại hôm nay" của bác sĩ | Frontend | Ken | | APPROVED 04/11 ([review](./T-054-REVIEW.md)), chưa commit |
 | [T-055](./T-055-doctor-table-row-link.md) | Bảng của cổng bác sĩ: bấm cả hàng để mở | Frontend | Ken | | APPROVED 04/11 ([review](./T-055-REVIEW.md)), chưa commit |
@@ -62,6 +62,7 @@ Demo ở review 2 chạy với **backend thật** trên Supabase hiện có ([qu
 | [T-057](./T-057-doctor-board-suspensions.md) | Bảng phân loại của bác sĩ tính đình chỉ: võ sĩ đang đình chỉ y tế/KO/TKO vào làn Đỏ, các đình chỉ khác và lộ trình tập lại vào làn Vàng | Frontend | Ken | T-054, T-056 | APPROVED 05/11, đã commit |
 | [T-062](./T-062-coach-dashboard-fight-camp.md) | Dashboard HLV: hiện đình chỉ đang hiệu lực, gộp việc Fight Camp theo giai đoạn trận, nhãn Khẩn, huy hiệu đình chỉ trong lịch (giữ style cũ) | Frontend | Ken | T-057 | APPROVED 10/11 ([review](./T-062-REVIEW.md)), đã commit |
 | [T-064](./T-064-coach-dashboard-fighter-visual.md) | Dashboard HLV dùng ngôn ngữ giao diện của dashboard fighter: hero camp, chỉ số, lịch tuần | Frontend | Ken | T-062 | APPROVED 10/11 ([review](./T-064-REVIEW.md)), đã commit |
+| [T-074](./T-074-mobile-backend-changes.md) | Thay đổi ngoài app mobile trong đợt làm lại giao diện mobile: `GET /bouts?order=desc`, module `schedule` của bác sĩ, sửa `/auth/refresh` luôn trả 422, trạng thái y tế tóm tắt tính từ hồ sơ khám | Backend | Claude (phiên mobile, `feat/mobile-platform`) | — | CHỜ REVIEW 14/11. Phần 1 đã commit (`fc72735`), phần 2–4 chưa commit. Không migration. Test 546/546 qua ở các vùng đã đổi |
 | [T-046](./T-046-embedded-youtube-player.md) | Nhúng video YouTube vào màn phân tích đối thủ, bấm quan sát là tua tới đúng mốc | Frontend | Dan và Claude (29/10, chủ dự án chuyển từ Hoàng Anh) | T-033 (nhánh gốc) | Xong 29/10 trên `feat/T-046-embedded-youtube` (`33e9634`, đã push): lint, typecheck sạch, frontend 958 test qua; chụp ở 1280 px và 390 px không cuộn ngang. Demo dùng video UFC công khai `dKw5POIXlsI`. Merge cùng T-033 ở T-040 |
 | [T-041](./T-041-bout-report-screen.md) | Màn báo cáo sau trận, nghiệp vụ 14 (mục 4) | Điện thoại | Fon | T-010 | READY 30/10, bắt đầu sau T-040 A. Backend `GET /bouts/:id/report` đã có |
 | T-042 | Model 3D cơ thể võ sĩ: chấn thương, vùng bị đánh trúng, vùng bị hạn chế (mục 5) | Frontend | Hoàng Anh (Gemini hỗ trợ) | Dan duyệt cài thư viện 3D | Hoàng Anh làm trên `feat/T-042-043-ui-3d` (cùng T-043, chưa có file ticket). [APPROVED](./T-042-REVIEW.md) 31/10 (`bf274ab`, lần 1 ngày 30/10 CHANGES REQUESTED). Gộp ở T-040 phần A, sau T-032. Còn mở: đo thẻ võ sĩ trên điện thoại thật (T-040 C) |
@@ -99,3 +100,29 @@ Quyết định của chủ dự án 19/10: dịch toàn bộ app, làm dần, m
 | [T-032](./T-032-backend-json-schema-dto-fixes.md) | Hotfix: backend không khởi động được vì `Date` trong JSON Schema của Swagger (đình chỉ, T-007); trùng tên `AssignCoachDto` | Backend | Fon sửa (27/10), lỗi gốc của Ken | — | DONE. [APPROVED](./T-032-REVIEW.md), merge 27/10 (`62155cc`) |
 
 Thứ tự ưu tiên: T-021 và T-014, T-015, T-016, T-020, T-018, T-017, T-019, rồi T-022 đến T-024, T-025 cuối cùng.
+
+## Cập nhật 9/11: nhánh `release/final-review` (buổi review cuối 10/11)
+
+Chủ dự án giao Claude gộp các nhánh UI và làm các ticket còn mở của Fon. Nhánh `release/final-review` đã push; Dan merge vào `fight-camp` sau buổi review. Chi tiết: [RELEASE-FINAL-REVIEW.md](../RELEASE-FINAL-REVIEW.md), [UAT-FINAL-REVIEW.md](../UAT-FINAL-REVIEW.md).
+
+| Ticket | Trạng thái 9/11 |
+| --- | --- |
+| T-041 | Màn báo cáo sau trận: xong trên release (demo và API mode), đã kiểm ở API mode |
+| T-037 B | Khối "Hiệp sau" và chế độ ghi giữa hiệp: APPROVED ([review](./T-037B-REVIEW.md)) |
+| T-048 | Võ sĩ xem đình chỉ trên điện thoại: xong trên release |
+| T-058, T-060, T-061 | Lệnh đọc phụ không còn làm sập trang. Mỗi ticket có mục "Điều tra 9/11". Còn phải kiểm với đăng nhập thật của võ sĩ, bác sĩ, admin |
+| T-059 | Trang phiếu khám vẫn hiện khi đọc dữ liệu bị lỗi một phần: xong |
+| Khu bác sĩ | Đồng nhất UI với app: APPROVED ([review](./DOCTOR-UI-REVIEW.md)) |
+| T-050 | Migration 033 chưa có trên Supabase dù bảng ghi đã áp. Claude áp ngày 9/11 theo yêu cầu của chủ dự án |
+| T-009 B1, B3 | Đã gộp vào release |
+| [T-062](./T-062-persistence-spec-off-shared-db.md) | READY, Dan. Spec backend ghi rác vào Supabase mỗi lần chạy `pnpm test`. Ngày 9/11 đã xoá 984 tài khoản `@test.invalid` (chủ dự án đồng ý). Tới khi xong ticket: không chạy test backend khi có `.env` |
+
+## Cập nhật 12/11: hiệu năng và review dashboard của Ken
+
+Chủ dự án giao Claude làm hết kế hoạch [PERFORMANCE-PLAN.md](../PERFORMANCE-PLAN.md) trong ngày, không chờ giao ticket. Kết quả đo ở §8 của kế hoạch.
+
+| Ticket | Nội dung | Phần | Người làm | Trạng thái |
+| --- | --- | --- | --- | --- |
+| [T-063 đến T-069, T-072](./T-063-069-performance.md) | Danh sách nhiều võ sĩ, hồ sơ và lịch sử y tế theo lô, gộp xác thực, `/users/me` trả phạm vi, cache, pool cấu hình được | Backend | Claude | DONE trên `release/final-review` |
+| A1 đến A9 ([kế hoạch §3](../PERFORMANCE-PLAN.md#3-a-frontend-chủ-dự-án-làm-được-ngay)) | Frontend đọc theo lô, stream widget chậm, từ điển một ngôn ngữ, three.js tải trễ, cache ngắn | Frontend | Claude | DONE trên `release/final-review` |
+| T-070, T-071 | Dành cho Ken đánh số lại hai ticket dashboard HLV trên `User_Feature` (đang trùng T-062, T-064) | Frontend | Ken | CHANGES REQUESTED ([review](./REVIEW-KEN-COACH-DASHBOARD.md)) |

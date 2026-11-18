@@ -16,12 +16,10 @@ export const fighterHref = {
 } as const;
 
 export const coachHref = {
-  home: "/(coach)/fighters" as Href,
+  home: "/(coach)/hom-nay" as Href,
   me: "/(coach)/me" as Href,
   notifications: "/(coach)/thong-bao" as Href,
   clearance: "/(coach)/clearance" as Href,
-  goals: "/(coach)/goals" as Href,
-  performance: "/(coach)/performance" as Href,
   assessments: "/(coach)/danh-gia" as Href,
   videoAnalysis: "/(coach)/video-analysis" as Href,
 } as const;

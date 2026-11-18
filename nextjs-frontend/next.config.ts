@@ -13,10 +13,12 @@ if (process.env.NODE_ENV === "production" && (process.env.APP_DATA_MODE === "dem
     throw new Error("Demo and mock pipeline modes are disabled in production builds.");
 }
 
+/** Vercel packages the app itself; the standalone layout is only for the Dockerfile. */
+const dockerOutput: NextConfig =
+    process.env.VERCEL === "1" ? {} : { output: "standalone", outputFileTracingRoot: repoRoot, turbopack: { root: repoRoot } };
+
 const nextConfig: NextConfig = {
-    output: "standalone",
-    outputFileTracingRoot: repoRoot,
-    turbopack: { root: repoRoot },
+    ...dockerOutput,
     /**
      * Pages are dynamic (every read is `no-store`), so by default each tab switch asks the server again. Keep a
      * visited page's payload for a short while so going back and forth between tabs is instant; Server Actions that

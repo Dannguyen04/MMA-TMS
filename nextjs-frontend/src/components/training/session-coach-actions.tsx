@@ -28,7 +28,7 @@ import { feedbackKindLabel } from "@/lib/domain/labels";
 import type { EligibilityReason } from "@/lib/domain/medical-contract";
 import type { FeedbackKind, SessionResult, Technique } from "@/lib/domain/types";
 import type { Locale } from "@/lib/i18n/config";
-import { createTranslator, type Translator } from "@/lib/i18n/translate";
+import { createTranslator, type Translator } from "@/lib/i18n/translate-client";
 import { RpeSlider } from "./rpe-slider";
 import { TechniqueCheckboxes } from "./technique-checkboxes";
 import { MID_RPE } from "./training-utils";

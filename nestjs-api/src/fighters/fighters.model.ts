@@ -6,9 +6,9 @@ import {
   optionalNullablePositiveNumberSchema,
   trimmedTextSchema,
 } from '../shared/utils/zod-schema.util.js';
-import { weightClasses, fighterStances } from '../users/users.model.js';
+import { weightClasses, fighterStances, fighterSexes } from '../users/users.model.js';
 
-export { weightClasses, fighterStances };
+export { weightClasses, fighterStances, fighterSexes };
 
 export const medicalStatuses = [
   'HEALTHY',
@@ -117,6 +117,7 @@ export const updateFighterProfileSchema = z
     heightCm: optionalNullablePositiveNumberSchema(300),
     reachCm: optionalNullablePositiveNumberSchema(300),
     dominantStance: z.enum(fighterStances).nullable().optional(),
+    sex: z.enum(fighterSexes).nullable().optional(),
     leftArmCm: optionalNullablePositiveNumberSchema(150),
     rightArmCm: optionalNullablePositiveNumberSchema(150),
     leftLegCm: optionalNullablePositiveNumberSchema(150),
@@ -178,6 +179,7 @@ export const publicFighterSchema = z.strictObject({
   heightCm: z.number().nullable(),
   reachCm: z.number().nullable(),
   dominantStance: z.enum(fighterStances).nullable(),
+  sex: z.enum(fighterSexes).nullable(),
   leftArmCm: z.number().nullable(),
   rightArmCm: z.number().nullable(),
   leftLegCm: z.number().nullable(),

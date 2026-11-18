@@ -1,6 +1,6 @@
 # Kịch bản demo API mode: trước, trong và sau trận
 
-Hai cửa sổ PowerShell, chạy backend trước.
+Chạy trên nhánh `release/final-review` (cập nhật 9/11 cho buổi review cuối 10/11). Hai cửa sổ PowerShell, chạy backend trước.
 
 ### 1. Backend — cổng 3001
 
@@ -11,33 +11,49 @@ corepack pnpm start:dev
 
 Cần `nestjs-api/.env` sẵn (của team). Không sửa file này, không chạy migration. Đợi log báo Nest đang listen ở `http://localhost:3001`.
 
-Nếu backend vừa mở đã tắt vì Swagger / `z.date()`: máy này đã có một dòng sửa local trong `nestjs-api/src/suspensions/suspensions.model.ts`. Khởi động lại lệnh trên. Ken chưa đưa sửa này lên `main`.
+Lỗi Swagger / `z.date()` làm backend tắt ngay khi mở đã được sửa trên `fight-camp`, nên không cần dòng sửa local nào nữa. Dòng sửa cũ ngày 30/10 được cất trong `git stash` của máy chủ dự án.
 
-### 2. Frontend API mode — cổng 3100
+### 2. Frontend API mode — cổng 3100, **bản production**
 
-Cửa sổ PowerShell khác. Đặt biến **trước** khi chạy `dev`, vì Next không ghi đè biến đã có trong process bằng `.env.local`:
+Cửa sổ PowerShell khác. Đặt biến **trước** khi build, vì Next không ghi đè biến đã có trong process bằng `.env.local`. Dùng bản production, không dùng `dev`: ngày 10/11 cùng màn, cùng dữ liệu, mỗi lời gọi API mất khoảng 100 ms ở production và 1–2 giây ở `next dev`; trang tải trung vị 1,5 giây. `next dev` còn biên dịch từng trang lần đầu và từng tự crash (Turbopack panic).
 
 ```powershell
 cd nextjs-frontend
+Remove-Item -Recurse -Force .next
 $env:APP_DATA_MODE='api'
-corepack pnpm dev --port 3100
+corepack pnpm build
+corepack pnpm exec next start --port 3100
 ```
+
+Build mất vài phút, làm trước giờ trình bày. Sửa code sau khi build thì phải build lại.
 
 Mở `http://localhost:3100/login`.
 
 Cổng 3100 để khỏi đụng server demo (3000). Nếu 3100 đang bận, tắt process đó rồi chạy lại.
 
-### 3. Quay lại demo mode (không dùng cho kịch bản này)
+### 3. Phương án dự phòng: demo mode, không cần backend
 
-Tắt frontend 3100, rồi:
+Nếu backend hoặc Supabase có sự cố khi trình bày: tắt frontend 3100, rồi chạy
 
 ```powershell
 cd nextjs-frontend
-$env:APP_DATA_MODE='demo'
+$env:APP_DATA_MODE='demo'; $env:NEXT_PUBLIC_VIDEO_PIPELINE='mock'
 corepack pnpm dev
 ```
 
-Mở `http://localhost:3000`. Không cần backend.
+Mở `http://localhost:3000`, đăng nhập bằng nút "Rafael Costa". Phải đặt `NEXT_PUBLIC_VIDEO_PIPELINE=mock`: `.env.local` đang để `api`, nên khi backend tắt thì các màn video sẽ báo lỗi. Ở demo mode, luồng này đã đạt UAT 3/3 ngày 9/11. Riêng bước C4, dùng Diego Alvarez (TKO, đang chờ xác nhận).
+
+### Run-sheet sáng 10/11
+
+1. `git pull` nhánh `release/final-review`, rồi `corepack pnpm install`.
+2. **Không** chạy `next build` khi `next dev` đang chạy trong cùng thư mục: build xoá `.next` và server dev sẽ crash.
+3. **Đổi giữa demo mode và API mode thì xoá `nextjs-frontend/.next` trước khi bật lại** (`Remove-Item -Recurse -Force nextjs-frontend\.next`). `.next` cũ từng làm `/login` trả 404 ở API mode (9/11).
+4. **`DATABASE_URL` trong `nestjs-api/.env` phải dùng cổng `6543`** (pooler transaction mode), không dùng `5432`. Cổng 5432 là session mode, tối đa 15 kết nối cho cả team. Ngày 9/11 dashboard admin trả 500 với lỗi `max clients reached in session mode`. Máy chủ dự án đã đổi; máy nào khác dùng để demo cũng phải đổi.
+5. **Bật Redis** trước backend: `redis-server --port 6379` (máy chủ dự án đã cài). Thiếu Redis, thông báo và hàng đợi AI sẽ báo lỗi kết nối liên tục.
+6. Bật backend (mục 1), đợi `/health` trả 200, rồi build và bật frontend 3100 (mục 2). Mở trước một lượt các màn sẽ chiếu. Màn tổng quan HLV vẫn mất khoảng 5 giây: nó đọc riêng từng võ sĩ (khoảng 40 request) qua pool 10 kết nối của backend.
+7. Đăng nhập Rafael Costa. Mở **Đình chỉ** để chắc trang tải được (migration 033 đã áp 9/11). Từ 10/11 **không còn võ sĩ nào "Chờ xác nhận"** trên Supabase: đình chỉ y tế của Aigerim đã được xác nhận tối 9/11, và cô đang có đình chỉ KO tới 9/12. C4 ở API mode chỉ nói quy tắc; muốn chiếu nút "Cho tập lại" thì dùng demo mode (Diego Alvarez).
+8. Võ sĩ cho phần chính: **Minh Trần**, đang "Sẵn sàng". Kenji đã dùng cho lượt thử ngày 9/11, đang bị đình chỉ KO.
+9. Đặt giờ thi **sau giờ hiện tại** (ví dụ 22:00), cân 08:00 cùng ngày.
 
 **Tài khoản HLV**
 
@@ -177,14 +193,14 @@ Trên trang trận, khung “Bắt đầu trại tập”:
 
 Giáo án phải cùng võ sĩ và phase `fight_camp`. Võ sĩ đang có trận active khác thì backend từ chối.
 
-### A3. Kế hoạch ăn *(mock, mất khi restart server)*
+### A3. Kế hoạch ăn
 
 Ba ô chữ trên trang trận: trại tập / tuần thi đấu / sau cân. Gõ ví dụ:
 
 - Trại tập: `Cơm, thịt nạc, rau. Cắt tinh bột sau 18h.`
 - Tuần thi đấu: `Giảm nước từ D−2. Không sauna nếu chóng mặt.`
 
-Bấm lưu. Phần này **không** đi backend.
+Bấm lưu. Từ 9/11 phần này lưu qua backend (`PUT /bouts/:id/nutrition-plan`, T-009) nên không mất khi khởi động lại. Giai đoạn đang chạy được tô nổi. Phần võ sĩ trả lời "ăn theo kế hoạch?" vẫn là dữ liệu giả.
 
 ### A4. Vào tuần thi đấu (Cổng 1)
 
@@ -211,15 +227,15 @@ Hai nút **Ghi hiệp** và **Thẻ góc đài** chỉ hiện từ lúc **Đã c
 
 ### B1. Ghi hiệp 1
 
-Mở **Ghi hiệp**.
+Mở **Ghi hiệp**. Màn chỉ mở **hiệp đang ghi** (lúc đầu là hiệp 1, nhãn **Đang ghi**); các hiệp sau chỉ là một dòng **Chưa tới**. Mặc định hiệp đang ghi có 4 chạm: hai **chiến thuật đang dặn**, một **quan sát chính** và **HLV tự chấm hiệp**.
 
-1. Tự chấm: chọn **Thua hiệp** (hoặc tương đương trên UI).
-2. Knockdown: `0`.
-3. Có thể bật **Mệt**.
-4. Đánh dấu vài quan sát / chiến thuật nếu có (không bắt buộc).
-5. Lưu. Phải hiện badge đã ghi và **gợi ý cho hiệp sau**.
+1. Chiến thuật thứ nhất: **Hiệu quả**; chiến thuật thứ hai: **Không hiệu quả**.
+2. Tự chấm: chọn **Thua hiệp**.
+3. Bấm **Ghi thêm** để mở tình trạng võ sĩ, knockdown, các chiến thuật và quan sát khác, ghi chú. Bật **Mệt**, knockdown `0`.
+4. Bấm **Lưu hiệp 1**. Hiệp 1 thu gọn thành một dòng (Đã lưu · Thua hiệp · 0 knockdown · Mệt · số đánh dấu). Phía trên hiện **lời dặn giữa hiệp** và khối **Hiệp 2: làm gì**; hiệp 2 thành hiệp đang ghi.
+5. Ghi hiệp 2 giống vậy (cùng hai chiến thuật; nếu chiến thuật không nằm trong 2 chạm mặc định thì tìm trong **Ghi thêm**).
 
-Sửa lại thì bấm **Cập nhật hiệp 1**, không tạo hiệp mới.
+Sửa lại thì bấm **Sửa hiệp 1** trên dòng tóm tắt rồi **Cập nhật hiệp 1**, không tạo hiệp mới.
 
 **Hay sai:** mở trang này khi trận chưa cân → báo chưa ghi được. Tạo trận không có số hiệp → báo “chưa được thiết lập số hiệp dự kiến”.
 
@@ -259,6 +275,17 @@ Bấm lưu. Trận **Đã xong**. Đình chỉ KO tự tạo: chặn **đấu t�
 - Thua TKO: phải trả lời “có bị dừng vì đòn vào đầu không”. Chỉ khi **Có** mới được nhập số ngày đình chỉ. Khi **Không** thì **không** được điền ô đó.
 - KO thì **không** có ô đòn vào đầu.
 
+### C1b. Báo cáo sau trận (mới, nghiệp vụ 14)
+
+Trên trang trận (hoặc màn ghi hiệp), bấm **Báo cáo sau trận**. Nút chỉ hiện khi trận đã **Đã xong**.
+
+1. Khối **Điểm cần luyện cho camp sau** đứng đầu: chiến thuật không hiệu quả, giảm cân cấp tốc vượt ngưỡng, đuối sức từ hiệp nào (cần 2 hiệp liền có **Mệt**).
+2. Khối **Chiến thuật**: mỗi chiến thuật có số hiệp hiệu quả / không hiệu quả. Nhãn **App điền sẵn** nghĩa là kết luận do app tính từ phần ghi hiệp lúc ghi kết quả.
+3. Đổi kết luận một chiến thuật, ghi chú (≤ 300 ký tự), **Lưu đánh giá**. Chiến thuật đó mất nhãn **App điền sẵn**. Mỗi lần lưu, mọi chiến thuật đang hiện được tính là HLV đã đánh giá.
+4. Khối **Quan sát về đối thủ**: quan sát mà mọi hiệp đều đánh "không thấy" có nhãn "Không thấy lại ở trận ngày …".
+
+Trận không ghi hiệp nào: báo cáo chỉ có kết quả, kèm câu nhắc ghi hiệp. Phần đánh giá chiến thuật bị ẩn.
+
 ### C2. Xem đình chỉ
 
 Menu **Trận đấu** → **Đình chỉ**. Dòng Minh Trần: `KO · hôm nay – +29 ngày (30 ngày)` · **Đang đình chỉ**.
@@ -275,11 +302,13 @@ API mode **không** hiện cảnh báo trên form xem trước. Chặn lúc lưu
 
 ### C4. Cho tập lại
 
-Vào lại **Đình chỉ** → **Cho tập lại**.
+**Không làm được trên Minh ngay sau trận.** Từ T-049, "Cho tập lại" chỉ mở khi đình chỉ **đã hết hạn và đang chờ xác nhận**. Đình chỉ KO 30 ngày vừa tạo vẫn đang chạy, nên API trả 409 `SUSPENSION_NOT_AWAITING_CLEARANCE`, và nút không hiện. Khi trình bày, nói rõ: "30 ngày sau, HLV hoặc bác sĩ xác nhận ở đây". Sau đó chiếu C4 trên một võ sĩ đang chờ xác nhận:
 
-Ghi chú bắt buộc, ví dụ: `Bác sĩ thần kinh cho phép, CT bình thường`.
+- **Chuẩn bị từ hôm trước (9/11):** tạo đình chỉ tay cho một võ sĩ phụ của Rafael: lý do **Y tế**, **1 ngày**, bắt đầu hôm nay, cần xác nhận. Sang ngày 10/11, võ sĩ đó ở trạng thái **Chờ xác nhận tập lại**, và thẻ Việc cần làm có nguồn này.
+- **Khi demo:** vào **Đình chỉ**, dòng đang chờ xác nhận → **Cho tập lại**. Ghi chú bắt buộc, ví dụ `Bác sĩ thần kinh cho phép, CT bình thường`. Lưu, phải thấy "Rafael Costa xác nhận được tập lại, …".
+- Sau KO/TKO, võ sĩ còn **tập lại theo bậc** (T-045, mỗi bậc tối thiểu 24 giờ). Đấu tập có thể vẫn bị chặn tới bậc cuối; không hứa "tạo lại buổi đấu tập là lưu được".
 
-Lưu. Phải thấy “Rafael Costa xác nhận được tập lại, …”. Minh về **Sẵn sàng**. Tạo lại buổi đấu tập lúc này thì lưu được.
+Ở demo mode, Diego Alvarez có sẵn một đình chỉ TKO đang chờ xác nhận.
 
 ## Nếu muốn chiếu thêm, không bắt buộc
 
@@ -290,6 +319,6 @@ Lưu. Phải thấy “Rafael Costa xác nhận được tập lại, …”. Mi
 
 ## Thứ tự không được đảo
 
-`Tạo giáo án fight_camp` → `Tạo trận (hôm nay, 3 hiệp)` → `Gắn camp` → `Tuần thi đấu` → `Cân chính thức` → `Ghi hiệp / thẻ góc đài` → `Ghi kết quả` → `Đình chỉ / Cổng 2` → `Cho tập lại`.
+`Tạo giáo án fight_camp` → `Tạo trận (hôm nay, 3 hiệp)` → `Gắn camp` → `Tuần thi đấu` → `Cân chính thức` → `Ghi hiệp / thẻ góc đài` → `Ghi kết quả` → `Báo cáo sau trận` → `Đình chỉ / Cổng 2` → `Cho tập lại`.
 
 Mobile **không** có màn trận. Phần trong trận chiếu trên web.

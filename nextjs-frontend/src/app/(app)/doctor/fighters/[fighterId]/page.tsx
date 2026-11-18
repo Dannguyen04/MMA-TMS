@@ -1,52 +1,62 @@
-import { ArrowRight, CircleCheck, CircleX, FilePlus2, ShieldCheck, Stethoscope, TriangleAlert } from "lucide-react";
+import { ArrowRight, CircleCheck, CircleX, Stethoscope, TriangleAlert } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { BodyPanel } from "@/components/doctor/body-panel";
 import { DECISION_OF, examLabel } from "@/components/doctor/exam-meta";
-import { FighterHead } from "@/components/doctor/fighter-head";
+import { loadFighterRow } from "@/components/doctor/fighter-row";
 import { BODY_REGION, CLEARANCE_LEVEL, CLEARANCE_TYPE, DECISION, INJURY_STATUS, REQUESTER_ROLE, clearanceBadge, dayDiff, fmtDate, fmtDateTime, injuryName, injuryPlace, jointOf } from "@/components/doctor/labels";
 import { Panel, Pill, Restrictions, Vitals } from "@/components/doctor/ui";
 import { FlashToast } from "@/components/medical/flash-toast";
 import { RevokeClearanceButton } from "@/components/medical/revoke-clearance-button";
 import type { ToastInput } from "@/components/ui/toast";
-import { canAccessFighter, requireFighterAccess } from "@/lib/auth/access";
+import { canAccessFighter } from "@/lib/auth/access";
 import { requireRole } from "@/lib/auth/session";
 import type { MedicalClearance } from "@/lib/domain/types";
+import { getTranslator } from "@/lib/i18n/server";
+import { plural, type MessageKey, type Translator } from "@/lib/i18n/translate";
 import { hrefWith } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { listAlerts } from "@/lib/services/ai";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
-import { loadDoctorRow } from "@/lib/services/doctor-board";
 import { getClearanceHistory, listExaminations, listInjuries, listRecoveryPlans, listReviewRequests } from "@/lib/services/medical";
 import { medicalFeatureAvailable } from "@/lib/services/medical-features";
 import { getFighter } from "@/lib/services/people";
 import { listSuspensions } from "@/lib/services/suspensions";
+import { ClearSuspensionButton } from "@/app/(app)/coach/bouts/suspensions/clear-suspension-button";
 import { EarlyEndSuspensionButton } from "@/app/(app)/coach/bouts/suspensions/early-end-suspension-button";
 import { param } from "@/lib/utils";
 
 type Kind = "injury" | "review" | "expiry" | "followup" | "milestone" | "exam";
 const MAG: Record<Kind, number> = { injury: 8, review: 8, expiry: 7, followup: 6, milestone: 5, exam: 5 };
-const KL: Record<Kind, string> = { injury: "Chấn thương", review: "Yêu cầu xem xét", expiry: "Giấy phép hết hạn", followup: "Tái khám", milestone: "Mốc phục hồi", exam: "Phiếu khám" };
+const KL: Record<Kind, MessageKey> = {
+    injury: "screens.doctor.event.injury",
+    review: "screens.doctor.event.review",
+    expiry: "screens.doctor.event.expiry",
+    followup: "screens.doctor.event.followup",
+    milestone: "screens.doctor.event.milestone",
+    exam: "screens.doctor.event.exam",
+};
 const SPAN = [-14, 21] as const;
 const xp = (d: number) => ((d - SPAN[0]) / (SPAN[1] - SPAN[0])) * 100;
-const relDay = (d: number) => (d === 0 ? "Hôm nay" : d > 0 ? `+${d} ngày` : `${d} ngày`);
+const relDay = (t: Translator, d: number) =>
+    d === 0 ? t("screens.doctor.today") : d > 0 ? plural(t, "screens.doctor.fighter.relDay.future", d) : plural(t, "screens.doctor.fighter.relDay.past", -d);
 const RECENT_RESOLVED_DAYS = 180;
 
-const NOTICES: Record<string, ToastInput> = {
-    "examination-not-eligible": { title: "Đã lưu phiếu khám", description: "Võ sĩ không đủ điều kiện nên không cấp giấy phép.", tone: "success" },
-    "clearance-issued": { title: "Đã cấp giấy phép", tone: "success" },
-    "clearance-full": { title: "Đã cấp giấy phép tập đầy đủ", tone: "success" },
-    "clearance-restricted": { title: "Đã cấp giấy phép tập có hạn chế", tone: "success" },
-    "clearance-not_cleared": { title: "Đã ghi nhận: chưa được tập", tone: "success" },
+const NOTICES: Record<string, { title: MessageKey; description?: MessageKey }> = {
+    "examination-not-eligible": { title: "screens.doctor.fighter.notice.examSaved", description: "screens.doctor.fighter.notice.examSavedNotEligible" },
+    "clearance-issued": { title: "screens.doctor.fighter.notice.clearanceIssued" },
+    "clearance-full": { title: "screens.doctor.fighter.notice.clearanceFull" },
+    "clearance-restricted": { title: "screens.doctor.fighter.notice.clearanceRestricted" },
+    "clearance-not_cleared": { title: "screens.doctor.fighter.notice.notCleared" },
 };
 
 export async function generateMetadata({ params }: PageProps<"/doctor/fighters/[fighterId]">): Promise<Metadata> {
     const { fighterId } = await params;
     const user = await requireRole("doctor");
+    const { t } = await getTranslator();
     const fighter = canAccessFighter(user, fighterId) ? await getFighter(fighterId) : null;
-    return { title: fighter ? `${fighter.name} · Hồ sơ y tế` : "Không tìm thấy võ sĩ" };
+    return { title: fighter ? t("screens.doctor.fighter.metaTitle", { name: fighter.name }) : t("screens.doctor.fighter.notFound") };
 }
 
 function clearanceExcluded(c: MedicalClearance | null): string[] {
@@ -55,14 +65,14 @@ function clearanceExcluded(c: MedicalClearance | null): string[] {
 }
 
 export default async function DoctorFighterProfilePage({ params, searchParams }: PageProps<"/doctor/fighters/[fighterId]">) {
-    const user = await requireRole("doctor");
-    const { fighterId } = await params;
-    const query = await searchParams;
-    const stored = await requireFighterAccess(user, fighterId);
+    const [{ fighterId }, query] = await Promise.all([params, searchParams]);
+    // Same cached read as the profile layout, so the record is fetched once.
+    const { user, row } = await loadFighterRow(fighterId);
+    const { t, locale } = await getTranslator();
+    const stored = row.fighter;
     const now = new Date().toISOString();
 
-    const [row, examinations, injuries, clearances, plans, reviewRequests, observations, suspensions] = await Promise.all([
-        loadDoctorRow(stored),
+    const [examinations, injuries, clearances, plans, reviewRequests, observations, suspensions] = await Promise.all([
         listExaminations({ fighterIds: [stored.id] }),
         listInjuries({ fighterIds: [stored.id] }),
         getClearanceHistory(stored.id),
@@ -71,8 +81,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
         medicalFeatureAvailable("aiObservations") ? nullIfServiceFails(listAlerts({ fighterIds: [stored.id] })) : Promise.resolve([]),
         nullIfServiceFails(listSuspensions({ fighterId: stored.id }, user)),
     ]);
-    if (!row) notFound();
-    const { fighter, summary, training, competition, dossier, tag } = row;
+    const { fighter, summary, dossier } = row;
 
     // Căn cứ tập luyện: phiếu khám đang quyết định phạm vi tập (API) hoặc phiếu gần nhất (demo).
     const currentTrainingId = dossier?.currentExaminations.TRAINING?.id;
@@ -81,83 +90,42 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
     const shownInjuries = injuries.filter((i) => i.status !== "resolved" || (i.resolvedAt && dayDiff(i.resolvedAt, now) >= -RECENT_RESOLVED_DAYS));
     const excluded = [...new Set([...(basis?.decisionRestrictions?.excludedJoints ?? []), ...clearanceExcluded(summary.clearance)])];
     const abnormalHead = !!basis?.assessments.some((a) => a.result !== "normal" && /neuro|thần kinh|thị lực|vision|head|đầu/i.test(a.area));
-    const activePlan = summary.activeRecoveryPlan;
     const openReviews = reviewRequests.filter((r) => r.status === "OPEN");
 
-    // Đường trở lại thi đấu, suy ra từ hồ sơ.
-    const milestones = activePlan?.plan.milestones ?? [];
-    const steps = [
-        { key: "baseline", label: "Khám ban đầu", state: summary.needsBaseline ? "blocked" : "done", note: summary.needsBaseline ? "Chưa có" : "Đã có" },
-        { key: "injury", label: "Chấn thương", state: summary.activeInjuries.length ? "current" : "skip", note: summary.activeInjuries.length ? `${summary.activeInjuries.length} đang mở` : "Không có" },
-        {
-            key: "recovery",
-            label: "Phục hồi",
-            state: activePlan ? "current" : "skip",
-            note: activePlan ? (milestones.length ? `${milestones.filter((m) => m.isCompleted).length}/${milestones.length} mốc` : `${activePlan.progressPct}%`) : "Không có kế hoạch",
-        },
-        { key: "training", label: "Tập luyện", state: training ? (training.eligible ? "done" : "blocked") : "skip", note: training ? (training.eligible ? "Đủ điều kiện" : "Chưa đủ") : "Chưa rõ" },
-        ...(competition ? [{ key: "competition", label: "Thi đấu", state: competition.eligible ? "done" : "blocked", note: competition.eligible ? "Đủ điều kiện" : "Chưa đủ" }] : []),
-    ];
 
     // Quỹ đạo 5 tuần.
     const ev: { kind: Kind; day: number; text: string }[] = [];
-    summary.activeInjuries.forEach((i) => ev.push({ kind: "injury", day: dayDiff(i.occurredAt, now), text: `${injuryName(i)} · ${injuryPlace(i)}` }));
+    summary.activeInjuries.forEach((i) => ev.push({ kind: "injury", day: dayDiff(i.occurredAt, now), text: `${injuryName(t, i)} · ${injuryPlace(t, i)}` }));
     openReviews.forEach((r) => ev.push({ kind: "review", day: dayDiff(r.requestedAt, now), text: r.reason }));
-    clearances.filter((c) => c.status === "active" && c.validUntil).forEach((c) => ev.push({ kind: "expiry", day: dayDiff(c.validUntil!, now), text: `${c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]} hết hạn` }));
-    if (summary.nextFollowUp) ev.push({ kind: "followup", day: summary.nextFollowUp.daysUntil, text: "Tái khám theo phiếu khám" });
+    clearances.filter((c) => c.status === "active" && c.validUntil).forEach((c) => ev.push({ kind: "expiry", day: dayDiff(c.validUntil!, now), text: t("screens.doctor.fighter.expires", { name: t(c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]) }) }));
+    if (summary.nextFollowUp) ev.push({ kind: "followup", day: summary.nextFollowUp.daysUntil, text: t("screens.doctor.fighter.followUpFromExam") });
     plans.filter((p) => p.status === "active").forEach((p) => (p.milestones ?? []).forEach((m) => !m.isCompleted && m.targetDate && ev.push({ kind: "milestone", day: dayDiff(m.targetDate, now), text: m.title })));
-    examinations.forEach((e) => ev.push({ kind: "exam", day: dayDiff(e.date, now), text: examLabel(e) }));
+    examinations.forEach((e) => ev.push({ kind: "exam", day: dayDiff(e.date, now), text: examLabel(t, e) }));
     const events = ev.filter((e) => e.day >= SPAN[0] && e.day <= SPAN[1]).sort((a, b) => a.day - b.day);
 
     const pathname = routes.doctor.fighter(fighter.id);
-    const notice = NOTICES[param(query.notice) ?? ""] ?? null;
+    const noticeKeys = NOTICES[param(query.notice) ?? ""] ?? null;
+    const notice: ToastInput | null = noticeKeys
+        ? { title: t(noticeKeys.title), ...(noticeKeys.description ? { description: t(noticeKeys.description) } : {}), tone: "success" }
+        : null;
     const decision = basis ? (basis.scope ? (dossier?.currentExaminations.TRAINING?.decision ?? DECISION_OF[basis.outcome]) : DECISION_OF[basis.outcome]) : null;
 
     return (
-        <div className="yt-page">
+        <>
             <FlashToast notice={notice} cleanHref={hrefWith(pathname, query, { notice: null })} />
-            <FighterHead
-                fighter={fighter}
-                training={training}
-                competition={competition}
-                tag={tag}
-                actions={
-                    <>
-                        <Link href={`${routes.doctor.newExamination}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
-                            <FilePlus2 aria-hidden />
-                            Tạo phiếu khám
-                        </Link>
-                        <Link href={`${routes.doctor.grantClearance}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
-                            <ShieldCheck aria-hidden />
-                            Cấp giấy phép
-                        </Link>
-                    </>
-                }
-            />
 
-            <Panel title="Đường trở lại thi đấu" id="ladder" aside="Suy ra từ hồ sơ y tế">
-                <ol className="hs-ladder" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>
-                    {steps.map((s, i) => (
-                        <li key={s.key} className="hs-step" data-state={s.state} style={{ ["--i" as string]: i }}>
-                            <i aria-hidden />
-                            <b>{s.label}</b>
-                            <small>{s.note}</small>
-                        </li>
-                    ))}
-                </ol>
-            </Panel>
 
             <div className="hs-grid">
-                <Panel title="Bản đồ cơ thể" id="body3d" tone="plate" aside={<span className="yt-drag-hint">Kéo để xoay</span>}>
-                    <BodyPanel injuries={shownInjuries} excluded={excluded} height={500} abnormalHead={abnormalHead} />
+                <Panel title={t("screens.doctor.fighter.bodyMap")} id="body3d" tone="plate" aside={<span className="yt-drag-hint">{t("screens.doctor.fighter.dragToRotate")}</span>}>
+                    <BodyPanel injuries={shownInjuries} excluded={excluded} height={500} abnormalHead={abnormalHead} sex={fighter.sex} />
                 </Panel>
                 <div className="hs-col">
                     <Panel
-                        title={`Chấn thương · ${summary.activeInjuries.length}`}
+                        title={t("screens.doctor.fighter.injuries", { n: summary.activeInjuries.length })}
                         id="chan-thuong"
                         aside={
-                            <Link className="yt-go" href={`${routes.doctor.injuries}?fighter=${fighter.id}`}>
-                                Tất cả <ArrowRight aria-hidden />
+                            <Link className="yt-go" href={routes.doctor.fighterInjuries(fighter.id)}>
+                                {t("screens.doctor.all")} <ArrowRight aria-hidden />
                             </Link>
                         }
                     >
@@ -165,30 +133,30 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             <ul className="hs-inj">
                                 {shownInjuries.map((i) => (
                                     <li key={i.id}>
-                                        <Link href={routes.doctor.injury(i.id)}>{injuryName(i)}</Link>
+                                        <Link href={routes.doctor.fighterInjury(i.fighterId, i.id)}>{injuryName(t, i)}</Link>
                                         <small>
-                                            {injuryPlace(i)} · {fmtDate(i.occurredAt)}
+                                            {injuryPlace(t, i)} · {fmtDate(i.occurredAt, locale)}
                                         </small>
-                                        <Pill tone={INJURY_STATUS[i.status].tone}>{INJURY_STATUS[i.status].label}</Pill>
+                                        <Pill tone={INJURY_STATUS[i.status].tone}>{t(INJURY_STATUS[i.status].label)}</Pill>
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <p className="yt-muted">Chưa ghi nhận chấn thương nào.</p>
+                            <p className="yt-muted">{t("screens.doctor.fighter.noInjuries")}</p>
                         )}
                         <p style={{ marginTop: 12 }}>
                             <Link className="yt-go" href={`${routes.doctor.newInjury}?fighter=${fighter.id}`}>
-                                Ghi nhận chấn thương <ArrowRight aria-hidden />
+                                {t("screens.doctor.fighter.recordInjury")} <ArrowRight aria-hidden />
                             </Link>
                         </p>
                     </Panel>
                     <Panel
-                        title="Căn cứ tập luyện"
+                        title={t("screens.doctor.fighter.basis")}
                         id="can-cu"
                         aside={
                             basis ? (
-                                <Link className="yt-go" href={routes.doctor.examination(basis.id)}>
-                                    Phiếu khám <ArrowRight aria-hidden />
+                                <Link className="yt-go" href={routes.doctor.fighterExamination(basis.fighterId, basis.id)}>
+                                    {t("screens.doctor.fighter.basisExam")} <ArrowRight aria-hidden />
                                 </Link>
                             ) : undefined
                         }
@@ -197,19 +165,19 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             <>
                                 <p className="hs-decision" data-d={decision}>
                                     {decision === "NOT_ELIGIBLE" ? <CircleX aria-hidden /> : decision === "ELIGIBLE" ? <CircleCheck aria-hidden /> : <TriangleAlert aria-hidden />}
-                                    {DECISION[decision].label}
+                                    {t(DECISION[decision].label)}
                                 </p>
                                 <p className="hs-basis-meta">
-                                    {examLabel(basis)}
-                                    {basis.validUntil ? ` · hiệu lực đến ${fmtDate(basis.validUntil)}` : ""}
+                                    {examLabel(t, basis)}
+                                    {basis.validUntil ? t("screens.doctor.fighter.validUntil", { date: fmtDate(basis.validUntil, locale) }) : ""}
                                 </p>
                                 <p>{basis.summary}</p>
-                                <Restrictions r={basis.decisionRestrictions} />
+                                <Restrictions r={basis.decisionRestrictions} t={t} />
                                 {!basis.decisionRestrictions && summary.clearance?.restrictions.length ? (
                                     <ul className="yt-chips" style={{ marginTop: 10 }}>
                                         {summary.clearance.restrictions.flatMap((r) => r.blockedRegions).map((b) => (
                                             <li key={b} data-tone="block">
-                                                Tránh {BODY_REGION[b].toLowerCase()}
+                                                {t("screens.doctor.avoid", { region: t(BODY_REGION[b]).toLowerCase() })}
                                             </li>
                                         ))}
                                     </ul>
@@ -218,42 +186,44 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                         ) : (
                             <div className="yt-empty" style={{ padding: 24 }}>
                                 <Stethoscope aria-hidden />
-                                <p className="yt-empty-t">Chưa có phiếu khám tập luyện</p>
-                                <p className="yt-empty-d">Võ sĩ cần phiếu khám ban đầu trước khi được tập.</p>
-                                <Link href={`${routes.doctor.newExamination}?fighter=${fighter.id}`} className="yt-btn" data-v="primary">
-                                    Tạo phiếu khám ban đầu
+                                <p className="yt-empty-t">{t("screens.doctor.fighter.noBasis")}</p>
+                                <p className="yt-empty-d">{t("screens.doctor.fighter.noBasisHint")}</p>
+                                <Link href={hrefWith(routes.doctor.fighterNewExamination(fighter.id), {}, { type: "baseline" })} className="yt-btn" data-v="primary">
+                                    {t("screens.doctor.fighter.createBaseline")}
                                 </Link>
                             </div>
                         )}
                     </Panel>
-                    <Panel title="Chỉ số sinh tồn" id="sinh-hieu" aside={withVitals ? fmtDate(withVitals.date) : undefined}>
-                        <Vitals v={withVitals?.vitals} />
+                    <Panel title={t("screens.doctor.fighter.vitals")} id="sinh-hieu" aside={withVitals ? fmtDate(withVitals.date, locale) : undefined}>
+                        <Vitals v={withVitals?.vitals} t={t} />
                     </Panel>
-                    <Panel title={suspensions ? `Đình chỉ · ${suspensions.length}` : "Đình chỉ"} id="dinh-chi">
+                    <Panel title={suspensions ? t("screens.doctor.fighter.suspensionsCount", { n: suspensions.length }) : t("screens.doctor.fighter.suspensions")} id="dinh-chi">
                         {suspensions === null ? (
-                            <p className="yt-muted">Không tải được danh sách đình chỉ</p>
+                            <p className="yt-muted">{t("screens.doctor.fighter.suspensionsUnavailable")}</p>
                         ) : suspensions.length ? (
                             <ul className="hs-clr">
                                 {suspensions.map((s) => (
                                     <li key={s.id}>
                                         <b>
-                                            {s.reason === "MEDICAL"
-                                                ? s.issuedBy === "ORGANIZER"
-                                                    ? "Đình chỉ y tế (Ban tổ chức)"
-                                                    : "Đình chỉ y tế"
-                                                : s.reason === "KO"
-                                                  ? "Đình chỉ KO"
-                                                  : s.reason === "TKO"
-                                                    ? "Đình chỉ TKO"
-                                                    : s.reason === "DQ"
-                                                      ? "Truất quyền thi đấu"
-                                                      : s.reason === "MANDATORY_REST"
-                                                        ? "Nghỉ bắt buộc"
-                                                        : "Đình chỉ khác"}
+                                            {t(
+                                                s.reason === "MEDICAL"
+                                                    ? s.issuedBy === "ORGANIZER"
+                                                        ? "screens.doctor.fighter.suspension.medicalOrganizer"
+                                                        : "screens.doctor.fighter.suspension.medical"
+                                                    : s.reason === "KO"
+                                                      ? "screens.doctor.fighter.suspension.ko"
+                                                      : s.reason === "TKO"
+                                                        ? "screens.doctor.fighter.suspension.tko"
+                                                        : s.reason === "DQ"
+                                                          ? "screens.doctor.fighter.suspension.dq"
+                                                          : s.reason === "MANDATORY_REST"
+                                                            ? "screens.doctor.fighter.suspension.mandatoryRest"
+                                                            : "screens.doctor.fighter.suspension.other",
+                                            )}
                                         </b>
                                         <small>
-                                            {fmtDate(s.startsOn)} – {fmtDate(s.endsOn)}
-                                            {s.issuedBy === "ORGANIZER" && s.issuerReference ? ` · Ban tổ chức: ${s.issuerReference}` : ""}
+                                            {fmtDate(s.startsOn, locale)} – {fmtDate(s.endsOn, locale)}
+                                            {s.issuedBy === "ORGANIZER" && s.issuerReference ? t("screens.doctor.fighter.suspension.organizerRef", { ref: s.issuerReference }) : ""}
                                         </small>
                                         <Pill
                                             tone={
@@ -266,13 +236,15 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                         : "neutral"
                                             }
                                         >
-                                            {s.status === "ACTIVE"
-                                                ? "Đang hiệu lực"
-                                                : s.status === "AWAITING_CLEARANCE"
-                                                  ? "Chờ xác nhận"
-                                                  : s.status === "ENDED"
-                                                    ? "Đã kết thúc"
-                                                    : "Chưa bắt đầu"}
+                                            {t(
+                                                s.status === "ACTIVE"
+                                                    ? "screens.doctor.fighter.suspension.active"
+                                                    : s.status === "AWAITING_CLEARANCE"
+                                                      ? "screens.doctor.fighter.suspension.awaitingClearance"
+                                                      : s.status === "ENDED"
+                                                        ? "screens.doctor.fighter.suspension.ended"
+                                                        : "screens.doctor.fighter.suspension.notStarted",
+                                            )}
                                         </Pill>
                                         {s.earlyEndExaminationId && (
                                             <span style={{ gridColumn: "1 / -1", fontSize: "12px" }}>
@@ -281,15 +253,15 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                     className="yt-go"
                                                 >
                                                     {s.clearedAt
-                                                        ? `Kết thúc sớm ngày ${fmtDate(s.clearedAt)} theo phiếu khám`
-                                                        : "Kết thúc sớm theo phiếu khám"}{" "}
+                                                        ? t("screens.doctor.fighter.suspension.endedEarlyOn", { date: fmtDate(s.clearedAt, locale) })
+                                                        : t("screens.doctor.fighter.suspension.endedEarly")}{" "}
                                                     <ArrowRight aria-hidden />
                                                 </Link>
                                             </span>
                                         )}
                                         {s.liftReference && (
                                             <span className="yt-muted" style={{ gridColumn: "1 / -1", fontSize: "12px" }}>
-                                                Ban tổ chức gỡ: {s.liftReference}
+                                                {t("screens.doctor.fighter.suspension.liftedBy", { ref: s.liftReference })}
                                             </span>
                                         )}
                                         {s.status === "ACTIVE" && s.reason === "MEDICAL" && s.issuedBy === "CLUB" && (
@@ -299,7 +271,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                     fighterName={fighter.name}
                                                     examinations={examinations}
                                                     doctorId={user.profileId ?? undefined}
-                                                    label="Kết thúc sớm"
+                                                    label={t("screens.doctor.fighter.suspension.endEarly")}
                                                 />
                                             </span>
                                         )}
@@ -310,27 +282,33 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                                     fighterName={fighter.name}
                                                     examinations={examinations}
                                                     doctorId={user.profileId ?? undefined}
-                                                    label="Ban tổ chức đã gỡ"
+                                                    label={t("screens.doctor.fighter.suspension.organizerLifted")}
                                                 />
+                                            </span>
+                                        )}
+                                        {/* Hết hạn nhưng cần xác nhận: bác sĩ phụ trách xác nhận cho tập lại (POST /suspensions/:id/clear). */}
+                                        {s.status === "AWAITING_CLEARANCE" && !s.clearedAt && (
+                                            <span style={{ gridColumn: "1 / -1", marginTop: "4px" }}>
+                                                <ClearSuspensionButton suspension={s} fighterName={fighter.name} />
                                             </span>
                                         )}
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <p className="yt-muted">Không có đình chỉ nào.</p>
+                            <p className="yt-muted">{t("screens.doctor.fighter.noSuspensions")}</p>
                         )}
                     </Panel>
                 </div>
                 <div className="hs-col hs-col3">
-                    <Panel title="Quỹ đạo 5 tuần" id="quy-dao" aside="−14 → +21 ngày">
+                    <Panel title={t("screens.doctor.fighter.trajectory")} id="quy-dao" aside={t("screens.doctor.fighter.trajectoryAside")}>
                         <div className="tj" aria-hidden>
                             <span className="tj-axis" />
                             <span className="tj-past" />
                             <span className="tj-now" />
-                            {[-14, -7, 7, 14, 21].map((t) => (
-                                <span key={t} className="tj-tick" style={{ left: `${xp(t)}%` }}>
-                                    {t > 0 ? `+${t}` : t}
+                            {[-14, -7, 7, 14, 21].map((tick) => (
+                                <span key={tick} className="tj-tick" style={{ left: `${xp(tick)}%` }}>
+                                    {tick > 0 ? `+${tick}` : tick}
                                 </span>
                             ))}
                             {events.map((e, i) => {
@@ -342,7 +320,7 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                         data-k={e.kind}
                                         data-up={flip && e.kind === "exam"}
                                         style={{ left: `${xp(e.day)}%`, ["--m" as string]: MAG[e.kind], ["--d" as string]: i * 70 }}
-                                        title={`${KL[e.kind]}: ${e.text}`}
+                                        title={`${t(KL[e.kind])}: ${e.text}`}
                                     />
                                 );
                             })}
@@ -351,24 +329,24 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                             <ol className="tj-list">
                                 {events.map((e, i) => (
                                     <li key={i} data-k={e.kind} data-future={e.day >= 0}>
-                                        <time>{relDay(e.day)}</time>
+                                        <time>{relDay(t, e.day)}</time>
                                         <span>
-                                            {KL[e.kind]}
+                                            {t(KL[e.kind])}
                                             <small>{e.text}</small>
                                         </span>
                                     </li>
                                 ))}
                             </ol>
                         ) : (
-                            <p className="yt-muted">Không có sự kiện nào trong 5 tuần này.</p>
+                            <p className="yt-muted">{t("screens.doctor.fighter.noEvents")}</p>
                         )}
                     </Panel>
                     <Panel
-                        title="Giấy phép"
+                        title={t("screens.doctor.fighter.clearances")}
                         id="giay-phep"
                         aside={
-                            <Link className="yt-go" href={`${routes.doctor.clearance}?fighter=${fighter.id}`}>
-                                Tất cả <ArrowRight aria-hidden />
+                            <Link className="yt-go" href={routes.doctor.fighterClearance(fighter.id)}>
+                                {t("screens.doctor.all")} <ArrowRight aria-hidden />
                             </Link>
                         }
                     >
@@ -378,12 +356,12 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                     const s = clearanceBadge(c);
                                     const canRevoke = c.status === "active" && c.isCurrentlyValid !== false && c.level !== "not_cleared";
                                     return (
-                                        <li key={c.id} data-off={s.label !== "Hiệu lực"}>
-                                            <b>{c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level]}</b>
+                                        <li key={c.id} data-off={s.label !== "doctorUi.clearanceBadge.active"}>
+                                            <b>{t(c.clearanceType ? CLEARANCE_TYPE[c.clearanceType] : CLEARANCE_LEVEL[c.level])}</b>
                                             <small>
-                                                {fmtDate(c.issuedAt)} – {c.validUntil ? fmtDate(c.validUntil) : "không thời hạn"}
+                                                {fmtDate(c.issuedAt, locale)} – {c.validUntil ? fmtDate(c.validUntil, locale) : t("screens.doctor.fighter.noEnd")}
                                             </small>
-                                            <Pill tone={s.tone}>{s.label}</Pill>
+                                            <Pill tone={s.tone}>{t(s.label)}</Pill>
                                             {canRevoke && (
                                                 <span style={{ gridColumn: "1 / -1" }}>
                                                     <RevokeClearanceButton clearanceId={c.id} fighterId={fighter.id} fighterName={fighter.name} />
@@ -394,15 +372,15 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                 })}
                             </ul>
                         ) : (
-                            <p className="yt-muted">Chưa cấp giấy phép nào.</p>
+                            <p className="yt-muted">{t("screens.doctor.fighter.noClearances")}</p>
                         )}
                     </Panel>
                     <Panel
-                        title={`Yêu cầu xem xét · ${openReviews.length}`}
+                        title={t("screens.doctor.fighter.reviews", { n: openReviews.length })}
                         id="yeu-cau"
                         aside={
                             <Link className="yt-go" href={`${routes.doctor.reviewRequests}?fighter=${fighter.id}`}>
-                                Tất cả <ArrowRight aria-hidden />
+                                {t("screens.doctor.all")} <ArrowRight aria-hidden />
                             </Link>
                         }
                     >
@@ -412,51 +390,56 @@ export default async function DoctorFighterProfilePage({ params, searchParams }:
                                     <li key={r.id}>
                                         <b>{r.reason}</b>
                                         <small>
-                                            {REQUESTER_ROLE[r.requesterRole]} · {fmtDateTime(r.requestedAt)}
+                                            {t(REQUESTER_ROLE[r.requesterRole])} · {fmtDateTime(r.requestedAt, locale)}
                                         </small>
-                                        <Pill tone="amber">Đang mở</Pill>
+                                        <Pill tone="amber">{t("screens.doctor.fighter.reviewOpen")}</Pill>
                                     </li>
                                 ))}
                             </ul>
                         ) : (
-                            <p className="yt-muted">Không có yêu cầu xem xét đang mở.</p>
+                            <p className="yt-muted">{t("screens.doctor.fighter.noReviews")}</p>
                         )}
                     </Panel>
                     {medicalFeatureAvailable("aiObservations") && (
                         <Panel
-                            title="Quan sát AI"
+                            title={t("screens.doctor.fighter.observations")}
                             id="quan-sat"
                             aside={
                                 <Link className="yt-go" href={routes.doctor.aiAlerts}>
-                                    Tất cả <ArrowRight aria-hidden />
+                                    {t("screens.doctor.all")} <ArrowRight aria-hidden />
                                 </Link>
                             }
                         >
                             {observations === null ? (
-                                <p className="yt-muted">MMA Vision chưa trả lời. Phần còn lại của hồ sơ vẫn đầy đủ.</p>
+                                <p className="yt-muted">{t("screens.doctor.fighter.observationsUnavailable")}</p>
                             ) : observations.length ? (
                                 <ul className="hs-clr">
                                     {observations.slice(0, 3).map((a) => (
                                         <li key={a.id}>
                                             <Link href={routes.doctor.aiAlert(a.id)}>
-                                                <b>{BODY_REGION[a.bodyRegion]}</b>
+                                                <b>{t(BODY_REGION[a.bodyRegion])}</b>
                                             </Link>
                                             <small>
-                                                Biên độ {a.metric.observed}
-                                                {a.metric.unit} so với nền {a.metric.baseline}
-                                                {a.metric.unit} · {fmtDate(a.detectedAt)}
+                                                {t("screens.doctor.fighter.observationRange", {
+                                                    observed: a.metric.observed,
+                                                    baseline: a.metric.baseline,
+                                                    unit: a.metric.unit,
+                                                    date: fmtDate(a.detectedAt, locale),
+                                                })}
                                             </small>
-                                            <Pill tone={a.status === "new" ? "blue" : "neutral"}>{a.status === "new" ? "Mới" : "Đã xem"}</Pill>
+                                            <Pill tone={a.status === "new" ? "blue" : "neutral"}>
+                                                {t(a.status === "new" ? "screens.doctor.fighter.observationNew" : "screens.doctor.fighter.observationSeen")}
+                                            </Pill>
                                         </li>
                                     ))}
                                 </ul>
                             ) : (
-                                <p className="yt-muted">Chưa có quan sát nào cho võ sĩ này.</p>
+                                <p className="yt-muted">{t("screens.doctor.fighter.noObservations")}</p>
                             )}
                         </Panel>
                     )}
                 </div>
             </div>
-        </div>
+        </>
     );
 }

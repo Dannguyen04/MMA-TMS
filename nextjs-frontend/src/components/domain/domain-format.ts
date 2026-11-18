@@ -1,4 +1,4 @@
-import { formatNumber, pluralizeVi } from "@/lib/format";
+import { formatNumber, pluralize } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 
 /**
@@ -24,7 +24,7 @@ export function describeDaysUntil(days: number, locale: Locale = "vi"): string {
     if (days === 0) return "today";
     if (days === 1) return "tomorrow";
     if (days === -1) return "yesterday";
-    return days > 0 ? `sau ${pluralizeVi(days, "day")}` : `${pluralizeVi(-days, "day")} trước`;
+    return days > 0 ? `in ${pluralize(days, "day")}` : `${pluralize(-days, "day")} ago`;
 }
 
 /** Shown in place of a profile value the API hasn't provided yet. */

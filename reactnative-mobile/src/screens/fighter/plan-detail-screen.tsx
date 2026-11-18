@@ -15,6 +15,7 @@ import { EmptyCopy, FighterScreen, GlassCard, SectionLabel, StatusLine } from "@
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import { type, useThemePreference } from "@/theme";
+import { lh, liveSheet } from "@/theme/typography";
 
 export function FighterPlanDetailScreen() {
   const { colors } = useThemePreference();
@@ -149,7 +150,7 @@ function ExerciseRow({ row, name }: { row: TrainingPlanExercise; name?: string }
   );
 }
 
-const styles = StyleSheet.create({
+const styles = liveSheet(() => ({
   row: { minHeight: 44, justifyContent: "center", gap: 2 },
-  meta: { lineHeight: 16 },
-});
+  meta: { lineHeight: lh(16) },
+}));
