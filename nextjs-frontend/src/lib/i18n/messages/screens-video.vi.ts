@@ -604,7 +604,7 @@ export const viScreensVideo = {
     "screens.video.upload.listOr": "{list} hoặc {last}",
     "screens.video.upload.unsupported": "“{name}” không phải định dạng được hỗ trợ. Hãy tải lên {formats}.",
     "screens.video.upload.empty": "“{name}” là tệp rỗng. Hãy chọn tệp video gốc.",
-    "screens.video.upload.tooBig": "Tệp này nặng {size}. Giới hạn là {limit} — hãy cắt ngắn đoạn video hoặc xuất ở 1080p.",
+    "screens.video.upload.tooBig": "Tệp này nặng {size}. Giới hạn là {limit} — hãy cắt ngắn đoạn video hoặc xuất ở 720p.",
     "screens.video.upload.enterLength": "Nhập thời lượng ước tính của đoạn video.",
     "screens.video.upload.tooShort": "Đoạn video này dài {n} giây. Hãy tải lên ít nhất {min} giây để AI có đủ chuyển động để phân tích.",
     "screens.video.upload.tooLong": "Đoạn video này dài {length}. Hãy tải lên tối đa 15 phút — chia video dài thành từng hiệp.",

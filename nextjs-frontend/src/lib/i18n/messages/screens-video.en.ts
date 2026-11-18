@@ -603,7 +603,7 @@ export const enScreensVideo = {
     "screens.video.upload.listOr": "{list} or {last}",
     "screens.video.upload.unsupported": "“{name}” isn't a supported format. Upload {formats}.",
     "screens.video.upload.empty": "“{name}” is empty. Choose the original video file.",
-    "screens.video.upload.tooBig": "This file is {size}. The limit is {limit} — trim the clip or export it at 1080p.",
+    "screens.video.upload.tooBig": "This file is {size}. The limit is {limit} — trim the clip or export it at 720p.",
     "screens.video.upload.enterLength": "Enter the approximate length of the clip.",
     "screens.video.upload.tooShort": "This clip is {n} seconds long. Upload at least {min} seconds so the AI has enough movement to analyse.",
     "screens.video.upload.tooLong": "This clip is {length} long. Upload up to 15 minutes — split longer footage into rounds.",
