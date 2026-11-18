@@ -11,6 +11,7 @@ import type { Coach, Doctor, Fighter } from "@/lib/domain/types";
 import { formatDate, formatNumber, formatRelative } from "@/lib/format";
 import type { Locale } from "@/lib/i18n/config";
 import { createTranslator } from "@/lib/i18n/translate";
+import { cn } from "@/lib/utils";
 import { BodyMetricsDialog } from "./body-metrics-dialog";
 
 /* ─── Fight profile ───────────────────────────────────────────────────────── */
@@ -140,7 +141,10 @@ export function CareTeamCard({ coaches, doctors, primaryCoachId, locale = "en" }
     return (
         <Card className="min-w-0">
             <CardHeader title={t("account.careTeam.title")} icon={<Users />} />
-            <CardContent className="grid grid-cols-1 gap-5 sm:grid-cols-2 sm:gap-6">
+            <CardContent className={cn("grid grid-cols-1 gap-5 sm:gap-6", coaches.length > 0 && "sm:grid-cols-2")}>
+                {/* A fighter's account can't read coach assignments from the service, so an empty list means "unknown",
+                    not "no coach": the section stays out rather than telling the fighter nobody coaches them. */}
+                {coaches.length > 0 && (
                 <TeamSection
                     id="care-team-coaches"
                     heading={t("account.careTeam.coaches")}
@@ -152,6 +156,7 @@ export function CareTeamCard({ coaches, doctors, primaryCoachId, locale = "en" }
                         badge: coach.id === primaryCoachId ? t("account.careTeam.primaryCoach") : null,
                     }))}
                 />
+                )}
                 <TeamSection
                     id="care-team-doctors"
                     heading={t("account.careTeam.doctors")}

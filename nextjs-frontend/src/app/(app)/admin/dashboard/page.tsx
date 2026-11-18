@@ -2,7 +2,7 @@ import { Activity, BellOff, BrainCircuit, CircleAlert, CircleX, Clock, Hourglass
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { adminQueueMeta, ADMIN_QUEUES, buildAdminAttention, type AdminQueue } from "@/components/admin/admin-attention";
+import { adminQueueMeta, buildAdminAttention, type AdminQueue } from "@/components/admin/admin-attention";
 import { countLabel, modelTaskLabel, pipelineStageLabel, ROLE_ORDER, roleLabel, splitAround } from "@/components/admin/admin-format";
 import { ModelStatusBadge } from "@/components/admin/admin-badges";
 import { AuditActivityList } from "@/components/admin/audit-activity-list";
@@ -32,7 +32,6 @@ import { hrefWith, parseEnum } from "@/lib/query";
 import { routes } from "@/lib/routes";
 import { getAdminOverview, getSettings } from "@/lib/services/admin";
 import { adminFeatureAvailable } from "@/lib/services/admin-features";
-import { listApplications } from "@/lib/services/admissions";
 import { getAIJobStats, listAIJobs, listAIModels, type AIJobListItem } from "@/lib/services/ai";
 import { nullIfServiceFails } from "@/lib/services/api-helpers";
 import { listAuditLogs } from "@/lib/services/audit";
@@ -52,6 +51,8 @@ const QUEUE_BACKLOG = 5;
 const FAILED_SIGN_IN_ALERT = 3;
 const RECENT_FAILURE_LIMIT = 3;
 const TASKS = Object.keys(AI_MODEL_TASK_LABELS) as AIModelTask[];
+/** Admissions are out of scope since the fight-camp pivot: the queue only carries care-team gaps. */
+const QUEUES: readonly AdminQueue[] = ["careTeam"];
 
 /**
  * The administrator's Today page answers one question: who is waiting on me? One queue of the hand-offs only an
@@ -68,8 +69,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
     const showActivity = platformFeatureAvailable("auditLogs");
     const showModels = platformFeatureAvailable("aiModels");
 
-    const [applications, careTeamGaps, coaches, overview, pipeline, models, settings, failedSignIns] = await Promise.all([
-        listApplications(),
+    const [careTeamGaps, coaches, overview, pipeline, models, settings, failedSignIns] = await Promise.all([
         listCareTeamGaps(admin),
         listStaffAccounts("coach"),
         getAdminOverview(nowDate),
@@ -82,8 +82,8 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
     const [stats, jobs] = pipeline ?? [null, []];
     const coachName = (coachId: string) => coaches.find((coach) => coach.staffId === coachId)?.name ?? t("role.coach");
 
-    const attention = buildAdminAttention({ applications, careTeamGaps, coachName, now, locale });
-    const queue = parseEnum(param(query.queue), ADMIN_QUEUES);
+    const attention = buildAdminAttention({ applications: [], careTeamGaps, coachName, now, locale });
+    const queue = parseEnum(param(query.queue), QUEUES);
 
     const processing = jobs.filter(({ job }) => job.status === "processing").sort((a, b) => (a.job.startedAt ?? "").localeCompare(b.job.startedAt ?? ""));
     const queued = jobs.filter(({ job }) => job.status === "queued").sort((a, b) => a.job.queuedAt.localeCompare(b.job.queuedAt));
@@ -196,7 +196,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps<"/a
                         title={t("screens.admin.today.queueTitle")}
                         filterLabel={t("screens.admin.today.queueFilter")}
                         items={attention}
-                        queues={ADMIN_QUEUES}
+                        queues={QUEUES}
                         meta={adminQueueMeta(t)}
                         active={queue}
                         hrefFor={(next: AdminQueue | null) => hrefWith(routes.admin.dashboard, query, { queue: next })}

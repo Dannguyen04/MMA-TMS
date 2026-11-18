@@ -402,7 +402,8 @@ function SessionPanel({ next, now, t, locale }: { next: Extract<NextUp, { kind: 
             </div>
             <dl className="grid grid-cols-3 gap-3 text-[13px]">
                 <Fact label={t("hero.where")} value={session.location} />
-                <Fact label={t("hero.coach")} value={coachName ?? t("hero.toBeConfirmed")} />
+                {/* Unknown on a fighter's own account (coach assignments aren't readable there): left out, not "to be confirmed". */}
+                {coachName && <Fact label={t("hero.coach")} value={coachName} />}
                 {intensity && <Fact label={t("hero.intensity")} value={intensity} />}
             </dl>
             {note}

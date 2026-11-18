@@ -46,12 +46,15 @@ export function CareTeamCard({ members, className, locale = "en" }: { members: C
             empty: t("careTeam.noCoach"),
         },
     ];
+    // A fighter's account can't read coach assignments from the service, so no coaches means "unknown", not "none":
+    // the coaching group stays out rather than telling the fighter nobody coaches them.
+    const shown = groups.filter((group) => group.items.length > 0 || group.label !== t("careTeam.coaching"));
 
     return (
         <Card className={cn("min-w-0", className)}>
             <CardHeader title={t("careTeam.title")} icon={<UsersRound />} />
             <div className="flex flex-col gap-4 px-5 pb-5">
-                {groups.map((group) =>
+                {shown.map((group) =>
                     group.items.length === 0 ? (
                         <div key={group.label}>
                             <h3 className="mb-1 text-xs font-semibold tracking-wide text-fg-subtle uppercase">{group.label}</h3>

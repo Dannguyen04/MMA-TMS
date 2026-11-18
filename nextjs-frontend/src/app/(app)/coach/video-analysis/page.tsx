@@ -71,7 +71,9 @@ async function ReviewSections({ user, now }: { user: User; now: string }) {
 
     return (
         <>
-            <ReviewQueue items={queue} now={now} />
+            {/* The service has no per-analysis queue yet (API mode answers an empty list), so an empty queue stays out
+                instead of claiming everything is reviewed; videos awaiting review still show in the library below. */}
+            {queue.length > 0 && <ReviewQueue items={queue} now={now} />}
             {attention.length > 0 && (
                 <Card>
                     <CardHeader icon={<LoaderCircle />} title={copy("Processing and needs attention")} />

@@ -193,7 +193,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
 
                 {!journey.complete && !journeyInHero && <FighterJourney journey={journey} variant="compact" locale={locale} />}
 
-                <ReadinessStrip label={t("fighterToday.readiness")}>
+                <ReadinessStrip label={t("fighterToday.readiness")} className={goalsAvailable ? undefined : "lg:grid-cols-4"}>
                     <ReadinessCell
                         label={t("fighterToday.medicalClearance")}
                         value={<ClearanceBadge state={clearanceState} locale={locale} />}
@@ -230,7 +230,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                         value={<ReadinessNumber value={week.completed} unit={t("fighterToday.sessionsDone", { total: week.planned })} />}
                         hint={weekHint(t, { ...week, paused })}
                         href={routes.fighter.schedule}
-                        className="sm:col-span-3 lg:col-span-1"
+                        className={goalsAvailable ? "sm:col-span-3 lg:col-span-1" : "sm:col-span-6 lg:col-span-1"}
                     >
                         {(week.planned > 0 || week.pending > 0) && (
                             <span className="flex flex-col gap-2">
@@ -253,6 +253,8 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                             </span>
                         )}
                     </ReadinessCell>
+                    {/* Goals have no service yet: the cell stays out until they do, rather than promising a later release. */}
+                    {goalsAvailable && (
                     <ReadinessCell
                         label={t("fighterToday.goals")}
                         value={
@@ -282,6 +284,7 @@ export default async function FighterDashboardPage({ searchParams }: PageProps<"
                             />
                         )}
                     </ReadinessCell>
+                    )}
                 </ReadinessStrip>
 
                 <Card className="min-w-0">
