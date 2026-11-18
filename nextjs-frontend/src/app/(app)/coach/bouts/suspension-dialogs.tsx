@@ -3,6 +3,7 @@
 import { ShieldCheck, ShieldPlus } from "lucide-react";
 import { useState } from "react";
 
+import { InfoHint } from "@/components/domain/term-hint";
 import { useLocale, useT } from "@/components/i18n/locale-provider";
 import { ActionDialog } from "@/components/ui/action-dialog";
 import { Button } from "@/components/ui/button";
@@ -186,11 +187,11 @@ export function ClearSuspensionButton({ suspensionId, fighterName }: { suspensio
                 onSuccess={notify}
             >
                 {(form) => {
-                    const note = form.control("clearanceNote", { required: true, hint: true });
+                    const note = form.control("clearanceNote", { required: true });
                     return (
                         <>
                             <input type="hidden" name="suspensionId" value={suspensionId} />
-                            <Field label={t("coachBouts.clearDialog.basedOn")} htmlFor={note.id} required error={form.error("clearanceNote")} hint={t("coachBouts.clearDialog.basedOnHint")}>
+                            <Field label={t("coachBouts.clearDialog.basedOn")} htmlFor={note.id} required error={form.error("clearanceNote")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("coachBouts.clearDialog.basedOn") })} content={t("coachBouts.clearDialog.basedOnHint")} />}>
                                 <Textarea {...note} rows={3} maxLength={300} />
                             </Field>
                         </>

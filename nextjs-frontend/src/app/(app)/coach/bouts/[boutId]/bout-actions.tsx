@@ -3,6 +3,7 @@
 import { Ban, CalendarPlus, Flag, Link2, Pencil, Scale, ShieldAlert, Trophy } from "lucide-react";
 import { useState } from "react";
 
+import { InfoHint } from "@/components/domain/term-hint";
 import { useT } from "@/components/i18n/locale-provider";
 import { Callout } from "@/components/training/callout";
 import { ActionDialog } from "@/components/ui/action-dialog";
@@ -72,8 +73,8 @@ export function EditBoutButton({ bout, ruleset, todayOn }: { bout: CampBout; rul
                 onSuccess={notify}
             >
                 {(form) => {
-                    const due = form.control("requirementsDueDays", { required: true, hint: true });
-                    const reason = form.control("changeReason", { hint: true });
+                    const due = form.control("requirementsDueDays", { required: true });
+                    const reason = form.control("changeReason");
                     const notes = form.control("notes");
                     return (
                         <>
@@ -81,11 +82,11 @@ export function EditBoutButton({ bout, ruleset, todayOn }: { bout: CampBout; rul
                             <EventFields form={form} defaults={defaults} />
                             <RulesetNote ruleset={ruleset} />
                             <WeightClassField form={form} ruleset={ruleset} defaults={defaults} />
-                            <Field label={t("boutDetail.edit.changeReason")} htmlFor={reason.id} optional error={form.error("changeReason")} hint={t("boutDetail.edit.changeReasonHint")}>
+                            <Field label={t("boutDetail.edit.changeReason")} htmlFor={reason.id} optional error={form.error("changeReason")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.edit.changeReason") })} content={t("boutDetail.edit.changeReasonHint")} />}>
                                 <Input {...reason} maxLength={300} />
                             </Field>
                             <ScheduleFields form={form} ruleset={ruleset} defaults={defaults} todayOn={todayOn} />
-                            <Field label={t("boutDetail.edit.dueDays")} htmlFor={due.id} required error={form.error("requirementsDueDays")} hint={t("boutDetail.edit.dueDaysHint")}>
+                            <Field label={t("boutDetail.edit.dueDays")} htmlFor={due.id} required error={form.error("requirementsDueDays")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.edit.dueDays") })} content={t("boutDetail.edit.dueDaysHint")} />}>
                                 <Input {...due} inputMode="numeric" defaultValue={String(bout.requirementsDueDays)} className="w-28" />
                             </Field>
                             <Field label={t("boutDetail.common.notes")} htmlFor={notes.id} optional error={form.error("notes")}>
@@ -123,7 +124,7 @@ export function CancelBoutButton({ bout }: { bout: CampBout }) {
             >
                 {(form) => {
                     const reason = form.control("reason", { required: true });
-                    const note = form.control("note", { hint: true });
+                    const note = form.control("note");
                     return (
                         <>
                             <input type="hidden" name="boutId" value={bout.id} />
@@ -137,7 +138,7 @@ export function CancelBoutButton({ bout }: { bout: CampBout }) {
                                     ))}
                                 </Select>
                             </Field>
-                            <Field label={t("boutDetail.common.note")} htmlFor={note.id} error={form.error("note")} hint={t("boutDetail.cancel.noteHint")}>
+                            <Field label={t("boutDetail.common.note")} htmlFor={note.id} error={form.error("note")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.common.note") })} content={t("boutDetail.cancel.noteHint")} />}>
                                 <Textarea {...note} rows={3} maxLength={300} />
                             </Field>
                         </>
@@ -284,7 +285,7 @@ export function WeighInButton({ bout }: { bout: CampBout }) {
             >
                 {(form) => {
                     const weightControl = form.control("weightKg", { required: true });
-                    const hydrationControl = form.control("hydrationCheck", { hint: true });
+                    const hydrationControl = form.control("hydrationCheck");
                     const catchweight = form.control("catchweightKg", { required: true });
                     const note = form.control("note");
                     return (
@@ -302,7 +303,7 @@ export function WeighInButton({ bout }: { bout: CampBout }) {
                                           : t("boutDetail.weighIn.made")}
                                 </p>
                             )}
-                            <Field label={t("boutDetail.common.hydrationCheck")} htmlFor={hydrationControl.id} optional error={form.error("hydrationCheck")} hint={t("boutDetail.weighIn.hydrationHint")}>
+                            <Field label={t("boutDetail.common.hydrationCheck")} htmlFor={hydrationControl.id} optional error={form.error("hydrationCheck")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.common.hydrationCheck") })} content={t("boutDetail.weighIn.hydrationHint")} />}>
                                 <Select {...hydrationControl} value={hydration} onChange={(event) => setHydration(event.target.value)}>
                                     <option value="">{t("boutDetail.weighIn.notRecorded")}</option>
                                     {HYDRATION_CHECKS.map((value) => (
@@ -385,12 +386,12 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                 {(form) => {
                     const resultControl = form.control("result", { required: true });
                     const methodControl = form.control("method", { required: true });
-                    const round = form.control("round", { hint: true, required: roundRule === "REQUIRED" });
+                    const round = form.control("round", { required: roundRule === "REQUIRED" });
                     const loc = form.control("lossOfConsciousness", { required: true });
                     const head = form.control("stoppedByHeadStrikes", { required: true });
                     const knockedDown = form.control("knockedDown");
-                    const suspensionDays = form.control("suspensionDays", { hint: true });
-                    const injury = form.control("injuryNote", { hint: true });
+                    const suspensionDays = form.control("suspensionDays");
+                    const injury = form.control("injuryNote");
                     const notes = form.control("notes");
                     return (
                         <>
@@ -423,8 +424,7 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                                     htmlFor={round.id}
                                     required={roundRule === "REQUIRED"}
                                     optional={roundRule === "OPTIONAL"}
-                                    error={form.error("round")}
-                                    hint={roundRule === "REQUIRED" ? t("boutDetail.result.roundRequiredHint") : t("boutDetail.result.roundHint")}
+                                    error={form.error("round")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.result.round") })} content={roundRule === "REQUIRED" ? t("boutDetail.result.roundRequiredHint") : t("boutDetail.result.roundHint")} />}
                                 >
                                     <Input {...round} inputMode="numeric" className="w-28" />
                                 </Field>
@@ -455,8 +455,7 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                                     label={t("boutDetail.result.suspensionDays")}
                                     htmlFor={suspensionDays.id}
                                     optional
-                                    error={form.error("suspensionDays")}
-                                    hint={t("boutDetail.result.suspensionDaysHint")}
+                                    error={form.error("suspensionDays")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.result.suspensionDays") })} content={t("boutDetail.result.suspensionDaysHint")} />}
                                 >
                                     <Input {...suspensionDays} inputMode="numeric" className="w-28" />
                                 </Field>
@@ -468,7 +467,7 @@ export function ResultButton({ bout }: { bout: CampBout }) {
                                 label={t("boutDetail.result.knockedDown")}
                                 description={t("boutDetail.result.knockedDownDescription")}
                             />
-                            <Field label={t("boutDetail.result.injuries")} htmlFor={injury.id} optional error={form.error("injuryNote")} hint={t("boutDetail.result.injuriesHint")}>
+                            <Field label={t("boutDetail.result.injuries")} htmlFor={injury.id} optional error={form.error("injuryNote")} info={<InfoHint label={t("screens.shared.infoHint", { label: t("boutDetail.result.injuries") })} content={t("boutDetail.result.injuriesHint")} />}>
                                 <Textarea {...injury} rows={2} maxLength={500} />
                             </Field>
                             <Field label={t("boutDetail.common.notes")} htmlFor={notes.id} optional error={form.error("notes")}>
