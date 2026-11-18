@@ -298,7 +298,7 @@ export const enScreensAdmin = {
     "screens.admin.today.queueTitle": "Waiting for you",
     "screens.admin.today.queueFilter": "Filter your queue",
     "screens.admin.today.queueEmptyTitle": "Nothing needs you right now",
-    "screens.admin.today.queueEmptyDescription": "Every applicant has an assessing coach or a decision, and every fighter has a coach and a sports doctor.",
+    "screens.admin.today.queueEmptyDescription": "Every fighter has a coach and a sports doctor.",
     "screens.admin.today.usersByRole": "Users by role",
     "screens.admin.today.usersByRoleDescription": "{accounts} of every status",
     "screens.admin.today.accountsPerRole": "Accounts per role",

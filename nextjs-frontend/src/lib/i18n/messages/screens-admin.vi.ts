@@ -298,7 +298,7 @@ export const viScreensAdmin = {
     "screens.admin.today.queueTitle": "Đang chờ bạn",
     "screens.admin.today.queueFilter": "Lọc hàng chờ của bạn",
     "screens.admin.today.queueEmptyTitle": "Hiện không có việc cần bạn",
-    "screens.admin.today.queueEmptyDescription": "Mọi người đăng ký đều đã có HLV đánh giá hoặc quyết định, và mọi võ sĩ đều có HLV và bác sĩ thể thao.",
+    "screens.admin.today.queueEmptyDescription": "Mọi võ sĩ đều đã có HLV và bác sĩ thể thao.",
     "screens.admin.today.usersByRole": "Người dùng theo vai trò",
     "screens.admin.today.usersByRoleDescription": "{accounts} ở mọi trạng thái",
     "screens.admin.today.accountsPerRole": "Số tài khoản theo vai trò",
