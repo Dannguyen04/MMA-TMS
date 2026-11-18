@@ -69,7 +69,9 @@ export class VideosService {
     private readonly access: VideoAccessService,
   ) {
     this.bucket = config.get<string>('VIDEO_STORAGE_BUCKET', 'videos');
-    this.maxBytes = config.get<number>('VIDEO_MAX_SIZE_MB', 500) * 1024 * 1024;
+    // 50 MB: the per-file limit of Supabase Storage on the free plan, which receives the uploads directly.
+    this.maxBytes =
+      Number(config.get<string | number>('VIDEO_MAX_SIZE_MB', 50)) * 1024 * 1024;
   }
 
   async upload(
