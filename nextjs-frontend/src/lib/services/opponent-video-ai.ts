@@ -100,7 +100,9 @@ export async function suggestObservationsFromVideo(url: string, who: string): Pr
                     responseMimeType: "application/json",
                     responseSchema: RESPONSE_SCHEMA,
                     mediaResolution: "MEDIA_RESOLUTION_LOW",
-                    maxOutputTokens: 2048,
+                    // Gemini 3 models count their thinking tokens against this limit; 2048 left about 65 tokens for the
+                    // answer, so the JSON was cut off and the call failed as EMPTY (found 19/11/2026).
+                    maxOutputTokens: 8192,
                 },
             }),
             signal: deadline,
