@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { apiFetch } from "./client";
 import { ApiError } from "./errors";
+import { http } from "./http";
 import { cacheUser, clearSession, getMemorySession, loadCachedUser, onSessionExpired, persistSession } from "./tokens";
 import type { AuthSession } from "./types";
 import { isTransientFailure, keepsSession } from "@/session/session-context";
@@ -22,14 +23,14 @@ beforeEach(async () => {
   calls.length = 0;
   replies = [];
   await clearSession();
-  globalThis.fetch = jest.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
-    const u = String(url);
-    calls.push({ url: u, auth: new Headers(init?.headers).get("Authorization"), body: typeof init?.body === "string" ? init.body : undefined });
+  http.defaults.adapter = jest.fn(async (config) => {
+    const u = String(config.url);
+    calls.push({ url: u, auth: config.headers.get("Authorization") as string ?? null, body: typeof config.data === "string" ? config.data : undefined });
     const next = replies.shift();
     const r = next ? next(u) : ok({});
     if (r === "offline") throw new TypeError("Network request failed");
-    return { status: r.status, ok: r.status < 400, text: async () => JSON.stringify(r.body) } as unknown as Response;
-  }) as typeof fetch;
+    return { data: JSON.stringify(r.body), status: r.status, statusText: "", headers: {}, config };
+  });
 });
 
 describe("staying signed in", () => {

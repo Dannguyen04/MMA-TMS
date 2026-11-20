@@ -1,4 +1,5 @@
 import { API_BASE_URL } from "./config";
+import { http, type HttpRequestConfig } from "./http";
 import { ApiError, apiErrorFromBody } from "./errors";
 import {
   clearSession,
@@ -44,8 +45,7 @@ function joinUrl(path: string): string {
   return `${API_BASE_URL}${suffix}`;
 }
 
-async function parseJson(response: Response): Promise<unknown> {
-  const text = await response.text();
+function parseJson(text: string): unknown {
   if (!text) return null;
   try {
     return JSON.parse(text) as unknown;
@@ -109,31 +109,33 @@ export async function refreshSession(): Promise<RefreshResult> {
 }
 
 export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): Promise<T> {
-  const { skipAuth, skipRefresh: _skipRefresh, headers, ...init } = options;
+  const { skipAuth, headers, body: requestBody, method, signal, credentials } = options;
   const url = joinUrl(path);
-  const headerBag = new Headers(headers);
-
-  if (init.body != null && !headerBag.has("Content-Type")) {
-    headerBag.set("Content-Type", "application/json");
-  }
+  const headerBag: Record<string, string> = {};
+  new Headers(headers).forEach((value, key) => { headerBag[key] = value; });
 
   if (!skipAuth) {
-    let session = getMemorySession() ?? (await loadStoredSession());
+    const session = getMemorySession() ?? (await loadStoredSession());
     // Refresh ahead of expiry (app reopened after an hour, phone woke up) instead of waiting for a 401.
     const left = session ? secondsLeft(session) : null;
     if (session && left != null && left < REFRESH_EARLY_SECONDS && shouldAttemptRefresh(path, options)) {
-      const next = await refreshSession();
-      if (next.kind === "ok") session = next.session;
-      else if (next.kind === "expired") session = null;
-    }
-    if (session?.accessToken) {
-      headerBag.set("Authorization", `Bearer ${session.accessToken}`);
+      // The request interceptor reads the session after refresh has persisted/cleared it.
+      await refreshSession();
     }
   }
 
-  let response: Response;
+  let response;
   try {
-    response = await fetch(url, { ...init, headers: headerBag });
+    const config: HttpRequestConfig = {
+      url,
+      method: method ?? "GET",
+      data: requestBody,
+      headers: headerBag,
+      signal: signal ?? undefined,
+      skipAuth,
+      ...(credentials ? { withCredentials: credentials === "include" } : {}),
+    };
+    response = await http.request<string>(config);
   } catch (cause) {
     const name = cause instanceof Error ? cause.name : "unknown";
     const detail = cause instanceof Error ? cause.message : String(cause);
@@ -149,8 +151,8 @@ export async function apiFetch<T>(path: string, options: ApiFetchOptions = {}): 
     }
   }
 
-  const body = await parseJson(response);
-  if (!response.ok) {
+  const body = parseJson(response.data);
+  if (response.status < 200 || response.status >= 300) {
     const err = apiErrorFromBody(response.status, body);
     // HTTP 401 JSON (INVALID_CREDENTIALS) is not a network failure.
     devLog("[api] http error", {
