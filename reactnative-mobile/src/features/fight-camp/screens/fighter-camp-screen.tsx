@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useFocusEffect, useRouter } from "expo-router";
 import { View } from "react-native";
 import { campApi, type CampDetail, type Suspension } from "@/features/fight-camp/api";
-import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters";
+import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters/fighters";
 import { useSession } from "@/session/session-context";
 import { useThemePreference } from "@/theme/index";
 import { Action, Busy, CampShell, Copy, Fact, Frame, Notice, SvgTitle, WeightPlot, WeightSlip } from "@/shared/ui/camp-ui";

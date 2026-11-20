@@ -1,4 +1,4 @@
-import { toAnalysisJob } from "@/api/media";
+import { toAnalysisJob } from "@/api/video/media";
 
 import { uploadIssue } from "./upload-rules";
 

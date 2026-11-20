@@ -1,4 +1,4 @@
-import type { CoachingState, FindingReviewStatus, MovementReviewState } from "@/api/evidence";
+import type { CoachingState, FindingReviewStatus, MovementReviewState } from "@/api/video/evidence";
 
 export type FindingReview = CoachingState["reviews"][number];
 export type WindowReview = MovementReviewState["reviews"][number];

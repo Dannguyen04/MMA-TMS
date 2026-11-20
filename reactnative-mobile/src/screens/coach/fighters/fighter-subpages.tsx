@@ -2,10 +2,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
-import { coachApi } from "@/api/coach";
-import { isApiError } from "@/api/errors";
-import { listAnalysisJobs, listVideos } from "@/api/media";
-import { createFighterReviewRequest, listFighterMedicalExaminations, listFighterMedicalHistory, listFighterReviewRequests } from "@/api/medical";
+import { coachApi } from "@/api/coach/coach";
+import { isApiError } from "@/api/core/errors";
+import { listAnalysisJobs, listVideos } from "@/api/video/media";
+import { createFighterReviewRequest, listFighterMedicalExaminations, listFighterMedicalHistory, listFighterReviewRequests } from "@/api/medical/medical";
 import type { MedicalExamination, MedicalHistoryEntry, Paginated } from "@/api/types";
 import { REVIEW_REASON_MAX } from "@/components/medical/review-request-panel";
 import { decisionLabel, describeSnapshot, recordTypeLabel, scopeLabel } from "@/components/medical/medical-format";

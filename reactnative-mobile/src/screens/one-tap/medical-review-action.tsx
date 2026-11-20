@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 
-import { oneTapApi } from "@/api/one-tap";
+import { oneTapApi } from "@/api/medical/one-tap";
 import { ot } from "@/i18n/one-tap";
 import { StatusChip } from "@/screens/coach/readonly/ro-ui";
 

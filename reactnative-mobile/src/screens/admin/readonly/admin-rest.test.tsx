@@ -23,7 +23,7 @@ const users = [
   { id: "u2", email: "kenji@lotus-combat.test", role: "FIGHTER", isActive: false, createdAt: "2026-09-02T00:00:00Z", updatedAt: "2026-11-10T00:00:00Z",
     profile: { id: "f2", firstName: "Kenji", lastName: "Morita", weightClass: "FEATHERWEIGHT", dateOfBirth: "1999-03-14", gym: "Lotus Combat Academy" } },
 ];
-jest.mock("@/api/admin", () => ({
+jest.mock("@/api/admin/admin", () => ({
   adminApi: {
     listUsers: () => Promise.resolve({ items: mockUsers, total: 2, page: 1, limit: 20 }),
     getUser: (id: string) => Promise.resolve(mockUsers.find((u: { id: string }) => u.id === id)),
@@ -34,7 +34,7 @@ jest.mock("@/api/admin", () => ({
     listFighterCoaches: () => Promise.resolve([{ id: "c1", coachName: "Lê Hùng", startsAt: "2026-09-01T00:00:00Z", endsAt: null }]),
   },
 }));
-jest.mock("@/api/coach", () => ({ coachApi: { getFighter: () => Promise.resolve({ id: "f2", firstName: "Kenji", lastName: "Morita", weightClass: "FEATHERWEIGHT", gym: "Lotus Combat Academy" }) } }));
+jest.mock("@/api/coach/coach", () => ({ coachApi: { getFighter: () => Promise.resolve({ id: "f2", firstName: "Kenji", lastName: "Morita", weightClass: "FEATHERWEIGHT", gym: "Lotus Combat Academy" }) } }));
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const mockUsers: any = users;
 

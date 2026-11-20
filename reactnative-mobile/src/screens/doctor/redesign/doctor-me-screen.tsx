@@ -2,9 +2,9 @@ import { useCallback, useState } from "react";
 import { Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { USE_MOCK_DOCTOR } from "@/api/doctor-ro";
-import { MOCK_DOCTOR_SPECIALIZATION } from "@/api/doctor-ro.mock";
-import { videoAiApi } from "@/api/video-ai";
+import { USE_MOCK_DOCTOR } from "@/api/doctor/doctor-ro";
+import { MOCK_DOCTOR_SPECIALIZATION } from "@/api/doctor/doctor-ro.mock";
+import { videoAiApi } from "@/api/video/video-ai";
 import { Icon } from "@/components/icon";
 import { PressableScale, StaggerList } from "@/components/motion";
 import { RolePage } from "@/components/role-page";

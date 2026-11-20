@@ -16,12 +16,12 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, navigate: mockNavigate, replace: jest.fn(), back: jest.fn(), canGoBack: () => true }),
   useLocalSearchParams: () => mockParams,
 }));
-jest.mock("@/api/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach.mock").mockCoachApi }));
-jest.mock("@/api/coach-nav", () => {
-  const mock = jest.requireActual("@/api/coach-nav.mock").mockCoachNavApi;
+jest.mock("@/api/coach/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach/coach.mock").mockCoachApi }));
+jest.mock("@/api/coach/coach-nav", () => {
+  const mock = jest.requireActual("@/api/coach/coach-nav.mock").mockCoachNavApi;
   return { coachNavApi: { ...mock, unreadCount: () => mockUnread() } };
 });
-jest.mock("@/api/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video-ai.mock").mockVideoAiApi }));
+jest.mock("@/api/video/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video/video-ai.mock").mockVideoAiApi }));
 jest.mock("@/session/session-context", () => ({
   useSession: () => ({
     user: { id: "u-c", email: "hlv@mmavision.vn", role: "COACH", profile: { id: "c-1", firstName: "Lê", lastName: "Hùng", specialization: "Muay Thai", isHeadCoach: true } },

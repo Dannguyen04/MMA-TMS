@@ -7,7 +7,7 @@ import {
   submitCoachCorrection,
   type FindingReviewStatus,
   type MovementDecision,
-} from "@/api/evidence";
+} from "@/api/video/evidence";
 import { BottomSheet } from "@/components/filter-sheet";
 import { showAppToast } from "@/components/toast/app-toast";
 import type { EvidenceWindow, ResultFinding } from "@/components/video/pose-model";

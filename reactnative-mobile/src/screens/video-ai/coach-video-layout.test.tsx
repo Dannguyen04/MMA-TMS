@@ -21,7 +21,7 @@ jest.mock("expo-video", () => ({
   }),
   VideoView: () => null,
 }));
-jest.mock("@/api/video-ai", () => ({
+jest.mock("@/api/video/video-ai", () => ({
   videoAiApi: {
     getJobResult: jest.fn().mockResolvedValue({
       movementEvidence: { windows: [{ id: "w-1", startMs: 0, endMs: 5000 }, { id: "w-2", startMs: 5000, endMs: 9000 }] },

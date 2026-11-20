@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import type { CampBout, Suspension } from "@/features/fight-camp/api";
 import type { TrainingPlan, TrainingSession } from "@/api/types";
-import type { AiJob } from "@/api/video-ai.types";
+import type { AiJob } from "@/api/video/video-ai.types";
 import { previewBout, previewSuspension } from "@/features/fight-camp/state/camp-preview";
 import { healthLine, nearestBout, planLine, shortSession, upcoming, videoLine, weightLine } from "./fighter-home-model";
 

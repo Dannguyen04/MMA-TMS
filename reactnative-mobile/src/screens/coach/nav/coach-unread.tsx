@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { coachNavApi } from "@/api/coach-nav";
+import { coachNavApi } from "@/api/coach/coach-nav";
 import { Icon } from "@/components/icon";
 import { coachRo } from "@/i18n/coach-ro";
 import { badgeText } from "@/screens/doctor/redesign/doctor-unread";

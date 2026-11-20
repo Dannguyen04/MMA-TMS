@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
 import { useRouter } from "expo-router";
 
-import { USE_MOCK_VIDEO_AI, videoAiApi } from "@/api/video-ai";
-import type { AiJob } from "@/api/video-ai.types";
+import { USE_MOCK_VIDEO_AI, videoAiApi } from "@/api/video/video-ai";
+import type { AiJob } from "@/api/video/video-ai.types";
 import { useDoctorRoster } from "@/screens/doctor/redesign/doctor-roster";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
 import { useFighterNames } from "@/screens/coach/readonly/use-coach";

@@ -32,22 +32,22 @@ jest.mock("@/session/session-context", () => ({ useSession: () => ({ isDemo: fal
 
 const mockUsers = jest.fn();
 const mockFighters = jest.fn(() => Promise.reject(new Error("Network request failed")));
-jest.mock("@/api/admin", () => ({
+jest.mock("@/api/admin/admin", () => ({
   adminApi: {
     listUsers: (q: { role?: string; status?: string }) => mockUsers(q),
     unreadCount: () => Promise.resolve({ count: 0 }),
     listNotifications: () => Promise.resolve({ data: [], total: 0, hasNextPage: false }),
   },
 }));
-jest.mock("@/api/coach", () => ({
+jest.mock("@/api/coach/coach", () => ({
   coachApi: {
     listFighters: () => mockFighters(),
     listSessions: () => Promise.resolve({ data: [], total: 0, hasNextPage: false }),
   },
 }));
 
-jest.mock("@/api/admissions", () => ({ listApplications: () => Promise.resolve({ items: [{ status: "SUBMITTED" }], total: 1 }) }));
-jest.mock("@/api/video-ai", () => ({ videoAiApi: { listJobs: () => Promise.resolve([]) } }));
+jest.mock("@/api/admissions/admissions", () => ({ listApplications: () => Promise.resolve({ items: [{ status: "SUBMITTED" }], total: 1 }) }));
+jest.mock("@/api/video/video-ai", () => ({ videoAiApi: { listJobs: () => Promise.resolve([]) } }));
 
 // 2026-10-19 16:00 UTC = 23:00 thứ Hai giờ Việt Nam.
 const NOW = Date.parse("2026-10-19T16:00:00Z");

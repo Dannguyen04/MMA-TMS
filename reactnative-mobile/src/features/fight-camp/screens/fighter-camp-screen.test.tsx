@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { campApi } from "@/features/fight-camp/api";
-import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters";
+import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters/fighters";
 import { dayKey } from "@/features/fight-camp/logic/camp-rules";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { FighterCampScreen, FighterDailyWeightScreen } from "./fighter-camp-screen";
@@ -9,7 +9,7 @@ import { FighterCampScreen, FighterDailyWeightScreen } from "./fighter-camp-scre
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: jest.fn(), replace: jest.fn() }), useFocusEffect: () => undefined }));
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ isDemo: false, user: { id: "u1", profile: { id: "f1" } } }) }));
 jest.mock("@/theme/index", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light }) }));
-jest.mock("@/api/fighters", () => ({ createFighterMeasurement: jest.fn(), listFighterMeasurements: jest.fn(), supersedeFighterMeasurement: jest.fn() }));
+jest.mock("@/api/fighters/fighters", () => ({ createFighterMeasurement: jest.fn(), listFighterMeasurements: jest.fn(), supersedeFighterMeasurement: jest.fn() }));
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn(), detail: jest.fn(), weightTrack: jest.fn(), suspensions: jest.fn() } }));
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 

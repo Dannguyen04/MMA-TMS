@@ -3,9 +3,9 @@ import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Link, useRouter } from "expo-router";
 
-import { getMe, requestAdmissionEmailCode, verifyAdmissionEmail } from "@/api/auth";
-import { isApiError } from "@/api/errors";
-import { clearSession, persistSession } from "@/api/tokens";
+import { getMe, requestAdmissionEmailCode, verifyAdmissionEmail } from "@/api/auth/auth";
+import { isApiError } from "@/api/core/errors";
+import { clearSession, persistSession } from "@/api/core/tokens";
 import {
   applyRegisterFieldErrors,
   type RegisterStep,

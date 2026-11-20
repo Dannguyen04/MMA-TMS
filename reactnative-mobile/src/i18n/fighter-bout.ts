@@ -1,4 +1,4 @@
-import type { BoutState, RequirementKind, RequirementStatus, WeightTrackStatus } from "@/api/bouts";
+import type { BoutState, RequirementKind, RequirementStatus, WeightTrackStatus } from "@/api/fighters/bouts";
 
 export const fighterBout = {
   title: "Trận của tôi",

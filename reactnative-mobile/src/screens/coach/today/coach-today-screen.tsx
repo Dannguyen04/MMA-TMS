@@ -5,9 +5,9 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View, useWindowDimensio
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
-import { coachTodayApi, TODO_PHASES, type CoachTodo, type ReadinessRow, type TodoItem } from "@/api/coach-today";
+import { coachTodayApi, TODO_PHASES, type CoachTodo, type ReadinessRow, type TodoItem } from "@/api/coach/coach-today";
 import { campApi, type CampBout, type CampDetail, type CursorPage } from "@/features/fight-camp/api";
-import { listFighters } from "@/api/fighters";
+import { listFighters } from "@/api/fighters/fighters";
 import { Icon } from "@/components/icon";
 import { navSideWidth, useNavKind } from "@/components/nav-rail";
 import { SlideSheet } from "@/components/ui/slide-sheet";

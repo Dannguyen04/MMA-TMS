@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { roleMayReadMeasurements } from "@/api/role-contracts";
+import { roleMayReadMeasurements } from "@/api/auth/role-contracts";
 import {
   initialBodyChrome,
   keepBodyChrome,

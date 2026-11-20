@@ -2,8 +2,8 @@ import { useState } from "react";
 import { Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { listAssignedApplications } from "@/api/admissions";
-import { coachApi } from "@/api/coach";
+import { listAssignedApplications } from "@/api/admissions/admissions";
+import { coachApi } from "@/api/coach/coach";
 import { Icon } from "@/components/icon";
 import { PressableScale, StaggerList } from "@/components/motion";
 import { RolePage } from "@/components/role-page";

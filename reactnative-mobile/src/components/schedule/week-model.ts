@@ -1,4 +1,4 @@
-import type { DoctorScheduleItem } from "@/api/schedule";
+import type { DoctorScheduleItem } from "@/api/doctor/schedule";
 import type { CampBout, Suspension } from "@/features/fight-camp/api";
 import type { TrainingSession } from "@/api/types";
 import { scheduleText as t } from "@/i18n/schedule";

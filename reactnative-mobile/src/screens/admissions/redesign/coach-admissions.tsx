@@ -9,8 +9,8 @@ import {
   type AssessmentConclusion,
   type AssessmentCriterion,
   type StaffApplication,
-} from "@/api/admissions";
-import { isApiError } from "@/api/errors";
+} from "@/api/admissions/admissions";
+import { isApiError } from "@/api/core/errors";
 import { BottomSheet } from "@/components/filter-sheet";
 import { hapticSuccess, StaggerList } from "@/components/motion";
 import { OptionPick } from "@/components/option-pick";

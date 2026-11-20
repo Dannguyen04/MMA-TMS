@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 
-import { createFighterReviewRequest, listFighterReviewRequests } from "@/api/medical";
-import { isApiError } from "@/api/errors";
+import { createFighterReviewRequest, listFighterReviewRequests } from "@/api/medical/medical";
+import { isApiError } from "@/api/core/errors";
 import { REVIEW_REQUEST_STATUSES, type MedicalReviewRequest, type ReviewRequestStatus } from "@/api/types";
 import { reviewStatusLabel, formatMedicalWhen } from "@/components/medical/medical-format";
 import { useToastMessage } from "@/components/toast/app-toast";

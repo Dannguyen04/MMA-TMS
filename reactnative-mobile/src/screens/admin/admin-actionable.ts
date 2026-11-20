@@ -1,4 +1,4 @@
-import type { ApplicationStatus } from "@/api/admissions";
+import type { ApplicationStatus } from "@/api/admissions/admissions";
 
 /** Trạng thái hồ sơ còn chờ quản lý xử lý (gán HLV hoặc ra quyết định). */
 export const ACTIONABLE_STATUSES: readonly ApplicationStatus[] = ["SUBMITTED", "PASSED", "FAILED"];

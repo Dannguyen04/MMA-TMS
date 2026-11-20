@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useRouter } from "expo-router";
 
-import { scheduleApi } from "@/api/schedule";
+import { scheduleApi } from "@/api/doctor/schedule";
 import { useWeekItems, useWeekNav } from "@/components/schedule/use-week";
 import { WeekSchedule } from "@/components/schedule/week-schedule";
 import { doctorItems, type ScheduleItem } from "@/components/schedule/week-model";

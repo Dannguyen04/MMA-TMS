@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import Toast from "react-native-toast-message";
 
 import { isApiError } from "@/api";
-import { oneTapApi } from "@/api/one-tap";
-import { NEXT_PLAN, NEXT_SESSION, type PlanStatusValue, type SessionStatusValue } from "@/api/one-tap.types";
+import { oneTapApi } from "@/api/medical/one-tap";
+import { NEXT_PLAN, NEXT_SESSION, type PlanStatusValue, type SessionStatusValue } from "@/api/medical/one-tap.types";
 import { BottomSheet } from "@/components/filter-sheet";
 import { Icon } from "@/components/icon";
 import { eligibilityText } from "@/i18n/eligibility";

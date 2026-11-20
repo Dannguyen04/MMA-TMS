@@ -1,5 +1,5 @@
-export { apiFetch } from "./client";
-export { API_BASE_URL } from "./config";
+export { apiFetch } from "@/api/core/client";
+export { API_BASE_URL } from "@/api/core/config";
 export {
   ApiError,
   isApiError,
@@ -7,8 +7,8 @@ export {
   MEDICAL_GATE_CODE,
   medicalGateReasons,
   type MedicalEligibilityReason,
-} from "./errors";
-export { clearSession, loadStoredSession, persistSession } from "./tokens";
+} from "@/api/core/errors";
+export { clearSession, loadStoredSession, persistSession } from "@/api/core/tokens";
 export * from "./types";
 export {
   forgotPassword,
@@ -21,7 +21,7 @@ export {
   requestAdmissionEmailCode,
   resetPassword,
   verifyAdmissionEmail,
-} from "./auth";
+} from "@/api/auth/auth";
 export {
   activateAdmission,
   assignApplicationCoach,
@@ -35,7 +35,7 @@ export {
   resendActivationEmail,
   submitApplication,
   submitAssessment,
-} from "./admissions";
+} from "@/api/admissions/admissions";
 export {
   assignFighterCoach,
   createFighterMeasurement,
@@ -48,7 +48,7 @@ export {
   listFighters,
   supersedeFighterMeasurement,
   updateFighter,
-} from "./fighters";
+} from "@/api/fighters/fighters";
 export {
   assignFighterDoctor,
   createFighterExamination,
@@ -62,8 +62,8 @@ export {
   listFighterMedicalExaminations,
   listFighterMedicalHistory,
   listFighterReviewRequests,
-} from "./medical";
-export { getUnreadNotificationCount, listNotifications, markNotificationRead } from "./notifications";
+} from "@/api/medical/medical";
+export { getUnreadNotificationCount, listNotifications, markNotificationRead } from "@/api/notifications/notifications";
 export {
   createUser,
   deleteUser,
@@ -74,8 +74,8 @@ export {
   type DoctorProfileInput,
   type FighterProfileInput,
   type UpdateUserInput,
-} from "./users";
-export { getApiHello, getHealth } from "./system";
+} from "@/api/auth/users";
+export { getApiHello, getHealth } from "@/api/core/system";
 export {
   addTrainingPlanExercise,
   createExercise,
@@ -95,4 +95,4 @@ export {
   updateTrainingPlanStatus,
   updateTrainingSession,
   updateTrainingSessionStatus,
-} from "./training";
+} from "@/api/training/training";

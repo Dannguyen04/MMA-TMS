@@ -1,4 +1,4 @@
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import type { AnalysisInput, CampDetail, CampStatus, Suspension } from "@/features/fight-camp/api";
 import { CampInputError } from "./camp-input-error";
 import { backendErrorText, GENERIC_ERROR } from "@/i18n/backend-codes";

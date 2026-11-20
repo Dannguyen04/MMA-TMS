@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { campApi, type CampReport } from "@/features/fight-camp/api";
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import { boutReport as t } from "@/features/fight-camp/i18n/bout-report";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { ReportScreen } from "./report-screen";

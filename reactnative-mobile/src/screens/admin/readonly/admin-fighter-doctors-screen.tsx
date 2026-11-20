@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { adminApi } from "@/api/admin";
-import { coachApi } from "@/api/coach";
+import { adminApi } from "@/api/admin/admin";
+import { coachApi } from "@/api/coach/coach";
 import type { CoachAssignment, PublicFighter } from "@/api/types";
 import { StaggerList } from "@/components/motion";
 import { EmptyLine, RolePage } from "@/components/role-page";

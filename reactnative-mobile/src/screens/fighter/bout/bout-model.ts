@@ -1,7 +1,7 @@
 import type { Href } from "expo-router";
 
 import { campApi, type CampDetail, type Suspension, type WeightTrack } from "@/features/fight-camp/api";
-import { listFighterMeasurements } from "@/api/fighters";
+import { listFighterMeasurements } from "@/api/fighters/fighters";
 import { fighterTran as t } from "@/i18n/fighter-tran";
 import { previewBout, previewSuspensionCases } from "@/features/fight-camp/state/camp-preview";
 import { dayMonth, gate1, gateDecides, isToday, kg, liveSuspensions, requirementLabel, strictestSuspension, suspensionHeadline } from "@/features/fight-camp/logic/camp-rules";

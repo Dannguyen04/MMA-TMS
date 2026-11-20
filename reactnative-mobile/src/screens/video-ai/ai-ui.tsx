@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { videoAiApi } from "@/api/video-ai";
+import { videoAiApi } from "@/api/video/video-ai";
 import { Icon } from "@/components/icon";
 import { vai } from "@/i18n/video-ai";
 import { vnDate } from "@/screens/coach/readonly/ro-format";

@@ -1,7 +1,7 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { uploadVideo } from "@/api/media";
+import { uploadVideo } from "@/api/video/media";
 import { palettes } from "@/theme/colors";
 import { ThemePreferenceProvider } from "@/theme";
 
@@ -12,8 +12,8 @@ jest.mock("expo-image-picker", () => ({
   launchImageLibraryAsync: jest.fn(),
 }));
 
-jest.mock("@/api/media", () => {
-  const actual = jest.requireActual("@/api/media");
+jest.mock("@/api/video/media", () => {
+  const actual = jest.requireActual("@/api/video/media");
   return { ...actual, uploadVideo: jest.fn() };
 });
 

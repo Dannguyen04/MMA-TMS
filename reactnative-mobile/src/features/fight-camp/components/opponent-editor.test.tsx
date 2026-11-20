@@ -10,7 +10,7 @@ jest.mock("@/theme/index", () => ({
   fonts: { display: "display" },
 }));
 jest.mock("@/theme/typography", () => ({ ...jest.requireActual("@/theme/typography"), readableTextStyle: () => ({}) }));
-jest.mock("@/api/training", () => ({ listTrainingSessions: jest.fn() }));
+jest.mock("@/api/training/training", () => ({ listTrainingSessions: jest.fn() }));
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { saveAnalysis: jest.fn(), prior: jest.fn() } }));
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 

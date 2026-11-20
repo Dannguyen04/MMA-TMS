@@ -18,10 +18,10 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useFocusEffect: (cb: () => void) => { const { useEffect } = jest.requireActual("react"); useEffect(cb, [cb]); },
 }));
-jest.mock("@/api/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach.mock").mockCoachApi }));
-jest.mock("@/api/coach-nav", () => ({ coachNavApi: { ...jest.requireActual("@/api/coach-nav.mock").mockCoachNavApi } }));
-jest.mock("@/api/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video-ai.mock").mockVideoAiApi }));
-jest.mock("@/api/one-tap", () => ({ USE_MOCK_ONE_TAP: true, oneTapApi: jest.requireActual("@/api/one-tap.mock").mockOneTapApi }));
+jest.mock("@/api/coach/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach/coach.mock").mockCoachApi }));
+jest.mock("@/api/coach/coach-nav", () => ({ coachNavApi: { ...jest.requireActual("@/api/coach/coach-nav.mock").mockCoachNavApi } }));
+jest.mock("@/api/video/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video/video-ai.mock").mockVideoAiApi }));
+jest.mock("@/api/medical/one-tap", () => ({ USE_MOCK_ONE_TAP: true, oneTapApi: jest.requireActual("@/api/medical/one-tap.mock").mockOneTapApi }));
 jest.mock("@/session/session-context", () => ({
   useSession: () => ({
     user: { id: "demo-coach", email: "hlv@mmavision.vn", role: "COACH", profile: { id: "c-1", firstName: "Lê", lastName: "Hùng", specialization: "Muay Thai", isHeadCoach: true } },

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { BackHandler, Platform, Pressable, View } from "react-native";
 import { useLocalSearchParams, useNavigation, useRouter } from "expo-router";
 import { campApi, type CampDetail, type CampBout, type WeighResult, type Hydration, type CursorPage, type Suspension } from "@/features/fight-camp/api";
-import { getFighter } from "@/api/fighters";
+import { getFighter } from "@/api/fighters/fighters";
 import { useSession } from "@/session/session-context";
 import { useThemePreference } from "@/theme/index";
 import { Action, Busy, CampShell, Choices, Copy, Fact, Field, Frame, Notice, SectionTitle, WeightSlip } from "@/shared/ui/camp-ui";

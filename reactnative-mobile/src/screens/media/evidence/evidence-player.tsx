@@ -5,7 +5,7 @@ import Toast from "react-native-toast-message";
 import { ActivityIndicator, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { enterFullscreenOrientation, exitFullscreenOrientation } from "@/screens/media/evidence/fullscreen-orientation";
 
-import type { VideoStream } from "@/api/media";
+import type { VideoStream } from "@/api/video/media";
 import { BottomSheet } from "@/components/filter-sheet";
 import { frameIndexAt, strikeAt, type WorkerResult } from "@/components/video/pose-model";
 import { PoseOverlay, type OverlayLayers } from "@/components/video/pose-overlay";

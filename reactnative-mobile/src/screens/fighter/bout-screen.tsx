@@ -2,7 +2,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import { ACTIVE_BOUT_STATES, pickActiveBout, type Bout, type BoutRequirement, type RequirementStatus } from "@/api/bouts";
+import { ACTIVE_BOUT_STATES, pickActiveBout, type Bout, type BoutRequirement, type RequirementStatus } from "@/api/fighters/bouts";
 import { FilterSelect } from "@/components/filter-sheet";
 import { Icon } from "@/components/icon";
 import { fighterBout as t } from "@/i18n/fighter-bout";

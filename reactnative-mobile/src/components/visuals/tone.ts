@@ -2,7 +2,7 @@ import type Ionicons from "@expo/vector-icons/Ionicons";
 import type { ComponentProps } from "react";
 
 import type { SessionStatus, SessionType, TrainingPlanStatus } from "@/api";
-import type { ApplicationStatus } from "@/api/admissions";
+import type { ApplicationStatus } from "@/api/admissions/admissions";
 import type { ColorTokens } from "@/theme";
 
 export type IconName = ComponentProps<typeof Ionicons>["name"];

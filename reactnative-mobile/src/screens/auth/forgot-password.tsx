@@ -2,7 +2,7 @@ import { useState } from "react";
 import * as Haptics from "expo-haptics";
 import { useRouter } from "expo-router";
 
-import { forgotPassword } from "@/api/auth";
+import { forgotPassword } from "@/api/auth/auth";
 import { AuthVisionButton, AuthVisionField, AuthVisionShell } from "@/components/auth/auth-vision-shell";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { vi } from "@/i18n/vi";

@@ -1,4 +1,4 @@
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 
 import { weighInErrorMessage } from "./weigh-in-error";
 

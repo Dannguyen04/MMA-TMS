@@ -19,8 +19,8 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useFocusEffect: (cb: () => void) => { const { useEffect } = jest.requireActual("react"); useEffect(cb, [cb]); },
 }));
-jest.mock("@/api/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach.mock").mockCoachApi }));
-jest.mock("@/api/coach-nav", () => ({ coachNavApi: { ...jest.requireActual("@/api/coach-nav.mock").mockCoachNavApi } }));
+jest.mock("@/api/coach/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach/coach.mock").mockCoachApi }));
+jest.mock("@/api/coach/coach-nav", () => ({ coachNavApi: { ...jest.requireActual("@/api/coach/coach-nav.mock").mockCoachNavApi } }));
 jest.mock("@/api", () => ({
   ...jest.requireActual("@/api"),
   getExercise: jest.fn(() => Promise.reject(new Error("x"))),
@@ -95,7 +95,7 @@ describe("coach Giáo án (redesign step 17)", () => {
   });
 
   it("list: an active plan without progress gets its % from the plan", async () => {
-    const api = jest.requireMock("@/api/coach").coachApi;
+    const api = jest.requireMock("@/api/coach/coach").coachApi;
     const realList = api.listPlans, realGet = api.getPlan;
     const base = (await realList({ page: 1, limit: 20 })).data[0];
     api.listPlans = jest.fn(() => Promise.resolve({ data: [{ ...base, id: "np-1", status: "ACTIVE", progress: undefined }], total: 1, hasNextPage: false }));
@@ -137,7 +137,7 @@ describe("coach Giáo án (redesign step 17)", () => {
 
   it("plan exercise: RPE over 10 is refused before sending", async () => {
     mockParams.id = "cp-1";
-    const rows = await jest.requireActual("@/api/coach.mock").mockCoachApi.listPlanExercises("cp-1");
+    const rows = await jest.requireActual("@/api/coach/coach.mock").mockCoachApi.listPlanExercises("cp-1");
     mockParams.row = rows[0].id; mockParams.name = "Đấm đích";
     const { CoachPlanExerciseScreen } = sub();
     const ui = await wrap(<CoachPlanExerciseScreen/>);

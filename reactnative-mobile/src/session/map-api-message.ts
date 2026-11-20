@@ -1,4 +1,4 @@
-import { isApiError, MEDICAL_GATE_CODE } from "@/api/errors";
+import { isApiError, MEDICAL_GATE_CODE } from "@/api/core/errors";
 import { vi } from "@/i18n/vi";
 
 /** Maps Nest `error.code` / HTTP status to everyday copy. Never show codes to the user. */

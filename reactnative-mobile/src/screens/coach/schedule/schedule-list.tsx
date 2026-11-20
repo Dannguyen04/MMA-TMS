@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { coachApi } from "@/api/coach";
+import { coachApi } from "@/api/coach/coach";
 import { campApi } from "@/features/fight-camp/api";
 import { useWeekItems, useWeekNav } from "@/components/schedule/use-week";
 import { WeekSchedule } from "@/components/schedule/week-schedule";

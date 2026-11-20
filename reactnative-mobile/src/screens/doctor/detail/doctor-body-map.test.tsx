@@ -2,7 +2,7 @@
 import { act, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import type { MedicalDossier } from "@/api/types";
-import { doctorRoApi } from "@/api/doctor-ro";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
 import { ThemePreferenceProvider } from "@/theme";
 import { OverviewTab } from "./doctor-detail-tabs";
 
@@ -15,7 +15,7 @@ jest.mock("@/components/body3d/body-map-section", () => ({
     return <Text>Model cơ thể đã hiển thị</Text>;
   },
 }));
-jest.mock("@/api/doctor-ro", () => ({ doctorRoApi: {
+jest.mock("@/api/doctor/doctor-ro", () => ({ doctorRoApi: {
   getMedicalSummary: jest.fn(), listDoctors: jest.fn(),
 } }));
 

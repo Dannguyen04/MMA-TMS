@@ -1,4 +1,4 @@
-import type { AnalysisJob, HealthAlert, JobHealthAlerts } from "@/api/media";
+import type { AnalysisJob, HealthAlert, JobHealthAlerts } from "@/api/video/media";
 
 import { clock, fighterJobs, groupAlerts, jobPhase, severityText } from "./ai-format";
 

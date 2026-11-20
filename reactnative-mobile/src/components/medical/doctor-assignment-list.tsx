@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 
-import { isApiError } from "@/api/errors";
-import { listFighterDoctors } from "@/api/medical";
+import { isApiError } from "@/api/core/errors";
+import { listFighterDoctors } from "@/api/medical/medical";
 import type { DoctorAssignment } from "@/api/types";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { formatMedicalWhen } from "@/components/medical/medical-format";

@@ -1,4 +1,4 @@
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import type { MedicalClearance, MedicalExamination, MedicalHistoryEntry, PublicFighter, RecoveryPlan } from "@/api/types";
 import {
   clearanceStatusLabel,

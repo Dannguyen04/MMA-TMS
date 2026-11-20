@@ -1,13 +1,13 @@
 import { fireEvent, render } from "@testing-library/react-native";
 
-import { listAnalysisJobs, listVideos, type VideoRecord } from "@/api/media";
+import { listAnalysisJobs, listVideos, type VideoRecord } from "@/api/video/media";
 import { ThemePreferenceProvider } from "@/theme";
 
 import { VIDEO_LIST_FIXTURE } from "./video-model";
 import { VideoLibraryContent } from "./video-library";
 
-jest.mock("@/api/media", () => {
-  const actual = jest.requireActual("@/api/media");
+jest.mock("@/api/video/media", () => {
+  const actual = jest.requireActual("@/api/video/media");
   return { ...actual, listVideos: jest.fn(), listAnalysisJobs: jest.fn() };
 });
 

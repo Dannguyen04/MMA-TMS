@@ -1,4 +1,4 @@
-import type { TodoPhase, TodoSource } from "@/api/coach-today";
+import type { TodoPhase, TodoSource } from "@/api/coach/coach-today";
 
 /** Coach "Hôm nay" copy. To-do lines reuse the website coachTodo.* wording (nextjs-frontend messages/vi.ts). */
 export const todayText = {

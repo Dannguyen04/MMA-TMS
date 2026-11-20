@@ -1,11 +1,11 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { appendMovementReview, reviewFinding } from "@/api/evidence";
+import { appendMovementReview, reviewFinding } from "@/api/video/evidence";
 import { ThemePreferenceProvider } from "@/theme";
 import { FindingReviewSheet, WindowReviewSheet } from "./review-sheets";
 
-jest.mock("@/api/evidence", () => ({
+jest.mock("@/api/video/evidence", () => ({
   reviewFinding: jest.fn().mockResolvedValue({ id: "r" }),
   submitCoachCorrection: jest.fn().mockResolvedValue({ id: "c" }),
   appendMovementReview: jest.fn().mockResolvedValue({ id: "m", revision: 1, replayed: false }),

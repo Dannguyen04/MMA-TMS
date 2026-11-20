@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 import { fireEvent, render, within } from "@testing-library/react-native";
-import { coachTodayApi } from "@/api/coach-today";
+import { coachTodayApi } from "@/api/coach/coach-today";
 import { campApi, type CampBout, type CampDetail } from "@/features/fight-camp/api";
-import { listFighters } from "@/api/fighters";
+import { listFighters } from "@/api/fighters/fighters";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { CoachTodayScreen } from "./coach-today-screen";
 
@@ -25,8 +25,8 @@ jest.mock("@/components/ui/slide-sheet", () => {
 });
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn(), detail: jest.fn() } }));
-jest.mock("@/api/coach-today", () => ({ ...jest.requireActual("@/api/coach-today"), coachTodayApi: { todo: jest.fn(), readiness: jest.fn() } }));
-jest.mock("@/api/fighters", () => ({ listFighters: jest.fn() }));
+jest.mock("@/api/coach/coach-today", () => ({ ...jest.requireActual("@/api/coach/coach-today"), coachTodayApi: { todo: jest.fn(), readiness: jest.fn() } }));
+jest.mock("@/api/fighters/fighters", () => ({ listFighters: jest.fn() }));
 
 const camp = campApi as jest.Mocked<typeof campApi>;
 const today = coachTodayApi as jest.Mocked<typeof coachTodayApi>;

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, type Href } from "expo-router";
 
 import { campApi } from "@/features/fight-camp/api";
-import { getFighterMedical } from "@/api/medical";
+import { getFighterMedical } from "@/api/medical/medical";
 import { useWeekItems, useWeekNav } from "@/components/schedule/use-week";
 import { WeekSchedule } from "@/components/schedule/week-schedule";
 import { boutItems, endOfDay, sessionItems, startOfDay, suspensionItems, type ScheduleItem } from "@/components/schedule/week-model";

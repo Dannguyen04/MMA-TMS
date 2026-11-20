@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { doctorRoApi } from "@/api/doctor-ro";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
 
 import { useDoctorRoster } from "./doctor-roster";
 

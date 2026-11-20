@@ -3,8 +3,8 @@ import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
 import { getExercise, updateTrainingPlan } from "@/api";
-import { coachApi } from "@/api/coach";
-import type { PlanStatusValue } from "@/api/one-tap.types";
+import { coachApi } from "@/api/coach/coach";
+import type { PlanStatusValue } from "@/api/medical/one-tap.types";
 import type { PlanMilestone, TrainingPlan, TrainingPlanExercise } from "@/api/types";
 import { Icon } from "@/components/icon";
 import { PressableScale, StaggerList } from "@/components/motion";

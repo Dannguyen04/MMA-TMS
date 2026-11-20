@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { campApi, type Analysis, type AnalysisInput, type CampDetail, type Observation, type OpponentProfile, type Tactic } from "@/features/fight-camp/api";
-import { listTrainingSessions } from "@/api/training";
+import { listTrainingSessions } from "@/api/training/training";
 import { fonts, useThemePreference } from "@/theme/index";
 import { readableTextStyle, fz, lh, liveSheet } from "@/theme/typography";
 import { Action, CampFooter, CampIcon, Choices, Copy, Field, Frame, Notice, PlanToggle } from "@/shared/ui/camp-ui";

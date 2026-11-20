@@ -2,7 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text } from "react-native";
 import { useRouter } from "expo-router";
 
-import { coachApi } from "@/api/coach";
+import { coachApi } from "@/api/coach/coach";
 import { TRAINING_PLAN_STATUSES, type TrainingPlan, type TrainingPlanStatus } from "@/api/types";
 import { StaggerList } from "@/components/motion";
 import { EmptyLine, RolePage } from "@/components/role-page";

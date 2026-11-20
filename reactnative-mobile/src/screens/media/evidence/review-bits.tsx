@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 
-import type { HealthAlert } from "@/api/media";
+import type { HealthAlert } from "@/api/video/media";
 import { StaggerList } from "@/components/motion";
 import { jointLabel, severityLabel } from "@/components/medical/medical-format";
 import { ev } from "@/i18n/video-evidence";

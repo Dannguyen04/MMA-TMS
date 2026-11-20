@@ -3,7 +3,7 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
 import type { CampDetail } from "@/features/fight-camp/api";
-import { roleMayReadMeasurements } from "@/api/role-contracts";
+import { roleMayReadMeasurements } from "@/api/auth/role-contracts";
 import { fighterTran as t } from "@/i18n/fighter-tran";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { CampTabs } from "@/shared/ui/camp-lit";

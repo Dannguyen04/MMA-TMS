@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
-import { coachApi } from "@/api/coach";
-import { videoAiApi } from "@/api/video-ai";
-import type { AiJob, AiVideo } from "@/api/video-ai.types";
+import { coachApi } from "@/api/coach/coach";
+import { videoAiApi } from "@/api/video/video-ai";
+import type { AiJob, AiVideo } from "@/api/video/video-ai.types";
 import { StaggerList } from "@/components/motion";
 import { EmptyLine, RolePage } from "@/components/role-page";
 import { coachVideo as t } from "@/i18n/coach-video";

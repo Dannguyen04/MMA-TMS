@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { listFighterMedicalHistory } from "@/api/medical";
+import { listFighterMedicalHistory } from "@/api/medical/medical";
 import type { MedicalHistoryEntry } from "@/api/types";
 import { describeSnapshot } from "@/components/medical/medical-format";
 import { SlideSheet } from "@/components/ui/slide-sheet";

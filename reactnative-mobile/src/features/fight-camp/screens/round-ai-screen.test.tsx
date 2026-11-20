@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { campApi, type AiSuggestion, type CampRound, type RoundsResponse } from "@/features/fight-camp/api";
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { previewRoundAdvice } from "@/features/fight-camp/logic/round-advice-preview";
 import { resetPreviewRounds } from "@/features/fight-camp/state/preview-round-store";

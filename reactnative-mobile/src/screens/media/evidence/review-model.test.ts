@@ -1,4 +1,4 @@
-import type { CoachingState, MovementReviewState } from "@/api/evidence";
+import type { CoachingState, MovementReviewState } from "@/api/video/evidence";
 import { latestCorrection, latestFindingReview, uuidV4, windowReviewInfo } from "./review-model";
 
 const state: CoachingState = {

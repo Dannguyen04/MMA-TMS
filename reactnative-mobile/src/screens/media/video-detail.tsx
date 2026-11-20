@@ -10,7 +10,7 @@ import { ot } from "@/i18n/one-tap";
 import { useFighterNames } from "@/screens/coach/readonly/use-coach";
 import { coachVideoHref } from "@/screens/coach/video/video-model";
 import { ADMIN_VIDEOS, adminVideoHref } from "@/screens/admin/tools/admin-paths";
-import { getMemorySession } from "@/api/tokens";
+import { getMemorySession } from "@/api/core/tokens";
 import {
   createAnalysisJob,
   getAnalysisJob,
@@ -20,7 +20,7 @@ import {
   type AnalysisJob,
   type VideoStream,
   type VideoRecord,
-} from "@/api/media";
+} from "@/api/video/media";
 import { media } from "@/i18n/media";
 import { analysisPanel, jobForVideo } from "@/screens/media/video-model";
 import { useReadableWidth } from "@/components/readable-width";

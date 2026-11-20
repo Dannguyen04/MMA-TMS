@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import { campError, dayKey, gate1, gateDecides, isToday, liveSuspensions, openSessionNames, readKg, validateAnalysis } from "./camp-rules";
 import type { Suspension } from "@/features/fight-camp/api";
 describe("Fight Camp input and server errors", () => {

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 
-import { isApiError } from "@/api/errors";
-import { listFighterMedicalExaminations, listFighterMedicalHistory } from "@/api/medical";
+import { isApiError } from "@/api/core/errors";
+import { listFighterMedicalExaminations, listFighterMedicalHistory } from "@/api/medical/medical";
 import {
   EXAMINATION_SCOPES,
   MEDICAL_HISTORY_RECORD_TYPES,

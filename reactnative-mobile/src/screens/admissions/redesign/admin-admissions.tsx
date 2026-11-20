@@ -10,8 +10,8 @@ import {
   resendActivationEmail,
   type ApplicationStatus,
   type StaffApplication,
-} from "@/api/admissions";
-import { isApiError } from "@/api/errors";
+} from "@/api/admissions/admissions";
+import { isApiError } from "@/api/core/errors";
 import { assignFighterCoach, getUser, listFighterCoaches, listUsers, type CoachAssignment, type PublicUser } from "@/api";
 import { assignDoctorHref, fighterIdFromActivatedUser } from "@/clinical/assign-doctor-link";
 import { BottomSheet } from "@/components/filter-sheet";

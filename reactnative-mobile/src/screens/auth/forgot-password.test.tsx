@@ -2,12 +2,12 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react-nativ
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
-import { forgotPassword } from "@/api/auth";
+import { forgotPassword } from "@/api/auth/auth";
 import { vi } from "@/i18n/vi";
 import { ForgotPasswordScreen } from "@/screens/auth/forgot-password";
 import { ThemePreferenceProvider } from "@/theme";
 
-jest.mock("@/api/auth", () => ({
+jest.mock("@/api/auth/auth", () => ({
   forgotPassword: jest.fn(),
 }));
 

@@ -1,7 +1,7 @@
 import { fireEvent, render } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import type { MedicalHistoryEntry, PublicFighter } from "@/api/types";
 import { doctorClinical as c } from "@/i18n/doctor-clinical";
 import { doctorRo } from "@/i18n/doctor-ro";
@@ -24,7 +24,7 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }),
   useLocalSearchParams: () => ({ id: "cf-4" }),
 }));
-jest.mock("@/api/doctor-ro", () => ({ doctorRoApi: jest.requireActual("@/api/doctor-ro.mock").mockDoctorRoApi }));
+jest.mock("@/api/doctor/doctor-ro", () => ({ doctorRoApi: jest.requireActual("@/api/doctor/doctor-ro.mock").mockDoctorRoApi }));
 jest.mock("@/screens/doctor/redesign/doctor-roster", () => ({
   useDoctorRoster: () => ({ items: [mockHuy], loaded: true, loading: false, error: "", enabled: true, refresh: jest.fn(), reload: jest.fn() }),
 }));

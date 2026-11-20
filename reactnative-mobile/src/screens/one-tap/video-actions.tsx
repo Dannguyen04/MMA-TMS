@@ -3,11 +3,11 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 import { useSession } from "@/session/session-context";
-import { oneTapApi } from "@/api/one-tap";
-import type { ActiveReference, ReanalyzeResult } from "@/api/one-tap.types";
-import { deleteVideo } from "@/api/media";
-import { videoAiApi } from "@/api/video-ai";
-import type { AiCoachingState, AiMovementReviews } from "@/api/video-ai.types";
+import { oneTapApi } from "@/api/medical/one-tap";
+import type { ActiveReference, ReanalyzeResult } from "@/api/medical/one-tap.types";
+import { deleteVideo } from "@/api/video/media";
+import { videoAiApi } from "@/api/video/video-ai";
+import type { AiCoachingState, AiMovementReviews } from "@/api/video/video-ai.types";
 import { BottomSheet } from "@/components/filter-sheet";
 import { Icon, type IconName } from "@/components/icon";
 import type { EvidenceWindow, ResultFinding } from "@/components/video/pose-model";

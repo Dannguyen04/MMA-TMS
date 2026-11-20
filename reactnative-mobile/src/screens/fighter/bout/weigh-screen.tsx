@@ -5,8 +5,8 @@ import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { campApi } from "@/features/fight-camp/api";
-import { roleMayReadMeasurements } from "@/api/role-contracts";
-import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters";
+import { roleMayReadMeasurements } from "@/api/auth/role-contracts";
+import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters/fighters";
 import { Icon } from "@/components/icon";
 import { fighterTran as t } from "@/i18n/fighter-tran";
 import { useSource } from "@/screens/coach/today/coach-today-screen";

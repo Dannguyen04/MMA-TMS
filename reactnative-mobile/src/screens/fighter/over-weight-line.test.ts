@@ -1,4 +1,4 @@
-import { mockBoutsApi } from "@/api/bouts.mock";
+import { mockBoutsApi } from "@/api/fighters/bouts.mock";
 import { fighterBout as t } from "@/i18n/fighter-bout";
 
 describe("dòng vượt cân", () => {

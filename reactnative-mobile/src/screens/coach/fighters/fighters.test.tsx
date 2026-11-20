@@ -15,13 +15,13 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, navigate: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }),
   useLocalSearchParams: () => mockParams,
 }));
-jest.mock("@/api/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach.mock").mockCoachApi }));
-jest.mock("@/api/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video-ai.mock").mockVideoAiApi }));
-jest.mock("@/api/media", () => ({
+jest.mock("@/api/coach/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach/coach.mock").mockCoachApi }));
+jest.mock("@/api/video/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video/video-ai.mock").mockVideoAiApi }));
+jest.mock("@/api/video/media", () => ({
   listVideos: jest.fn(() => Promise.resolve({ data: [], total: 2, hasNextPage: false })),
   listAnalysisJobs: jest.fn(() => Promise.resolve([])),
 }));
-jest.mock("@/api/medical", () => ({
+jest.mock("@/api/medical/medical", () => ({
   listFighterDoctors: jest.fn(() => Promise.resolve({ data: [], total: 0, hasNextPage: false })),
   listFighterMedicalHistory: jest.fn(() => Promise.resolve({ data: [], total: 0, hasNextPage: false })),
   listFighterMedicalExaminations: jest.fn(() => Promise.resolve({ data: [], total: 0, hasNextPage: false })),

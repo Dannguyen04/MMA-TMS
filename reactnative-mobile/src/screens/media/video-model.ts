@@ -1,4 +1,4 @@
-import type { AnalysisJob, VideoCameraAngle, VideoRecord, VideoTrainingType } from "@/api/media";
+import type { AnalysisJob, VideoCameraAngle, VideoRecord, VideoTrainingType } from "@/api/video/media";
 import { media } from "@/i18n/media";
 import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 import { uploadIssue, type UploadDraft, type UploadIssue } from "@/screens/media/upload-rules";

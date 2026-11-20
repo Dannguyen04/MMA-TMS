@@ -3,7 +3,7 @@ import { Text, TextInput } from "react-native";
 import * as Haptics from "expo-haptics";
 import { Link, useLocalSearchParams, useRouter } from "expo-router";
 
-import { resetPassword } from "@/api/auth";
+import { resetPassword } from "@/api/auth/auth";
 import { PASSWORD_MAX, PASSWORD_MIN } from "@/auth/register-steps";
 import { AuthStandaloneStage } from "@/components/auth/auth-vision-scene";
 import {

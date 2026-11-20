@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { videoAiApi } from "@/api/video-ai";
+import { videoAiApi } from "@/api/video/video-ai";
 import { useLoad } from "@/screens/fighter/use-load";
 
 import { impairmentRows } from "./ai-model";

@@ -2,7 +2,7 @@ import { useRouter } from "expo-router";
 import { type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
-import type { Bout, WeightTrack, WeightTrackStatus } from "@/api/bouts";
+import type { Bout, WeightTrack, WeightTrackStatus } from "@/api/fighters/bouts";
 import { PressableScale } from "@/components/motion";
 import { Icon, type IconName } from "@/components/icon";
 import { WeightChart } from "@/components/visuals";

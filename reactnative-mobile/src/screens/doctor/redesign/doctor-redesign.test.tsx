@@ -18,7 +18,7 @@ import {
 } from "./doctor-format";
 import { DoctorMeScreen } from "./doctor-me-screen";
 import { badgeText } from "./doctor-unread";
-import { mockDoctorRoApi } from "@/api/doctor-ro.mock";
+import { mockDoctorRoApi } from "@/api/doctor/doctor-ro.mock";
 import { RoleTabBar } from "@/components/role-tab-bar";
 import { doctorRo } from "@/i18n/doctor-ro";
 import { paletteFromTokens } from "@/screens/fighter/redesign/palette";

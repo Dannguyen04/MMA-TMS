@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { coachApi } from "@/api/coach";
+import { coachApi } from "@/api/coach/coach";
 import { RolePage } from "@/components/role-page";
 import { adminTools as t } from "@/i18n/admin-tools";
 import { FighterPick } from "@/screens/coach/fighter-pick";

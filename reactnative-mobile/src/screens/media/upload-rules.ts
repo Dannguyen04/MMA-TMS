@@ -1,4 +1,4 @@
-import { isSupportedVideoMime, type VideoCameraAngle, type VideoTrainingType } from "@/api/media";
+import { isSupportedVideoMime, type VideoCameraAngle, type VideoTrainingType } from "@/api/video/media";
 
 export type UploadDraft = {
   title: string;

@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { VIDEO_CAMERA_ANGLES, VIDEO_TRAINING_TYPES } from "@/api/media";
+import { VIDEO_CAMERA_ANGLES, VIDEO_TRAINING_TYPES } from "@/api/video/media";
 import { Icon } from "@/components/icon";
 import { PressableScale } from "@/components/motion";
 import { fighterVideo as t } from "@/i18n/fighter-video";

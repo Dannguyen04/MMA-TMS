@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { doctorRoApi } from "@/api/doctor-ro";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
 import type { MedicalExamination } from "@/api/types";
 import { StaggerList } from "@/components/motion";
 import { EmptyLine, RolePage } from "@/components/role-page";

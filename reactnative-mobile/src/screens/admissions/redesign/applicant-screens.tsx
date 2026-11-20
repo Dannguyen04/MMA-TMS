@@ -2,9 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter, type Href } from "expo-router";
 
-import { getMe } from "@/api/auth";
-import { activateAdmission, getOwnApplication, listOwnApplications, submitApplication, type ApplicantApplication } from "@/api/admissions";
-import { isApiError } from "@/api/errors";
+import { getMe } from "@/api/auth/auth";
+import { activateAdmission, getOwnApplication, listOwnApplications, submitApplication, type ApplicantApplication } from "@/api/admissions/admissions";
+import { isApiError } from "@/api/core/errors";
 import { blockingApplication } from "@/admissions/open-application";
 import { COUNTRIES, DEFAULT_COUNTRY, DEFAULT_COUNTRY_CODE, filterCountries, findCountry, MAX_PHONE_DIGITS, nationalDigits, toInternationalPhone } from "@/constants/countries";
 import { WEIGHT_CLASSES, type WeightClass } from "@/constants/weight-classes";

@@ -11,8 +11,8 @@ import {
 import { AppState } from "react-native";
 import type { Href } from "expo-router";
 
-import { getMe, login as loginRequest, logout as logoutRequest } from "@/api/auth";
-import { isApiError } from "@/api/errors";
+import { getMe, login as loginRequest, logout as logoutRequest } from "@/api/auth/auth";
+import { isApiError } from "@/api/core/errors";
 import {
   cacheUser,
   clearSession,
@@ -21,7 +21,7 @@ import {
   loadStoredSession,
   onSessionExpired,
   persistSession,
-} from "@/api/tokens";
+} from "@/api/core/tokens";
 import type { LoginBody, PublicUser, UserRole } from "@/api/types";
 
 export type SessionGate = "loading" | "anonymous" | "guest" | "fighter" | "coach" | "doctor" | "admin";

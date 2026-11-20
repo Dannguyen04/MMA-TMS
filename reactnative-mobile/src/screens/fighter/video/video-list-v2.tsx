@@ -2,7 +2,7 @@ import { useCallback, useRef } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
-import { listAnalysisJobs, listVideos } from "@/api/media";
+import { listAnalysisJobs, listVideos } from "@/api/video/media";
 import { StaggerList } from "@/components/motion";
 import { fighterVideo as t } from "@/i18n/fighter-video";
 import { videoTitle } from "@/i18n/server-text";

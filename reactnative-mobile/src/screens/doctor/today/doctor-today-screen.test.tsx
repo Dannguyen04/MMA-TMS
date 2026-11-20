@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 import { fireEvent, render, waitFor, within } from "@testing-library/react-native";
 import { campApi, type Suspension } from "@/features/fight-camp/api";
-import { doctorRoApi } from "@/api/doctor-ro";
-import { scheduleApi } from "@/api/schedule";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
+import { scheduleApi } from "@/api/doctor/schedule";
 import { previewSuspension } from "@/features/fight-camp/state/camp-preview";
 import { DoctorTodayScreen } from "./doctor-today-screen";
 
@@ -22,8 +22,8 @@ jest.mock("@/screens/doctor/redesign/doctor-roster", () => ({
   ] }),
 }));
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { suspensions: jest.fn(), clear: jest.fn() } }));
-jest.mock("@/api/doctor-ro", () => ({ doctorRoApi: { listImpairments: jest.fn() } }));
-jest.mock("@/api/schedule", () => ({ scheduleApi: { doctor: jest.fn(), doctorReviews: jest.fn() } }));
+jest.mock("@/api/doctor/doctor-ro", () => ({ doctorRoApi: { listImpairments: jest.fn() } }));
+jest.mock("@/api/doctor/schedule", () => ({ scheduleApi: { doctor: jest.fn(), doctorReviews: jest.fn() } }));
 
 const camp = campApi as jest.Mocked<typeof campApi>;
 const awaiting: Suspension = { ...previewSuspension, id: "s1", fighterId: "f1", reason: "KO", endsOn: "2020-01-01", status: "AWAITING_CLEARANCE", requiresClearance: true, clearedAt: null };

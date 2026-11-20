@@ -2,7 +2,7 @@ import { useCallback, useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { doctorRoApi } from "@/api/doctor-ro";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
 import type { MedicalDossier, MedicalExamination, MedicalHistoryEntry, MedicalHistoryRecordType as RecordType } from "@/api/types";
 import { StaggerList } from "@/components/motion";
 import { EmptyLine } from "@/components/role-page";

@@ -3,12 +3,12 @@ import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import { ot } from "@/i18n/one-tap";
 import { ThemePreferenceProvider } from "@/theme";
 
 const mockFetch = jest.fn();
-jest.mock("@/api/client", () => ({ apiFetch: (...a: unknown[]) => mockFetch(...a) }));
+jest.mock("@/api/core/client", () => ({ apiFetch: (...a: unknown[]) => mockFetch(...a) }));
 jest.mock("react-native-toast-message", () => ({ __esModule: true, default: { show: jest.fn(), hide: jest.fn() } }));
 jest.mock("moti", () => ({ MotiView: jest.requireActual("react-native").View }));
 jest.mock("@/session/session-context", () => ({
@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 describe("lớp ghi one-tap", () => {
-  const { realOneTapApi, USE_MOCK_ONE_TAP } = jest.requireActual("@/api/one-tap") as typeof import("@/api/one-tap");
+  const { realOneTapApi, USE_MOCK_ONE_TAP } = jest.requireActual("@/api/medical/one-tap") as typeof import("@/api/medical/one-tap");
 
   it("mock chỉ bật bằng EXPO_PUBLIC_ONE_TAP_MOCK=true", () => {
     expect(USE_MOCK_ONE_TAP).toBe(process.env.EXPO_PUBLIC_ONE_TAP_MOCK === "true");

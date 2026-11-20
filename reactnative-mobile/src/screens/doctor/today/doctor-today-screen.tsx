@@ -9,8 +9,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 
 import { campApi, type Suspension } from "@/features/fight-camp/api";
-import { doctorRoApi } from "@/api/doctor-ro";
-import { scheduleApi, type DoctorScheduleItem } from "@/api/schedule";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
+import { scheduleApi, type DoctorScheduleItem } from "@/api/doctor/schedule";
 import { Icon } from "@/components/icon";
 import { PressableScale } from "@/components/motion";
 import { navSideWidth, useNavKind } from "@/components/nav-rail";

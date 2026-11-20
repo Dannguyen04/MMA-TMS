@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 
-import { oneTapApi } from "@/api/one-tap";
+import { oneTapApi } from "@/api/medical/one-tap";
 import { SlideSheet } from "@/components/ui/slide-sheet";
 import { fighterHealth as t } from "@/i18n/fighter-health";
 import { ot } from "@/i18n/one-tap";

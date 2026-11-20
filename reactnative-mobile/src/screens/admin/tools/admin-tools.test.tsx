@@ -19,8 +19,8 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useFocusEffect: (cb: () => void) => { const { useEffect } = jest.requireActual("react"); useEffect(cb, [cb]); },
 }));
-jest.mock("@/api/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach.mock").mockCoachApi }));
-jest.mock("@/api/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video-ai.mock").mockVideoAiApi }));
+jest.mock("@/api/coach/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach/coach.mock").mockCoachApi }));
+jest.mock("@/api/video/video-ai", () => ({ USE_MOCK_VIDEO_AI: true, videoAiApi: jest.requireActual("@/api/video/video-ai.mock").mockVideoAiApi }));
 jest.mock("@/session/session-context", () => ({
   useSession: () => ({ isDemo: false, user: { id: "u-a", role: "ADMIN", email: "admin@lotus-combat.test", profile: null }, signOut: jest.fn() }),
   useSessionRole: () => "ADMIN",

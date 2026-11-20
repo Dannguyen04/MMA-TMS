@@ -2,7 +2,7 @@ import { type ReactNode, useContext, useEffect, useMemo, useState } from "react"
 import { ActivityIndicator, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { coachApi } from "@/api/coach";
+import { coachApi } from "@/api/coach/coach";
 import { MEDICAL_STATUSES, type MedicalStatus } from "@/api/types";
 import { Icon } from "@/components/icon";
 import { OptionPick } from "@/components/option-pick";

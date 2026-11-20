@@ -2,7 +2,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { recordWeight } from "@/api/bouts";
+import { recordWeight } from "@/api/fighters/bouts";
 import { Icon } from "@/components/icon";
 import { showAppToast } from "@/components/toast/app-toast";
 import { fighterBout as t } from "@/i18n/fighter-bout";

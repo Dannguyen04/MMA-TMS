@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, Linking, Pressable, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { getFighterMedical, listFighterReviewRequests } from "@/api/medical";
+import { getFighterMedical, listFighterReviewRequests } from "@/api/medical/medical";
 import type { MedicalDossier, MedicalReviewRequest } from "@/api/types";
 import { scopeState, type EligibilityScope } from "@/components/medical/eligibility-model";
 import { formatMedicalDay, injuryStatusLabel } from "@/components/medical/medical-format";

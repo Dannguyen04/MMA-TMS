@@ -1,4 +1,4 @@
-import { toAnalysisJob } from "@/api/media";
+import { toAnalysisJob } from "@/api/video/media";
 
 import {
   REFERENCED_VIDEO_DETAIL,

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 
 import { isApiError } from "@/api";
-import { listAnalysisJobs, listVideos, type AnalysisJob, type VideoRecord } from "@/api/media";
+import { listAnalysisJobs, listVideos, type AnalysisJob, type VideoRecord } from "@/api/video/media";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { media } from "@/i18n/media";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";

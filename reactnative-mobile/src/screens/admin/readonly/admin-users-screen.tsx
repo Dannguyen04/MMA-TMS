@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { adminApi } from "@/api/admin";
+import { adminApi } from "@/api/admin/admin";
 import { USER_ROLES, type UserRole } from "@/api/types";
 import { Icon } from "@/components/icon";
 import { StaggerList } from "@/components/motion";

@@ -3,15 +3,15 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
-import { ApiError } from "@/api/errors";
-import type { PlanStatusValue, SessionStatusValue } from "@/api/one-tap.types";
+import { ApiError } from "@/api/core/errors";
+import type { PlanStatusValue, SessionStatusValue } from "@/api/medical/one-tap.types";
 import { ot } from "@/i18n/one-tap";
 import { ThemePreferenceProvider } from "@/theme";
 
 import { MoreMenu } from "./video-actions";
 
 const mockFetch = jest.fn();
-jest.mock("@/api/client", () => ({ apiFetch: (...a: unknown[]) => mockFetch(...a) }));
+jest.mock("@/api/core/client", () => ({ apiFetch: (...a: unknown[]) => mockFetch(...a) }));
 jest.mock("react-native-toast-message", () => ({ __esModule: true, default: { show: jest.fn(), hide: jest.fn() } }));
 jest.mock("moti", () => ({ MotiView: jest.requireActual("react-native").View }));
 
@@ -38,7 +38,7 @@ beforeEach(() => {
 });
 
 describe("lớp ghi batch42", () => {
-  const { realOneTapApi } = jest.requireActual("@/api/one-tap") as typeof import("@/api/one-tap");
+  const { realOneTapApi } = jest.requireActual("@/api/medical/one-tap") as typeof import("@/api/medical/one-tap");
   it("đúng endpoint + thân", async () => {
     await realOneTapApi.updateSessionStatus("s-1", { status: "CANCELLED", cancellationReason: "Võ sĩ vắng mặt" });
     await realOneTapApi.updatePlanStatus("p-1", { status: "ACTIVE" });

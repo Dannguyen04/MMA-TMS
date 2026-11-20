@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-nati
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { createTrainingSession, updateTrainingSession } from "@/api";
-import { coachApi } from "@/api/coach";
+import { coachApi } from "@/api/coach/coach";
 import { SESSION_TYPES, type SessionType } from "@/api/types";
 import { RolePage } from "@/components/role-page";
 import { useToastMessage } from "@/components/toast/app-toast";

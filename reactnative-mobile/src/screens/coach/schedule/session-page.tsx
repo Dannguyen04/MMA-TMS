@@ -2,8 +2,8 @@ import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 
-import { coachApi } from "@/api/coach";
-import type { SessionStatusValue } from "@/api/one-tap.types";
+import { coachApi } from "@/api/coach/coach";
+import type { SessionStatusValue } from "@/api/medical/one-tap.types";
 import type { TrainingSession } from "@/api/types";
 import { StaggerList } from "@/components/motion";
 import { EmptyLine, RolePage } from "@/components/role-page";

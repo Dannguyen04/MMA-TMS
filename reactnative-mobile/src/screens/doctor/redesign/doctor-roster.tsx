@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { doctorRoApi, USE_MOCK_DOCTOR } from "@/api/doctor-ro";
+import { doctorRoApi, USE_MOCK_DOCTOR } from "@/api/doctor/doctor-ro";
 import type { PublicFighter } from "@/api/types";
 import { doctorRo } from "@/i18n/doctor-ro";
 import { mapFighterError } from "@/screens/fighter/errors";

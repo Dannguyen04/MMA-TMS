@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import type { ApplicantApplication, StaffApplication } from "@/api/admissions";
+import type { ApplicantApplication, StaffApplication } from "@/api/admissions/admissions";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 
 import { ageOf, nameInitials, stepCells, vnDay } from "./adm-parts";
@@ -29,7 +29,7 @@ jest.mock("@/session/session-context", () => ({
   useSession: () => ({ isDemo: false, user: { id: "u-g", role: "GUEST", email: "hoa.tran@gmail.com", profile: { id: "c1", firstName: "Hùng", lastName: "Lê" } }, signOut: jest.fn(() => Promise.resolve()), applyRegisteredSession: jest.fn() }),
   homeHrefForGate: () => "/",
 }));
-jest.mock("@/api/auth", () => ({ getMe: jest.fn() }));
+jest.mock("@/api/auth/auth", () => ({ getMe: jest.fn() }));
 jest.mock("@/api", () => ({
   listUsers: () => Promise.resolve({ items: [
     { id: "u1", email: "hung@lotus-combat.test", role: "COACH", isActive: true, profile: { id: "c1", firstName: "Hùng", lastName: "Lê", specialization: "Muay Thai" } },
@@ -39,7 +39,7 @@ jest.mock("@/api", () => ({
   listFighterCoaches: () => Promise.resolve([]),
   assignFighterCoach: jest.fn(),
 }));
-jest.mock("@/api/admissions", () => ({
+jest.mock("@/api/admissions/admissions", () => ({
   listApplications: (q: { status?: string }) => Promise.resolve({ items: q.status ? mockApps.filter(a => a.status === q.status) : mockApps, total: mockApps.length, page: 1, limit: 100 }),
   getApplication: (id: string) => Promise.resolve(mockApps.find(a => a.id === id)),
   listAssignedApplications: () => Promise.resolve({ items: mockApps, total: mockApps.length, page: 1, limit: 100 }),

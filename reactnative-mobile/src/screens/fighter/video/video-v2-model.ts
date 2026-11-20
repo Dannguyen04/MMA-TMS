@@ -1,6 +1,6 @@
 import type { Href } from "expo-router";
 
-import type { AnalysisJob, VideoRecord } from "@/api/media";
+import type { AnalysisJob, VideoRecord } from "@/api/video/media";
 import { fighterVideo as t } from "@/i18n/fighter-video";
 import { dmLocal, hmLocal } from "@/screens/fighter/health/health-model";
 import { formatClock, formatFileSize, trainingLabel, visibleScore, type PickedVideo } from "@/screens/media/video-model";

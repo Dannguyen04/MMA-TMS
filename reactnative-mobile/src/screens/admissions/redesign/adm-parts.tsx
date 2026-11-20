@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 
-import type { ApplicationSnapshot, ApplicationStatus, AssessmentCriterion, StaffApplication } from "@/api/admissions";
+import type { ApplicationSnapshot, ApplicationStatus, AssessmentCriterion, StaffApplication } from "@/api/admissions/admissions";
 import { findCountry } from "@/constants/countries";
 import { Icon } from "@/components/icon";
 import { adm } from "@/i18n/admissions";

@@ -1,4 +1,4 @@
-import { isApiError } from "@/api/errors";
+import { isApiError } from "@/api/core/errors";
 import type { AiDecision, AiSuggestion, CampDetail, NextRoundPlan, RoundsResponse } from "@/features/fight-camp/api";
 import { aiStatusBadge, backendErrorText } from "@/i18n/backend-codes";
 import { roundAi } from "@/features/fight-camp/i18n/round-ai";

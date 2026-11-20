@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 
-import { doctorRoApi } from "@/api/doctor-ro";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
 import { StaggerList } from "@/components/motion";
 import { EmptyLine, RolePage } from "@/components/role-page";
 import { coachInbox as t } from "@/i18n/coach-video";

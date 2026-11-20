@@ -1,8 +1,8 @@
 import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { getAnalysisJob, getVideo, listAnalysisJobs } from "@/api/media";
-import { getMemorySession } from "@/api/tokens";
+import { getAnalysisJob, getVideo, listAnalysisJobs } from "@/api/video/media";
+import { getMemorySession } from "@/api/core/tokens";
 import { ThemePreferenceProvider } from "@/theme";
 
 import { REFERENCED_VIDEO_DETAIL, VIDEO_LIST_FIXTURE } from "./video-model";
@@ -25,7 +25,7 @@ jest.mock("expo-video", () => ({
   VideoView: () => null,
 }));
 
-jest.mock("@/api/evidence", () => ({
+jest.mock("@/api/video/evidence", () => ({
   getCoachingState: jest.fn().mockRejectedValue(new Error("x")),
   getMovementReviews: jest.fn().mockRejectedValue(new Error("x")),
   getJobResult: jest.fn().mockResolvedValue({ fps: 30, durationMs: 1000, width: null, height: null, frames: [], strikes: [], findings: [], movementEvidence: null, avgScore: null }),
@@ -36,12 +36,12 @@ jest.mock("@/session/session-context", () => ({
   useSessionRole: () => "FIGHTER",
 }));
 
-jest.mock("@/api/tokens", () => ({
+jest.mock("@/api/core/tokens", () => ({
   getMemorySession: jest.fn(),
 }));
 
-jest.mock("@/api/media", () => {
-  const actual = jest.requireActual("@/api/media");
+jest.mock("@/api/video/media", () => {
+  const actual = jest.requireActual("@/api/video/media");
   return {
     ...actual,
     getVideo: jest.fn(),
@@ -141,7 +141,7 @@ describe("VideoDetailContent", () => {
   });
 
   it("shows Diễn biến with strikes and hides Nhận xét for doctors", async () => {
-    const { getJobResult } = jest.requireMock("@/api/evidence") as { getJobResult: jest.Mock };
+    const { getJobResult } = jest.requireMock("@/api/video/evidence") as { getJobResult: jest.Mock };
     getJobResult.mockResolvedValueOnce({
       fps: 30,
       durationMs: 2000,

@@ -3,7 +3,7 @@ import { View } from "react-native";
 import * as Haptics from "expo-haptics";
 import { fireEvent, render, waitFor, within } from "@testing-library/react-native";
 import { campApi, type RoundsResponse } from "@/features/fight-camp/api";
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import { roundAdvice as t } from "@/features/fight-camp/i18n/round-advice";
 import { betweenRound } from "@/features/fight-camp/i18n/between-round";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";

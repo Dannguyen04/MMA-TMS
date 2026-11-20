@@ -1,4 +1,4 @@
-import { roleMayReadMeasurements } from "@/api/role-contracts";
+import { roleMayReadMeasurements } from "@/api/auth/role-contracts";
 
 export type BodySection = "health" | "exam";
 

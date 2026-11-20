@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import Toast from "react-native-toast-message";
 
-import { oneTapApi } from "@/api/one-tap";
+import { oneTapApi } from "@/api/medical/one-tap";
 import { ot } from "@/i18n/one-tap";
 
 import { classify, showRetryToast } from "./write";

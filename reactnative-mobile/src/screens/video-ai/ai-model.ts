@@ -1,4 +1,4 @@
-import type { AiCoachingState, AiHealthAlert, AiJob, AiMovementReviews, AiVideo } from "@/api/video-ai.types";
+import type { AiCoachingState, AiHealthAlert, AiJob, AiMovementReviews, AiVideo } from "@/api/video/video-ai.types";
 import { jointLabelVi } from "@/components/body3d/regions";
 import { vai } from "@/i18n/video-ai";
 import type { ChipSpec } from "@/screens/coach/readonly/ro-format";

@@ -2,8 +2,8 @@ import { useCallback, useEffect } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-import { doctorRoApi } from "@/api/doctor-ro";
-import type { AnalysisJob, JobHealthAlerts } from "@/api/media";
+import { doctorRoApi } from "@/api/doctor/doctor-ro";
+import type { AnalysisJob, JobHealthAlerts } from "@/api/video/media";
 import { StaggerList } from "@/components/motion";
 import { doctorRest as r } from "@/i18n/doctor-rest";
 import { vnDate } from "@/screens/coach/readonly/ro-format";

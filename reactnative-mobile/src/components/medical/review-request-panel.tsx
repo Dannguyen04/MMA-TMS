@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Text, View } from "react-native";
 
-import { createFighterReviewRequest, listFighterReviewRequests } from "@/api/medical";
-import { isApiError } from "@/api/errors";
+import { createFighterReviewRequest, listFighterReviewRequests } from "@/api/medical/medical";
+import { isApiError } from "@/api/core/errors";
 import {
   REVIEW_REQUEST_STATUSES,
   type MedicalReviewRequest,

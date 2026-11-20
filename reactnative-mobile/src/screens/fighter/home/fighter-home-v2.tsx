@@ -7,9 +7,9 @@ import { useRouter, type Href } from "expo-router";
 
 import { getFighterMedical } from "@/api";
 import { campApi, type CampBout, type CampDetail } from "@/features/fight-camp/api";
-import { getUnreadNotificationCount } from "@/api/notifications";
+import { getUnreadNotificationCount } from "@/api/notifications/notifications";
 import type { TrainingSession } from "@/api/types";
-import { videoAiApi } from "@/api/video-ai";
+import { videoAiApi } from "@/api/video/video-ai";
 import { Icon } from "@/components/icon";
 import { navSideWidth, useNavKind } from "@/components/nav-rail";
 import { addDays, dateKey, endOfDay, startOfDay } from "@/components/schedule/week-model";

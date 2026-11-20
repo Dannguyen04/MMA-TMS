@@ -12,7 +12,7 @@ jest.mock("expo-router", () => ({
 }));
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ isDemo: false, user: { id: "coach" } }) }));
 jest.mock("@/theme/index", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light }) }));
-jest.mock("@/api/fighters", () => ({ getFighter: jest.fn() }));
+jest.mock("@/api/fighters/fighters", () => ({ getFighter: jest.fn() }));
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn() } }));
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("./round-screens", () => ({ CornerScreen: () => null, RoundScreen: () => null, ReportScreen: () => null }));

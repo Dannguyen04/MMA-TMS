@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { adminApi } from "@/api/admin";
-import { listApplications } from "@/api/admissions";
-import { coachApi } from "@/api/coach";
+import { adminApi } from "@/api/admin/admin";
+import { listApplications } from "@/api/admissions/admissions";
+import { coachApi } from "@/api/coach/coach";
 import type { MedicalStatus, PublicFighter, TrainingSession, UserRole } from "@/api/types";
 import { MEDICAL_STATUSES } from "@/api/types";
-import { videoAiApi } from "@/api/video-ai";
+import { videoAiApi } from "@/api/video/video-ai";
 import { Icon, type IconName } from "@/components/icon";
 import { PressableScale, StaggerList } from "@/components/motion";
 import { RolePage } from "@/components/role-page";

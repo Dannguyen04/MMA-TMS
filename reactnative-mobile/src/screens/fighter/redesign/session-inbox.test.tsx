@@ -21,8 +21,8 @@ jest.mock("expo-router", () => ({
 }));
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ canFetch: mockCanFetch, isDemo: !mockCanFetch, fighterId: "f-1" }) }));
 jest.mock("@/screens/fighter/api", () => ({ getTrainingSession: (id: string) => mockSession(id) }));
-jest.mock("@/api/notifications", () => ({ listNotifications: () => mockList() }));
-jest.mock("@/api/one-tap", () => ({ oneTapApi: { markNotificationRead: (id: string) => mockMark(id) } }));
+jest.mock("@/api/notifications/notifications", () => ({ listNotifications: () => mockList() }));
+jest.mock("@/api/medical/one-tap", () => ({ oneTapApi: { markNotificationRead: (id: string) => mockMark(id) } }));
 
 jest.setTimeout(30000);
 

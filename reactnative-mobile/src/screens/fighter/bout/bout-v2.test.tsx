@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { fireEvent, render, within } from "@testing-library/react-native";
 import { campApi } from "@/features/fight-camp/api";
-import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters";
+import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters/fighters";
 import { loadAllSuspensions } from "@/features/fight-camp/components/fighter-suspension";
 import { gateView, overBy, splitSuspensions, suspensionRow, weighedLine, weightWord } from "./bout-model";
 import { FighterBoutV2 } from "./bout-screen";
@@ -16,7 +16,7 @@ jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/ca
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ user: { id: "u1", role: "FIGHTER", profile: { id: "f1" } }, isDemo: false }) }));
 jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn(), detail: jest.fn(), weightTrack: jest.fn() } }));
-jest.mock("@/api/fighters", () => ({ listFighterMeasurements: jest.fn(), createFighterMeasurement: jest.fn(), supersedeFighterMeasurement: jest.fn() }));
+jest.mock("@/api/fighters/fighters", () => ({ listFighterMeasurements: jest.fn(), createFighterMeasurement: jest.fn(), supersedeFighterMeasurement: jest.fn() }));
 jest.mock("@/features/fight-camp/components/fighter-suspension", () => ({ loadAllSuspensions: jest.fn() }));
 jest.mock("react-native-toast-message", () => ({ __esModule: true, default: { show: jest.fn(), hide: jest.fn() } }));
 

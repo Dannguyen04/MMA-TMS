@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getJobResult } from "@/api/evidence";
+import { getJobResult } from "@/api/video/evidence";
 import type { WorkerResult } from "@/components/video/pose-model";
 import type { PoseState } from "@/screens/media/evidence/evidence-player";
 import { evidenceError } from "@/screens/media/evidence/errors";

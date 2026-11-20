@@ -2,21 +2,21 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
-import { getMe, requestAdmissionEmailCode, verifyAdmissionEmail } from "@/api/auth";
-import { ApiError } from "@/api/errors";
-import { clearSession, persistSession } from "@/api/tokens";
+import { getMe, requestAdmissionEmailCode, verifyAdmissionEmail } from "@/api/auth/auth";
+import { ApiError } from "@/api/core/errors";
+import { clearSession, persistSession } from "@/api/core/tokens";
 import { RegisterScreen } from "@/screens/auth/register";
 import { useSession } from "@/session/session-context";
 import { ThemePreferenceProvider } from "@/theme";
 import { vi } from "@/i18n/vi";
 
-jest.mock("@/api/auth", () => ({
+jest.mock("@/api/auth/auth", () => ({
   getMe: jest.fn(),
   requestAdmissionEmailCode: jest.fn(),
   verifyAdmissionEmail: jest.fn(),
 }));
 
-jest.mock("@/api/tokens", () => ({
+jest.mock("@/api/core/tokens", () => ({
   persistSession: jest.fn(),
   clearSession: jest.fn(),
 }));

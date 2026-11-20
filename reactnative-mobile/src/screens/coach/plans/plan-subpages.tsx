@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { addTrainingPlanExercise, createTrainingPlan, listExercises, removeTrainingPlanExercise, updateTrainingPlan, updateTrainingPlanExercise } from "@/api";
-import { coachApi } from "@/api/coach";
+import { coachApi } from "@/api/coach/coach";
 import { EXERCISE_CATEGORIES, type Exercise, type ExerciseCategory, type PlanMilestone, type TrainingPlanPhase } from "@/api/types";
 import { Icon } from "@/components/icon";
 import { PressableScale } from "@/components/motion";

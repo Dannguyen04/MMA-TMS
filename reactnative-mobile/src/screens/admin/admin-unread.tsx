@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
-import { adminApi } from "@/api/admin";
+import { adminApi } from "@/api/admin/admin";
 import { useCoachEnabled } from "@/screens/coach/readonly/use-coach";
 
 export type AdminUnread = { count: number; refresh: () => void };

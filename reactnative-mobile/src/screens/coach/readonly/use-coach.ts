@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { coachApi, USE_MOCK_COACH } from "@/api/coach";
+import { coachApi, USE_MOCK_COACH } from "@/api/coach/coach";
 import { useSession } from "@/session/session-context";
 import { nameMap } from "./ro-format";
 

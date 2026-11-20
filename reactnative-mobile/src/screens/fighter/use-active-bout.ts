@@ -1,8 +1,8 @@
 import { useCallback } from "react";
 
-import { listBouts, getWeightTrack, pickActiveBout, type Bout, type WeightTrack } from "@/api/bouts";
+import { listBouts, getWeightTrack, pickActiveBout, type Bout, type WeightTrack } from "@/api/fighters/bouts";
 import { useLoad } from "@/screens/fighter/use-load";
-import { mockBoutsApi } from "@/api/bouts.mock";
+import { mockBoutsApi } from "@/api/fighters/bouts.mock";
 import { useSession } from "@/session/session-context";
 
 export type BoutsData = {

@@ -40,7 +40,7 @@ jest.mock("@/screens/one-tap/medical-review-action", () => ({ MedicalReviewActio
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { suspensions: jest.fn() } }));
 jest.mock("@/screens/fighter/api", () => ({ getMe: jest.fn(), listSessionsForFighter: jest.fn(), listPlansForFighter: jest.fn() }));
-jest.mock("@/api", () => ({ ...jest.requireActual("@/api/types"), ...jest.requireActual("@/api/errors"), getFighterMedical: jest.fn(), listFighterDoctors: jest.fn() }));
+jest.mock("@/api", () => ({ ...jest.requireActual("@/api/types"), ...jest.requireActual("@/api/core/errors"), getFighterMedical: jest.fn(), listFighterDoctors: jest.fn() }));
 
 const { campApi } = jest.requireMock("@/features/fight-camp/api") as { campApi: { suspensions: jest.Mock } };
 const fapi = jest.requireMock("@/screens/fighter/api") as Record<string, jest.Mock>;

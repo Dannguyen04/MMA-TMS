@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { ApiError } from "@/api/errors";
+import { ApiError } from "@/api/core/errors";
 import type { AiSuggestion, RoundsResponse } from "@/features/fight-camp/api";
 import { aiDecision, aiLines, aiProblem, aiRequestError, aiTargetRound, isAlreadyDecided, sampleRoundAdvice } from "./round-ai";
 

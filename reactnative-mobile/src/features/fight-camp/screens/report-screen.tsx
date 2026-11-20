@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Swap } from "@/components/motion-kit";
 import { Pressable, Text, View } from "react-native";
 import { campApi, type CampDetail, type CampReport, type TacticOutcome } from "@/features/fight-camp/api";
-import { isApiError } from "@/api/errors";
+import { isApiError } from "@/api/core/errors";
 import { useThemePreference } from "@/theme/index";
 import { boutReport as t } from "@/features/fight-camp/i18n/bout-report";
 import { boutMethodText, boutResultText, improvementPointText, label, UNKNOWN_VALUE } from "@/i18n/backend-codes";

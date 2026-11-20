@@ -1,4 +1,4 @@
-import { ApiError, MEDICAL_GATE_CODE } from "@/api/errors";
+import { ApiError, MEDICAL_GATE_CODE } from "@/api/core/errors";
 import { vi } from "@/i18n/vi";
 import { mapApiMessage } from "@/session/map-api-message";
 

@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { adminApi } from "@/api/admin";
+import { adminApi } from "@/api/admin/admin";
 import { isFighterProfile } from "@/api/types";
 import { EmptyLine, RolePage } from "@/components/role-page";
 import { adminRest as t } from "@/i18n/admin-rest";

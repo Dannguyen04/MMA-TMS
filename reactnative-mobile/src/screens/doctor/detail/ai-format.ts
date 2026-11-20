@@ -1,4 +1,4 @@
-import type { AnalysisJob, HealthAlert, JobHealthAlerts } from "@/api/media";
+import type { AnalysisJob, HealthAlert, JobHealthAlerts } from "@/api/video/media";
 import { jointLabelVi } from "@/components/body3d/regions";
 
 export const aiText = {

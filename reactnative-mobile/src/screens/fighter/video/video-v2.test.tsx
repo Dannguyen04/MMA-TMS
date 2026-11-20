@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { fireEvent, render } from "@testing-library/react-native";
-import { listAnalysisJobs, listVideos } from "@/api/media";
+import { listAnalysisJobs, listVideos } from "@/api/video/media";
 import { FighterUploadV2 } from "./upload-v2";
 import { FighterVideosV2 } from "./video-list-v2";
 import { detailLine, pickedLine, rowView } from "./video-v2-model";
@@ -15,7 +15,7 @@ jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/ca
 jest.mock("@/shared/ui/camp-lit", () => ({ LitFill: () => null }));
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true }) }));
 jest.mock("@/components/toast/app-toast", () => ({ useToastMessage: () => undefined }));
-jest.mock("@/api/media", () => ({ ...jest.requireActual("@/api/media"), listVideos: jest.fn(), listAnalysisJobs: jest.fn(), uploadVideo: jest.fn() }));
+jest.mock("@/api/video/media", () => ({ ...jest.requireActual("@/api/video/media"), listVideos: jest.fn(), listAnalysisJobs: jest.fn(), uploadVideo: jest.fn() }));
 
 const video = (over: object = {}) => ({ id: "v1", title: "Bao cát tối thứ hai", trainingType: "HEAVY_BAG", cameraAngle: "FRONT", status: "PROCESSED", createdAt: "2026-11-10T11:30:00.000Z", ...over }) as never;
 const job = (over: object = {}) => ({ id: "j1", videoId: "v1", status: "DONE", score: 82, alertCount: 2, createdAt: "2026-11-10T11:42:00.000Z", updatedAt: "2026-11-10T11:50:00.000Z", ...over }) as never;

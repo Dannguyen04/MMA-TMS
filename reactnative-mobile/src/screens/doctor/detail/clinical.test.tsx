@@ -20,7 +20,7 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   Redirect: ({ href }: { href: unknown }) => { mockRedirect(href); return null; },
 }));
-jest.mock("@/api/doctor-ro", () => ({ doctorRoApi: jest.requireActual("@/api/doctor-ro.mock").mockDoctorRoApi }));
+jest.mock("@/api/doctor/doctor-ro", () => ({ doctorRoApi: jest.requireActual("@/api/doctor/doctor-ro.mock").mockDoctorRoApi }));
 jest.mock("@/screens/doctor/redesign/doctor-roster", () => ({
   useDoctorRoster: () => ({ items: [{ id: "cf-4", firstName: "Huy", lastName: "Phạm" }], loaded: true, loading: false, error: "", enabled: true }),
 }));
@@ -73,7 +73,7 @@ describe("doctor clinical tabs (redesign step 20)", () => {
 
   it("Tổng quan: a clearance row opens the revoke sheet; nothing is sent", async () => {
     const { OverviewTab } = tabs();
-    const { mockDoctorRoApi } = jest.requireActual("@/api/doctor-ro.mock");
+    const { mockDoctorRoApi } = jest.requireActual("@/api/doctor/doctor-ro.mock");
     const dossier = await mockDoctorRoApi.getDossier("cf-1");
     const ui = await wrap(<OverviewTab fighterId="cf-1" enabled dossier={{ data: dossier, loading: false, error: "", reload: jest.fn(), refresh: jest.fn(async () => undefined) }}/>);
     expect(ui.getByTestId("elig-training").props.accessibilityLabel).toMatch(new RegExp(`^${c.training}, (${c.allowed}|${c.notAllowed})`));

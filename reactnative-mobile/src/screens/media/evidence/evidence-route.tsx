@@ -3,7 +3,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { getAnalysisJob } from "@/api/media";
+import { getAnalysisJob } from "@/api/video/media";
 import { EmptyLine, RolePage } from "@/components/role-page";
 import { fighterVideo as fv } from "@/i18n/fighter-video";
 import { Action } from "@/shared/ui/camp-ui";

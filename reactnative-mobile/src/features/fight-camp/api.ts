@@ -1,5 +1,5 @@
-import { apiFetch } from "@/api/client";
-import { withQuery } from "@/api/query";
+import { apiFetch } from "@/api/core/client";
+import { withQuery } from "@/api/core/query";
 
 /** Verified against Nest bouts and suspensions controllers, 27 October 2026. */
 export type CampStatus = "SCHEDULED" | "CAMP" | "FIGHT_WEEK" | "WEIGHED_IN" | "COMPLETED" | "CANCELLED";

@@ -17,7 +17,7 @@ import {
   uploadVideo,
   VIDEO_CAMERA_ANGLES,
   VIDEO_TRAINING_TYPES,
-} from "@/api/media";
+} from "@/api/video/media";
 import { media } from "@/i18n/media";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { uploadIssue, type UploadIssue } from "@/screens/media/upload-rules";

@@ -22,9 +22,9 @@ jest.mock("expo-router", () => ({
   useLocalSearchParams: () => mockParams,
   useFocusEffect: (cb: () => void) => { const { useEffect } = jest.requireActual("react"); useEffect(cb, [cb]); },
 }));
-jest.mock("@/api/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach.mock").mockCoachApi }));
-jest.mock("@/api/coach-nav", () => ({ coachNavApi: { ...jest.requireActual("@/api/coach-nav.mock").mockCoachNavApi } }));
-jest.mock("@/api/one-tap", () => ({ oneTapApi: { updateSessionStatus: (...a: unknown[]) => mockStatus(...a) } }));
+jest.mock("@/api/coach/coach", () => ({ USE_MOCK_COACH: true, coachApi: jest.requireActual("@/api/coach/coach.mock").mockCoachApi }));
+jest.mock("@/api/coach/coach-nav", () => ({ coachNavApi: { ...jest.requireActual("@/api/coach/coach-nav.mock").mockCoachNavApi } }));
+jest.mock("@/api/medical/one-tap", () => ({ oneTapApi: { updateSessionStatus: (...a: unknown[]) => mockStatus(...a) } }));
 jest.mock("@/api", () => ({
   ...jest.requireActual("@/api"),
   updateTrainingSession: (...a: unknown[]) => mockUpdate(...a),

@@ -3,7 +3,7 @@ import { render, within } from "@testing-library/react-native";
 import { getFighterMedical } from "@/api";
 import { campApi } from "@/features/fight-camp/api";
 import { listPlansForFighter, listSessionsForFighter } from "@/screens/fighter/api";
-import { videoAiApi } from "@/api/video-ai";
+import { videoAiApi } from "@/api/video/video-ai";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { FighterHomeV2 } from "./fighter-home-v2";
 
@@ -21,8 +21,8 @@ jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/ca
 jest.mock("@/features/fight-camp/components/fighter-suspension", () => ({ useFighterSuspensions: () => ({ items: [], error: false, reload: jest.fn(async () => undefined) }) }));
 jest.mock("@/api", () => ({ getFighterMedical: jest.fn() }));
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn(), detail: jest.fn() } }));
-jest.mock("@/api/notifications", () => ({ getUnreadNotificationCount: jest.fn(async () => 0) }));
-jest.mock("@/api/video-ai", () => ({ videoAiApi: { listJobs: jest.fn() } }));
+jest.mock("@/api/notifications/notifications", () => ({ getUnreadNotificationCount: jest.fn(async () => 0) }));
+jest.mock("@/api/video/video-ai", () => ({ videoAiApi: { listJobs: jest.fn() } }));
 jest.mock("@/screens/fighter/api", () => ({ listPlansForFighter: jest.fn(), listSessionsForFighter: jest.fn() }));
 
 const medical = (eligible: boolean) => ({ eligibility: { training: { scope: "TRAINING", eligible, reasons: [] } } }) as never;

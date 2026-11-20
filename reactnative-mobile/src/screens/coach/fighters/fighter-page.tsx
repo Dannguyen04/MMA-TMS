@@ -2,9 +2,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { ActivityIndicator, Pressable, Text, useWindowDimensions, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { coachApi } from "@/api/coach";
-import { listVideos } from "@/api/media";
-import { listFighterDoctors } from "@/api/medical";
+import { coachApi } from "@/api/coach/coach";
+import { listVideos } from "@/api/video/media";
+import { listFighterDoctors } from "@/api/medical/medical";
 import type { MedicalDossier, PublicFighter } from "@/api/types";
 import { BodyMapSection } from "@/components/body3d/body-map-section";
 import { clearanceDates, clearanceProblem, clearanceState, clearanceWord, reasonFor, SCOPES } from "@/components/medical/clearance-state";

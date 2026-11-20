@@ -1,4 +1,4 @@
-import type { AiJob } from "@/api/video-ai.types";
+import type { AiJob } from "@/api/video/video-ai.types";
 
 /* eslint-disable @typescript-eslint/no-require-imports */
 const model = () => require("./ai-model") as typeof import("./ai-model");

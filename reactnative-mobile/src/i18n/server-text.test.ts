@@ -56,8 +56,8 @@ describe("Phase 5 C: notification texts", () => {
   });
   it("the api layer localizes listed rows", async () => {
     jest.resetModules();
-    jest.doMock("@/api/client", () => ({ apiFetch: jest.fn().mockResolvedValue({ data: [{ id: "1", type: "TRAINING_PLAN_ACTIVATED", title: "Training plan active", message: "A training plan assigned to you is now active.", payload: {}, isRead: false, readAt: null, createdAt: "2026-11-01T00:00:00Z" }], total: 1, hasNextPage: false }) }));
-    const { listNotifications } = require("@/api/notifications");
+    jest.doMock("@/api/core/client", () => ({ apiFetch: jest.fn().mockResolvedValue({ data: [{ id: "1", type: "TRAINING_PLAN_ACTIVATED", title: "Training plan active", message: "A training plan assigned to you is now active.", payload: {}, isRead: false, readAt: null, createdAt: "2026-11-01T00:00:00Z" }], total: 1, hasNextPage: false }) }));
+    const { listNotifications } = require("@/api/notifications/notifications");
     const page = await listNotifications();
     expect(page.data[0]).toMatchObject({ id: "1", title: "Giáo án đã áp dụng", message: "Giáo án giao cho bạn đã bắt đầu áp dụng." });
   });

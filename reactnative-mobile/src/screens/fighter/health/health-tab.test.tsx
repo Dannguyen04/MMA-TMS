@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { act, fireEvent, render, within } from "@testing-library/react-native";
-import { getFighterMedical, listFighterReviewRequests } from "@/api/medical";
-import { oneTapApi } from "@/api/one-tap";
+import { getFighterMedical, listFighterReviewRequests } from "@/api/medical/medical";
+import { oneTapApi } from "@/api/medical/one-tap";
 import { FighterHealthTab } from "./health-tab";
 
 const mockPush = jest.fn();
@@ -16,8 +16,8 @@ jest.mock("@/screens/fighter/redesign/palette", () => ({ useFighterPalette: () =
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false }) }));
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/features/fight-camp/components/fighter-suspension", () => ({ useFighterSuspensions: () => ({ items: mockSuspensions, error: false, reload: jest.fn() }) }));
-jest.mock("@/api/medical", () => ({ getFighterMedical: jest.fn(), listFighterReviewRequests: jest.fn() }));
-jest.mock("@/api/one-tap", () => ({ oneTapApi: { createMedicalReviewRequest: jest.fn() } }));
+jest.mock("@/api/medical/medical", () => ({ getFighterMedical: jest.fn(), listFighterReviewRequests: jest.fn() }));
+jest.mock("@/api/medical/one-tap", () => ({ oneTapApi: { createMedicalReviewRequest: jest.fn() } }));
 // Jest has no GL: the 3D canvas becomes a View that reports ready.
 jest.mock("@/components/body3d/body-canvas", () => {
   const { useEffect } = jest.requireActual("react");

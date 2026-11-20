@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { getCoachingState, getMovementReviews, type CoachingState, type MovementReviewState } from "@/api/evidence";
-import { getJobHealthAlerts, type HealthAlert } from "@/api/media";
+import { getCoachingState, getMovementReviews, type CoachingState, type MovementReviewState } from "@/api/video/evidence";
+import { getJobHealthAlerts, type HealthAlert } from "@/api/video/media";
 import type { EvidenceRole } from "@/screens/media/video-detail";
 
 /**

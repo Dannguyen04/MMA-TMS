@@ -1,7 +1,7 @@
 import { ActivityIndicator, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
-import { getFighterMedical, listFighterMedicalHistory } from "@/api/medical";
+import { getFighterMedical, listFighterMedicalHistory } from "@/api/medical/medical";
 import type { MedicalHistoryEntry, MedicalInjury, RecoveryPlan } from "@/api/types";
 import { Icon } from "@/components/icon";
 import { classifyMilestones, formatMedicalWhen, snakeSnapshot, injuryFromSnapshot, injuryStatusLabel, severityLabel } from "@/components/medical/medical-format";
