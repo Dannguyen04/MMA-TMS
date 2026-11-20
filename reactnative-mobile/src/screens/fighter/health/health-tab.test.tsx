@@ -14,8 +14,8 @@ jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/components/tab-icon", () => ({ TabIcon: () => null }));
 jest.mock("@/screens/fighter/redesign/palette", () => ({ useFighterPalette: () => ({ bg: "#000", line: "#111", activeInk: "#C23A22", muted: "#666", accentSoft: "#fee" }) }));
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false }) }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
-jest.mock("@/screens/fight-camp/fighter-suspension", () => ({ useFighterSuspensions: () => ({ items: mockSuspensions, error: false, reload: jest.fn() }) }));
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
+jest.mock("@/features/fight-camp/components/fighter-suspension", () => ({ useFighterSuspensions: () => ({ items: mockSuspensions, error: false, reload: jest.fn() }) }));
 jest.mock("@/api/medical", () => ({ getFighterMedical: jest.fn(), listFighterReviewRequests: jest.fn() }));
 jest.mock("@/api/one-tap", () => ({ oneTapApi: { createMedicalReviewRequest: jest.fn() } }));
 // Jest has no GL: the 3D canvas becomes a View that reports ready.

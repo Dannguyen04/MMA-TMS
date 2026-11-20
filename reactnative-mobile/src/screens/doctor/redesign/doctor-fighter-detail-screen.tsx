@@ -11,7 +11,7 @@ import { doctorRo } from "@/i18n/doctor-ro";
 import { ot } from "@/i18n/one-tap";
 import { fighterLine, statusMark } from "@/screens/coach/fighters/fighter-model";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
-import { CampTabs } from "@/screens/fight-camp/camp-lit";
+import { CampTabs } from "@/shared/ui/camp-lit";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
 import { useLoad } from "@/screens/fighter/use-load";
 import { AiTab, useFighterAi } from "@/screens/doctor/detail/ai-tab";

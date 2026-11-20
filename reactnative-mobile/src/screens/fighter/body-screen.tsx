@@ -22,8 +22,8 @@ import { FighterHub, HubHeader } from "@/screens/fighter/redesign/shell";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useLoad } from "@/screens/fighter/use-load";
 import { HealthDossierSkeleton } from "@/components/screen-skeletons";
-import { FighterSuspensionCard, useFighterSuspensions } from "@/screens/fight-camp/fighter-suspension";
-import { limitsTrainingToday } from "@/screens/fight-camp/camp-rules";
+import { FighterSuspensionCard, useFighterSuspensions } from "@/features/fight-camp/components/fighter-suspension";
+import { limitsTrainingToday } from "@/features/fight-camp/logic/camp-rules";
 import { fz, lh, liveSheet } from "@/theme/typography";
 
 export function FighterBodyScreen() {

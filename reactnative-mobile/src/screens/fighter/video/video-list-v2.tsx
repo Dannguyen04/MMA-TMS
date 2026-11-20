@@ -7,7 +7,7 @@ import { StaggerList } from "@/components/motion";
 import { fighterVideo as t } from "@/i18n/fighter-video";
 import { videoTitle } from "@/i18n/server-text";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { Action, CampShell } from "@/screens/fight-camp/camp-ui";
+import { Action, CampShell } from "@/shared/ui/camp-ui";
 import { backToMe } from "@/screens/fighter/me/me-model";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";

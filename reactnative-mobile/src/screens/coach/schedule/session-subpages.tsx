@@ -13,7 +13,7 @@ import { FighterPick } from "@/screens/coach/fighter-pick";
 import { whenLine } from "@/screens/coach/fighters/fighter-model";
 import { fromVnDate, parseIntField, toVnDate } from "@/screens/coach/plans/plan-model";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { Action, Choices, Field } from "@/screens/fight-camp/camp-ui";
+import { Action, Choices, Field } from "@/shared/ui/camp-ui";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
 import { useSession } from "@/session/session-context";
 import { useThemePreference } from "@/theme";

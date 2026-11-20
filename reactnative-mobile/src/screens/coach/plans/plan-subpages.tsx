@@ -14,7 +14,7 @@ import { coachPlans as t } from "@/i18n/coach-plans";
 import { muscleQuery, musclesLine } from "@/i18n/server-text";
 import { coachErrorMessage, coachProfileId, todayDateOnly } from "@/screens/coach/coach-error";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { Action, Choices, Field } from "@/screens/fight-camp/camp-ui";
+import { Action, Choices, Field } from "@/shared/ui/camp-ui";
 import { ConfirmSheet } from "@/screens/one-tap/sheets";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
 import { FighterPick } from "@/screens/coach/fighter-pick";

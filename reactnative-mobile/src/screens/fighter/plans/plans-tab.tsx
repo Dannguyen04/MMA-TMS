@@ -1,13 +1,13 @@
 import { ActivityIndicator, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { campApi } from "@/api/fight-camp";
+import { campApi } from "@/features/fight-camp/api";
 import type { TrainingPlan, TrainingSession } from "@/api/types";
 import { FadeInView } from "@/components/motion";
 import { dateKey, endOfDay, startOfDay, addDays } from "@/components/schedule/week-model";
 import { fighterPlans as t } from "@/i18n/fighter-plans";
 import { useSource, type Source } from "@/screens/coach/today/coach-today-screen";
-import { Action } from "@/screens/fight-camp/camp-ui";
+import { Action } from "@/shared/ui/camp-ui";
 import { listPlansForFighter, listSessionsForFighter } from "@/screens/fighter/api";
 import { planStatusLabel, sessionTypeLabel } from "@/screens/fighter/format";
 import { nearestBout } from "@/screens/fighter/home/fighter-home-model";

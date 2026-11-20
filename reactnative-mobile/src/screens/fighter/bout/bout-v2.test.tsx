@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 import { fireEvent, render, within } from "@testing-library/react-native";
-import { campApi } from "@/api/fight-camp";
+import { campApi } from "@/features/fight-camp/api";
 import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters";
-import { loadAllSuspensions } from "@/screens/fight-camp/fighter-suspension";
+import { loadAllSuspensions } from "@/features/fight-camp/components/fighter-suspension";
 import { gateView, overBy, splitSuspensions, suspensionRow, weighedLine, weightWord } from "./bout-model";
 import { FighterBoutV2 } from "./bout-screen";
 import { FighterWeighV2 } from "./weigh-screen";
@@ -12,12 +12,12 @@ jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, replace: j
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }), SafeAreaInsetsContext: require("react").createContext(null) }));
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light, resolvedScheme: "light" }) }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ user: { id: "u1", role: "FIGHTER", profile: { id: "f1" } }, isDemo: false }) }));
 jest.mock("@react-native-async-storage/async-storage", () => require("@react-native-async-storage/async-storage/jest/async-storage-mock"));
-jest.mock("@/api/fight-camp", () => ({ campApi: { list: jest.fn(), detail: jest.fn(), weightTrack: jest.fn() } }));
+jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn(), detail: jest.fn(), weightTrack: jest.fn() } }));
 jest.mock("@/api/fighters", () => ({ listFighterMeasurements: jest.fn(), createFighterMeasurement: jest.fn(), supersedeFighterMeasurement: jest.fn() }));
-jest.mock("@/screens/fight-camp/fighter-suspension", () => ({ loadAllSuspensions: jest.fn() }));
+jest.mock("@/features/fight-camp/components/fighter-suspension", () => ({ loadAllSuspensions: jest.fn() }));
 jest.mock("react-native-toast-message", () => ({ __esModule: true, default: { show: jest.fn(), hide: jest.fn() } }));
 
 const today = new Date().toISOString();

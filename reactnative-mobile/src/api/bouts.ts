@@ -1,7 +1,7 @@
 import { ApiError } from "./errors";
 import { createFighterMeasurement } from "./fighters";
 import { mockAppendWeight, mockBoutsApi } from "./bouts.mock";
-import { campApi, type CampBout, type CampDetail } from "./fight-camp";
+import { campApi, type CampBout, type CampDetail } from "@/features/fight-camp/api";
 
 /**
  * Compatibility adapter for existing home cards. New Fight Camp screens consume

@@ -1,9 +1,9 @@
 /// <reference types="jest" />
 import { fireEvent, render, waitFor, within } from "@testing-library/react-native";
-import { campApi, type Suspension } from "@/api/fight-camp";
+import { campApi, type Suspension } from "@/features/fight-camp/api";
 import { doctorRoApi } from "@/api/doctor-ro";
 import { scheduleApi } from "@/api/schedule";
-import { previewSuspension } from "@/screens/fight-camp/camp-preview";
+import { previewSuspension } from "@/features/fight-camp/state/camp-preview";
 import { DoctorTodayScreen } from "./doctor-today-screen";
 
 const mockPush = jest.fn();
@@ -14,14 +14,14 @@ jest.mock("@/components/nav-rail", () => ({ useNavKind: () => "bar", navSideWidt
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ isDemo: false }) }));
 jest.mock("./doctor-bell", () => ({ DoctorBell: () => null }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/screens/doctor/redesign/doctor-roster", () => ({
   useDoctorRoster: () => ({ loaded: true, error: "", reload: jest.fn(), items: [
     { id: "f1", firstName: "Kenji", lastName: "Morita", currentMedicalStatus: "MONITORING" },
     { id: "f2", firstName: "Anh", lastName: "Le", currentMedicalStatus: "NOT_CLEARED" },
   ] }),
 }));
-jest.mock("@/api/fight-camp", () => ({ campApi: { suspensions: jest.fn(), clear: jest.fn() } }));
+jest.mock("@/features/fight-camp/api", () => ({ campApi: { suspensions: jest.fn(), clear: jest.fn() } }));
 jest.mock("@/api/doctor-ro", () => ({ doctorRoApi: { listImpairments: jest.fn() } }));
 jest.mock("@/api/schedule", () => ({ scheduleApi: { doctor: jest.fn(), doctorReviews: jest.fn() } }));
 

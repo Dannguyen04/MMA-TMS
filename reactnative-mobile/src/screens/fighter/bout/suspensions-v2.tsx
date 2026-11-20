@@ -2,13 +2,13 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { StaggerList } from "@/components/motion";
 import { useRouter } from "expo-router";
 
-import type { Suspension } from "@/api/fight-camp";
+import type { Suspension } from "@/features/fight-camp/api";
 import { fighterTran as t } from "@/i18n/fighter-tran";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { previewSuspensionCases } from "@/screens/fight-camp/camp-preview";
-import { allowedTodayLine, dayMonth, suspensionHeadline, suspensionReasonLabel, suspensionStatusLabel } from "@/screens/fight-camp/camp-rules";
-import { CampShell, Frame } from "@/screens/fight-camp/camp-ui";
-import { loadAllSuspensions } from "@/screens/fight-camp/fighter-suspension";
+import { previewSuspensionCases } from "@/features/fight-camp/state/camp-preview";
+import { allowedTodayLine, dayMonth, suspensionHeadline, suspensionReasonLabel, suspensionStatusLabel } from "@/features/fight-camp/logic/camp-rules";
+import { CampShell, Frame } from "@/shared/ui/camp-ui";
+import { loadAllSuspensions } from "@/features/fight-camp/components/fighter-suspension";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useSession } from "@/session/session-context";
 import { useThemePreference } from "@/theme";

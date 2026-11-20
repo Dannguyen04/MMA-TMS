@@ -5,7 +5,7 @@ import { StaggerList } from "@/components/motion";
 import { jointLabel, severityLabel } from "@/components/medical/medical-format";
 import { ev } from "@/i18n/video-evidence";
 import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
-import { sentences } from "@/screens/fight-camp/camp-ui";
+import { sentences } from "@/shared/ui/camp-ui";
 import { EvHead, EvRow, type Word } from "@/screens/media/evidence/evidence-panels";
 import { formatPrecise } from "@/screens/media/evidence/evidence-model";
 import type { FindingReview, WindowReview } from "@/screens/media/evidence/review-model";

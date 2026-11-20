@@ -31,8 +31,8 @@ jest.mock("@/api/medical", () => ({
   })),
   createFighterReviewRequest: (...a: unknown[]) => mockCreate(...a),
 }));
-jest.mock("@/api/fight-camp", () => {
-  const actual = jest.requireActual("@/api/fight-camp");
+jest.mock("@/features/fight-camp/api", () => {
+  const actual = jest.requireActual("@/features/fight-camp/api");
   return { ...actual, campApi: { ...actual.campApi, suspensions: jest.fn() } };
 });
 jest.mock("@/session/session-context", () => ({
@@ -60,7 +60,7 @@ const sub = () => require("./fighter-subpages") as typeof import("./fighter-subp
 
 jest.setTimeout(30000);
 
-const { campApi: mockCamp } = jest.requireMock("@/api/fight-camp") as { campApi: { suspensions: jest.Mock } };
+const { campApi: mockCamp } = jest.requireMock("@/features/fight-camp/api") as { campApi: { suspensions: jest.Mock } };
 const suspended = { id: "s-1", fighterId: "cf-4", reason: "MANDATORY_REST", status: "ACTIVE", startsOn: "2026-11-01", endsOn: "2026-11-30",
   blockedSessionTypes: ["SPARRING"], requiresClearance: false, clearedAt: null, clearanceNote: null, maxAllowedTier: 1, gradedReturn: null };
 

@@ -14,7 +14,7 @@ import { FilterChips, FilterRow } from "@/screens/coach/fighters/fighters-list";
 import { FighterPick } from "@/screens/coach/fighter-pick";
 import { fighterName, vnDate } from "@/screens/coach/readonly/ro-format";
 import { DoctorBell } from "@/screens/doctor/today/doctor-bell";
-import { CampTabs } from "@/screens/fight-camp/camp-lit";
+import { CampTabs } from "@/shared/ui/camp-lit";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useAiEnabled } from "@/screens/video-ai/ai-data";
 import { jointText, severityLabel, severityTone } from "@/screens/video-ai/ai-model";

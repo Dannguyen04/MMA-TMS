@@ -7,7 +7,7 @@ import type { MedicalHistoryEntry } from "@/api/types";
 import { describeSnapshot } from "@/components/medical/medical-format";
 import { SlideSheet } from "@/components/ui/slide-sheet";
 import { fighterHealth as t } from "@/i18n/fighter-health";
-import { CampShell } from "@/screens/fight-camp/camp-ui";
+import { CampShell } from "@/shared/ui/camp-ui";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";
 import { useThemePreference } from "@/theme";

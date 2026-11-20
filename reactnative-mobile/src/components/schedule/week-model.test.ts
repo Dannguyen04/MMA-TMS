@@ -1,7 +1,7 @@
 /// <reference types="jest" />
-import type { CampBout, Suspension } from "@/api/fight-camp";
+import type { CampBout, Suspension } from "@/features/fight-camp/api";
 import type { TrainingSession } from "@/api/types";
-import { previewBout, previewSuspension } from "@/screens/fight-camp/camp-preview";
+import { previewBout, previewSuspension } from "@/features/fight-camp/state/camp-preview";
 import { academyTime, boutItems, dateKey, dayDots, doctorItems, endOfDay, mondayOf, sessionItems, sortDay, startOfDay, suspensionItems, weekDays, type ScheduleItem } from "./week-model";
 
 const days = weekDays("2026-11-09");

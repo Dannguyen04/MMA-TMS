@@ -11,8 +11,8 @@ jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, replace: m
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }), SafeAreaInsetsContext: require("react").createContext(null) }));
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light, resolvedScheme: "light" }) }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
-jest.mock("@/screens/fight-camp/camp-lit", () => ({ LitFill: () => null }));
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
+jest.mock("@/shared/ui/camp-lit", () => ({ LitFill: () => null }));
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true }) }));
 jest.mock("@/components/toast/app-toast", () => ({ useToastMessage: () => undefined }));
 jest.mock("@/api/media", () => ({ ...jest.requireActual("@/api/media"), listVideos: jest.fn(), listAnalysisJobs: jest.fn(), uploadVideo: jest.fn() }));

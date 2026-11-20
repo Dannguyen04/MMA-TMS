@@ -7,7 +7,7 @@ import { EmptyLine, RolePage } from "@/components/role-page";
 import { fighter } from "@/i18n/fighter";
 import { whenLine } from "@/screens/coach/fighters/fighter-model";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { sentences } from "@/screens/fight-camp/camp-ui";
+import { sentences } from "@/shared/ui/camp-ui";
 import { getTrainingSession } from "@/screens/fighter/api";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";

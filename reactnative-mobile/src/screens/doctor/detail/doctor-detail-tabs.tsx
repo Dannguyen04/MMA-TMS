@@ -23,7 +23,7 @@ import { doctorClinical as t } from "@/i18n/doctor-clinical";
 import { medical } from "@/i18n/medical";
 import { vnDate } from "@/screens/coach/readonly/ro-format";
 import { usePagedList } from "@/screens/coach/readonly/use-paged-list";
-import { Choices } from "@/screens/fight-camp/camp-ui";
+import { Choices } from "@/shared/ui/camp-ui";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useLoad } from "@/screens/fighter/use-load";
 import { EvHead } from "@/screens/media/evidence/evidence-panels";

@@ -1,8 +1,8 @@
 import type { ReadinessRow, TodoItem, TodoSource } from "@/api/coach-today";
-import type { CampBout, CampDetail } from "@/api/fight-camp";
+import type { CampBout, CampDetail } from "@/features/fight-camp/api";
 import type { MedicalStatus } from "@/api/types";
 import { todayText as t } from "@/i18n/coach-today";
-import { gate1, kg } from "@/screens/fight-camp/camp-rules";
+import { gate1, kg } from "@/features/fight-camp/logic/camp-rules";
 
 /** Pure rules for the coach "Hôm nay" dashboard (REDESIGN-BRIEF-2026-11.md, coach shape). */
 

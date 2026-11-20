@@ -3,7 +3,7 @@ import { StaggerList } from "@/components/motion";
 import { useRouter } from "expo-router";
 
 import { fighterTran as t } from "@/i18n/fighter-tran";
-import { CampShell } from "@/screens/fight-camp/camp-ui";
+import { CampShell } from "@/shared/ui/camp-ui";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 import { backToTran } from "./bout-model";

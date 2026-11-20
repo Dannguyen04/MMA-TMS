@@ -2,13 +2,13 @@ import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
-import type { CampDetail } from "@/api/fight-camp";
+import type { CampDetail } from "@/features/fight-camp/api";
 import { roleMayReadMeasurements } from "@/api/role-contracts";
 import { fighterTran as t } from "@/i18n/fighter-tran";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { CampTabs } from "@/screens/fight-camp/camp-lit";
-import { isToday, kg, statusLabel } from "@/screens/fight-camp/camp-rules";
-import { Action, CampShell } from "@/screens/fight-camp/camp-ui";
+import { CampTabs } from "@/shared/ui/camp-lit";
+import { isToday, kg, statusLabel } from "@/features/fight-camp/logic/camp-rules";
+import { Action, CampShell } from "@/shared/ui/camp-ui";
 import { StaggerList } from "@/components/motion";
 import { dmLocal } from "@/screens/fighter/health/health-model";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";

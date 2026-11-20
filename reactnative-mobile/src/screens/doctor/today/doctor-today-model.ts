@@ -1,5 +1,5 @@
 import type { DoctorScheduleItem } from "@/api/schedule";
-import type { Suspension } from "@/api/fight-camp";
+import type { Suspension } from "@/features/fight-camp/api";
 import type { PublicFighter } from "@/api/types";
 import type { AnalysisJob } from "@/api/media";
 import { doctorToday as t } from "@/i18n/doctor-today";

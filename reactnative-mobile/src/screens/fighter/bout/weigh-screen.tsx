@@ -4,15 +4,15 @@ import { useRouter } from "expo-router";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { campApi } from "@/api/fight-camp";
+import { campApi } from "@/features/fight-camp/api";
 import { roleMayReadMeasurements } from "@/api/role-contracts";
 import { createFighterMeasurement, listFighterMeasurements, supersedeFighterMeasurement } from "@/api/fighters";
 import { Icon } from "@/components/icon";
 import { fighterTran as t } from "@/i18n/fighter-tran";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { previewBout } from "@/screens/fight-camp/camp-preview";
-import { campError, isToday, kg, readKg } from "@/screens/fight-camp/camp-rules";
-import { Action, CampShell } from "@/screens/fight-camp/camp-ui";
+import { previewBout } from "@/features/fight-camp/state/camp-preview";
+import { campError, isToday, kg, readKg } from "@/features/fight-camp/logic/camp-rules";
+import { Action, CampShell } from "@/shared/ui/camp-ui";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
 import { useSession } from "@/session/session-context";
 import { useThemePreference } from "@/theme";

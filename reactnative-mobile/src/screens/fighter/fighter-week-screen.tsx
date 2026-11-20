@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, type Href } from "expo-router";
 
-import { campApi } from "@/api/fight-camp";
+import { campApi } from "@/features/fight-camp/api";
 import { getFighterMedical } from "@/api/medical";
 import { useWeekItems, useWeekNav } from "@/components/schedule/use-week";
 import { WeekSchedule } from "@/components/schedule/week-schedule";

@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { useRouter } from "expo-router";
 
 import { coachApi } from "@/api/coach";
-import { campApi } from "@/api/fight-camp";
+import { campApi } from "@/features/fight-camp/api";
 import { useWeekItems, useWeekNav } from "@/components/schedule/use-week";
 import { WeekSchedule } from "@/components/schedule/week-schedule";
 import { boutItems, endOfDay, sessionItems, startOfDay, suspensionItems, type ScheduleItem } from "@/components/schedule/week-model";
@@ -13,7 +13,7 @@ import { vai } from "@/i18n/video-ai";
 import { coachFighterHref } from "@/screens/coach/fighters/fighter-model";
 import { CoachBell } from "@/screens/coach/nav/coach-unread";
 import { useCoachEnabled, useFighterNames } from "@/screens/coach/readonly/use-coach";
-import { Action } from "@/screens/fight-camp/camp-ui";
+import { Action } from "@/shared/ui/camp-ui";
 import { SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useAiEnabled, useJobs } from "@/screens/video-ai/ai-data";
 import { useSession } from "@/session/session-context";

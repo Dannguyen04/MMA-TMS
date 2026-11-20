@@ -1,10 +1,10 @@
 /// <reference types="jest" />
 import { render, within } from "@testing-library/react-native";
 import { getFighterMedical } from "@/api";
-import { campApi } from "@/api/fight-camp";
+import { campApi } from "@/features/fight-camp/api";
 import { listPlansForFighter, listSessionsForFighter } from "@/screens/fighter/api";
 import { videoAiApi } from "@/api/video-ai";
-import { previewBout } from "@/screens/fight-camp/camp-preview";
+import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { FighterHomeV2 } from "./fighter-home-v2";
 
 const mockPush = jest.fn();
@@ -17,10 +17,10 @@ jest.mock("@/components/tab-icon", () => ({ TabIcon: () => null }));
 jest.mock("@/screens/fighter/redesign/palette", () => ({ useFighterPalette: () => ({ bg: "#000", line: "#111", activeInk: "#C23A22", muted: "#666", accentSoft: "#fee" }) }));
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ isDemo: false, user: { id: "u1" } }) }));
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", profile: { firstName: "Minh" }, canFetch: true, isDemo: false }) }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
-jest.mock("@/screens/fight-camp/fighter-suspension", () => ({ useFighterSuspensions: () => ({ items: [], error: false, reload: jest.fn(async () => undefined) }) }));
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
+jest.mock("@/features/fight-camp/components/fighter-suspension", () => ({ useFighterSuspensions: () => ({ items: [], error: false, reload: jest.fn(async () => undefined) }) }));
 jest.mock("@/api", () => ({ getFighterMedical: jest.fn() }));
-jest.mock("@/api/fight-camp", () => ({ campApi: { list: jest.fn(), detail: jest.fn() } }));
+jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn(), detail: jest.fn() } }));
 jest.mock("@/api/notifications", () => ({ getUnreadNotificationCount: jest.fn(async () => 0) }));
 jest.mock("@/api/video-ai", () => ({ videoAiApi: { listJobs: jest.fn() } }));
 jest.mock("@/screens/fighter/api", () => ({ listPlansForFighter: jest.fn(), listSessionsForFighter: jest.fn() }));

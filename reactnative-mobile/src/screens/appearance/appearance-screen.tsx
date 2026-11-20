@@ -5,7 +5,7 @@ import { Pressable, Text, View } from "react-native";
 import { RolePage } from "@/components/role-page";
 import { showAppToast } from "@/components/toast/app-toast";
 import { ConfirmDialog } from "@/screens/doctor/redesign/confirm-dialog";
-import { Action } from "@/screens/fight-camp/camp-ui";
+import { Action } from "@/shared/ui/camp-ui";
 import { useAppearanceActions, useAppearanceState, useThemePreference } from "@/theme";
 import { simplifyAppearance } from "@/theme/appearance/readability-policy";
 import { appearanceEqual, DEFAULT_APPEARANCE, NUMERIC_RANGES, type AppearanceSettings, type NumericSettingKey } from "@/theme/appearance/settings";

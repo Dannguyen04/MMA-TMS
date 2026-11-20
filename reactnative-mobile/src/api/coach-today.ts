@@ -1,5 +1,5 @@
 import { apiFetch } from "./client";
-import type { CampStatus } from "./fight-camp";
+import type { CampStatus } from "@/features/fight-camp/api";
 
 /**
  * Coach "Hôm nay" sources. Verified against nestjs-api, 11 November 2026:

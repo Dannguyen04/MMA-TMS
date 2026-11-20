@@ -24,7 +24,7 @@ import { adm } from "@/i18n/admissions";
 import { ACTIONABLE_STATUSES } from "@/screens/admin/admin-actionable";
 import { userDisplayName } from "@/screens/admin/readonly/admin-format";
 import { PickRow } from "@/screens/admin/tools/admin-assign-screen";
-import { Action, Field } from "@/screens/fight-camp/camp-ui";
+import { Action, Field } from "@/shared/ui/camp-ui";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { ConfirmSheet } from "@/screens/one-tap/sheets";
 import { mapApiMessage } from "@/session/map-api-message";

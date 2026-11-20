@@ -4,9 +4,9 @@
  * Presentation-only modules are stubbed; the screens, the card and the selection rules are real.
  */
 import { render, within } from "@testing-library/react-native";
-import type { Suspension } from "@/api/fight-camp";
+import type { Suspension } from "@/features/fight-camp/api";
 import { FighterBodyScreen } from "@/screens/fighter/body-screen";
-import { SuspensionCard } from "@/screens/fight-camp/camp-suspension";
+import { SuspensionCard } from "@/features/fight-camp/components/camp-suspension";
 import { startOfWeek } from "@/screens/fighter/redesign/week";
 
 const week = startOfWeek(new Date());
@@ -37,12 +37,12 @@ jest.mock("@/screens/fighter/redesign/health-status", () => {
 });
 jest.mock("@/screens/fighter/redesign/exam-requests", () => ({ ExamRequestSection: () => null }));
 jest.mock("@/screens/one-tap/medical-review-action", () => ({ MedicalReviewAction: () => null }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
-jest.mock("@/api/fight-camp", () => ({ campApi: { suspensions: jest.fn() } }));
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
+jest.mock("@/features/fight-camp/api", () => ({ campApi: { suspensions: jest.fn() } }));
 jest.mock("@/screens/fighter/api", () => ({ getMe: jest.fn(), listSessionsForFighter: jest.fn(), listPlansForFighter: jest.fn() }));
 jest.mock("@/api", () => ({ ...jest.requireActual("@/api/types"), ...jest.requireActual("@/api/errors"), getFighterMedical: jest.fn(), listFighterDoctors: jest.fn() }));
 
-const { campApi } = jest.requireMock("@/api/fight-camp") as { campApi: { suspensions: jest.Mock } };
+const { campApi } = jest.requireMock("@/features/fight-camp/api") as { campApi: { suspensions: jest.Mock } };
 const fapi = jest.requireMock("@/screens/fighter/api") as Record<string, jest.Mock>;
 const api = jest.requireMock("@/api") as Record<string, jest.Mock>;
 

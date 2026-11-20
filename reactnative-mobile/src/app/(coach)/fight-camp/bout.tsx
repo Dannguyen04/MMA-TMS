@@ -1,1 +1,1 @@
-export { CoachCampBout as default } from "@/screens/fight-camp/coach-camp-screen";
+export { CoachCampBout as default } from "@/features/fight-camp/screens/coach-camp-screen";

@@ -8,7 +8,7 @@ import { FighterPick } from "@/screens/coach/fighter-pick";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { VideoJobsList, VideoLibraryList } from "@/screens/coach/video/video-list";
-import { CampTabs } from "@/screens/fight-camp/camp-lit";
+import { CampTabs } from "@/shared/ui/camp-lit";
 import { useAiEnabled, useJobs, useVideoTitles } from "@/screens/video-ai/ai-data";
 import { STATUS_FILTERS, type StatusFilter } from "@/screens/video-ai/ai-model";
 

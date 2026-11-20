@@ -18,7 +18,7 @@ import { EmptyLine, RolePage } from "@/components/role-page";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { adm } from "@/i18n/admissions";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
-import { Action, Choices, Field } from "@/screens/fight-camp/camp-ui";
+import { Action, Choices, Field } from "@/shared/ui/camp-ui";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
 import { ConfirmSheet } from "@/screens/one-tap/sheets";
 import { mapApiMessage } from "@/session/map-api-message";

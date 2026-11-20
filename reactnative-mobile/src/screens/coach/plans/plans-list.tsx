@@ -7,7 +7,7 @@ import { TRAINING_PLAN_STATUSES, type TrainingPlan, type TrainingPlanStatus } fr
 import { StaggerList } from "@/components/motion";
 import { EmptyLine, RolePage } from "@/components/role-page";
 import { coachPlans as t } from "@/i18n/coach-plans";
-import { Action } from "@/screens/fight-camp/camp-ui";
+import { Action } from "@/shared/ui/camp-ui";
 import { RoHeaderAction } from "@/screens/coach/readonly/ro-ui";
 import { planPct } from "@/screens/coach/readonly/ro-format";
 import { useCoachEnabled, useFighterNames } from "@/screens/coach/readonly/use-coach";

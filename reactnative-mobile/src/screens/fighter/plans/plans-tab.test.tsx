@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 import { fireEvent, render, within } from "@testing-library/react-native";
-import { campApi } from "@/api/fight-camp";
+import { campApi } from "@/features/fight-camp/api";
 import { listPlansForFighter, listSessionsForFighter } from "@/screens/fighter/api";
-import { previewBout } from "@/screens/fight-camp/camp-preview";
+import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { FighterPlansTab } from "./plans-tab";
 
 const mockPush = jest.fn();
@@ -14,8 +14,8 @@ jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/components/tab-icon", () => ({ TabIcon: () => null }));
 jest.mock("@/screens/fighter/redesign/palette", () => ({ useFighterPalette: () => ({ bg: "#000", line: "#111", activeInk: "#C23A22", muted: "#666", accentSoft: "#fee" }) }));
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false }) }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
-jest.mock("@/api/fight-camp", () => ({ campApi: { list: jest.fn() } }));
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
+jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn() } }));
 jest.mock("@/screens/fighter/api", () => ({ listPlansForFighter: jest.fn(), listSessionsForFighter: jest.fn() }));
 
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);

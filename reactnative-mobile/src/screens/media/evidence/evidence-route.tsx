@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getAnalysisJob } from "@/api/media";
 import { EmptyLine, RolePage } from "@/components/role-page";
 import { fighterVideo as fv } from "@/i18n/fighter-video";
-import { Action } from "@/screens/fight-camp/camp-ui";
+import { Action } from "@/shared/ui/camp-ui";
 import { ev } from "@/i18n/video-evidence";
 import { useThemePreference } from "@/theme";
 import { evidenceError } from "@/screens/media/evidence/errors";

@@ -1,11 +1,11 @@
 import type { Href } from "expo-router";
 
-import { campApi, type CampDetail, type Suspension, type WeightTrack } from "@/api/fight-camp";
+import { campApi, type CampDetail, type Suspension, type WeightTrack } from "@/features/fight-camp/api";
 import { listFighterMeasurements } from "@/api/fighters";
 import { fighterTran as t } from "@/i18n/fighter-tran";
-import { previewBout, previewSuspensionCases } from "@/screens/fight-camp/camp-preview";
-import { dayMonth, gate1, gateDecides, isToday, kg, liveSuspensions, requirementLabel, strictestSuspension, suspensionHeadline } from "@/screens/fight-camp/camp-rules";
-import { loadAllSuspensions } from "@/screens/fight-camp/fighter-suspension";
+import { previewBout, previewSuspensionCases } from "@/features/fight-camp/state/camp-preview";
+import { dayMonth, gate1, gateDecides, isToday, kg, liveSuspensions, requirementLabel, strictestSuspension, suspensionHeadline } from "@/features/fight-camp/logic/camp-rules";
+import { loadAllSuspensions } from "@/features/fight-camp/components/fighter-suspension";
 import { dmLocal, hmLocal } from "@/screens/fighter/health/health-model";
 
 export const TRAN = "/tran" as Href;

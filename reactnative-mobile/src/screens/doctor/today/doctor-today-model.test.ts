@@ -1,7 +1,7 @@
 /// <reference types="jest" />
-import type { Suspension } from "@/api/fight-camp";
+import type { Suspension } from "@/features/fight-camp/api";
 import type { PublicFighter } from "@/api/types";
-import { previewSuspension } from "@/screens/fight-camp/camp-preview";
+import { previewSuspension } from "@/features/fight-camp/state/camp-preview";
 import { aiRows, pendingClearances, reviewRows, todayGroups, watchRows } from "./doctor-today-model";
 
 const names = new Map([["f1", "Kenji Morita"], ["f2", "Aigerim Sadykova"], ["f3", "Anh Le"]]);

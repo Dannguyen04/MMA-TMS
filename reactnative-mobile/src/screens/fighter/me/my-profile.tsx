@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { isFighterProfile } from "@/api";
 import { fighterMe as t } from "@/i18n/fighter-me";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { CampShell, sentences } from "@/screens/fight-camp/camp-ui";
+import { CampShell, sentences } from "@/shared/ui/camp-ui";
 import { getMe } from "@/screens/fighter/api";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";

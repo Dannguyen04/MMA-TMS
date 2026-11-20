@@ -8,7 +8,7 @@ import { strikeName } from "@/components/video/pose-overlay";
 import { ev } from "@/i18n/video-evidence";
 import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
 import { guidanceLine } from "@/i18n/server-text";
-import { Choices } from "@/screens/fight-camp/camp-ui";
+import { Choices } from "@/shared/ui/camp-ui";
 import { filterFindings, formatPrecise, metricsOf, type FindingFilter } from "@/screens/media/evidence/evidence-model";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";

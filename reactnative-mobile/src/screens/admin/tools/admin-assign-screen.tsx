@@ -9,7 +9,7 @@ import { RolePage } from "@/components/role-page";
 import { adminTools as t } from "@/i18n/admin-tools";
 import { FighterPick } from "@/screens/coach/fighter-pick";
 import { vnDate } from "@/screens/coach/readonly/ro-format";
-import { Action } from "@/screens/fight-camp/camp-ui";
+import { Action } from "@/shared/ui/camp-ui";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { EvHead } from "@/screens/media/evidence/evidence-panels";
 import { FactLine } from "@/screens/admin/readonly/admin-user-detail-screen";

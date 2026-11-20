@@ -12,7 +12,7 @@ import { coachFighterHref, fighterLine, statusMark, whenLine } from "@/screens/c
 import { coachPlanHref } from "@/screens/coach/plans/plan-model";
 import { fighterName, planPct } from "@/screens/coach/readonly/ro-format";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { Action, sentences } from "@/screens/fight-camp/camp-ui";
+import { Action, sentences } from "@/shared/ui/camp-ui";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useSessionActions } from "@/screens/one-tap/status-actions";
 import { MoreMenu } from "@/screens/one-tap/video-actions";

@@ -4,7 +4,7 @@ import { useRouter, type Href } from "expo-router";
 
 import { appearance } from "@/i18n/appearance";
 import { fighterMe as t } from "@/i18n/fighter-me";
-import { CampShell } from "@/screens/fight-camp/camp-ui";
+import { CampShell } from "@/shared/ui/camp-ui";
 import { SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useAppearanceState } from "@/theme";
 import { backToMe } from "./me-model";

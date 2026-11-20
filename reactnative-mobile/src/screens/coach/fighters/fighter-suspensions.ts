@@ -1,5 +1,5 @@
-import { campApi, type Suspension } from "@/api/fight-camp";
-import { liveSuspensions, suspensionHeadline, suspensionReasonLabel } from "@/screens/fight-camp/camp-rules";
+import { campApi, type Suspension } from "@/features/fight-camp/api";
+import { liveSuspensions, suspensionHeadline, suspensionReasonLabel } from "@/features/fight-camp/logic/camp-rules";
 
 /** Pages of 50; a gym's whole suspension history fits well inside this, and the cap keeps a bad cursor from looping. */
 const MAX_PAGES = 10;

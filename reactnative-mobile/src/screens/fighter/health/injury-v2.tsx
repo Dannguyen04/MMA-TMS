@@ -8,7 +8,7 @@ import { classifyMilestones, formatMedicalWhen, snakeSnapshot, injuryFromSnapsho
 import { dateKey } from "@/components/schedule/week-model";
 import { fighterHealth as t } from "@/i18n/fighter-health";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
-import { CampShell, Frame, sentences } from "@/screens/fight-camp/camp-ui";
+import { CampShell, Frame, sentences } from "@/shared/ui/camp-ui";
 import { planWeek } from "@/screens/fighter/plans/plans-model";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useFighterId } from "@/screens/fighter/use-fighter-id";

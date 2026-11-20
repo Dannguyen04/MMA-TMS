@@ -11,7 +11,7 @@ import { doctor } from "@/i18n/doctor";
 import { doctorClinical as t } from "@/i18n/doctor-clinical";
 import { assessmentAreaLabel } from "@/i18n/server-text";
 import { fighterName, vnDate } from "@/screens/coach/readonly/ro-format";
-import { sentences } from "@/screens/fight-camp/camp-ui";
+import { sentences } from "@/shared/ui/camp-ui";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useLoad } from "@/screens/fighter/use-load";
 import { EvHead } from "@/screens/media/evidence/evidence-panels";

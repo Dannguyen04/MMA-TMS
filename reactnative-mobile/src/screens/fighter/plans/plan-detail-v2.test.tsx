@@ -8,7 +8,7 @@ jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, replace: j
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light, resolvedScheme: "light" }) }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false }) }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/screens/fighter/api", () => ({ getTrainingPlan: jest.fn(), listTrainingPlanExercises: jest.fn(), getExercise: jest.fn() }));
 
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);

@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import type { Suspension } from "@/api/fight-camp";
+import type { Suspension } from "@/features/fight-camp/api";
 import type { MedicalDossier, MedicalHistoryEntry } from "@/api/types";
 import { bodyMarks, byMonth, clearanceRows, dmLocal, historyRow, suspensionToday, verdict } from "./health-model";
 

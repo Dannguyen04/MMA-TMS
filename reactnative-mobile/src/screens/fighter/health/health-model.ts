@@ -1,4 +1,4 @@
-import type { Suspension } from "@/api/fight-camp";
+import type { Suspension } from "@/features/fight-camp/api";
 import type { MedicalDossier, MedicalHistoryEntry } from "@/api/types";
 import { clearanceDates, clearanceState, clearanceWord, reasonFor, SCOPES } from "@/components/medical/clearance-state";
 import { scopeState, type EligibilityLevel, type EligibilityScope, type ScopeState } from "@/components/medical/eligibility-model";
@@ -8,7 +8,7 @@ import {
 import { clearanceCopy } from "@/i18n/clearance";
 import { fighterBody } from "@/i18n/fighter-body";
 import { fighterHealth as t } from "@/i18n/fighter-health";
-import { allowedTodayLine, liveSuspensions, strictestSuspension, suspensionHeadline } from "@/screens/fight-camp/camp-rules";
+import { allowedTodayLine, liveSuspensions, strictestSuspension, suspensionHeadline } from "@/features/fight-camp/logic/camp-rules";
 import { limitRows, reasonLine } from "./medical-lines";
 
 export type Tone = "ok" | "lim" | "no";

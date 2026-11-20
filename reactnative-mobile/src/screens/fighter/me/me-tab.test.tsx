@@ -17,7 +17,7 @@ jest.mock("@/components/nav-rail", () => ({ useNavKind: () => "bar", navSideWidt
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/components/tab-icon", () => ({ TabIcon: () => null }));
 jest.mock("@/screens/fighter/redesign/palette", () => ({ useFighterPalette: () => ({ bg: "#000", line: "#111", activeInk: "#C23A22", muted: "#666", accentSoft: "#fee", ink: "#111", danger: "#c00", surface: "#fff", surface2: "#eee" }) }));
-jest.mock("@/screens/fight-camp/camp-ui", () => require("@/screens/fight-camp/camp-test-ui").campUiMock());
+jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ signOut: mockSignOut }) }));
 jest.mock("@/api", () => ({ ...jest.requireActual("@/api"), listFighterDoctors: jest.fn() }));
 jest.mock("@/screens/fighter/api", () => ({ getMe: jest.fn() }));

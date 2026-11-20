@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import type { ReadinessRow, TodoItem } from "@/api/coach-today";
-import type { CampBout, CampDetail } from "@/api/fight-camp";
-import { previewBout } from "@/screens/fight-camp/camp-preview";
+import type { CampBout, CampDetail } from "@/features/fight-camp/api";
+import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { attentionRows, countdown, liveBouts, paperworkFact, readyRows, sortTodo, stageAction, todoText, weightFact } from "./today-model";
 
 const bout = (over: Partial<CampBout>): CampBout => ({ ...previewBout, ...over });
