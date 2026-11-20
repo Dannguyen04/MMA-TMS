@@ -78,27 +78,7 @@ function streamErrorMessage(error: unknown): string {
   return media.mediaError;
 }
 
-export function VideoDetailContent({
-  videoId,
-  canRequestAnalysis,
-  onBack,
-  role: roleProp,
-}: {
-  videoId: string;
-  canRequestAnalysis: boolean;
-  onBack: () => void;
-  /** Defaults to the signed-in role. */
-  role?: EvidenceRole;
-}) {
-  const sessionRole = useSessionRole();
-  const role = roleProp ?? roleFrom(sessionRole);
-  const window = useWindowDimensions();
-  const playerRef = useRef<EvidencePlayerHandle>(null);
-  const [playhead, setPlayhead] = useState(0);
-  const [tab, setTab] = useState<EvidenceTab>("timeline");
-  const readable = useReadableWidth();
-  const { colors: c } = useThemePreference();
-  const insets = useSafeAreaInsets();
+function useVideoDetailData(videoId: string, canRequestAnalysis: boolean) {
   const [video, setVideo] = useState<VideoRecord | null>(null);
   const [job, setJob] = useState<AnalysisJob | null>(null);
   const [recordError, setRecordError] = useState("");
@@ -224,9 +204,34 @@ export function VideoDetailContent({
       .finally(() => setBusy(false));
   };
 
+  return { video, job, recordError, analysisError, recordLoading, analysisLoading, busy, token, tokenReady, stream, streamError, streamAttempt, loadRecord, loadAnalysis, retryStream, onAnalyze };
+}
+
+export function VideoDetailContent({
+  videoId,
+  canRequestAnalysis,
+  onBack,
+  role: roleProp,
+}: {
+  videoId: string;
+  canRequestAnalysis: boolean;
+  onBack: () => void;
+  /** Defaults to the signed-in role. */
+  role?: EvidenceRole;
+}) {
+  const sessionRole = useSessionRole();
+  const role = roleProp ?? roleFrom(sessionRole);
+  const window = useWindowDimensions();
+  const playerRef = useRef<EvidencePlayerHandle>(null);
+  const [playhead, setPlayhead] = useState(0);
+  const [tab, setTab] = useState<EvidenceTab>("timeline");
+  const readable = useReadableWidth();
+  const { colors: c } = useThemePreference();
+  const insets = useSafeAreaInsets();
+  const { video, job, recordError, analysisError, recordLoading, analysisLoading, busy, token, tokenReady, stream, streamError, streamAttempt, loadRecord, loadAnalysis, retryStream, onAnalyze } = useVideoDetailData(videoId, canRequestAnalysis);
+
   const done = job?.status === "DONE";
   const pose = useJobResult(job?.id ?? null, done, Boolean(stream));
-  const tabs = tabsFor(role);
   const review = useReviewState(job?.id ?? null, done, role);
   const [reviewing, setReviewing] = useState<ResultFinding | null>(null);
   const [windowOpen, setWindowOpen] = useState<EvidenceWindow | null>(null);
@@ -337,49 +342,9 @@ export function VideoDetailContent({
             {video.description ? <View style={{ gap: 4 }}>{sentences(video.description).map((line, i) => <Text key={i} style={{ ...readableTextStyle(15), lineHeight: lh(22), color: c.ink }}>{line}</Text>)}</View> : null}
             {status}
             {done && pose.result ? (
-              <View style={styles.tabs}>
-                <CampTabs
-                  tabs={tabs.map((key) => ({ key, label: fv.tabs[key] }))}
-                  value={tabs.includes(tab) ? tab : "timeline"}
-                  onChange={setTab}
-                  alertLabel={fv.alertDot}
-                />
-                {tab === "review" && tabs.includes("review") ? (
-                  <FindingsPanel
-                    result={pose.result}
-                    onSeek={seekTo}
-                    header={
-                      <>
-                        <SummaryCard
-                          rating={correction?.techniqueRating ?? null}
-                          text={correction?.reviewText ?? null}
-                          canEdit={coachCan}
-                          onEdit={() => setSummaryOpen(true)}
-                        />
-                        {coach && review.coaching && !analysisId ? (
-                          <Text style={{ ...readableTextStyle(14.5), color: c.ink }}>{ev.noAnalysisId}</Text>
-                        ) : null}
-                        <EvHead title={ot.findings} />
-                      </>
-                    }
-                    status={coach ? (f) => findingStatusText(latestFindingReview(review.coaching, f.actionId, f.id)) : undefined}
-                    onOpen={coachCan ? (f) => setReviewing(f) : undefined}
-                  />
-                ) : tab === "metrics" ? (
-                  <MetricsPanel result={pose.result}>
-                    {fighter && canReanalyze ? <ReanalyzeButton onPress={reanalyze.open} /> : null}
-                  </MetricsPanel>
-                ) : (
-                  <TimelinePanel
-                    result={pose.result}
-                    timeMs={playhead}
-                    onSeek={seekTo}
-                    top={role === "doctor" && review.alerts ? <HealthAlertsSection alerts={review.alerts} onSeek={seekTo} /> : null}
-                    windowStatus={fighter ? undefined : (w) => windowStatusText(windowReviewInfo(review.movement, w.id).latest)}
-                    onWindow={windowCan ? (w) => setWindowOpen(w) : undefined}
-                  />
-                )}
-              </View>
+              <VideoEvidenceTabs role={role} result={pose.result} tab={tab} setTab={setTab} review={review} correction={correction}
+                coachCan={coachCan} windowCan={windowCan} analysisId={analysisId} playhead={playhead} seekTo={seekTo}
+                canReanalyze={canReanalyze} onReanalyze={reanalyze.open} setSummaryOpen={setSummaryOpen} setReviewing={setReviewing} setWindowOpen={setWindowOpen}/>
             ) : done && (pose.state === "loading" || pose.state === "idle") ? (
               <ActivityIndicator testID="evidence-skeleton" color={c.lotus} style={{ paddingVertical: 24 }} />
             ) : null}
@@ -413,6 +378,73 @@ export function VideoDetailContent({
       ) : null}
     </View>
   );
+}
+
+function VideoEvidenceTabs({ role, result, tab, setTab, review, correction, coachCan, windowCan, analysisId, playhead, seekTo, canReanalyze, onReanalyze, setSummaryOpen, setReviewing, setWindowOpen }: {
+  role: EvidenceRole;
+  result: NonNullable<ReturnType<typeof useJobResult>["result"]>;
+  tab: EvidenceTab;
+  setTab: (tab: EvidenceTab) => void;
+  review: ReturnType<typeof useReviewState>;
+  correction: ReturnType<typeof latestCorrection>;
+  coachCan: boolean;
+  windowCan: boolean;
+  analysisId: string | null;
+  playhead: number;
+  seekTo: (ms: number) => void;
+  canReanalyze: boolean;
+  onReanalyze: () => void;
+  setSummaryOpen: (open: boolean) => void;
+  setReviewing: (finding: ResultFinding) => void;
+  setWindowOpen: (window: EvidenceWindow) => void;
+}) {
+  const { colors: c } = useThemePreference();
+  const tabs = tabsFor(role);
+  const coach = role === "coach";
+  const fighter = role === "fighter";
+  return <View style={styles.tabs}>
+    <CampTabs
+      tabs={tabs.map((key) => ({ key, label: fv.tabs[key] }))}
+      value={tabs.includes(tab) ? tab : "timeline"}
+      onChange={setTab}
+      alertLabel={fv.alertDot}
+    />
+    {tab === "review" && tabs.includes("review") ? (
+      <FindingsPanel
+        result={result}
+        onSeek={seekTo}
+        header={
+          <>
+            <SummaryCard
+              rating={correction?.techniqueRating ?? null}
+              text={correction?.reviewText ?? null}
+              canEdit={coachCan}
+              onEdit={() => setSummaryOpen(true)}
+            />
+            {coach && review.coaching && !analysisId ? (
+              <Text style={{ ...readableTextStyle(14.5), color: c.ink }}>{ev.noAnalysisId}</Text>
+            ) : null}
+            <EvHead title={ot.findings} />
+          </>
+        }
+        status={coach ? (f) => findingStatusText(latestFindingReview(review.coaching, f.actionId, f.id)) : undefined}
+        onOpen={coachCan ? (f) => setReviewing(f) : undefined}
+      />
+    ) : tab === "metrics" ? (
+      <MetricsPanel result={result}>
+        {fighter && canReanalyze ? <ReanalyzeButton onPress={onReanalyze} /> : null}
+      </MetricsPanel>
+    ) : (
+      <TimelinePanel
+        result={result}
+        timeMs={playhead}
+        onSeek={seekTo}
+        top={role === "doctor" && review.alerts ? <HealthAlertsSection alerts={review.alerts} onSeek={seekTo} /> : null}
+        windowStatus={fighter ? undefined : (w) => windowStatusText(windowReviewInfo(review.movement, w.id).latest)}
+        onWindow={windowCan ? (w) => setWindowOpen(w) : undefined}
+      />
+    )}
+  </View>;
 }
 
 const styles = StyleSheet.create({

@@ -47,6 +47,14 @@ export function OpponentEditor({ bout, preview, onSaved }: { bout: CampDetail; p
   const readonly = bout.status === "COMPLETED" || bout.status === "CANCELLED";
   const disabled = readonly || pending || priorBusy;
   const dirty = snapshot(draft, numbers) !== saved;
+  const p = draft.profile;
+  const summary = [labelOf(STANCE, p.stance) && p.stance ? labelOf(STANCE, p.stance) : t.tuTheChuaRo, p.style ? labelOf(STYLE, p.style) : t.loiDanhChuaRo, numbers.heightCm ? t.cm(numbers.heightCm) : "", numbers.reachCm ? t.tamVoi(numbers.reachCm) : ""].filter(Boolean).join(" · ");
+  const isObs = tab === "obs";
+  const count = isObs ? draft.observations.length : draft.tactics.length;
+  const max = isObs ? 6 : 5;
+  const needsObs = !isObs && !draft.observations.length;
+  const selectedObs = draft.observations.find(o => o.id === open.obs);
+  const selectedTac = draft.tactics.find(x => x.id === open.tac);
   const edited = () => { setMessage(""); setError(""); };
   const obs = (id: string, patch: Partial<Observation>) => { setDraft(d => ({ ...d, observations: d.observations.map(o => o.id === id ? { ...o, ...patch } : o) })); edited(); };
   const tactic = (id: string, patch: Partial<Tactic>) => { setDraft(d => ({ ...d, tactics: d.tactics.map(x => x.id === id ? { ...x, ...patch } : x) })); edited(); };
@@ -54,6 +62,13 @@ export function OpponentEditor({ bout, preview, onSaved }: { bout: CampDetail; p
   const newId = (prefix: string) => `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 5)}`;
   const qsNo = (id: string) => draft.observations.findIndex(o => o.id === id) + 1;
 
+  const num = (key: keyof Numbers, value: string) => { setNumbers(n => ({ ...n, [key]: value })); edited(); };
+  const toggle = (k: Tab, id: string) => setOpen(s => ({ ...s, [k]: s[k] === id && !wide ? null : id }));
+  const add = () => {
+    const id = newId(isObs ? "o" : "t");
+    setDraft(d => isObs ? { ...d, observations: [...d.observations, { id, text: "", kind: "OPENING", confidence: "ONCE", evidenceNote: "" }] } : { ...d, tactics: [...d.tactics, { id, text: "", round: null, observationIds: [], sessionIds: [], partnerBrief: null }] });
+    setOpen(s => ({ ...s, [tab]: id })); edited();
+  };
   async function loadSessions() {
     if (sessionBusy) return; setSessionBusy(true); setError("");
     try {
@@ -64,16 +79,7 @@ export function OpponentEditor({ bout, preview, onSaved }: { bout: CampDetail; p
   async function save() {
     if (lock.current || readonly) return; lock.current = true; setPending(true); setError(""); setMessage("");
     try {
-      const prof = { ...draft.profile };
-      for (const n of numeric) {
-        const raw = numbers[n.key]?.trim();
-        if (!raw) { delete prof[n.key]; continue; }
-        const count = ["wins", "losses", "draws"].includes(n.key);
-        if (!(count ? /^\d+$/ : /^\d+([.,]\d)?$/).test(raw)) throw new CampInputError(t.nhap(n.label, count ? t.soNguyenKhongAm : t.soDuong));
-        const value = Number(raw.replace(",", "."));
-        if (!Number.isFinite(value) || (count ? value < 0 : value <= 0)) throw new CampInputError(t.chuaHopLe(n.label));
-        prof[n.key] = value;
-      }
+      const prof = profileWithNumbers(draft.profile, numbers);
       const input: AnalysisInput = { profile: prof, observations: draft.observations.map(o => ({ ...o, text: o.text.trim(), evidenceUrl: o.evidenceUrl?.trim() || null, evidenceNote: o.evidenceNote?.trim() || null })), tactics: draft.tactics.map(x => ({ ...x, text: x.text.trim() })) };
       validateAnalysis(input, bout.scheduledRounds);
       const result = preview ? { opponentAnalysis: input, tacticsWithoutSessions: input.tactics.filter(x => !x.sessionIds.length).map(x => x.id) } : await campApi.saveAnalysis(bout.id, input);
@@ -91,29 +97,8 @@ export function OpponentEditor({ bout, preview, onSaved }: { bout: CampDetail; p
   }
 
   // ---- Opponent slip -------------------------------------------------------------------------------------------
-  const p = draft.profile;
-  const summary = [labelOf(STANCE, p.stance) && p.stance ? labelOf(STANCE, p.stance) : t.tuTheChuaRo, p.style ? labelOf(STYLE, p.style) : t.loiDanhChuaRo, numbers.heightCm ? t.cm(numbers.heightCm) : "", numbers.reachCm ? t.tamVoi(numbers.reachCm) : ""].filter(Boolean).join(" · ");
-  const num = (key: keyof Numbers, value: string) => { setNumbers(n => ({ ...n, [key]: value })); edited(); };
-  const record = <View>
-    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-      {(["wins", "losses", "draws"] as const).map((key, i) => <View key={key} style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
-        {i ? <Text style={[styles.recordDash, { color: c.inkSubtle, fontFamily: fonts.display }]}>–</Text> : null}
-        <TextInput accessibilityLabel={numeric[i]!.label} value={numbers[key]} onChangeText={v => num(key, v)} editable={!disabled} inputMode="numeric" keyboardType="number-pad" maxLength={3} placeholder="0" placeholderTextColor={c.inkSubtle} selectionColor={c.ring}
-          style={[styles.recordNum, { color: c.ink, fontFamily: fonts.display }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}/>
-      </View>)}
-    </View>
-    <View style={{ flexDirection: "row", gap: 6 }}>{[t.thang, t.thua, t.hoa].map((l, i) => <View key={l} style={{ flexDirection: "row", gap: 6 }}>{i ? <View style={{ width: 14 }}/> : null}<Text style={[styles.legend, { color: c.inkMuted }]}>{l}</Text></View>)}</View>
-  </View>;
-  const traits = <View style={{ gap: 14 }}>
-    <Choices<OpponentProfile["stance"]> label={t.tuThe} value={p.stance} disabled={disabled} options={STANCE} onChange={stance => profile({ stance })}/>
-    <Choices<OpponentProfile["style"]> label={t.loiDanh} value={p.style} disabled={disabled} options={STYLE} onChange={style => profile({ style })}/>
-    <View style={{ flexDirection: "row", gap: 12 }}>
-      <View style={{ flex: 1 }}><Field label={t.chieuCaoCm} inputMode="decimal" maxLength={6} value={numbers.heightCm} editable={!disabled} onChangeText={v => num("heightCm", v)}/></View>
-      <View style={{ flex: 1 }}><Field label={t.tamVoiCm} inputMode="decimal" maxLength={6} value={numbers.reachCm} editable={!disabled} onChangeText={v => num("reachCm", v)}/></View>
-    </View>
-    <Field label={t.nguonHoSoTuyChon} value={p.source ?? ""} editable={!disabled} maxLength={500} onChangeText={source => profile({ source })}/>
-    {!wide ? <TextButton label={t.xong} onPress={() => setProfileOpen(false)}/> : null}
-  </View>;
+  const record = <OpponentRecord numbers={numbers} disabled={disabled} num={num}/>;
+  const traits = <OpponentTraits p={p} numbers={numbers} disabled={disabled} wide={wide} profile={profile} num={num} setProfileOpen={setProfileOpen}/>;
   const slip = <Frame pad={18}>
     <View style={wide ? { flexDirection: "row", gap: 32, alignItems: "flex-start" } : { gap: 12 }}>
       <View style={wide ? { flex: 0.9, gap: 12, minWidth: 0 } : { gap: 12 }}>
@@ -132,41 +117,14 @@ export function OpponentEditor({ bout, preview, onSaved }: { bout: CampDetail; p
   </Frame>;
 
   // ---- Ledgers -------------------------------------------------------------------------------------------------
-  const obsForm = (o: Observation) => <View style={{ gap: 16 }}>
-    <Choices<Observation["kind"]> label={t.loai} value={o.kind} disabled={disabled} options={KIND} onChange={kind => obs(o.id, { kind })}/>
-    <Field label={t.daThayGi} value={o.text} onChangeText={text => obs(o.id, { text })} multiline maxLength={300} editable={!disabled} placeholder={t.viDuQuanSat}/>
-    <Choices<Observation["confidence"]> label={t.soLanThay} value={o.confidence} disabled={disabled} options={CONF} onChange={confidence => obs(o.id, { confidence })}/>
-    <SectionLabel>{t.bangChung}</SectionLabel>
-    <View style={{ flexDirection: "row", gap: 12 }}>
-      <View style={{ flex: 1.6 }}><Field label={t.ghiChu} value={o.evidenceNote ?? ""} onChangeText={evidenceNote => obs(o.id, { evidenceNote })} maxLength={1000} editable={!disabled} error={hasEvidence(o) ? undefined : t.canGhiChuHoacDuongDan}/></View>
-      <View style={{ flex: 1 }}><Field label={t.mocVideo} value={o.evidenceTime ?? ""} onChangeText={evidenceTime => obs(o.id, { evidenceTime })} maxLength={30} editable={!disabled} placeholder="02:14"/></View>
-    </View>
-    <Field label={t.duongDanVideo} value={o.evidenceUrl ?? ""} onChangeText={evidenceUrl => obs(o.id, { evidenceUrl })} inputMode="url" autoCapitalize="none" maxLength={2000} editable={!disabled} placeholder="https://"/>
-    <EditorActions readonly={readonly} disabled={disabled} removeLabel={t.boQuanSat(qsNo(o.id))} onDone={() => setOpen(s => ({ ...s, obs: null }))}
-      onRemove={() => { setDraft(d => ({ ...d, observations: d.observations.filter(x => x.id !== o.id), tactics: d.tactics.map(x => ({ ...x, observationIds: x.observationIds.filter(id => id !== o.id) })) })); setOpen(s => ({ ...s, obs: null })); edited(); }}/>
-  </View>;
-  const tacForm = (x: Tactic, i: number) => <View style={{ gap: 16 }}>
-    <Field label={t.chienThuat(i + 1)} value={x.text} onChangeText={text => tactic(x.id, { text })} multiline maxLength={1000} editable={!disabled} placeholder={t.viDuChienThuat}/>
-    <Choices<number | null> label={t.apDung} value={x.round} disabled={disabled} onChange={round => tactic(x.id, { round })} options={[{ value: null, label: t.moiHiep }, ...Array.from({ length: bout.scheduledRounds ?? 12 }, (_, n) => ({ value: n + 1, label: t.hiep(n + 1) }))]}/>
-    <View style={{ gap: 8 }}>
-      <SectionLabel>{t.duaTrenQuanSat}</SectionLabel>
-      {!x.observationIds.length ? <Copy small color={c.danger}>{t.chonItNhatMot}</Copy> : null}
-      {draft.observations.map(o => <PlanToggle key={o.id} label={`${t.qs(qsNo(o.id))} · ${o.text || t.chuaGhiNoiDung}`} selected={x.observationIds.includes(o.id)} disabled={disabled}
-        onPress={() => tactic(x.id, { observationIds: x.observationIds.includes(o.id) ? x.observationIds.filter(id => id !== o.id) : [...x.observationIds, o.id] })}/>)}
-    </View>
-    <View style={{ gap: 8 }}>
-      <SectionLabel>{t.daLuyenOBuoi}</SectionLabel>
-      {sessions.map(s => <PlanToggle key={s.id} label={`${s.title} · ${dateLabel(s.scheduledAt)}`} selected={x.sessionIds.includes(s.id)} disabled={disabled}
-        onPress={() => tactic(x.id, { sessionIds: x.sessionIds.includes(s.id) ? x.sessionIds.filter(id => id !== s.id) : [...x.sessionIds, s.id] })}/>)}
-      {!sessions.length ? <Copy muted small>{t.chuaTaiBuoiTapChien}</Copy> : null}
-      {!readonly && moreSessions ? <TextButton label={sessionBusy ? "…" : t.xemBuoiCuHon} muted onPress={() => void loadSessions()} disabled={disabled || sessionBusy}/> : null}
-    </View>
-    <Field label={t.danBanTapTuyChon} value={x.partnerBrief ?? ""} onChangeText={partnerBrief => tactic(x.id, { partnerBrief })} multiline maxLength={1000} editable={!disabled}/>
-    <EditorActions readonly={readonly} disabled={disabled} removeLabel={t.boChienThuat(i + 1)} onDone={() => setOpen(s => ({ ...s, tac: null }))}
-      onRemove={() => { setDraft(d => ({ ...d, tactics: d.tactics.filter(y => y.id !== x.id) })); setOpen(s => ({ ...s, tac: null })); edited(); }}/>
-  </View>;
+  const obsForm = (o: Observation) => <ObservationForm o={o} number={qsNo(o.id)} disabled={disabled} readonly={readonly} onChange={patch => obs(o.id, patch)}
+    onDone={() => setOpen(s => ({ ...s, obs: null }))}
+    onRemove={() => { setDraft(d => ({ ...d, observations: d.observations.filter(x => x.id !== o.id), tactics: d.tactics.map(x => ({ ...x, observationIds: x.observationIds.filter(id => id !== o.id) })) })); setOpen(s => ({ ...s, obs: null })); edited(); }}/>;
+  const tacForm = (x: Tactic, i: number) => <TacticForm x={x} i={i} observations={draft.observations} sessions={sessions}
+    scheduledRounds={bout.scheduledRounds} disabled={disabled} readonly={readonly} moreSessions={moreSessions} sessionBusy={sessionBusy}
+    loadSessions={loadSessions} onChange={patch => tactic(x.id, patch)} onDone={() => setOpen(s => ({ ...s, tac: null }))}
+    onRemove={() => { setDraft(d => ({ ...d, tactics: d.tactics.filter(y => y.id !== x.id) })); setOpen(s => ({ ...s, tac: null })); edited(); }}/>;
 
-  const toggle = (k: Tab, id: string) => setOpen(s => ({ ...s, [k]: s[k] === id && !wide ? null : id }));
   const obsRows = draft.observations.map((o, i) => {
     const active = open.obs === o.id;
     return <View key={o.id}>
@@ -191,21 +149,10 @@ export function OpponentEditor({ bout, preview, onSaved }: { bout: CampDetail; p
       {active && !wide ? <View style={styles.inline}>{tacForm(x, i)}</View> : null}
     </View>;
   });
-  const isObs = tab === "obs";
-  const count = isObs ? draft.observations.length : draft.tactics.length;
-  const max = isObs ? 6 : 5;
-  const needsObs = !isObs && !draft.observations.length;
-  const add = () => {
-    const id = newId(isObs ? "o" : "t");
-    setDraft(d => isObs ? { ...d, observations: [...d.observations, { id, text: "", kind: "OPENING", confidence: "ONCE", evidenceNote: "" }] } : { ...d, tactics: [...d.tactics, { id, text: "", round: null, observationIds: [], sessionIds: [], partnerBrief: null }] });
-    setOpen(s => ({ ...s, [tab]: id })); edited();
-  };
   const ledger = <View>
     {isObs ? obsRows : tacRows}
     {!readonly ? <AddRow label={isObs ? t.themQuanSat : t.themChienThuat} note={needsObs ? t.canMotQuanSatTruoc : `${count}/${max}`} disabled={disabled || count >= max || needsObs} onPress={add}/> : null}
   </View>;
-  const selectedObs = draft.observations.find(o => o.id === open.obs);
-  const selectedTac = draft.tactics.find(x => x.id === open.tac);
   const side = isObs
     ? selectedObs ? <Frame pad={18}><EditorTitle>{t.quanSatN(qsNo(selectedObs.id))}</EditorTitle>{obsForm(selectedObs)}</Frame> : <Copy muted>{t.chonQuanSatDeSua}</Copy>
     : selectedTac ? <Frame pad={18}><EditorTitle>{t.chienThuat(draft.tactics.indexOf(selectedTac) + 1)}</EditorTitle>{tacForm(selectedTac, draft.tactics.indexOf(selectedTac))}</Frame> : <Copy muted>{t.chonChienThuatDeSua}</Copy>;
@@ -228,6 +175,122 @@ export function OpponentEditor({ bout, preview, onSaved }: { bout: CampDetail; p
       </View>
     </CampFooter> : null}
   </>;
+}
+
+function profileWithNumbers(profile: OpponentProfile, numbers: Numbers): OpponentProfile {
+  const prof = { ...profile };
+  for (const n of numeric) {
+    const raw = numbers[n.key]?.trim();
+    if (!raw) { delete prof[n.key]; continue; }
+    const count = ["wins", "losses", "draws"].includes(n.key);
+    if (!(count ? /^\d+$/ : /^\d+([.,]\d)?$/).test(raw)) throw new CampInputError(t.nhap(n.label, count ? t.soNguyenKhongAm : t.soDuong));
+    const value = Number(raw.replace(",", "."));
+    if (!Number.isFinite(value) || (count ? value < 0 : value <= 0)) throw new CampInputError(t.chuaHopLe(n.label));
+    prof[n.key] = value;
+  }
+  return prof;
+}
+
+function OpponentRecord({ numbers, disabled, num }: {
+  numbers: Numbers;
+  disabled: boolean;
+  num: (key: keyof Numbers, value: string) => void;
+}) {
+  const { colors: c } = useThemePreference();
+  return <View>
+    <View style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+      {(["wins", "losses", "draws"] as const).map((key, i) => <View key={key} style={{ flexDirection: "row", alignItems: "baseline", gap: 6 }}>
+        {i ? <Text style={[styles.recordDash, { color: c.inkSubtle, fontFamily: fonts.display }]}>–</Text> : null}
+        <TextInput accessibilityLabel={numeric[i]!.label} value={numbers[key]} onChangeText={v => num(key, v)} editable={!disabled} inputMode="numeric" keyboardType="number-pad" maxLength={3} placeholder="0" placeholderTextColor={c.inkSubtle} selectionColor={c.ring}
+          style={[styles.recordNum, { color: c.ink, fontFamily: fonts.display }, Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null]}/>
+      </View>)}
+    </View>
+    <View style={{ flexDirection: "row", gap: 6 }}>{[t.thang, t.thua, t.hoa].map((l, i) => <View key={l} style={{ flexDirection: "row", gap: 6 }}>{i ? <View style={{ width: 14 }}/> : null}<Text style={[styles.legend, { color: c.inkMuted }]}>{l}</Text></View>)}</View>
+  </View>;
+}
+
+function OpponentTraits({ p, numbers, disabled, wide, profile, num, setProfileOpen }: {
+  p: OpponentProfile;
+  numbers: Numbers;
+  disabled: boolean;
+  wide: boolean;
+  profile: (patch: Partial<OpponentProfile>) => void;
+  num: (key: keyof Numbers, value: string) => void;
+  setProfileOpen: (open: boolean) => void;
+}) {
+  return <View style={{ gap: 14 }}>
+    <Choices<OpponentProfile["stance"]> label={t.tuThe} value={p.stance} disabled={disabled} options={STANCE} onChange={stance => profile({ stance })}/>
+    <Choices<OpponentProfile["style"]> label={t.loiDanh} value={p.style} disabled={disabled} options={STYLE} onChange={style => profile({ style })}/>
+    <View style={{ flexDirection: "row", gap: 12 }}>
+      <View style={{ flex: 1 }}><Field label={t.chieuCaoCm} inputMode="decimal" maxLength={6} value={numbers.heightCm} editable={!disabled} onChangeText={v => num("heightCm", v)}/></View>
+      <View style={{ flex: 1 }}><Field label={t.tamVoiCm} inputMode="decimal" maxLength={6} value={numbers.reachCm} editable={!disabled} onChangeText={v => num("reachCm", v)}/></View>
+    </View>
+    <Field label={t.nguonHoSoTuyChon} value={p.source ?? ""} editable={!disabled} maxLength={500} onChangeText={source => profile({ source })}/>
+    {!wide ? <TextButton label={t.xong} onPress={() => setProfileOpen(false)}/> : null}
+  </View>;
+}
+
+function ObservationForm({ o, number, disabled, readonly, onChange, onDone, onRemove }: {
+  o: Observation;
+  number: number;
+  disabled: boolean;
+  readonly: boolean;
+  onChange: (patch: Partial<Observation>) => void;
+  onDone: () => void;
+  onRemove: () => void;
+}) {
+  return <View style={{ gap: 16 }}>
+    <Choices<Observation["kind"]> label={t.loai} value={o.kind} disabled={disabled} options={KIND} onChange={kind => onChange({ kind })}/>
+    <Field label={t.daThayGi} value={o.text} onChangeText={text => onChange({ text })} multiline maxLength={300} editable={!disabled} placeholder={t.viDuQuanSat}/>
+    <Choices<Observation["confidence"]> label={t.soLanThay} value={o.confidence} disabled={disabled} options={CONF} onChange={confidence => onChange({ confidence })}/>
+    <SectionLabel>{t.bangChung}</SectionLabel>
+    <View style={{ flexDirection: "row", gap: 12 }}>
+      <View style={{ flex: 1.6 }}><Field label={t.ghiChu} value={o.evidenceNote ?? ""} onChangeText={evidenceNote => onChange({ evidenceNote })} maxLength={1000} editable={!disabled} error={hasEvidence(o) ? undefined : t.canGhiChuHoacDuongDan}/></View>
+      <View style={{ flex: 1 }}><Field label={t.mocVideo} value={o.evidenceTime ?? ""} onChangeText={evidenceTime => onChange({ evidenceTime })} maxLength={30} editable={!disabled} placeholder="02:14"/></View>
+    </View>
+    <Field label={t.duongDanVideo} value={o.evidenceUrl ?? ""} onChangeText={evidenceUrl => onChange({ evidenceUrl })} inputMode="url" autoCapitalize="none" maxLength={2000} editable={!disabled} placeholder="https://"/>
+    <EditorActions readonly={readonly} disabled={disabled} removeLabel={t.boQuanSat(number)} onDone={onDone}
+      onRemove={onRemove}/>
+  </View>;
+}
+
+function TacticForm({ x, i, observations, sessions, scheduledRounds, disabled, readonly, moreSessions, sessionBusy, loadSessions, onChange, onDone, onRemove }: {
+  x: Tactic;
+  i: number;
+  observations: Observation[];
+  sessions: NonNullable<CampDetail["sessions"]>;
+  scheduledRounds: CampDetail["scheduledRounds"];
+  disabled: boolean;
+  readonly: boolean;
+  moreSessions: boolean;
+  sessionBusy: boolean;
+  loadSessions: () => Promise<void>;
+  onChange: (patch: Partial<Tactic>) => void;
+  onDone: () => void;
+  onRemove: () => void;
+}) {
+  const { colors: c } = useThemePreference();
+  const qsNo = (id: string) => observations.findIndex(o => o.id === id) + 1;
+  return <View style={{ gap: 16 }}>
+    <Field label={t.chienThuat(i + 1)} value={x.text} onChangeText={text => onChange({ text })} multiline maxLength={1000} editable={!disabled} placeholder={t.viDuChienThuat}/>
+    <Choices<number | null> label={t.apDung} value={x.round} disabled={disabled} onChange={round => onChange({ round })} options={[{ value: null, label: t.moiHiep }, ...Array.from({ length: scheduledRounds ?? 12 }, (_, n) => ({ value: n + 1, label: t.hiep(n + 1) }))]}/>
+    <View style={{ gap: 8 }}>
+      <SectionLabel>{t.duaTrenQuanSat}</SectionLabel>
+      {!x.observationIds.length ? <Copy small color={c.danger}>{t.chonItNhatMot}</Copy> : null}
+      {observations.map(o => <PlanToggle key={o.id} label={`${t.qs(qsNo(o.id))} · ${o.text || t.chuaGhiNoiDung}`} selected={x.observationIds.includes(o.id)} disabled={disabled}
+        onPress={() => onChange({ observationIds: x.observationIds.includes(o.id) ? x.observationIds.filter(id => id !== o.id) : [...x.observationIds, o.id] })}/>)}
+    </View>
+    <View style={{ gap: 8 }}>
+      <SectionLabel>{t.daLuyenOBuoi}</SectionLabel>
+      {sessions.map(s => <PlanToggle key={s.id} label={`${s.title} · ${dateLabel(s.scheduledAt)}`} selected={x.sessionIds.includes(s.id)} disabled={disabled}
+        onPress={() => onChange({ sessionIds: x.sessionIds.includes(s.id) ? x.sessionIds.filter(id => id !== s.id) : [...x.sessionIds, s.id] })}/>)}
+      {!sessions.length ? <Copy muted small>{t.chuaTaiBuoiTapChien}</Copy> : null}
+      {!readonly && moreSessions ? <TextButton label={sessionBusy ? "…" : t.xemBuoiCuHon} muted onPress={() => void loadSessions()} disabled={disabled || sessionBusy}/> : null}
+    </View>
+    <Field label={t.danBanTapTuyChon} value={x.partnerBrief ?? ""} onChangeText={partnerBrief => onChange({ partnerBrief })} multiline maxLength={1000} editable={!disabled}/>
+    <EditorActions readonly={readonly} disabled={disabled} removeLabel={t.boChienThuat(i + 1)} onDone={onDone}
+      onRemove={onRemove}/>
+  </View>;
 }
 
 /** One ledger line: a small-caps tag column, the text, a short code, and a line of facts. Selected = surface fill. */

@@ -117,6 +117,64 @@ function adminStateLine(item: StaffApplication, coachName: (id?: string | null) 
   }
 }
 
+function AssessmentCoachFields({ coaches, coachList, coachId, coachName, loadCoaches, setCoachSheet, changing, changeReason, setChangeReason }: {
+  coaches: Load<PublicUser[]>;
+  coachList: PublicUser[];
+  coachId: string;
+  coachName: (id?: string | null) => string;
+  loadCoaches: () => void;
+  setCoachSheet: (open: boolean) => void;
+  changing: boolean;
+  changeReason: string;
+  setChangeReason: (value: string) => void;
+}) {
+  const { colors: c } = useThemePreference();
+  return <View testID="adm-assign" style={{ gap: 8 }}>
+    <Sec title={adm.admin.chooseCoach}/>
+    {coaches.state === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 16 }}/> : null}
+    {coaches.state === "error" ? <RetryRow message={adm.admin.coachesFailed} retry={adm.retry} onRetry={loadCoaches}/> : null}
+    {coaches.state === "ok" && !coachList.length ? <Text style={{ ...readableTextStyle(15), color: c.ink }}>{adm.admin.noCoaches}</Text> : null}
+    {coachList.length ? <PickField testID="adm-coach" label={adm.admin.coachField} value={coachId ? coachName(coachId) : ""} placeholder={adm.admin.coachPick} onPress={() => setCoachSheet(true)}/> : null}
+    {changing ? <Field label={adm.admin.changeReason} value={changeReason} onChangeText={setChangeReason} placeholder={adm.admin.optional} maxLength={500} multiline/> : null}
+  </View>;
+}
+
+function TrainingAssignments({ fighterLookup, fighterId, activeTraining, coachName, doctorHref, name, router, id }: {
+  fighterLookup: "idle" | "loading" | "missing";
+  fighterId: string | null;
+  activeTraining: CoachAssignment[];
+  coachName: (id?: string | null) => string;
+  doctorHref: ReturnType<typeof assignDoctorHref>;
+  name: string;
+  router: ReturnType<typeof useRouter>;
+  id: string;
+}) {
+  const { colors: c } = useThemePreference();
+  return <View testID="adm-training" style={{ gap: 8 }}>
+    <Sec title={adm.admin.training}/>
+    {fighterLookup === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 16 }}/> : null}
+    {fighterLookup === "missing" ? <Text style={{ ...readableTextStyle(15), color: c.ink }}>{adm.admin.fighterMissing}</Text> : null}
+    {fighterId ? (activeTraining.length
+      ? <View>{activeTraining.map((r, k) => { const n = r.coachName?.trim() || coachName(r.coachId);
+        return <SlipRow key={r.id} lead={nameInitials(n)} title={n} line={adm.admin.trainingOn} a11y={`${n}, ${adm.admin.trainingOn}`} last={k === activeTraining.length - 1}/>; })}</View>
+      : <Text style={{ ...readableTextStyle(15), color: c.ink }}>{adm.admin.trainingNone}</Text>) : null}
+    {doctorHref ? <View style={{ marginTop: 6 }}><SlipRow testID="adm-doctor" icon="stethoscope" title={adm.admin.assignDoctor} line={name} a11y={`${adm.admin.assignDoctor}, ${name}`} last
+      onPress={() => router.push(`${doctorHref}&applicationId=${encodeURIComponent(id)}` as Href)}/></View> : null}
+  </View>;
+}
+
+function AdmissionCoachChoices({ coaches, testPrefix, selected, onSelect }: {
+  coaches: PublicUser[];
+  testPrefix: "adm-coach" | "adm-train";
+  selected: string;
+  onSelect: (id: string) => void;
+}) {
+  return <>{coaches.map((u, k) => {
+    const pid = profileId(u)!; const n = staffName(u);
+    return <PickRow key={pid} testID={testPrefix + "-" + pid} initials={nameInitials(n)} title={n} line={coachLine(u)} on={selected === pid} last={k === coaches.length - 1} onPress={() => onSelect(pid)}/>;
+  })}</>;
+}
+
 /**
  * Admin application page (redesign step 24), `quan-tri/nhap-hoc/[id]`: one page, the next step on top. The name, the
  * state line and the 4-step strip, then the action for this status (choose the assessing coach, decide, resend the
@@ -205,14 +263,7 @@ export function AdminAdmissionScreen() {
 
   if (data.status === "SUBMITTED") {
     const changing = Boolean(current) && coachId !== current;
-    action = <View testID="adm-assign" style={{ gap: 8 }}>
-      <Sec title={adm.admin.chooseCoach}/>
-      {coaches.state === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 16 }}/> : null}
-      {coaches.state === "error" ? <RetryRow message={adm.admin.coachesFailed} retry={adm.retry} onRetry={loadCoaches}/> : null}
-      {coaches.state === "ok" && !coachList.length ? <Text style={{ ...readableTextStyle(15), color: c.ink }}>{adm.admin.noCoaches}</Text> : null}
-      {coachList.length ? <PickField testID="adm-coach" label={adm.admin.coachField} value={coachId ? coachName(coachId) : ""} placeholder={adm.admin.coachPick} onPress={() => setCoachSheet(true)}/> : null}
-      {changing ? <Field label={adm.admin.changeReason} value={changeReason} onChangeText={setChangeReason} placeholder={adm.admin.optional} maxLength={500} multiline/> : null}
-    </View>;
+    action = <AssessmentCoachFields coaches={coaches} coachList={coachList} coachId={coachId} coachName={coachName} loadCoaches={loadCoaches} setCoachSheet={setCoachSheet} changing={changing} changeReason={changeReason} setChangeReason={setChangeReason}/>;
     footer = coachList.length ? <Action label={adm.admin.assign} disabled={!coachId || (Boolean(current) && !changing)} pending={busy}
       onPress={() => run(() => assignApplicationCoach(id, { coachId, reassignmentReason: changing && changeReason.trim() ? changeReason.trim() : undefined }), adm.admin.assigned, () => setChangeReason(""))}/> : undefined;
   } else if (data.status === "PASSED") {
@@ -233,17 +284,7 @@ export function AdminAdmissionScreen() {
     </View>;
     footer = <Action label={adm.admin.resend} secondary pending={busy} onPress={() => run(() => resendActivationEmail(id), adm.admin.resent)}/>;
   } else if (data.status === "ACTIVATED") {
-    action = <View testID="adm-training" style={{ gap: 8 }}>
-      <Sec title={adm.admin.training}/>
-      {fighterLookup === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 16 }}/> : null}
-      {fighterLookup === "missing" ? <Text style={{ ...readableTextStyle(15), color: c.ink }}>{adm.admin.fighterMissing}</Text> : null}
-      {fighterId ? (activeTraining.length
-        ? <View>{activeTraining.map((r, k) => { const n = r.coachName?.trim() || coachName(r.coachId);
-          return <SlipRow key={r.id} lead={nameInitials(n)} title={n} line={adm.admin.trainingOn} a11y={`${n}, ${adm.admin.trainingOn}`} last={k === activeTraining.length - 1}/>; })}</View>
-        : <Text style={{ ...readableTextStyle(15), color: c.ink }}>{adm.admin.trainingNone}</Text>) : null}
-      {doctorHref ? <View style={{ marginTop: 6 }}><SlipRow testID="adm-doctor" icon="stethoscope" title={adm.admin.assignDoctor} line={name} a11y={`${adm.admin.assignDoctor}, ${name}`} last
-        onPress={() => router.push(`${doctorHref}&applicationId=${encodeURIComponent(id)}` as Href)}/></View> : null}
-    </View>;
+    action = <TrainingAssignments fighterLookup={fighterLookup} fighterId={fighterId} activeTraining={activeTraining} coachName={coachName} doctorHref={doctorHref} name={name} router={router} id={id}/>;
     footer = fighterId && coachList.length ? <Action label={adm.admin.trainingCta} secondary onPress={() => { setTrainPick(""); setTrainSheet(true); }}/> : undefined;
   }
 
@@ -263,14 +304,12 @@ export function AdminAdmissionScreen() {
       onCancel={() => setRejecting(false)}
       onConfirm={() => run(() => decideApplication(id, { decision: "REJECTED", reason: reason.trim() }), adm.admin.rejectedDone, () => { setRejecting(false); setReason(""); })}/>
     <BottomSheet visible={coachSheet} onClose={() => setCoachSheet(false)} title={adm.admin.chooseCoach}>
-      {coachList.map((u, k) => { const pid = profileId(u)!; const n = staffName(u);
-        return <PickRow key={pid} testID={`adm-coach-${pid}`} initials={nameInitials(n)} title={n} line={coachLine(u)} on={coachId === pid} last={k === coachList.length - 1} onPress={() => { setCoachId(pid); setCoachSheet(false); }}/>; })}
+      <AdmissionCoachChoices coaches={coachList} testPrefix="adm-coach" selected={coachId} onSelect={pid => { setCoachId(pid); setCoachSheet(false); }}/>
     </BottomSheet>
     <BottomSheet visible={trainSheet} onClose={() => (busy ? undefined : setTrainSheet(false))} title={adm.admin.trainingCta}
       footer={<View style={{ paddingTop: 10 }}><Action label={adm.admin.trainingCta} disabled={!trainPick} pending={busy}
         onPress={() => fighterId && run(() => assignFighterCoach(fighterId, { coachId: trainPick }).then(row => setTraining(cur => [row, ...cur.filter(o => o.id !== row.id)])), adm.admin.trainingDone, () => setTrainSheet(false))}/></View>}>
-      {coachList.map((u, k) => { const pid = profileId(u)!; const n = staffName(u);
-        return <PickRow key={pid} testID={`adm-train-${pid}`} initials={nameInitials(n)} title={n} line={coachLine(u)} on={trainPick === pid} last={k === coachList.length - 1} onPress={() => setTrainPick(pid)}/>; })}
+      <AdmissionCoachChoices coaches={coachList} testPrefix="adm-train" selected={trainPick} onSelect={setTrainPick}/>
     </BottomSheet>
   </RolePage>;
 }

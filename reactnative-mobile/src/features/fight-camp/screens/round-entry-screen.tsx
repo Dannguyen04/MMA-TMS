@@ -48,6 +48,56 @@ function SetRoundsPrompt({ bout, preview, onSet }: { bout: CampDetail; preview: 
   </Frame>;
 }
 
+const markOptions = [{ value: "EFFECTIVE" as const, label: t.effective, glyph: "yes" as const, tone: "good" as const }, { value: "INEFFECTIVE" as const, label: t.ineffective, glyph: "no" as const, tone: "bad" as const }, { value: "NOT_USED" as const, label: t.unused, glyph: "skip" as const }];
+const seenOptions = [{ value: "SEEN" as const, label: t.seen, glyph: "yes" as const, tone: "good" as const }, { value: "NOT_SEEN" as const, label: t.unseen, glyph: "no" as const, tone: "bad" as const }];
+
+function RoundHealthFields({ draft, disabled, change }: {
+  draft: RoundInput;
+  disabled: boolean;
+  change: (patch: Partial<RoundInput>) => void;
+}) {
+  return <>
+    <Field label={t.note} value={draft.note ?? ""} maxLength={300} multiline editable={!disabled} helper={`${draft.note?.length ?? 0}/300 · ${t.draft}`} onChangeText={note => change({ note })}/>
+    <Frame pad={12}><Copy strong>{t.knockdowns}</Copy><View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
+      <View style={{ flex: 1 }}><Action label={t.decrease} icon="minus" secondary disabled={disabled || !draft.knockdownsAgainst} onPress={() => change({ knockdownsAgainst: (draft.knockdownsAgainst ?? 0) - 1 })}/></View>
+      <Copy large strong>{draft.knockdownsAgainst ?? 0}</Copy>
+      <View style={{ flex: 1 }}><Action label={t.increase} icon="plus" secondary disabled={disabled || (draft.knockdownsAgainst ?? 0) >= 10} onPress={() => change({ knockdownsAgainst: (draft.knockdownsAgainst ?? 0) + 1 })}/></View>
+    </View></Frame>
+    {([{ key: "stunned", label: t.stunned }, { key: "bleeding", label: t.bleeding }, { key: "fatigued", label: t.fatigued }] as const).map(f => <Choices key={f.key} chips label={f.label} value={draft[f.key] ? 1 : 0} options={[{ value: 0, label: t.no }, { value: 1, label: t.yes, tone: "bad" }]} onChange={v => change({ [f.key]: !!v })} disabled={disabled}/>)}
+  </>;
+}
+
+function RoundMarks({ allTactics, allObservations, draft, disabled, round, folded, fold, change }: {
+  allTactics: ReturnType<typeof entryTactics>;
+  allObservations: NonNullable<CampDetail["opponentAnalysis"]["observations"]>;
+  draft: RoundInput;
+  disabled: boolean;
+  round: number;
+  folded: ReadonlySet<string>;
+  fold: (key: string) => void;
+  change: (patch: Partial<RoundInput>) => void;
+}) {
+  function markTactic(a: ReturnType<typeof entryTactics>[number]) {
+    return <MarkRow<TacticOutcome> key={a.id} label={a.text} value={draft.tacticMarks?.[a.id] ?? null} options={markOptions} disabled={disabled} onChange={v => change({ tacticMarks: { ...draft.tacticMarks, [a.id]: v } })}/>;
+  }
+  function markObservation(o: NonNullable<CampDetail["opponentAnalysis"]["observations"]>[number]) {
+    return <MarkRow<"SEEN" | "NOT_SEEN"> key={o.id} label={o.text} value={draft.observationMarks?.[o.id] ?? null} options={seenOptions} disabled={disabled} onChange={v => change({ observationMarks: { ...draft.observationMarks, [o.id]: v } })}/>;
+  }
+  const tacticsDone = allTactics.filter(a => draft.tacticMarks?.[a.id]).length;
+  const observationsDone = allObservations.filter(o => draft.observationMarks?.[o.id]).length;
+  return <View style={{ gap: 14 }}>
+    <MarkGroup key={`t-${round}`} open={!folded.has(`${round}:t`)} onToggle={() => fold(`${round}:t`)} title={t.scoreTactics} count={allTactics.length ? t.marked(tacticsDone, allTactics.length) : undefined} done={!!allTactics.length && tacticsDone >= allTactics.length} legend={allTactics.length ? <MarkLegend options={markOptions}/> : null}>
+      {allTactics.map(markTactic)}
+      {!allTactics.length ? <Copy muted>{t.noTactics}</Copy> : null}
+    </MarkGroup>
+    <MarkGroup key={`o-${round}`} open={!folded.has(`${round}:o`)} onToggle={() => fold(`${round}:o`)} title={t.opponentMarks} count={allObservations.length ? t.marked(observationsDone, allObservations.length) : undefined} done={!!allObservations.length && observationsDone >= allObservations.length} legend={allObservations.length ? <MarkLegend options={seenOptions}/> : null}>
+      {allObservations.map(markObservation)}
+      {!allObservations.length ? <Copy muted>{t.noObservations}</Copy> : null}
+    </MarkGroup>
+    <Choices<RoundInput["selfScore"]> chips label={t.selfScore} value={draft.selfScore ?? null} disabled={disabled} options={[{ value: "WIN", label: t.win, tone: "good" }, { value: "CLOSE", label: t.close }, { value: "LOSS", label: t.loss, tone: "bad" }]} onChange={selfScore => change({ selfScore })}/>
+  </View>;
+}
+
 export function RoundScreen({ bout, preview, onReport, draftState, onDraftStateChange, onBoutChange }: {
   bout: CampDetail; preview: boolean; onReport?: () => void; draftState?: RoundDraftState; onDraftStateChange?: (s: RoundDraftState) => void;
   /** The bout changed here (round count set); the bout screen keeps its copy in sync. */
@@ -60,7 +110,6 @@ export function RoundScreen({ bout, preview, onReport, draftState, onDraftStateC
   const [tab, setTab] = useState<"this" | "health" | "next">("this");
   /** Mark groups the coach folded, per round ("3:t" tactics, "3:o" observations); kept across round and tab switches. */
   const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set());
-  const fold = (key: string) => setFolded(f => { const next = new Set(f); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   const [pending, setPending] = useState(false); const lock = useRef(false);
   const [error, setError] = useState(""); const [saved, setSaved] = useState<number | null>(null);
   /** 1A: round whose save kept the coach on its tab because AI advice for the next round is valid. */
@@ -79,6 +128,10 @@ export function RoundScreen({ bout, preview, onReport, draftState, onDraftStateC
   const quick = compactTactics(tactics, state.data, round);
   const observations = bout.opponentAnalysis.observations ?? [];
   const mainObservation = observations.find(o => quick.some(a => bout.opponentAnalysis.tactics?.find(b => b.id === a.id)?.observationIds.includes(o.id) || state.data?.rounds.some(r => r.nextRoundPlan?.addedTactics.some(b => b.id === a.id && b.observationIds.includes(o.id))))) ?? observations[0];
+  // Owner 2026-11-18: every mark is on the page, never behind a "Xem thêm N mục" link the coach can miss. The main
+  // ones lead each group, and each group heading counts what is still unmarked.
+  const allTactics = [...quick, ...tactics.filter(a => !quick.some(b => b.id === a.id))];
+  const allObservations = mainObservation ? [mainObservation, ...observations.filter(o => o.id !== mainObservation.id)] : observations;
   const disabled = pending || state.loading;
   const aiTarget = aiTargetRound(bout, state.data, round, total);
   // Re-entry: restore AI lines for the current n+1 once per target (read only).
@@ -86,6 +139,7 @@ export function RoundScreen({ bout, preview, onReport, draftState, onDraftStateC
     if (!aiTarget || restoredFor.current.has(aiTarget)) return;
     restoredFor.current.add(aiTarget); void ai.restore(aiTarget);
   }, [aiTarget, ai.restore]);
+  const fold = (key: string) => setFolded(f => { const next = new Set(f); if (next.has(key)) next.delete(key); else next.add(key); return next; });
   function change(patch: Partial<RoundInput>) {
     setDrafts({ ...drafts, round, values: { ...drafts.values, [round]: { ...draft, nextRoundPlan: plan, ...patch } } });
     setSaved(null); setError(""); setStayed(null);
@@ -123,44 +177,10 @@ export function RoundScreen({ bout, preview, onReport, draftState, onDraftStateC
       if (Platform.OS !== "web") hapticSuccess();
     } catch (e) { setError(campError(e)); } finally { lock.current = false; setPending(false); }
   }
-  const markOptions = [{ value: "EFFECTIVE" as const, label: t.effective, glyph: "yes" as const, tone: "good" as const }, { value: "INEFFECTIVE" as const, label: t.ineffective, glyph: "no" as const, tone: "bad" as const }, { value: "NOT_USED" as const, label: t.unused, glyph: "skip" as const }];
-  const seenOptions = [{ value: "SEEN" as const, label: t.seen, glyph: "yes" as const, tone: "good" as const }, { value: "NOT_SEEN" as const, label: t.unseen, glyph: "no" as const, tone: "bad" as const }];
-  function markTactic(a: typeof tactics[number]) {
-    return <MarkRow<TacticOutcome> key={a.id} label={a.text} value={draft.tacticMarks?.[a.id] ?? null} options={markOptions} disabled={disabled} onChange={v => change({ tacticMarks: { ...draft.tacticMarks, [a.id]: v } })}/>;
-  }
-  function markObservation(o: typeof observations[number]) {
-    return <MarkRow<"SEEN" | "NOT_SEEN"> key={o.id} label={o.text} value={draft.observationMarks?.[o.id] ?? null} options={seenOptions} disabled={disabled} onChange={v => change({ observationMarks: { ...draft.observationMarks, [o.id]: v } })}/>;
-  }
   // Phase 5 E: round entry in two columns from 744 (tactics | health and next-round instructions); phone order below.
   // Two columns (2b): health fields always open on the right; "Ghi thêm" only opens the remaining tactics on the left,
   // and is hidden when there are none.
   const picker = (data: RoundsResponse, n: number) => <RoundTabs label={t.roundTabs} total={n} value={round} saved={data.rounds.map(r => r.roundNo)} disabled={disabled} onChange={select} tabLabel={t.roundTab} savedLabel={t.roundTabSaved}/>;
-  // Owner 2026-11-18: every mark is on the page, never behind a "Xem thêm N mục" link the coach can miss. The main
-  // ones lead each group, and each group heading counts what is still unmarked.
-  const allTactics = [...quick, ...tactics.filter(a => !quick.some(b => b.id === a.id))];
-  const allObservations = mainObservation ? [mainObservation, ...observations.filter(o => o.id !== mainObservation.id)] : observations;
-  const tacticsDone = allTactics.filter(a => draft.tacticMarks?.[a.id]).length;
-  const observationsDone = allObservations.filter(o => draft.observationMarks?.[o.id]).length;
-  const thisRound = () => <View style={{ gap: 14 }}>
-    <MarkGroup key={`t-${round}`} open={!folded.has(`${round}:t`)} onToggle={() => fold(`${round}:t`)} title={t.scoreTactics} count={allTactics.length ? t.marked(tacticsDone, allTactics.length) : undefined} done={!!allTactics.length && tacticsDone >= allTactics.length} legend={allTactics.length ? <MarkLegend options={markOptions}/> : null}>
-      {allTactics.map(markTactic)}
-      {!allTactics.length ? <Copy muted>{t.noTactics}</Copy> : null}
-    </MarkGroup>
-    <MarkGroup key={`o-${round}`} open={!folded.has(`${round}:o`)} onToggle={() => fold(`${round}:o`)} title={t.opponentMarks} count={allObservations.length ? t.marked(observationsDone, allObservations.length) : undefined} done={!!allObservations.length && observationsDone >= allObservations.length} legend={allObservations.length ? <MarkLegend options={seenOptions}/> : null}>
-      {allObservations.map(markObservation)}
-      {!allObservations.length ? <Copy muted>{t.noObservations}</Copy> : null}
-    </MarkGroup>
-    <Choices<RoundInput["selfScore"]> chips label={t.selfScore} value={draft.selfScore ?? null} disabled={disabled} options={[{ value: "WIN", label: t.win, tone: "good" }, { value: "CLOSE", label: t.close }, { value: "LOSS", label: t.loss, tone: "bad" }]} onChange={selfScore => change({ selfScore })}/>
-  </View>;
-  const healthFields = () => <>
-    <Field label={t.note} value={draft.note ?? ""} maxLength={300} multiline editable={!disabled} helper={`${draft.note?.length ?? 0}/300 · ${t.draft}`} onChangeText={note => change({ note })}/>
-    <Frame pad={12}><Copy strong>{t.knockdowns}</Copy><View style={{ flexDirection: "row", gap: 16, alignItems: "center" }}>
-      <View style={{ flex: 1 }}><Action label={t.decrease} icon="minus" secondary disabled={disabled || !draft.knockdownsAgainst} onPress={() => change({ knockdownsAgainst: (draft.knockdownsAgainst ?? 0) - 1 })}/></View>
-      <Copy large strong>{draft.knockdownsAgainst ?? 0}</Copy>
-      <View style={{ flex: 1 }}><Action label={t.increase} icon="plus" secondary disabled={disabled || (draft.knockdownsAgainst ?? 0) >= 10} onPress={() => change({ knockdownsAgainst: (draft.knockdownsAgainst ?? 0) + 1 })}/></View>
-    </View></Frame>
-    {([{ key: "stunned", label: t.stunned }, { key: "bleeding", label: t.bleeding }, { key: "fatigued", label: t.fatigued }] as const).map(f => <Choices key={f.key} chips label={f.label} value={draft[f.key] ? 1 : 0} options={[{ value: 0, label: t.no }, { value: 1, label: t.yes, tone: "bad" }]} onChange={v => change({ [f.key]: !!v })} disabled={disabled}/>)}
-  </>;
   // Advice (safety, self-scored standing, each tactic's score) sits right above the plan it informs, so the break
   // needs one screen. Shown only once the server has advice; no separate advice screen.
   const instructions = (data: RoundsResponse, n: number) => <>
@@ -190,8 +210,8 @@ export function RoundScreen({ bout, preview, onReport, draftState, onDraftStateC
       {saved != null ? <Notice title={t.saved(saved)} success>{stayed === saved ? aiCopy.stay(saved) : undefined}</Notice> : null}
       <Swap swapKey={`${round}-${tab}`} testID={`round-tab-${tab}`} style={{ gap: 12 }}>
         {/* Last round: "Hiệp sau" is locked, so the advice after the previous round (safety included) leads "Hiệp này". */}
-        {tab === "this" || (tab === "next" && round >= total) ? <>{round >= total && state.data.advice ? <RoundAdvicePanel data={state.data} heading={false}/> : null}{thisRound()}</> : null}
-        {tab === "health" ? <View testID="round-health" style={{ gap: 12 }}>{healthFields()}</View> : null}
+        {tab === "this" || (tab === "next" && round >= total) ? <>{round >= total && state.data.advice ? <RoundAdvicePanel data={state.data} heading={false}/> : null}<RoundMarks allTactics={allTactics} allObservations={allObservations} draft={draft} disabled={disabled} round={round} folded={folded} fold={fold} change={change}/></> : null}
+        {tab === "health" ? <View testID="round-health" style={{ gap: 12 }}><RoundHealthFields draft={draft} disabled={disabled} change={change}/></View> : null}
         {tab === "next" && round < total ? instructions(state.data, total) : null}
       </Swap>
       <CampFooter>{error ? <Notice title={t.saveFailed} danger>{error}</Notice> : null}<Action label={t.save(round, !!existing)} pending={pending} disabled={state.loading || !!state.error} onPress={() => void save()}/></CampFooter>
