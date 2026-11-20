@@ -1,7 +1,7 @@
 import { apiFetch } from "@/api/core/client";
 import { withQuery } from "@/api/core/query";
 import type { AppNotification, Paginated } from "@/api/types";
-import { localizeNotification } from "@/i18n/server-text";
+import { localizeNotification } from "@/i18n/common/server-text";
 
 export function listNotifications(query?: { page?: number; limit?: number; unreadOnly?: boolean }) {
   // Phase 5 C: the server sends English; rows are made Vietnamese here, once, for every inbox.

@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { LiveRefreshControl, useLiveRefresh } from "@/components/live-refresh";
+import { LiveRefreshControl, useLiveRefresh } from "@/components/feedback/live-refresh";
 import Animated, { Easing, FadeInLeft, FadeInRight, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
-import { selectionHaptic, Swap } from "@/components/motion-kit";
+import { selectionHaptic, Swap } from "@/components/motion/motion-kit";
 import { motion } from "@/theme/motion";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon } from "@/components/icon";
-import { PressableScale } from "@/components/motion";
-import { navSideWidth, useNavKind } from "@/components/nav-rail";
+import { PressableScale } from "@/components/motion/motion";
+import { navSideWidth, useNavKind } from "@/components/navigation/nav-rail";
 import { SlideSheet } from "@/components/ui/slide-sheet";
-import { scheduleText as t } from "@/i18n/schedule";
+import { scheduleText as t } from "@/i18n/common/schedule";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 import { dayDots, shortDay, sortDay, weekDays, type ScheduleItem, type ScheduleKind } from "./week-model";

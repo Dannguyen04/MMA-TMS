@@ -11,7 +11,7 @@ import {
   type LayoutChangeEvent,
 } from "react-native";
 
-import { appearance } from "@/i18n/appearance";
+import { appearance } from "@/i18n/common/appearance";
 import { hexToHsv, hsvToHex, normalizeHex, type Hsv } from "@/theme/appearance/color-math";
 import { radius, spacing, type, useThemePreference } from "@/theme";
 import { ArenaSurface } from "@/components/arena/arena-frame";

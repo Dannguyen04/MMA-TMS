@@ -4,12 +4,12 @@ import { useRouter } from "expo-router";
 
 import { VIDEO_CAMERA_ANGLES, VIDEO_TRAINING_TYPES } from "@/api/video/media";
 import { Icon } from "@/components/icon";
-import { PressableScale } from "@/components/motion";
-import { fighterVideo as t } from "@/i18n/fighter-video";
-import { media } from "@/i18n/media";
+import { PressableScale } from "@/components/motion/motion";
+import { fighterVideo as t } from "@/i18n/fighter/fighter-video";
+import { media } from "@/i18n/video/media";
 import { LitFill } from "@/shared/ui/camp-lit";
 import { Action, CampShell, Copy, Field, Frame } from "@/shared/ui/camp-ui";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
 import { useVideoUpload } from "@/screens/media/video-upload";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";

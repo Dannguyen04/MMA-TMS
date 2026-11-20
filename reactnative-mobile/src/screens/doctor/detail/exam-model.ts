@@ -1,8 +1,8 @@
 import type { MedicalExamination } from "@/api/types";
 import { decisionLabel, jointLabel, scopeLabel } from "@/components/medical/medical-format";
-import { doctor } from "@/i18n/doctor";
-import { doctorClinical as t } from "@/i18n/doctor-clinical";
-import { doctorRo } from "@/i18n/doctor-ro";
+import { doctor } from "@/i18n/doctor/doctor";
+import { doctorClinical as t } from "@/i18n/doctor/doctor-clinical";
+import { doctorRo } from "@/i18n/doctor/doctor-ro";
 import { vnDate } from "@/screens/coach/readonly/ro-format";
 
 import { vnDayMonth } from "./detail-format";

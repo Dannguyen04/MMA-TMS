@@ -5,9 +5,9 @@ import { scopeState, type EligibilityLevel, type EligibilityScope, type ScopeSta
 import {
   clearanceTypeLabel, decisionLabel, snakeSnapshot, injuryStatusLabel, jointLabel, recordTypeLabel, recoveryStatusLabel, reviewStatusLabel, scopeLabel, severityLabel,
 } from "@/components/medical/medical-format";
-import { clearanceCopy } from "@/i18n/clearance";
-import { fighterBody } from "@/i18n/fighter-body";
-import { fighterHealth as t } from "@/i18n/fighter-health";
+import { clearanceCopy } from "@/i18n/medical/clearance";
+import { fighterBody } from "@/i18n/fighter/fighter-body";
+import { fighterHealth as t } from "@/i18n/fighter/fighter-health";
 import { allowedTodayLine, liveSuspensions, strictestSuspension, suspensionHeadline } from "@/features/fight-camp/logic/camp-rules";
 import { limitRows, reasonLine } from "./medical-lines";
 

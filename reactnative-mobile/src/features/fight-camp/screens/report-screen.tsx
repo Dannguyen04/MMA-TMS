@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
-import { Swap } from "@/components/motion-kit";
+import { Swap } from "@/components/motion/motion-kit";
 import { Pressable, Text, View } from "react-native";
 import { campApi, type CampDetail, type CampReport, type TacticOutcome } from "@/features/fight-camp/api";
 import { isApiError } from "@/api/core/errors";
 import { useThemePreference } from "@/theme/index";
 import { boutReport as t } from "@/features/fight-camp/i18n/bout-report";
-import { boutMethodText, boutResultText, improvementPointText, label, UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { boutMethodText, boutResultText, improvementPointText, label, UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
 import { vnShortDate } from "@/utils/vn-date";
 import { Action, Busy, CampIcon, CampTop, Choices, Copy, Field, Frame, Notice } from "@/shared/ui/camp-ui";
 import { CampTabs, FitList } from "@/shared/ui/camp-lit";

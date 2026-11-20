@@ -3,7 +3,7 @@ import { render } from "@testing-library/react-native";
 import type { MedicalDossier } from "@/api/types";
 import { ThemePreferenceProvider } from "@/theme";
 import { EligibilityTiles, TodayCard } from "@/screens/fighter/redesign/health-status";
-import { fighterBody as t } from "@/i18n/fighter-body";
+import { fighterBody as t } from "@/i18n/fighter/fighter-body";
 
 const dossier = {
   fighterId: "f", activeInjuries: [], activeRecoveryPlans: [], activeClearances: [], openReviewRequests: [],

@@ -5,9 +5,9 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { coachApi } from "@/api/coach/coach";
 import type { SessionStatusValue } from "@/api/medical/one-tap.types";
 import type { TrainingSession } from "@/api/types";
-import { StaggerList } from "@/components/motion";
-import { EmptyLine, RolePage } from "@/components/role-page";
-import { coachSchedule as t } from "@/i18n/coach-schedule";
+import { StaggerList } from "@/components/motion/motion";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
+import { coachSchedule as t } from "@/i18n/coach/coach-schedule";
 import { coachFighterHref, fighterLine, statusMark, whenLine } from "@/screens/coach/fighters/fighter-model";
 import { coachPlanHref } from "@/screens/coach/plans/plan-model";
 import { fighterName, planPct } from "@/screens/coach/readonly/ro-format";
@@ -19,7 +19,7 @@ import { MoreMenu } from "@/screens/one-tap/video-actions";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 import { coachSessionEditHref, minutes, sessionStatusWord } from "./session-model";
-import { ot } from "@/i18n/one-tap";
+import { ot } from "@/i18n/common/one-tap";
 
 async function loadSession(id: string) {
   const session = await coachApi.getSession(id);

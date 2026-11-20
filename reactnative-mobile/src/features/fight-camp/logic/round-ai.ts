@@ -1,6 +1,6 @@
 import { isApiError } from "@/api/core/errors";
 import type { AiDecision, AiSuggestion, CampDetail, NextRoundPlan, RoundsResponse } from "@/features/fight-camp/api";
-import { aiStatusBadge, backendErrorText } from "@/i18n/backend-codes";
+import { aiStatusBadge, backendErrorText } from "@/i18n/common/backend-codes";
 import { roundAi } from "@/features/fight-camp/i18n/round-ai";
 
 /** T-038B: the coach waits at most 12 s (same as Nest BOUT_AI_TIMEOUTS.BETWEEN_ROUNDS). */

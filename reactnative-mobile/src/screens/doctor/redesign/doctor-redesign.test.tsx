@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react-native";
 
 import type { PublicFighter } from "@/api/types";
-import { RoleChip } from "@/components/role-chip";
+import { RoleChip } from "@/components/navigation/role-chip";
 import { contrastRatio } from "@/theme/appearance/color-math";
 import { palettes } from "@/theme/colors";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -19,8 +19,8 @@ import {
 import { DoctorMeScreen } from "./doctor-me-screen";
 import { badgeText } from "./doctor-unread";
 import { mockDoctorRoApi } from "@/api/doctor/doctor-ro.mock";
-import { RoleTabBar } from "@/components/role-tab-bar";
-import { doctorRo } from "@/i18n/doctor-ro";
+import { RoleTabBar } from "@/components/navigation/role-tab-bar";
+import { doctorRo } from "@/i18n/doctor/doctor-ro";
 import { paletteFromTokens } from "@/screens/fighter/redesign/palette";
 import type { BottomTabBarProps } from "expo-router/build/layouts/Tabs";
 

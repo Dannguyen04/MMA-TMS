@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { improvementPointText } from "@/i18n/backend-codes";
+import { improvementPointText } from "@/i18n/common/backend-codes";
 import { buildImprovementPoints, evaluateTactics, previewReportFrom, resetPreviewReviews, savePreviewReview, type ReportRound } from "./bout-report-model";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import type { Analysis } from "@/features/fight-camp/api";

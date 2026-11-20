@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor, within } from "@testing-library/react-nativ
 import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { coachFighters as t } from "@/i18n/coach-fighters";
+import { coachFighters as t } from "@/i18n/coach/coach-fighters";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 
 const mockParams: Record<string, string> = { id: "cf-4" };

@@ -1,7 +1,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { SlideSheet } from "@/components/ui/slide-sheet";
-import { doctor } from "@/i18n/doctor";
+import { doctor } from "@/i18n/doctor/doctor";
 import { DoctorPushDeliveryNote, DoctorPushRationale } from "@/notifications/doctor-os-notifications";
 import { NotificationInbox } from "@/screens/notifications/inbox";
 

@@ -3,13 +3,13 @@ import { Pressable, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import { listNotifications, type AppNotification } from "@/api";
-import { doctor } from "@/i18n/doctor";
+import { doctor } from "@/i18n/doctor/doctor";
 import { useToastMessage } from "@/components/toast/app-toast";
 import { mapApiMessage } from "@/session/map-api-message";
 import { useSession } from "@/session/session-context";
 import { type, useThemePreference } from "@/theme";
 import { CONTRAST_BODY, ensureContrast } from "@/theme/appearance/color-math";
-import { SkeletonRows } from "@/components/loading";
+import { SkeletonRows } from "@/components/feedback/loading";
 import { useMarkRead } from "@/screens/one-tap/notification-read";
 
 function targetId(row: AppNotification): string | null {

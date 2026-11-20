@@ -2,7 +2,7 @@ import { fireEvent, render, waitFor, within } from "@testing-library/react-nativ
 import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { coachPlans as t } from "@/i18n/coach-plans";
+import { coachPlans as t } from "@/i18n/coach/coach-plans";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 import { fromVnDate, planLead, toggledMilestones, toVnDate } from "./plan-model";
 

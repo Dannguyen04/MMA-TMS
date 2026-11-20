@@ -8,12 +8,12 @@ import { scopeState, type EligibilityScope } from "@/components/medical/eligibil
 import { formatMedicalDay, injuryStatusLabel } from "@/components/medical/medical-format";
 import { BODY_MODEL_CREDIT } from "@/components/body3d/model";
 import { Icon } from "@/components/icon";
-import { FadeInView } from "@/components/motion";
-import { Swap } from "@/components/motion-kit";
+import { FadeInView } from "@/components/motion/motion";
+import { Swap } from "@/components/motion/motion-kit";
 import { dateKey } from "@/components/schedule/week-model";
 import { SlideSheet } from "@/components/ui/slide-sheet";
-import { fighterBody } from "@/i18n/fighter-body";
-import { fighterHealth as t } from "@/i18n/fighter-health";
+import { fighterBody } from "@/i18n/fighter/fighter-body";
+import { fighterHealth as t } from "@/i18n/fighter/fighter-health";
 import { useSource, type Source } from "@/screens/coach/today/coach-today-screen";
 import { CampTabs } from "@/shared/ui/camp-lit";
 import { suspensionHeadline, suspensionReasonLabel } from "@/features/fight-camp/logic/camp-rules";
@@ -22,7 +22,7 @@ import { useFighterSuspensions } from "@/features/fight-camp/components/fighter-
 import { reasonLine } from "./medical-lines";
 import { FighterTabPage, RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { planWeek } from "@/screens/fighter/plans/plans-model";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
 import { motion } from "@/theme/motion";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";

@@ -13,7 +13,7 @@ jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireA
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/shared/ui/camp-lit", () => ({ LitFill: () => null }));
-jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true }) }));
+jest.mock("@/screens/fighter/shared/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true }) }));
 jest.mock("@/components/toast/app-toast", () => ({ useToastMessage: () => undefined }));
 jest.mock("@/api/video/media", () => ({ ...jest.requireActual("@/api/video/media"), listVideos: jest.fn(), listAnalysisJobs: jest.fn(), uploadVideo: jest.fn() }));
 

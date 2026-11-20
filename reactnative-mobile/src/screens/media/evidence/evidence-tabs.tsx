@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { ev } from "@/i18n/video-evidence";
+import { ev } from "@/i18n/video/video-evidence";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { useTypography } from "@/theme";
 import { fz } from "@/theme/typography";

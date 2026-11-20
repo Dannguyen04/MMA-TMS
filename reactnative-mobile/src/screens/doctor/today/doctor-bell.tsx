@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import { Icon } from "@/components/icon";
-import { doctorToday as t } from "@/i18n/doctor-today";
+import { doctorToday as t } from "@/i18n/doctor/doctor-today";
 import { badgeText, useDoctorUnread } from "@/screens/doctor/redesign/doctor-unread";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { fz, lh, liveSheet } from "@/theme/typography";

@@ -2,8 +2,8 @@ import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
 import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { coachInbox } from "@/i18n/coach-video";
-import { fighter } from "@/i18n/fighter";
+import { coachInbox } from "@/i18n/coach/coach-video";
+import { fighter } from "@/i18n/fighter/fighter";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 
 const mockParams: Record<string, string> = {};
@@ -19,8 +19,8 @@ jest.mock("expo-router", () => ({
   useRouter: () => ({ push: mockPush, navigate: jest.fn(), replace: jest.fn(), back: jest.fn(), canGoBack: () => true }),
   useLocalSearchParams: () => mockParams,
 }));
-jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ canFetch: mockCanFetch, isDemo: !mockCanFetch, fighterId: "f-1" }) }));
-jest.mock("@/screens/fighter/api", () => ({ getTrainingSession: (id: string) => mockSession(id) }));
+jest.mock("@/screens/fighter/shared/use-fighter-id", () => ({ useFighterId: () => ({ canFetch: mockCanFetch, isDemo: !mockCanFetch, fighterId: "f-1" }) }));
+jest.mock("@/screens/fighter/shared/api", () => ({ getTrainingSession: (id: string) => mockSession(id) }));
 jest.mock("@/api/notifications/notifications", () => ({ listNotifications: () => mockList() }));
 jest.mock("@/api/medical/one-tap", () => ({ oneTapApi: { markNotificationRead: (id: string) => mockMark(id) } }));
 

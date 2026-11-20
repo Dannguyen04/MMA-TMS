@@ -1,12 +1,12 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Swap } from "@/components/motion-kit";
+import { Swap } from "@/components/motion/motion-kit";
 import { Pressable, Text, View } from "react-native";
 import { campApi, type CampDetail, type Suspension, type WeightTrack } from "@/features/fight-camp/api";
 import { SlideSheet } from "@/components/ui/slide-sheet";
 import { boutTabs as t } from "@/features/fight-camp/i18n/bout-tabs";
 import { boutReport } from "@/features/fight-camp/i18n/bout-report";
 import { campText } from "@/features/fight-camp/i18n/fight-camp";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
 import { useThemePreference } from "@/theme/index";
 import { fonts, fz, lh } from "@/theme/typography";
 import { readableTextStyle } from "@/theme/typography";

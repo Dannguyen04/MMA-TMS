@@ -7,7 +7,7 @@ let mockWidth = 412;
 jest.mock("react-native/Libraries/Utilities/useWindowDimensions", () => ({ __esModule: true, default: () => ({ width: mockWidth, height: 915, scale: 1, fontScale: 1 }) }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }), SafeAreaInsetsContext: require("react").createContext(null) }));
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light }) }));
-jest.mock("@/components/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0 }));
+jest.mock("@/components/navigation/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0 }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
 
 const it7 = (n: number, date = "2026-11-11"): ScheduleItem[] => Array.from({ length: n }, (_, i) => ({ key: `k${i}`, kind: "session", date, time: `0${i}:00`, title: `Buổi ${i}`, who: "Dat", target: { kind: "session", id: `s${i}` } }));

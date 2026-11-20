@@ -2,8 +2,8 @@ import type { Href } from "expo-router";
 
 import type { MedicalStatus, PublicFighter } from "@/api/types";
 import type { IconName } from "@/components/icon";
-import { coachRo } from "@/i18n/coach-ro";
-import { vi } from "@/i18n/vi";
+import { coachRo } from "@/i18n/coach/coach-ro";
+import { vi } from "@/i18n/common/vi";
 import type { LeadTone } from "@/screens/fighter/redesign/tab-page";
 
 /** Redesign step 16: the one fighter page (it replaced `fighters/[id]`); every coach link opens it. */

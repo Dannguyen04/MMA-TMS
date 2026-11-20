@@ -1,7 +1,7 @@
 import { Text, View } from "react-native";
 import Svg, { Circle, Line, Path, Text as SvgText } from "react-native-svg";
 
-import { fighterTran as t } from "@/i18n/fighter-tran";
+import { fighterTran as t } from "@/i18n/fighter/fighter-tran";
 import { dayMonth, kg } from "@/features/fight-camp/logic/camp-rules";
 import { useThemePreference } from "@/theme";
 import { readableTextStyle } from "@/theme/typography";

@@ -1,5 +1,5 @@
 import { validateRegisterStep1, validateRegisterStep2 } from "@/auth/register-steps";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 
 describe("register step validators", () => {
   it("step 1 accepts only an email", () => {

@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View, type TextInputProps } fro
 
 import { AuthUnderlineField } from "@/components/auth/auth-underline-field";
 import { useAuthChrome } from "@/components/auth/auth-shell";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { spacing, type, useThemePreference } from "@/theme";
 
 type AuthTextFieldProps = TextInputProps & {

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigation, useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
 
-import { RolePage } from "@/components/role-page";
+import { RolePage } from "@/components/navigation/role-page";
 import { showAppToast } from "@/components/toast/app-toast";
 import { ConfirmDialog } from "@/screens/doctor/redesign/confirm-dialog";
 import { Action } from "@/shared/ui/camp-ui";

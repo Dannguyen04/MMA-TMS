@@ -1,7 +1,7 @@
 import type { Href } from "expo-router";
 
 import type { PlanMilestone, TrainingPlan, TrainingPlanStatus } from "@/api/types";
-import { coachPlans as t } from "@/i18n/coach-plans";
+import { coachPlans as t } from "@/i18n/coach/coach-plans";
 import { planPct } from "@/screens/coach/readonly/ro-format";
 import type { LeadTone } from "@/screens/fighter/redesign/tab-page";
 import { isValidDateOnly } from "@/utils/is-valid-date-only";

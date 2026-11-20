@@ -1,7 +1,7 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { Swap } from "@/components/motion-kit";
+import { Swap } from "@/components/motion/motion-kit";
 import { Platform, View } from "react-native";
-import { hapticSuccess } from "@/components/motion";
+import { hapticSuccess } from "@/components/motion/motion";
 import { CampReveal } from "@/shared/ui/camp-motion";
 import { campApi, type CampDetail, type RoundInput, type RoundsResponse, type TacticOutcome } from "@/features/fight-camp/api";
 import { betweenRound as t } from "@/features/fight-camp/i18n/between-round";

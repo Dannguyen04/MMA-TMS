@@ -3,14 +3,14 @@ import { ActivityIndicator, Text, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 
 import { listAnalysisJobs, listVideos } from "@/api/video/media";
-import { StaggerList } from "@/components/motion";
-import { fighterVideo as t } from "@/i18n/fighter-video";
-import { videoTitle } from "@/i18n/server-text";
+import { StaggerList } from "@/components/motion/motion";
+import { fighterVideo as t } from "@/i18n/fighter/fighter-video";
+import { videoTitle } from "@/i18n/common/server-text";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { Action, CampShell } from "@/shared/ui/camp-ui";
 import { backToMe } from "@/screens/fighter/me/me-model";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
 import { jobForVideo } from "@/screens/media/video-model";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";

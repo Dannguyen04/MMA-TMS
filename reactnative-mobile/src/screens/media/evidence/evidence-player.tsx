@@ -6,11 +6,11 @@ import { ActivityIndicator, Modal, PanResponder, Platform, Pressable, StyleSheet
 import { enterFullscreenOrientation, exitFullscreenOrientation } from "@/screens/media/evidence/fullscreen-orientation";
 
 import type { VideoStream } from "@/api/video/media";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { frameIndexAt, strikeAt, type WorkerResult } from "@/components/video/pose-model";
 import { PoseOverlay, type OverlayLayers } from "@/components/video/pose-overlay";
-import { ev } from "@/i18n/video-evidence";
-import { media } from "@/i18n/media";
+import { ev } from "@/i18n/video/video-evidence";
+import { media } from "@/i18n/video/media";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { palettes } from "@/theme/colors";
 import { SheetOption } from "@/screens/media/evidence/sheet-option";

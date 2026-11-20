@@ -5,7 +5,7 @@ import {
   injuryFromSnapshot,
   legacyMilestoneText,
 } from "@/components/medical/medical-format";
-import { medical } from "@/i18n/medical";
+import { medical } from "@/i18n/medical/medical";
 
 const standard = {
   id: "m1",

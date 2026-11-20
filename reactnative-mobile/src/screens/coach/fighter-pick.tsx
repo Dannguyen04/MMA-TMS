@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ActivityIndicator, Pressable, Text, View } from "react-native";
 
 import type { PublicFighter } from "@/api/types";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { Icon } from "@/components/icon";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";

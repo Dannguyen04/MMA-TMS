@@ -1,17 +1,17 @@
 import { Tabs } from "expo-router";
-import { useNavRail } from "@/components/nav-rail";
+import { useNavRail } from "@/components/navigation/nav-rail";
 
-import { RoleTabBar } from "@/components/role-tab-bar";
-import { useTabFade } from "@/components/tab-fade";
-import { TabIcon } from "@/components/tab-icon";
-import { doctorRo } from "@/i18n/doctor-ro";
+import { RoleTabBar } from "@/components/navigation/role-tab-bar";
+import { useTabFade } from "@/components/navigation/tab-fade";
+import { TabIcon } from "@/components/navigation/tab-icon";
+import { doctorRo } from "@/i18n/doctor/doctor-ro";
 import { DoctorRosterProvider } from "@/screens/doctor/redesign/doctor-roster";
 import { DoctorUnreadProvider } from "@/screens/doctor/redesign/doctor-unread";
 import { activeInkOn } from "@/screens/fighter/redesign/palette";
 
-import { doctor } from "@/i18n/doctor";
-import { scheduleText } from "@/i18n/schedule";
-import { doctorToday } from "@/i18n/doctor-today";
+import { doctor } from "@/i18n/doctor/doctor";
+import { scheduleText } from "@/i18n/common/schedule";
+import { doctorToday } from "@/i18n/doctor/doctor-today";
 import { DoctorOsNotificationProvider } from "@/notifications/doctor-os-notifications";
 import { DoctorInboxProvider } from "@/screens/doctor/inbox-context";
 import { SelectedFighterProvider } from "@/screens/doctor/selected-fighter";

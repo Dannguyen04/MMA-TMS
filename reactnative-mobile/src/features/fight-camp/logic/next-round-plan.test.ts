@@ -1,6 +1,6 @@
 import type { Analysis, CampRound, NextRoundPlan } from "@/features/fight-camp/api";
 import { betweenRound, instructionText } from "@/features/fight-camp/i18n/between-round";
-import { pendingVi } from "@/i18n/pending-vi";
+import { pendingVi } from "@/i18n/common/pending-vi";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { compactTactics, cornerPlanTactics, currentRound, emptyPlan, entryTactics, validatePlan, validateRoundMarks } from "./next-round-plan";
 import { previewCornerCard, previewRoundAdvice } from "./round-advice-preview";

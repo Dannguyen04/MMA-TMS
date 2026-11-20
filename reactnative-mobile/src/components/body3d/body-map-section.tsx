@@ -5,7 +5,7 @@ import { dragAngle, GlBoundary, useBodyMode } from "./gl-mode";
 export { dragAngle, DRAG_RAD_PER_DP, LOAD_TIMEOUT_MS, useBodyMode } from "./gl-mode";
 
 import type { MedicalJointState } from "@/api/types";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { Icon } from "@/components/icon";
 import { BodyMap } from "@/components/visuals/charts";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";

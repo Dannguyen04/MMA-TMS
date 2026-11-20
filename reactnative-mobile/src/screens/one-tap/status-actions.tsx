@@ -5,11 +5,11 @@ import Toast from "react-native-toast-message";
 import { isApiError } from "@/api";
 import { oneTapApi } from "@/api/medical/one-tap";
 import { NEXT_PLAN, NEXT_SESSION, type PlanStatusValue, type SessionStatusValue } from "@/api/medical/one-tap.types";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { Icon } from "@/components/icon";
-import { eligibilityText } from "@/i18n/eligibility";
-import { ot } from "@/i18n/one-tap";
-import { TEXT } from "@/screens/fighter/bout-states";
+import { eligibilityText } from "@/i18n/medical/eligibility";
+import { ot } from "@/i18n/common/one-tap";
+import { TEXT } from "@/screens/fighter/shared/bout-states";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { useSession } from "@/session/session-context";
 

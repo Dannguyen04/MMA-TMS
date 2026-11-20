@@ -4,12 +4,12 @@ import { useRouter, type Href } from "expo-router";
 
 import { listNotifications, type AppNotification } from "@/api";
 import type { IconName } from "@/components/icon";
-import { StaggerList } from "@/components/motion";
-import { EmptyLine, RolePage } from "@/components/role-page";
-import { adminRest as t } from "@/i18n/admin-rest";
+import { StaggerList } from "@/components/motion/motion";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
+import { adminRest as t } from "@/i18n/admin/admin-rest";
 import { useCoachEnabled } from "@/screens/coach/readonly/use-coach";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
-import { useLoad } from "@/screens/fighter/use-load";
+import { useLoad } from "@/screens/fighter/shared/use-load";
 import { useMarkRead } from "@/screens/one-tap/notification-read";
 import { relTime } from "@/screens/video-ai/ai-model";
 import { useThemePreference } from "@/theme";

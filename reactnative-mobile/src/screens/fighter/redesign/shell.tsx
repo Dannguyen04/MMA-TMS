@@ -6,15 +6,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { KeyboardFrame, KeyboardScroll } from "@/components/keyboard-aware";
+import { KeyboardFrame, KeyboardScroll } from "@/components/forms/keyboard-aware";
 
-import { FighterRailFrame, FighterTabBar } from "@/screens/fighter/tab-bar";
-import { useNavRail } from "@/components/nav-rail";
+import { FighterRailFrame, FighterTabBar } from "@/screens/fighter/shared/tab-bar";
+import { useNavRail } from "@/components/navigation/nav-rail";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { useTypography } from "@/theme";
 import { titleTextStyle } from "@/theme/typography";
-import { useReadableWidth } from "@/components/readable-width";
-import { ThemedRefreshControl, TopProgress, usePullRefresh } from "@/components/loading";
+import { useReadableWidth } from "@/components/layout/readable-width";
+import { ThemedRefreshControl, TopProgress, usePullRefresh } from "@/components/feedback/loading";
 import { ArenaTitle } from "@/components/arena/arena-title";
 
 export function HubHeader({ title, trailing }: { title: string; trailing?: ReactNode }) {

@@ -5,7 +5,7 @@ import { scheduleApi } from "@/api/doctor/schedule";
 import { useWeekItems, useWeekNav } from "@/components/schedule/use-week";
 import { WeekSchedule } from "@/components/schedule/week-schedule";
 import { doctorItems, type ScheduleItem } from "@/components/schedule/week-model";
-import { scheduleText as t } from "@/i18n/schedule";
+import { scheduleText as t } from "@/i18n/common/schedule";
 import { useSession } from "@/session/session-context";
 
 /**

@@ -1,6 +1,6 @@
 import type { PublicUser, UserListPage, Paginated } from "@/api/types";
 import { isFighterProfile } from "@/api/types";
-import { adminRo } from "@/i18n/admin-ro";
+import { adminRo } from "@/i18n/admin/admin-ro";
 import type { ChipSpec } from "@/screens/coach/readonly/ro-format";
 
 export const ACTIVE_CHIP: ChipSpec = { label: adminRo.active, tone: "success", icon: "success" };

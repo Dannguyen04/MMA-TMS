@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 
-import { doctor } from "@/i18n/doctor";
+import { doctor } from "@/i18n/doctor/doctor";
 import { radius, spacing, type, useThemePreference } from "@/theme";
 
 import {

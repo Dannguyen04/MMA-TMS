@@ -3,7 +3,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 import { resetPassword } from "@/api/auth/auth";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { ResetPasswordScreen } from "@/screens/auth/reset-password";
 import { ThemePreferenceProvider } from "@/theme";
 

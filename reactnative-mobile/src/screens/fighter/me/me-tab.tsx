@@ -5,18 +5,18 @@ import Svg, { Polygon } from "react-native-svg";
 
 import { isFighterProfile, listFighterDoctors, type DoctorAssignment } from "@/api";
 import { Icon } from "@/components/icon";
-import { PressableScale, Skeleton, StaggerList } from "@/components/motion";
-import { fighterMe as t } from "@/i18n/fighter-me";
+import { PressableScale, Skeleton, StaggerList } from "@/components/motion/motion";
+import { fighterMe as t } from "@/i18n/fighter/fighter-me";
 import { fighterHref } from "@/navigation/role-href";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { ConfirmDialog } from "@/screens/doctor/redesign/confirm-dialog";
-import { getMe } from "@/screens/fighter/api";
+import { getMe } from "@/screens/fighter/shared/api";
 import { dmLocal } from "@/screens/fighter/health/health-model";
 import { FighterTabPage, RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
 import { useSession } from "@/session/session-context";
 import { useAppearanceState, useThemePreference } from "@/theme";
-import { appearance } from "@/i18n/appearance";
+import { appearance } from "@/i18n/common/appearance";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 import { activeDoctor, fullName, initials, MY_PROFILE, stats, type MeProfile } from "./me-model";
 

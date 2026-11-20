@@ -1,5 +1,5 @@
 import type { MedicalClearance, MedicalDossier, MedicalExamination } from "@/api/types";
-import { clearanceCopy as t } from "@/i18n/clearance";
+import { clearanceCopy as t } from "@/i18n/medical/clearance";
 import type { EligibilityScope } from "./eligibility-model";
 
 /**

@@ -8,10 +8,10 @@ import {
   type FindingReviewStatus,
   type MovementDecision,
 } from "@/api/video/evidence";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { showAppToast } from "@/components/toast/app-toast";
 import type { EvidenceWindow, ResultFinding } from "@/components/video/pose-model";
-import { ev } from "@/i18n/video-evidence";
+import { ev } from "@/i18n/video/video-evidence";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { evidenceError } from "@/screens/media/evidence/errors";
 import { formatPrecise } from "@/screens/media/evidence/evidence-model";

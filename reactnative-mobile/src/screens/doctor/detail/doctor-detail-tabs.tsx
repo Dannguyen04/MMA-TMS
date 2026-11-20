@@ -4,11 +4,11 @@ import { useRouter } from "expo-router";
 
 import { doctorRoApi } from "@/api/doctor/doctor-ro";
 import type { MedicalDossier, MedicalExamination, MedicalHistoryEntry, MedicalHistoryRecordType as RecordType } from "@/api/types";
-import { StaggerList } from "@/components/motion";
-import { EmptyLine } from "@/components/role-page";
+import { StaggerList } from "@/components/motion/motion";
+import { EmptyLine } from "@/components/navigation/role-page";
 import { BodyMapSection, bodyText } from "@/components/body3d/body-map-section";
 import { clearanceDates, clearanceProblem, clearanceState, clearanceWord, olderClearances, reasonFor, SCOPES } from "@/components/medical/clearance-state";
-import { clearanceCopy } from "@/i18n/clearance";
+import { clearanceCopy } from "@/i18n/medical/clearance";
 import {
   clearanceTypeLabel,
   eligibilityReasonLabel,
@@ -19,13 +19,13 @@ import {
 
 } from "@/components/medical/medical-format";
 
-import { doctorClinical as t } from "@/i18n/doctor-clinical";
-import { medical } from "@/i18n/medical";
+import { doctorClinical as t } from "@/i18n/doctor/doctor-clinical";
+import { medical } from "@/i18n/medical/medical";
 import { vnDate } from "@/screens/coach/readonly/ro-format";
 import { usePagedList } from "@/screens/coach/readonly/use-paged-list";
 import { Choices } from "@/shared/ui/camp-ui";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
-import { useLoad } from "@/screens/fighter/use-load";
+import { useLoad } from "@/screens/fighter/shared/use-load";
 import { EvHead } from "@/screens/media/evidence/evidence-panels";
 import { useRevokeClearance } from "@/screens/one-tap/status-actions";
 import { AiOverviewBlock, type FighterAi } from "./ai-tab";

@@ -9,12 +9,12 @@ import { createFighterReviewRequest, listFighterMedicalExaminations, listFighter
 import type { MedicalExamination, MedicalHistoryEntry, Paginated } from "@/api/types";
 import { REVIEW_REASON_MAX } from "@/components/medical/review-request-panel";
 import { decisionLabel, describeSnapshot, recordTypeLabel, scopeLabel } from "@/components/medical/medical-format";
-import { StaggerList } from "@/components/motion";
-import { EmptyLine, RolePage } from "@/components/role-page";
+import { StaggerList } from "@/components/motion/motion";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { coachFighters as t } from "@/i18n/coach-fighters";
-import { medical as medicalCopy } from "@/i18n/medical";
-import { videoTitle } from "@/i18n/server-text";
+import { coachFighters as t } from "@/i18n/coach/coach-fighters";
+import { medical as medicalCopy } from "@/i18n/medical/medical";
+import { videoTitle } from "@/i18n/common/server-text";
 import { fighterName, vnDate } from "@/screens/coach/readonly/ro-format";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { CampTabs } from "@/shared/ui/camp-lit";

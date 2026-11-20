@@ -8,12 +8,12 @@ import type { ActiveReference, ReanalyzeResult } from "@/api/medical/one-tap.typ
 import { deleteVideo } from "@/api/video/media";
 import { videoAiApi } from "@/api/video/video-ai";
 import type { AiCoachingState, AiMovementReviews } from "@/api/video/video-ai.types";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { Icon, type IconName } from "@/components/icon";
 import type { EvidenceWindow, ResultFinding } from "@/components/video/pose-model";
-import { ot } from "@/i18n/one-tap";
+import { ot } from "@/i18n/common/one-tap";
 import { RoCard, StatusChip } from "@/screens/coach/readonly/ro-ui";
-import { TEXT } from "@/screens/fighter/bout-states";
+import { TEXT } from "@/screens/fighter/shared/bout-states";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { mmss } from "@/screens/video-ai/ai-model";
 

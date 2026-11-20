@@ -4,7 +4,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
 
 import { ApiError } from "@/api/core/errors";
-import { ot } from "@/i18n/one-tap";
+import { ot } from "@/i18n/common/one-tap";
 import { ThemePreferenceProvider } from "@/theme";
 
 const mockFetch = jest.fn();

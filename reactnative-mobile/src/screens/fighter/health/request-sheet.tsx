@@ -3,8 +3,8 @@ import { Pressable, Text, TextInput, View } from "react-native";
 
 import { oneTapApi } from "@/api/medical/one-tap";
 import { SlideSheet } from "@/components/ui/slide-sheet";
-import { fighterHealth as t } from "@/i18n/fighter-health";
-import { ot } from "@/i18n/one-tap";
+import { fighterHealth as t } from "@/i18n/fighter/fighter-health";
+import { ot } from "@/i18n/common/one-tap";
 import { LitFill } from "@/shared/ui/camp-lit";
 import { Action } from "@/shared/ui/camp-ui";
 import { reasonValue, useWrite } from "@/screens/one-tap/write";

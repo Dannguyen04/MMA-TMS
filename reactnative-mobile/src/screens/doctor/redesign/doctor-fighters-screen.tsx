@@ -4,11 +4,11 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { MEDICAL_STATUSES } from "@/api";
 import { Icon } from "@/components/icon";
-import { StaggerList } from "@/components/motion";
-import { EmptyLine, RolePage } from "@/components/role-page";
+import { StaggerList } from "@/components/motion/motion";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
 import { WEIGHT_CLASSES, type WeightClass } from "@/constants/weight-classes";
-import { coachRo } from "@/i18n/coach-ro";
-import { doctorRest as t } from "@/i18n/doctor-rest";
+import { coachRo } from "@/i18n/coach/coach-ro";
+import { doctorRest as t } from "@/i18n/doctor/doctor-rest";
 import { fighterLine, statusMark, weightLabel } from "@/screens/coach/fighters/fighter-model";
 import { FilterChips, FilterRow } from "@/screens/coach/fighters/fighters-list";
 import { FighterPick } from "@/screens/coach/fighter-pick";

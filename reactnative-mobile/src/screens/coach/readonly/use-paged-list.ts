@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { Paginated } from "@/api/types";
-import { mapFighterError } from "@/screens/fighter/errors";
+import { mapFighterError } from "@/screens/fighter/shared/errors";
 import { mergePage } from "@/screens/coach/readonly/ro-format";
 
 /**

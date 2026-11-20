@@ -4,9 +4,9 @@ import { useRouter } from "expo-router";
 
 import { coachApi } from "@/api/coach/coach";
 import { TRAINING_PLAN_STATUSES, type TrainingPlan, type TrainingPlanStatus } from "@/api/types";
-import { StaggerList } from "@/components/motion";
-import { EmptyLine, RolePage } from "@/components/role-page";
-import { coachPlans as t } from "@/i18n/coach-plans";
+import { StaggerList } from "@/components/motion/motion";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
+import { coachPlans as t } from "@/i18n/coach/coach-plans";
 import { Action } from "@/shared/ui/camp-ui";
 import { RoHeaderAction } from "@/screens/coach/readonly/ro-ui";
 import { planPct } from "@/screens/coach/readonly/ro-format";

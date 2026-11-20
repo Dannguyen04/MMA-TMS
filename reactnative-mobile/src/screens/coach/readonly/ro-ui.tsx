@@ -3,10 +3,10 @@ import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 
 import { useRouter } from "expo-router";
 
 import { Icon, type IconName } from "@/components/icon";
-import { ActionButton, CardSkeleton, SPEC, TEXT } from "@/screens/fighter/bout-states";
+import { ActionButton, CardSkeleton, SPEC, TEXT } from "@/screens/fighter/shared/bout-states";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
-import { FighterScreen } from "@/screens/fighter/screen";
-import { coachRo } from "@/i18n/coach-ro";
+import { FighterScreen } from "@/screens/fighter/shared/screen";
+import { coachRo } from "@/i18n/coach/coach-ro";
 import { initials, toneColors, type ChipSpec } from "./ro-format";
 import { ArenaFrame, ArenaSurface } from "@/components/arena/arena-frame";
 

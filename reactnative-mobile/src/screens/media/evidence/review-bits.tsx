@@ -1,10 +1,10 @@
 import { Text, View } from "react-native";
 
 import type { HealthAlert } from "@/api/video/media";
-import { StaggerList } from "@/components/motion";
+import { StaggerList } from "@/components/motion/motion";
 import { jointLabel, severityLabel } from "@/components/medical/medical-format";
-import { ev } from "@/i18n/video-evidence";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { ev } from "@/i18n/video/video-evidence";
+import { UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
 import { sentences } from "@/shared/ui/camp-ui";
 import { EvHead, EvRow, type Word } from "@/screens/media/evidence/evidence-panels";
 import { formatPrecise } from "@/screens/media/evidence/evidence-model";

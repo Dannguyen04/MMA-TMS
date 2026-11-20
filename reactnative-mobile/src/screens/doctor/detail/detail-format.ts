@@ -12,10 +12,10 @@ import {
   scopeLabel,
   severityLabel,
 } from "@/components/medical/medical-format";
-import { doctorRo } from "@/i18n/doctor-ro";
-import { vi } from "@/i18n/vi";
+import { doctorRo } from "@/i18n/doctor/doctor-ro";
+import { vi } from "@/i18n/common/vi";
 import { ageFromDob, type ChipSpec, vnDate } from "@/screens/coach/readonly/ro-format";
-import { mapFighterError } from "@/screens/fighter/errors";
+import { mapFighterError } from "@/screens/fighter/shared/errors";
 
 const t = doctorRo.detail2;
 export const NBSP = "\u00A0";

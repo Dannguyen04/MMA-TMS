@@ -4,10 +4,10 @@ import type {
   RecoveryMilestone,
   RecoveryPlan,
 } from "@/api/types";
-import { fighter } from "@/i18n/fighter";
-import { medical } from "@/i18n/medical";
-import { vi } from "@/i18n/vi";
-import { doctor } from "@/i18n/doctor";
+import { fighter } from "@/i18n/fighter/fighter";
+import { medical } from "@/i18n/medical/medical";
+import { vi } from "@/i18n/common/vi";
+import { doctor } from "@/i18n/doctor/doctor";
 
 type Dict = Record<string, string>;
 

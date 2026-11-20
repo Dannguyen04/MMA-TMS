@@ -12,7 +12,7 @@ import {
 } from "./settings";
 import { buildColors, resolveVariant } from "./tokens";
 import { palettes, trueBlackPalette } from "../colors";
-import { appearance } from "@/i18n/appearance";
+import { appearance } from "@/i18n/common/appearance";
 
 const doc = (version: number, presetId: string, overrides: Record<string, unknown> = {}) =>
   JSON.stringify({ version, presetId, overrides, updatedAt: "2026-10-01T00:00:00.000Z" });

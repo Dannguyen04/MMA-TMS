@@ -8,7 +8,7 @@ import { clearSession, persistSession } from "@/api/core/tokens";
 import { RegisterScreen } from "@/screens/auth/register";
 import { useSession } from "@/session/session-context";
 import { ThemePreferenceProvider } from "@/theme";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 
 jest.mock("@/api/auth/auth", () => ({
   getMe: jest.fn(),

@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 
 import { coachApi } from "@/api/coach/coach";
-import { coachVideo as t } from "@/i18n/coach-video";
+import { coachVideo as t } from "@/i18n/coach/coach-video";
 import { FighterPick } from "@/screens/coach/fighter-pick";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
 import { useSource } from "@/screens/coach/today/coach-today-screen";

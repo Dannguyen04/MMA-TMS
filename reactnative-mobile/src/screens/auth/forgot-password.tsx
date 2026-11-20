@@ -5,7 +5,7 @@ import { useRouter } from "expo-router";
 import { forgotPassword } from "@/api/auth/auth";
 import { AuthVisionButton, AuthVisionField, AuthVisionShell } from "@/components/auth/auth-vision-shell";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { mapApiMessage } from "@/session/map-api-message";
 import { isValidEmail } from "@/utils/is-valid-email";
 

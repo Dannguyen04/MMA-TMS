@@ -2,7 +2,7 @@ import type { DoctorScheduleItem } from "@/api/doctor/schedule";
 import type { Suspension } from "@/features/fight-camp/api";
 import type { PublicFighter } from "@/api/types";
 import type { AnalysisJob } from "@/api/video/media";
-import { doctorToday as t } from "@/i18n/doctor-today";
+import { doctorToday as t } from "@/i18n/doctor/doctor-today";
 import { dateKey } from "@/components/schedule/week-model";
 
 /** Pure rules for doctor "Hôm nay" (REDESIGN-BRIEF-2026-11.md). */

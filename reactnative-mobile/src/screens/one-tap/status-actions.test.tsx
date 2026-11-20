@@ -5,7 +5,7 @@ import Toast from "react-native-toast-message";
 
 import { ApiError } from "@/api/core/errors";
 import type { PlanStatusValue, SessionStatusValue } from "@/api/medical/one-tap.types";
-import { ot } from "@/i18n/one-tap";
+import { ot } from "@/i18n/common/one-tap";
 import { ThemePreferenceProvider } from "@/theme";
 
 import { MoreMenu } from "./video-actions";
@@ -256,9 +256,9 @@ describe("batch42 tinh chỉnh nhãn", () => {
     expect([ot.planCompleteShort, ot.clearanceRevokeShort, ot.endOwnShort]).toEqual(["Hoàn thành", "Thu hồi", "Kết thúc"]);
     for (const l of [ot.sessionSkip, ot.sessionAbandon, ot.sessionCancel, ot.planActivate, ot.planCompleteShort, ot.planDraft, ot.planCancel, ot.planReopen, ot.clearanceRevokeShort, ot.endOwnShort, ot.endAssign])
       expect(l.length).toBeLessThanOrEqual(15);
-    const { coachRo } = jest.requireActual("@/i18n/coach-ro") as { coachRo: { planStatus: Record<string, string> } };
+    const { coachRo } = jest.requireActual("@/i18n/coach/coach-ro") as { coachRo: { planStatus: Record<string, string> } };
     expect(coachRo.planStatus.ACTIVE).toBe("Đang áp dụng");
-    const { adminRo } = jest.requireActual("@/i18n/admin-ro") as { adminRo: { doctors: { title: string } } };
+    const { adminRo } = jest.requireActual("@/i18n/admin/admin-ro") as { adminRo: { doctors: { title: string } } };
     expect(adminRo.doctors.title).toBe("Người phụ trách");
   });
 });

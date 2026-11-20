@@ -8,10 +8,10 @@ import { colorScheme } from "nativewind";
 import { Platform } from "react-native";
 
 import { AppToastHost } from "@/components/toast/app-toast";
-import { KeyboardRoot } from "@/components/keyboard-aware";
+import { KeyboardRoot } from "@/components/forms/keyboard-aware";
 import { LaunchGate } from "@/components/launch/launch-gate";
 import { useSplashLock } from "@/components/launch/splash-lock";
-import { SystemChrome } from "@/components/system-chrome";
+import { SystemChrome } from "@/components/navigation/system-chrome";
 import { SessionProvider, useSession } from "@/session/session-context";
 import {
   chromeLightIcons,

@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { campApi, type Suspension } from "@/features/fight-camp/api";
 import { useSession } from "@/session/session-context";
 import { useThemePreference } from "@/theme/index";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
 import { Copy, CampIcon, Frame, Notice } from "@/shared/ui/camp-ui";
 import { previewSuspensionCases } from "@/features/fight-camp/state/camp-preview";
 import { allowedTodayLine, allowedTypes, gradedSteps, intensityTiers, sessionNames, strictestSuspension, suspensionHeadline, suspensionReasonLabel, tierTypesText } from "@/features/fight-camp/logic/camp-rules";

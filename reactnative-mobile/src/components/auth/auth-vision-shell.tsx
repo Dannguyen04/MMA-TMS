@@ -50,9 +50,9 @@ import { AUTH_HERO_RATIO } from "@/components/auth/auth-vision-scene";
 import { authType, useAuthColors } from "@/components/auth/auth-vision-tokens";
 import { palettes } from "@/theme/colors";
 import { authInputProgress } from "@/components/auth/auth-vision-scene";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { motion, spacing } from "@/theme";
-import { PressableScale } from "@/components/motion";
+import { PressableScale } from "@/components/motion/motion";
 import { fz, lh, liveSheet } from "@/theme/typography";
 
 type ChromeValue = {

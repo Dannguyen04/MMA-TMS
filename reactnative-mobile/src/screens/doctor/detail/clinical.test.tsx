@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import type { MedicalExamination } from "@/api/types";
-import { doctorClinical as c } from "@/i18n/doctor-clinical";
+import { doctorClinical as c } from "@/i18n/doctor/doctor-clinical";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 
 import { examHref, examView } from "./exam-model";

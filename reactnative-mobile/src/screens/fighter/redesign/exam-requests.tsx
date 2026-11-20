@@ -7,12 +7,12 @@ import { isApiError } from "@/api/core/errors";
 import { REVIEW_REQUEST_STATUSES, type MedicalReviewRequest, type ReviewRequestStatus } from "@/api/types";
 import { reviewStatusLabel, formatMedicalWhen } from "@/components/medical/medical-format";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { medical } from "@/i18n/medical";
+import { medical } from "@/i18n/medical/medical";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { canSubmitReviewReason, REVIEW_REASON_MAX, reviewReasonIssue } from "@/screens/fighter/redesign/review-reason";
 import { mapApiMessage } from "@/session/map-api-message";
-import { FilterSelect } from "@/components/filter-sheet";
-import { SkeletonRows } from "@/components/loading";
+import { FilterSelect } from "@/components/forms/filter-sheet";
+import { SkeletonRows } from "@/components/feedback/loading";
 import { fz, lh, liveSheet } from "@/theme/typography";
 
 function outcomeUnknown(error: unknown): boolean {

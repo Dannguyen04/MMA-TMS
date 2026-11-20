@@ -1,5 +1,5 @@
 import type { FighterMeasurement, MedicalStatus, Paginated, PublicFighter, SessionStatus, TrainingPlan, TrainingPlanStatus } from "@/api/types";
-import { coachRo } from "@/i18n/coach-ro";
+import { coachRo } from "@/i18n/coach/coach-ro";
 import { CONTRAST_BODY, contrastRatio, ensureContrast, mixHex } from "@/theme/appearance/color-math";
 
 /** Sắc thái của chip trạng thái; luôn đi kèm biểu tượng + chữ. */

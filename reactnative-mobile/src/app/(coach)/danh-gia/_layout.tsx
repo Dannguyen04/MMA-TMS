@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { useThemePreference } from "@/theme";
 
 export default function CoachAdmissionsStack() {

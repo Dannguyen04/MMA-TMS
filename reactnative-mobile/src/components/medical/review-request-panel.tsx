@@ -24,10 +24,10 @@ import {
   MedicalSection,
   medicalStyles,
 } from "@/components/medical/medical-ui";
-import { medical } from "@/i18n/medical";
+import { medical } from "@/i18n/medical/medical";
 import { mapApiMessage } from "@/session/map-api-message";
 import { type, useThemePreference } from "@/theme";
-import { SkeletonRows } from "@/components/loading";
+import { SkeletonRows } from "@/components/feedback/loading";
 
 export const REVIEW_REASON_MAX = 2000;
 const PAGE_SIZE = 20;

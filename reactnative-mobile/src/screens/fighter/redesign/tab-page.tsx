@@ -3,9 +3,9 @@ import { Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Icon, type IconName } from "@/components/icon";
-import { LiveRefreshControl, useLiveRefresh } from "@/components/live-refresh";
-import { PressableScale } from "@/components/motion";
-import { FighterTabFrame } from "@/screens/fighter/tab-bar";
+import { LiveRefreshControl, useLiveRefresh } from "@/components/feedback/live-refresh";
+import { PressableScale } from "@/components/motion/motion";
+import { FighterTabFrame } from "@/screens/fighter/shared/tab-bar";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 

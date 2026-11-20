@@ -3,9 +3,9 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ApiError } from "@/api/core/errors";
 import type { MedicalHistoryEntry, PublicFighter } from "@/api/types";
-import { doctorClinical as c } from "@/i18n/doctor-clinical";
-import { doctorRo } from "@/i18n/doctor-ro";
-import { mapFighterError } from "@/screens/fighter/errors";
+import { doctorClinical as c } from "@/i18n/doctor/doctor-clinical";
+import { doctorRo } from "@/i18n/doctor/doctor-ro";
+import { mapFighterError } from "@/screens/fighter/shared/errors";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 
 import { DECISION_CHIP, detailError, expiresSoon, groupByMonth, headerFacts, historyDot, historySummary, planProgress, planStatusText, severityText } from "./detail-format";

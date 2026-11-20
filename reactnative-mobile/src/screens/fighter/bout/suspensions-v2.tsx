@@ -1,9 +1,9 @@
 import { ActivityIndicator, Text, View } from "react-native";
-import { StaggerList } from "@/components/motion";
+import { StaggerList } from "@/components/motion/motion";
 import { useRouter } from "expo-router";
 
 import type { Suspension } from "@/features/fight-camp/api";
-import { fighterTran as t } from "@/i18n/fighter-tran";
+import { fighterTran as t } from "@/i18n/fighter/fighter-tran";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { previewSuspensionCases } from "@/features/fight-camp/state/camp-preview";
 import { allowedTodayLine, dayMonth, suspensionHeadline, suspensionReasonLabel, suspensionStatusLabel } from "@/features/fight-camp/logic/camp-rules";

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { Icon } from "@/components/icon";
-import { ot } from "@/i18n/one-tap";
-import { TEXT } from "@/screens/fighter/bout-states";
+import { ot } from "@/i18n/common/one-tap";
+import { TEXT } from "@/screens/fighter/shared/bout-states";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 
 import { reasonValue } from "./write";

@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { spacing, type, useThemePreference } from "@/theme";
 
 type BrandWordmarkProps = {

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View } from "react-native";
 
-import { FeatureUnavailable } from "@/components/feature-unavailable";
-import { unavailable } from "@/i18n/unavailable";
+import { FeatureUnavailable } from "@/components/feedback/feature-unavailable";
+import { unavailable } from "@/i18n/common/unavailable";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { FighterStack } from "@/screens/fighter/redesign/shell";
 import { fz, liveSheet } from "@/theme/typography";

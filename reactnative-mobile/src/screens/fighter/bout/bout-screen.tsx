@@ -4,12 +4,12 @@ import { useFocusEffect, useRouter } from "expo-router";
 
 import type { CampDetail } from "@/features/fight-camp/api";
 import { roleMayReadMeasurements } from "@/api/auth/role-contracts";
-import { fighterTran as t } from "@/i18n/fighter-tran";
+import { fighterTran as t } from "@/i18n/fighter/fighter-tran";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { CampTabs } from "@/shared/ui/camp-lit";
 import { isToday, kg, statusLabel } from "@/features/fight-camp/logic/camp-rules";
 import { Action, CampShell } from "@/shared/ui/camp-ui";
-import { StaggerList } from "@/components/motion";
+import { StaggerList } from "@/components/motion/motion";
 import { dmLocal } from "@/screens/fighter/health/health-model";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useSession } from "@/session/session-context";

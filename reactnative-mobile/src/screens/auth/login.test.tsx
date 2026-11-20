@@ -5,7 +5,7 @@ import Toast from "react-native-toast-message";
 import { LoginScreen } from "@/screens/auth/login";
 import { useSession } from "@/session/session-context";
 import { ThemePreferenceProvider } from "@/theme";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 
 jest.mock("@/session/session-context", () => ({
   useSession: jest.fn(),

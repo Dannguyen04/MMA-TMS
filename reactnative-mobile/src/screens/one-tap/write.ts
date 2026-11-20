@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import Toast from "react-native-toast-message";
 
 import { isApiError } from "@/api";
-import { ot } from "@/i18n/one-tap";
+import { ot } from "@/i18n/common/one-tap";
 
 export type WriteOutcome = "ok" | "forbidden" | "offline" | "conflict" | "failed";
 

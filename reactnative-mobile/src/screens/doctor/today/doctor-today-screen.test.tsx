@@ -10,7 +10,7 @@ const mockPush = jest.fn();
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush }) }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }), SafeAreaInsetsContext: require("react").createContext(null) }));
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light, resolvedScheme: "light" }) }));
-jest.mock("@/components/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0 }));
+jest.mock("@/components/navigation/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0 }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ isDemo: false }) }));
 jest.mock("./doctor-bell", () => ({ DoctorBell: () => null }));

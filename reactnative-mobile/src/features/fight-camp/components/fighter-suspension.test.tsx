@@ -3,7 +3,7 @@ import type { Suspension } from "@/features/fight-camp/api";
 import { FighterSuspensionCard, loadAllSuspensions } from "./fighter-suspension";
 import { gradedSteps, liveSuspensions, strictestSuspension, suspensionHeadline } from "@/features/fight-camp/logic/camp-rules";
 import { previewSuspensionCases } from "@/features/fight-camp/state/camp-preview";
-import { fighter } from "@/i18n/fighter";
+import { fighter } from "@/i18n/fighter/fighter";
 import { SESSION_STATUSES } from "@/api/types";
 import { NEXT_SESSION } from "@/api/medical/one-tap.types";
 

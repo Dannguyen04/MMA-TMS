@@ -12,14 +12,14 @@ import {
   type TextInputProps,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { KeyboardFrame, KeyboardScroll } from "@/components/keyboard-aware";
+import { KeyboardFrame, KeyboardScroll } from "@/components/forms/keyboard-aware";
 
-import { coach } from "@/i18n/coach";
+import { coach } from "@/i18n/coach/coach";
 import { radius, spacing, type, useThemePreference } from "@/theme";
-import { FadeInView, PressableScale } from "@/components/motion";
-import { StateView } from "@/components/state-view";
-import { useReadableWidth } from "@/components/readable-width";
-import { ThemedRefreshControl, usePullRefresh } from "@/components/loading";
+import { FadeInView, PressableScale } from "@/components/motion/motion";
+import { StateView } from "@/components/feedback/state-view";
+import { useReadableWidth } from "@/components/layout/readable-width";
+import { ThemedRefreshControl, usePullRefresh } from "@/components/feedback/loading";
 import { lh } from "@/theme/typography";
 
 export function CoachScaffold({

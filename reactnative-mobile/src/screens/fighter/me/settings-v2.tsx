@@ -2,8 +2,8 @@ import Constants from "expo-constants";
 import { View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
-import { appearance } from "@/i18n/appearance";
-import { fighterMe as t } from "@/i18n/fighter-me";
+import { appearance } from "@/i18n/common/appearance";
+import { fighterMe as t } from "@/i18n/fighter/fighter-me";
 import { CampShell } from "@/shared/ui/camp-ui";
 import { SlipRow } from "@/screens/fighter/redesign/tab-page";
 import { useAppearanceState } from "@/theme";

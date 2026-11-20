@@ -4,7 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View, type StyleProp,
 import Reanimated, { Easing, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 
 import { authType, useAuthColors } from "@/components/auth/auth-vision-tokens";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 
 /** Focus / float transition. Short and eased; no bounce. */
 export const FLOAT_DURATION = 150;

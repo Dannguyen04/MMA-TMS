@@ -3,11 +3,11 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { MedicalDossier } from "@/api/types";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { reasonFor } from "@/components/medical/clearance-state";
 import { formatMedicalDay } from "@/components/medical/medical-format";
 import { scopeState, type EligibilityLevel, type EligibilityScope, type ScopeState } from "@/components/medical/eligibility-model";
-import { fighterBody as t } from "@/i18n/fighter-body";
+import { fighterBody as t } from "@/i18n/fighter/fighter-body";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { limitRows, reasonLine } from "@/screens/fighter/health/medical-lines";
 import { fz, lh, liveSheet } from "@/theme/typography";

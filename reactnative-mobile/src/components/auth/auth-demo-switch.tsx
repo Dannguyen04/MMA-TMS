@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type { UserRole } from "@/api/types";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { homeHrefForGate, useSession } from "@/session/session-context";
 import { radius, spacing, type, useThemePreference } from "@/theme";
 

@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { fireEvent, render, within } from "@testing-library/react-native";
 import { listFighterDoctors } from "@/api";
-import { getMe } from "@/screens/fighter/api";
+import { getMe } from "@/screens/fighter/shared/api";
 import { activeDoctor, facts, initials, stats } from "./me-model";
 import { FighterMeV2 } from "./me-tab";
 import { FighterMyProfile } from "./my-profile";
@@ -13,19 +13,19 @@ jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, replace: m
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }), SafeAreaInsetsContext: require("react").createContext(null) }));
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light, resolvedScheme: "light" }),
   useAppearanceState: () => ({ applied: jest.requireActual("@/theme/appearance/settings").DEFAULT_APPEARANCE }) }));
-jest.mock("@/components/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0, useNavRail: () => false }));
+jest.mock("@/components/navigation/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0, useNavRail: () => false }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
-jest.mock("@/components/tab-icon", () => ({ TabIcon: () => null }));
+jest.mock("@/components/navigation/tab-icon", () => ({ TabIcon: () => null }));
 jest.mock("@/screens/fighter/redesign/palette", () => ({ useFighterPalette: () => ({ bg: "#000", line: "#111", activeInk: "#C23A22", muted: "#666", accentSoft: "#fee", ink: "#111", danger: "#c00", surface: "#fff", surface2: "#eee" }) }));
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/session/session-context", () => ({ useSession: () => ({ signOut: mockSignOut }) }));
 jest.mock("@/api", () => ({ ...jest.requireActual("@/api"), listFighterDoctors: jest.fn() }));
-jest.mock("@/screens/fighter/api", () => ({ getMe: jest.fn() }));
+jest.mock("@/screens/fighter/shared/api", () => ({ getMe: jest.fn() }));
 jest.mock("react-native-toast-message", () => ({ __esModule: true, default: { show: jest.fn(), hide: jest.fn() } }));
 
 const base = { id: "f1", firstName: "An", lastName: "Nguyễn Văn", gym: "Lotus MMA", weightClass: "LIGHTWEIGHT", dominantStance: "ORTHODOX", heightCm: 175, reachCm: 180, dateOfBirth: "2001-03-14", nationality: "VN", bio: "Mạnh về vật. Đang chuẩn bị cho giải." };
 let mockProfile: Record<string, unknown> = base;
-jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false, profile: mockProfile, user: { email: "an@lotus.vn" } }) }));
+jest.mock("@/screens/fighter/shared/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false, profile: mockProfile, user: { email: "an@lotus.vn" } }) }));
 const page = (data: unknown[]) => ({ data, total: data.length, page: 1, limit: 20, hasNextPage: false }) as never;
 
 beforeEach(() => {

@@ -14,13 +14,13 @@ import {
 import { isApiError } from "@/api/core/errors";
 import { assignFighterCoach, getUser, listFighterCoaches, listUsers, type CoachAssignment, type PublicUser } from "@/api";
 import { assignDoctorHref, fighterIdFromActivatedUser } from "@/clinical/assign-doctor-link";
-import { BottomSheet } from "@/components/filter-sheet";
+import { BottomSheet } from "@/components/forms/filter-sheet";
 import { Icon } from "@/components/icon";
-import { hapticSuccess, StaggerList } from "@/components/motion";
-import { OptionPick } from "@/components/option-pick";
-import { EmptyLine, RolePage } from "@/components/role-page";
+import { hapticSuccess, StaggerList } from "@/components/motion/motion";
+import { OptionPick } from "@/components/forms/option-pick";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { adm } from "@/i18n/admissions";
+import { adm } from "@/i18n/common/admissions";
 import { ACTIONABLE_STATUSES } from "@/screens/admin/admin-actionable";
 import { userDisplayName } from "@/screens/admin/readonly/admin-format";
 import { PickRow } from "@/screens/admin/tools/admin-assign-screen";

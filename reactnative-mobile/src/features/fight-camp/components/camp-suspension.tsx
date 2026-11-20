@@ -2,7 +2,7 @@ import type { Suspension } from "@/features/fight-camp/api";
 import { useThemePreference } from "@/theme/index";
 import { Copy, Fact, Frame } from "@/shared/ui/camp-ui";
 import { allowedTodayLine, dateLabel, suspensionHeadline, suspensionReasonLabel, suspensionStatusLabel } from "@/features/fight-camp/logic/camp-rules";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
 import { campText } from "@/features/fight-camp/i18n/fight-camp";
 
 /**

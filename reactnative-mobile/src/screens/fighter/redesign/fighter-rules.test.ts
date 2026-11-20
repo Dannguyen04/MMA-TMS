@@ -1,5 +1,5 @@
 import { SESSION_STATUSES } from "@/api/types";
-import { fighter } from "@/i18n/fighter";
+import { fighter } from "@/i18n/fighter/fighter";
 
 import {
   DEFAULT_APPEARANCE_DRAFT,

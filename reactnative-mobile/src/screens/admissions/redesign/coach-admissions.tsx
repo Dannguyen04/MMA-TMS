@@ -11,12 +11,12 @@ import {
   type StaffApplication,
 } from "@/api/admissions/admissions";
 import { isApiError } from "@/api/core/errors";
-import { BottomSheet } from "@/components/filter-sheet";
-import { hapticSuccess, StaggerList } from "@/components/motion";
-import { OptionPick } from "@/components/option-pick";
-import { EmptyLine, RolePage } from "@/components/role-page";
+import { BottomSheet } from "@/components/forms/filter-sheet";
+import { hapticSuccess, StaggerList } from "@/components/motion/motion";
+import { OptionPick } from "@/components/forms/option-pick";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { adm } from "@/i18n/admissions";
+import { adm } from "@/i18n/common/admissions";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
 import { Action, Choices, Field } from "@/shared/ui/camp-ui";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";

@@ -1,10 +1,10 @@
 import { Tabs } from "expo-router";
-import { useNavRail } from "@/components/nav-rail";
+import { useNavRail } from "@/components/navigation/nav-rail";
 
-import { RoleTabBar } from "@/components/role-tab-bar";
-import { useTabFade } from "@/components/tab-fade";
-import { TabIcon } from "@/components/tab-icon";
-import { adminRo } from "@/i18n/admin-ro";
+import { RoleTabBar } from "@/components/navigation/role-tab-bar";
+import { useTabFade } from "@/components/navigation/tab-fade";
+import { TabIcon } from "@/components/navigation/tab-icon";
+import { adminRo } from "@/i18n/admin/admin-ro";
 import { activeInkOn } from "@/screens/fighter/redesign/palette";
 import { AdminUnreadProvider, useAdminUnread } from "@/screens/admin/admin-unread";
 import { badgeText } from "@/screens/doctor/redesign/doctor-unread";

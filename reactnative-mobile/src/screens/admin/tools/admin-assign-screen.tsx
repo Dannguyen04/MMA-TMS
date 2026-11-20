@@ -4,9 +4,9 @@ import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { assignFighterDoctor, listFighterDoctors, listFighters, listUsers, type DoctorAssignment, type PublicFighter, type PublicUser } from "@/api";
 import { Icon } from "@/components/icon";
-import { hapticSuccess, PressableScale, StaggerList } from "@/components/motion";
-import { RolePage } from "@/components/role-page";
-import { adminTools as t } from "@/i18n/admin-tools";
+import { hapticSuccess, PressableScale, StaggerList } from "@/components/motion/motion";
+import { RolePage } from "@/components/navigation/role-page";
+import { adminTools as t } from "@/i18n/admin/admin-tools";
 import { FighterPick } from "@/screens/coach/fighter-pick";
 import { vnDate } from "@/screens/coach/readonly/ro-format";
 import { Action } from "@/shared/ui/camp-ui";

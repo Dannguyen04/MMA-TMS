@@ -2,8 +2,8 @@ import type { Href } from "expo-router";
 
 import type { DoctorAssignment } from "@/api";
 import { findCountry } from "@/constants/countries";
-import { fighterMe as t } from "@/i18n/fighter-me";
-import { formatDay, stanceLabel, weightClassLabel } from "@/screens/fighter/format";
+import { fighterMe as t } from "@/i18n/fighter/fighter-me";
+import { formatDay, stanceLabel, weightClassLabel } from "@/screens/fighter/shared/format";
 
 /** The profile fields Tôi reads; the session profile and `GET /me` both carry them. */
 export type MeProfile = {

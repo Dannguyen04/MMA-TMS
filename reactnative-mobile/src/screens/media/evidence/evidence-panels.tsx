@@ -2,12 +2,12 @@ import { useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
 
 import { Icon } from "@/components/icon";
-import { PressableScale, StaggerList } from "@/components/motion";
+import { PressableScale, StaggerList } from "@/components/motion/motion";
 import { strikeAt, type EvidenceWindow, type ResultFinding, type ResultStrike, type WorkerResult } from "@/components/video/pose-model";
 import { strikeName } from "@/components/video/pose-overlay";
-import { ev } from "@/i18n/video-evidence";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
-import { guidanceLine } from "@/i18n/server-text";
+import { ev } from "@/i18n/video/video-evidence";
+import { UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
+import { guidanceLine } from "@/i18n/common/server-text";
 import { Choices } from "@/shared/ui/camp-ui";
 import { filterFindings, formatPrecise, metricsOf, type FindingFilter } from "@/screens/media/evidence/evidence-model";
 import { useThemePreference } from "@/theme";

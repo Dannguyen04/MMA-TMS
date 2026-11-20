@@ -1,7 +1,7 @@
 import type { DoctorScheduleItem } from "@/api/doctor/schedule";
 import type { CampBout, Suspension } from "@/features/fight-camp/api";
 import type { TrainingSession } from "@/api/types";
-import { scheduleText as t } from "@/i18n/schedule";
+import { scheduleText as t } from "@/i18n/common/schedule";
 
 /** Pure rules for the shared week schedule (REDESIGN-BRIEF-2026-11.md "Schedules"). Academy time is UTC+7. */
 export type ScheduleKind = "session" | "weigh" | "fight" | "free" | "expire" | "follow";

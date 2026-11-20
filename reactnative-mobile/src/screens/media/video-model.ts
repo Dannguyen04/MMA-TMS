@@ -1,6 +1,6 @@
 import type { AnalysisJob, VideoCameraAngle, VideoRecord, VideoTrainingType } from "@/api/video/media";
-import { media } from "@/i18n/media";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { media } from "@/i18n/video/media";
+import { UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
 import { uploadIssue, type UploadDraft, type UploadIssue } from "@/screens/media/upload-rules";
 
 /** Demo/test order only. The screens load `GET /videos` and never render this list. */

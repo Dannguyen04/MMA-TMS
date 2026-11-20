@@ -4,16 +4,16 @@ import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 
 import { EXERCISE_CATEGORIES, type Exercise, type ExerciseCategory } from "@/api/types";
 import { Icon } from "@/components/icon";
-import { PressableScale } from "@/components/motion";
-import { fighter } from "@/i18n/fighter";
-import { fighterPlans as t } from "@/i18n/fighter-plans";
-import { muscleQuery, musclesLine } from "@/i18n/server-text";
+import { PressableScale } from "@/components/motion/motion";
+import { fighter } from "@/i18n/fighter/fighter";
+import { fighterPlans as t } from "@/i18n/fighter/fighter-plans";
+import { muscleQuery, musclesLine } from "@/i18n/common/server-text";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { LitFill } from "@/shared/ui/camp-lit";
 import { Action, CampShell, Choices } from "@/shared/ui/camp-ui";
-import { getExercise, listExercises } from "@/screens/fighter/api";
+import { getExercise, listExercises } from "@/screens/fighter/shared/api";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 

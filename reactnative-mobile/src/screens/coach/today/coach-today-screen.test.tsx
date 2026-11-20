@@ -16,7 +16,7 @@ jest.mock("@/theme", () => ({
   useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light }),
   fonts: { display: "D", displayExtraBold: "DX", displaySemi: "DS" },
 }));
-jest.mock("@/components/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0 }));
+jest.mock("@/components/navigation/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0 }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
 jest.mock("@/screens/coach/nav/coach-unread", () => ({ CoachBell: () => null }));
 jest.mock("@/components/ui/slide-sheet", () => {

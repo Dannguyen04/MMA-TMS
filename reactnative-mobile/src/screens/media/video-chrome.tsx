@@ -1,7 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { media } from "@/i18n/media";
+import { media } from "@/i18n/video/media";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { useTypography } from "@/theme";
 

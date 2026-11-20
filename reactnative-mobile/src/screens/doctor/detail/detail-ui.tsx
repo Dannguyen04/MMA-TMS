@@ -2,9 +2,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Platform, Pressable, ScrollView, Text, View } from "react-native";
 
 import { RoCard, RowSkeletons } from "@/screens/coach/readonly/ro-ui";
-import { ActionButton, TEXT, useDelayedFlag } from "@/screens/fighter/bout-states";
+import { ActionButton, TEXT, useDelayedFlag } from "@/screens/fighter/shared/bout-states";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
-import { fighter } from "@/i18n/fighter";
+import { fighter } from "@/i18n/fighter/fighter";
 import { fz, lh } from "@/theme/typography";
 
 /**

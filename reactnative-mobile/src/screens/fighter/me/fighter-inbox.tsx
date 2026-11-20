@@ -3,12 +3,12 @@ import { ActivityIndicator } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import { listNotifications } from "@/api/notifications/notifications";
-import { StaggerList } from "@/components/motion";
-import { EmptyLine, RolePage } from "@/components/role-page";
-import { coachInbox as t } from "@/i18n/coach-video";
+import { StaggerList } from "@/components/motion/motion";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
+import { coachInbox as t } from "@/i18n/coach/coach-video";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
-import { useLoad } from "@/screens/fighter/use-load";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
+import { useLoad } from "@/screens/fighter/shared/use-load";
 import { useMarkRead } from "@/screens/one-tap/notification-read";
 import { relTime } from "@/screens/video-ai/ai-model";
 import { useThemePreference } from "@/theme";

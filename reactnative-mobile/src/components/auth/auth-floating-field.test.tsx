@@ -3,7 +3,7 @@ import { StyleSheet } from "react-native";
 
 import { AuthFloatingField, floatingFieldMetrics } from "@/components/auth/auth-floating-field";
 import { authPalette } from "@/components/auth/auth-vision-tokens";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 
 // Màn trước đăng nhập luôn tối cố định, bất kể Sáng/Tối/Hệ thống.
 const dark = authPalette("dark");

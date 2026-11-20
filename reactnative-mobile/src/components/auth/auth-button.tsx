@@ -6,7 +6,7 @@ import {
 } from "react-native";
 
 import { radius, type, useThemePreference } from "@/theme";
-import { PressableScale } from "@/components/motion";
+import { PressableScale } from "@/components/motion/motion";
 
 type AuthButtonProps = {
   title: string;

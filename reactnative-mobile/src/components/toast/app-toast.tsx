@@ -8,7 +8,7 @@ import Toast, {
 } from "react-native-toast-message";
 
 import { type ColorTokens, useThemePreference } from "@/theme";
-import { hapticSuccess } from "@/components/motion";
+import { hapticSuccess } from "@/components/motion/motion";
 import { fz, lh, liveSheet } from "@/theme/typography";
 
 export type AppToastTone = "success" | "error" | "info";

@@ -1,6 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 
-import { TEXT } from "@/screens/fighter/bout-states";
+import { TEXT } from "@/screens/fighter/shared/bout-states";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 
 /** Hộp xác nhận giữa màn: tiêu đề + [Hủy] [hành động nguy hiểm]. Nút cao 48dp. */

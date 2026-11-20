@@ -1,4 +1,4 @@
-import { blocked } from "@/i18n/blocked";
+import { blocked } from "@/i18n/common/blocked";
 import { CoachBlockedPage } from "@/screens/coach/blocked-page";
 
 /** Chưa có API backend — xem out/06-API-can-bo-sung.md. */

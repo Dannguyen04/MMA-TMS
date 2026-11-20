@@ -2,8 +2,8 @@ import { fireEvent, render, waitFor, within } from "@testing-library/react-nativ
 import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { coachSchedule as t } from "@/i18n/coach-schedule";
-import { ot } from "@/i18n/one-tap";
+import { coachSchedule as t } from "@/i18n/coach/coach-schedule";
+import { ot } from "@/i18n/common/one-tap";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 import { parseHm, sessionStatusWord } from "./session-model";
 

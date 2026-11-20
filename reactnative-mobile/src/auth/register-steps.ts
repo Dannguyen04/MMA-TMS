@@ -1,4 +1,4 @@
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { isValidEmail } from "@/utils/is-valid-email";
 
 export const PASSWORD_MIN = 8;

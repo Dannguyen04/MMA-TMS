@@ -1,6 +1,6 @@
 import { View } from "react-native";
 import type { NextRoundPlan } from "@/features/fight-camp/api";
-import { aiNotes } from "@/i18n/backend-codes";
+import { aiNotes } from "@/i18n/common/backend-codes";
 import { roundAi as t } from "@/features/fight-camp/i18n/round-ai";
 import { Action, Copy, PlanToggle } from "@/shared/ui/camp-ui";
 import { isAiPicked, type AiLine } from "@/features/fight-camp/logic/round-ai";

@@ -10,7 +10,7 @@ import {
 
 import { useToastMessage } from "@/components/toast/app-toast";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { KeyboardFrame, KeyboardScroll } from "@/components/keyboard-aware";
+import { KeyboardFrame, KeyboardScroll } from "@/components/forms/keyboard-aware";
 
 import { isApiError } from "@/api";
 import {
@@ -18,7 +18,7 @@ import {
   VIDEO_CAMERA_ANGLES,
   VIDEO_TRAINING_TYPES,
 } from "@/api/video/media";
-import { media } from "@/i18n/media";
+import { media } from "@/i18n/video/media";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { uploadIssue, type UploadIssue } from "@/screens/media/upload-rules";
 import { VideoScreenHeader } from "@/screens/media/video-chrome";
@@ -30,8 +30,8 @@ import {
   type PickedVideo,
 } from "@/screens/media/video-model";
 import { useTypography } from "@/theme";
-import { useReadableWidth } from "@/components/readable-width";
-import { errorCodeText } from "@/i18n/backend-codes";
+import { useReadableWidth } from "@/components/layout/readable-width";
+import { errorCodeText } from "@/i18n/common/backend-codes";
 import { fz, liveSheet } from "@/theme/typography";
 
 function issueLabel(issue: UploadIssue): string {

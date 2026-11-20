@@ -1,14 +1,14 @@
 import { ActivityIndicator, Text, View } from "react-native";
-import { StaggerList } from "@/components/motion";
+import { StaggerList } from "@/components/motion/motion";
 import { useRouter } from "expo-router";
 
 import { isFighterProfile } from "@/api";
-import { fighterMe as t } from "@/i18n/fighter-me";
+import { fighterMe as t } from "@/i18n/fighter/fighter-me";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { CampShell, sentences } from "@/shared/ui/camp-ui";
-import { getMe } from "@/screens/fighter/api";
+import { getMe } from "@/screens/fighter/shared/api";
 import { RetryRow } from "@/screens/fighter/redesign/tab-page";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz } from "@/theme/typography";
 import { backToMe, facts, type MeProfile } from "./me-model";

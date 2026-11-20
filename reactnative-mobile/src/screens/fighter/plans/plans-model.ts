@@ -1,5 +1,5 @@
 import type { TrainingPlan, TrainingPlanExercise, TrainingSession } from "@/api/types";
-import { fighterPlans as t } from "@/i18n/fighter-plans";
+import { fighterPlans as t } from "@/i18n/fighter/fighter-plans";
 
 /** Phases that belong to a bout: a plan in one of these is "the bout's plan" while a bout is open. */
 const BOUT_PHASES = new Set(["fight_camp", "taper", "rehab"]);

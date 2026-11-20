@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { LiveRefreshControl, useLiveRefresh } from "@/components/live-refresh";
-import { FadeInView } from "@/components/motion";
+import { LiveRefreshControl, useLiveRefresh } from "@/components/feedback/live-refresh";
+import { FadeInView } from "@/components/motion/motion";
 import { ActivityIndicator, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -9,9 +9,9 @@ import { coachTodayApi, TODO_PHASES, type CoachTodo, type ReadinessRow, type Tod
 import { campApi, type CampBout, type CampDetail, type CursorPage } from "@/features/fight-camp/api";
 import { listFighters } from "@/api/fighters/fighters";
 import { Icon } from "@/components/icon";
-import { navSideWidth, useNavKind } from "@/components/nav-rail";
+import { navSideWidth, useNavKind } from "@/components/navigation/nav-rail";
 import { SlideSheet } from "@/components/ui/slide-sheet";
-import { todayText as t } from "@/i18n/coach-today";
+import { todayText as t } from "@/i18n/coach/coach-today";
 import { CoachBell } from "@/screens/coach/nav/coach-unread";
 import { Action, Frame } from "@/shared/ui/camp-ui";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";

@@ -3,7 +3,7 @@ import { fireEvent, render, waitFor } from "@testing-library/react-native";
 import { StyleSheet } from "react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { vai } from "@/i18n/video-ai";
+import { vai } from "@/i18n/video/video-ai";
 import { ThemePreferenceProvider } from "@/theme";
 
 let mockSize = { width: 720, height: 1280 };
@@ -91,7 +91,7 @@ describe("video chi tiết: trình phát thu gọn (batch45)", () => {
 
 describe("batch44: nút Lớp", () => {
   const Toast = (jest.requireMock("react-native-toast-message") as { default: { show: jest.Mock } }).default;
-  const { ev } = jest.requireActual("@/i18n/video-evidence") as typeof import("@/i18n/video-evidence");
+  const { ev } = jest.requireActual("@/i18n/video/video-evidence") as typeof import("@/i18n/video/video-evidence");
   const frame = { timeMs: 0, keypoints: Array.from({ length: 17 }, () => ({ x: 0.5, y: 0.5, conf: 0.9 })) };
   const result = { fps: 30, durationMs: 1000, width: 720, height: 1280, frames: [frame], strikes: [], findings: [], movementEvidence: null, avgScore: null };
   const player = (poseState: "ready" | "missing") => (

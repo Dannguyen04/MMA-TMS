@@ -1,5 +1,5 @@
 import { ApiError, MEDICAL_GATE_CODE } from "@/api/core/errors";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { mapApiMessage } from "@/session/map-api-message";
 
 describe("mapApiMessage", () => {

@@ -2,7 +2,7 @@ import { Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 
 import { jointLabel } from "@/components/medical/medical-format";
-import { fighterHealth as t } from "@/i18n/fighter-health";
+import { fighterHealth as t } from "@/i18n/fighter/fighter-health";
 import { useThemePreference } from "@/theme";
 import { readableTextStyle } from "@/theme/typography";
 import type { BodyMarks } from "./health-model";

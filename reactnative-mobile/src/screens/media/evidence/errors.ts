@@ -1,6 +1,6 @@
 import { isApiError } from "@/api";
 import { ResultShapeError } from "@/api/video/evidence";
-import { ev } from "@/i18n/video-evidence";
+import { ev } from "@/i18n/video/video-evidence";
 
 /** Vietnamese message for evidence calls: 403 not assigned, 409 not finished, network. */
 export function evidenceError(cause: unknown): string {

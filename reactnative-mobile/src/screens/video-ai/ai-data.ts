@@ -6,11 +6,11 @@ import type { AiJob } from "@/api/video/video-ai.types";
 import { useDoctorRoster } from "@/screens/doctor/redesign/doctor-roster";
 import { fighterName } from "@/screens/coach/readonly/ro-format";
 import { useFighterNames } from "@/screens/coach/readonly/use-coach";
-import { useLoad } from "@/screens/fighter/use-load";
+import { useLoad } from "@/screens/fighter/shared/use-load";
 import { useSession, useSessionRole } from "@/session/session-context";
 
 import { hasCoachReview } from "./ai-model";
-import { videoTitle } from "@/i18n/server-text";
+import { videoTitle } from "@/i18n/common/server-text";
 
 export type AiRole = "coach" | "admin" | "doctor";
 

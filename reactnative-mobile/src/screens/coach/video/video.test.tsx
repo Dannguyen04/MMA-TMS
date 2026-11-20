@@ -2,8 +2,8 @@ import { act, fireEvent, render, waitFor, within } from "@testing-library/react-
 import type { ReactNode } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
-import { coachInbox, coachMe, coachVideo as t } from "@/i18n/coach-video";
-import { fighterVideo } from "@/i18n/fighter-video";
+import { coachInbox, coachMe, coachVideo as t } from "@/i18n/coach/coach-video";
+import { fighterVideo } from "@/i18n/fighter/fighter-video";
 import { ThemePreferenceProvider } from "@/theme/theme-preference";
 import { COACH_VIDEOS, coachVideoHref } from "./video-model";
 

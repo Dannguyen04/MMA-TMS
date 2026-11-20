@@ -4,13 +4,13 @@ import { useRouter } from "expo-router";
 
 import { doctorRoApi } from "@/api/doctor/doctor-ro";
 import type { AnalysisJob, JobHealthAlerts } from "@/api/video/media";
-import { StaggerList } from "@/components/motion";
-import { doctorRest as r } from "@/i18n/doctor-rest";
+import { StaggerList } from "@/components/motion/motion";
+import { doctorRest as r } from "@/i18n/doctor/doctor-rest";
 import { vnDate } from "@/screens/coach/readonly/ro-format";
 import { DoctorAiDisclaimer } from "@/screens/doctor/redesign/ai-disclaimer";
 import { doctorVideoHref } from "@/screens/doctor/redesign/doctor-paths";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
-import { useLoad } from "@/screens/fighter/use-load";
+import { useLoad } from "@/screens/fighter/shared/use-load";
 import { EvHead } from "@/screens/media/evidence/evidence-panels";
 import { useThemePreference } from "@/theme";
 import { readableTextStyle } from "@/theme/typography";

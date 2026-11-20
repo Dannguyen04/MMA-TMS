@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react-native";
 
 import { AuthTextField } from "@/components/auth/auth-text-field";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { ThemePreferenceProvider } from "@/theme";
 
 describe("AuthTextField", () => {

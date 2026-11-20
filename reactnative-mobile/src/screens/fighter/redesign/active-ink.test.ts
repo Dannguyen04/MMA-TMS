@@ -1,4 +1,4 @@
-import { isHiddenTab, tabBarBottomPadding, TAB_BAR_MIN_HEIGHT } from "@/components/role-tab-bar";
+import { isHiddenTab, tabBarBottomPadding, TAB_BAR_MIN_HEIGHT } from "@/components/navigation/role-tab-bar";
 import { activeInkOn, paletteFromTokens } from "@/screens/fighter/redesign/palette";
 import { contrastRatio } from "@/theme/appearance/color-math";
 import { buildColors } from "@/theme/appearance/tokens";

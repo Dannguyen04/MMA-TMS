@@ -1,6 +1,6 @@
 import type { PublicUser } from "@/api/types";
-import { coachRo } from "@/i18n/coach-ro";
-import { coach as coachLegacy } from "@/i18n/coach";
+import { coachRo } from "@/i18n/coach/coach-ro";
+import { coach as coachLegacy } from "@/i18n/coach/coach";
 import { THEME_PALETTES, SYNTHETIC_LIGHT } from "@/theme/appearance/theme-palettes";
 import { paletteFromTokens } from "@/screens/fighter/redesign/palette";
 import { ADMIN_FIGHTER_DOCTORS_ENABLED } from "./admin-flags";

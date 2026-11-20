@@ -22,7 +22,7 @@ Khi bị hỏi "chức năng X gọi API nào", hãy đi ngược chuỗi trên:
 | `app/` | Route Expo Router. Mỗi file là một URL; phần lớn chỉ có 1 dòng `export { X as default } from "@/..."`. Layout của từng vai trò: `app/(role)/_layout.tsx`. |
 | `features/<tên>/` | Một tính năng gói trọn: `api.ts`, `screens/`, `components/`, `logic/`, `state/`, `i18n/`, `README.md` (sơ đồ chức năng → file → API). Hiện đã có **fight-camp**. |
 | `screens/<vai trò>/` | Màn hình chưa chuyển sang `features/` (admin, coach, doctor, fighter, media, medical, admissions…). |
-| `shared/ui/` | Giao diện dùng chung cho mọi vai trò: `camp-ui` (CampShell, thẻ, nút, WeightPlot), `camp-lit` (tab, hiệu ứng sáng), `camp-motion`, `camp-columns`, `tab-fire`. |
+| `shared/ui/` | Giao diện dùng chung cho mọi vai trò: `camp-ui/` (`index.tsx` gi? API chung; CampShell, thẻ, nút, WeightPlot), `camp-lit` (tab, hiệu ứng sáng), `camp-motion`, `camp-columns`, `tab-fire`. |
 | `components/` | Component dùng chung khác: tab bar, bàn phím, 3D cơ thể, lịch tuần, biểu đồ… |
 | `api/` | Gọi backend, chia theo nghiệp vụ: `core/` (lớp HTTP axios: http, client, config, tokens, errors, query), `auth/`, `admissions/`, `admin/`, `coach/`, `doctor/`, `fighters/` (võ sĩ, trận), `medical/` (y tế, thao tác 1 chạm), `training/` (giáo án), `video/` (media, evidence, video-ai), `notifications/`. `types.ts` là kiểu dữ liệu chung, `index.ts` gom export. File `*.mock.ts` là dữ liệu giả cho test, nằm cạnh file API của nó. |
 | `session/` | Đăng nhập, phiên, chặn route theo vai trò (`role-gate.tsx`, `session-context.tsx`). |

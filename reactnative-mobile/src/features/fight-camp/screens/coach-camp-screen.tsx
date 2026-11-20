@@ -11,9 +11,9 @@ import { SuspensionCard } from "@/features/fight-camp/components/camp-suspension
 import { previewBout, previewSuspension } from "@/features/fight-camp/state/camp-preview";
 import { CornerScreen, RoundScreen, ReportScreen, type RoundDraftState } from "./round-screens";
 import { OpponentEditor } from "@/features/fight-camp/components/opponent-editor";
-import { pendingVi } from "@/i18n/pending-vi";
+import { pendingVi } from "@/i18n/common/pending-vi";
 import { CampInputError } from "@/features/fight-camp/logic/camp-input-error";
-import { UNKNOWN_VALUE } from "@/i18n/backend-codes";
+import { UNKNOWN_VALUE } from "@/i18n/common/backend-codes";
 import { boutReport } from "@/features/fight-camp/i18n/bout-report";
 import { BoutDetailTabs, type DetailTab } from "./bout-detail-tabs";
 import { boutTabs } from "@/features/fight-camp/i18n/bout-tabs";

@@ -21,7 +21,7 @@ import * as Haptics from "expo-haptics";
 import * as SplashScreen from "expo-splash-screen";
 import Animated, { Easing, runOnJS, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { splash, splashIntro as I } from "@/theme/splash";
 import { devLog } from "@/utils/dev-log";
 

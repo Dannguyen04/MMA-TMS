@@ -2,8 +2,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 
 import { doctorRoApi, USE_MOCK_DOCTOR } from "@/api/doctor/doctor-ro";
 import type { PublicFighter } from "@/api/types";
-import { doctorRo } from "@/i18n/doctor-ro";
-import { mapFighterError } from "@/screens/fighter/errors";
+import { doctorRo } from "@/i18n/doctor/doctor-ro";
+import { mapFighterError } from "@/screens/fighter/shared/errors";
 import { useSession } from "@/session/session-context";
 
 const PAGE = 100;

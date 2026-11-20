@@ -1,4 +1,4 @@
-import { GENERIC_ERROR } from "@/i18n/backend-codes";
+import { GENERIC_ERROR } from "@/i18n/common/backend-codes";
 export class ApiError extends Error {
   readonly status: number;
   readonly code: string;

@@ -10,7 +10,7 @@ import {
 } from "./settings";
 import { DEFAULT_PALETTE_ID, THEME_SPECS } from "./theme-palettes";
 import { buildColors } from "./tokens";
-import { appearance as appearanceVi } from "@/i18n/appearance";
+import { appearance as appearanceVi } from "@/i18n/common/appearance";
 import { paletteFromTokens } from "@/screens/fighter/redesign/palette";
 import { toneColors } from "@/screens/coach/readonly/ro-format";
 

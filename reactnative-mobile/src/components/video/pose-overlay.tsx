@@ -12,7 +12,7 @@ import {
   type PoseFrame,
   type ResultStrike,
 } from "@/components/video/pose-model";
-import { ev } from "@/i18n/video-evidence";
+import { ev } from "@/i18n/video/video-evidence";
 
 export type OverlayLayers = { skeleton: boolean; angle: boolean; label: boolean };
 

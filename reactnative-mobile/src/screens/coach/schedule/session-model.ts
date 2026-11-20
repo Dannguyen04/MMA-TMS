@@ -1,7 +1,7 @@
 import type { Href } from "expo-router";
 
 import type { SessionStatus } from "@/api/types";
-import { coachSchedule as t } from "@/i18n/coach-schedule";
+import { coachSchedule as t } from "@/i18n/coach/coach-schedule";
 
 /** Redesign step 18: the one session page (it replaced `schedule/[id]` and the read-only `schedule/chi-tiet`). */
 export const COACH_SESSION_PATH = "/(coach)/schedule/chi-tiet";

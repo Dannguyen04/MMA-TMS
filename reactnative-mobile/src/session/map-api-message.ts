@@ -1,5 +1,5 @@
 import { isApiError, MEDICAL_GATE_CODE } from "@/api/core/errors";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 
 /** Maps Nest `error.code` / HTTP status to everyday copy. Never show codes to the user. */
 export function mapApiMessage(error: unknown): string {

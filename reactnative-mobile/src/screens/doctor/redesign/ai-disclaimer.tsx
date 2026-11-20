@@ -1,6 +1,6 @@
 import { Text, View } from "react-native";
 
-import { doctorRest as t } from "@/i18n/doctor-rest";
+import { doctorRest as t } from "@/i18n/doctor/doctor-rest";
 import { useThemePreference } from "@/theme";
 import { readableTextStyle } from "@/theme/typography";
 

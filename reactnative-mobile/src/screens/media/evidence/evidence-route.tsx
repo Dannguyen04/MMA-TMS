@@ -4,10 +4,10 @@ import { useRouter, type Href } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { getAnalysisJob } from "@/api/video/media";
-import { EmptyLine, RolePage } from "@/components/role-page";
-import { fighterVideo as fv } from "@/i18n/fighter-video";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
+import { fighterVideo as fv } from "@/i18n/fighter/fighter-video";
 import { Action } from "@/shared/ui/camp-ui";
-import { ev } from "@/i18n/video-evidence";
+import { ev } from "@/i18n/video/video-evidence";
 import { useThemePreference } from "@/theme";
 import { evidenceError } from "@/screens/media/evidence/errors";
 import { VideoDetailContent, type EvidenceRole } from "@/screens/media/video-detail";

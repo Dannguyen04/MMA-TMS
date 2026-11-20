@@ -4,7 +4,7 @@ import { useRouter, type Href } from "expo-router";
 
 import { coachNavApi } from "@/api/coach/coach-nav";
 import { Icon } from "@/components/icon";
-import { coachRo } from "@/i18n/coach-ro";
+import { coachRo } from "@/i18n/coach/coach-ro";
 import { badgeText } from "@/screens/doctor/redesign/doctor-unread";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 

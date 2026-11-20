@@ -1,6 +1,6 @@
 import { Stack } from "expo-router";
 
-import { coach } from "@/i18n/coach";
+import { coach } from "@/i18n/coach/coach";
 import { useThemePreference } from "@/theme";
 
 export default function CoachFightersStack() {

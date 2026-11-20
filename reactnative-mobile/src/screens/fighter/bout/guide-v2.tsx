@@ -1,8 +1,8 @@
 import { Text, View } from "react-native";
-import { StaggerList } from "@/components/motion";
+import { StaggerList } from "@/components/motion/motion";
 import { useRouter } from "expo-router";
 
-import { fighterTran as t } from "@/i18n/fighter-tran";
+import { fighterTran as t } from "@/i18n/fighter/fighter-tran";
 import { CampShell } from "@/shared/ui/camp-ui";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";

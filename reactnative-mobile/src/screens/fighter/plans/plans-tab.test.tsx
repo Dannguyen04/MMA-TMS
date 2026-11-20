@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { fireEvent, render, within } from "@testing-library/react-native";
 import { campApi } from "@/features/fight-camp/api";
-import { listPlansForFighter, listSessionsForFighter } from "@/screens/fighter/api";
+import { listPlansForFighter, listSessionsForFighter } from "@/screens/fighter/shared/api";
 import { previewBout } from "@/features/fight-camp/state/camp-preview";
 import { FighterPlansTab } from "./plans-tab";
 
@@ -9,14 +9,14 @@ const mockPush = jest.fn();
 jest.mock("expo-router", () => ({ useRouter: () => ({ push: mockPush, replace: jest.fn() }), usePathname: () => "/giao-an" }));
 jest.mock("react-native-safe-area-context", () => ({ useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }), SafeAreaInsetsContext: require("react").createContext(null) }));
 jest.mock("@/theme", () => ({ useThemePreference: () => ({ colors: jest.requireActual("@/theme/colors").palettes.light, resolvedScheme: "light" }) }));
-jest.mock("@/components/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0, useNavRail: () => false }));
+jest.mock("@/components/navigation/nav-rail", () => ({ useNavKind: () => "bar", navSideWidth: () => 0, useNavRail: () => false }));
 jest.mock("@/components/icon", () => ({ Icon: () => null }));
-jest.mock("@/components/tab-icon", () => ({ TabIcon: () => null }));
+jest.mock("@/components/navigation/tab-icon", () => ({ TabIcon: () => null }));
 jest.mock("@/screens/fighter/redesign/palette", () => ({ useFighterPalette: () => ({ bg: "#000", line: "#111", activeInk: "#C23A22", muted: "#666", accentSoft: "#fee" }) }));
-jest.mock("@/screens/fighter/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false }) }));
+jest.mock("@/screens/fighter/shared/use-fighter-id", () => ({ useFighterId: () => ({ fighterId: "f1", canFetch: true, isDemo: false }) }));
 jest.mock("@/shared/ui/camp-ui", () => require("@/features/fight-camp/testing/camp-test-ui").campUiMock());
 jest.mock("@/features/fight-camp/api", () => ({ campApi: { list: jest.fn() } }));
-jest.mock("@/screens/fighter/api", () => ({ listPlansForFighter: jest.fn(), listSessionsForFighter: jest.fn() }));
+jest.mock("@/screens/fighter/shared/api", () => ({ listPlansForFighter: jest.fn(), listSessionsForFighter: jest.fn() }));
 
 const day = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10);
 const plan = (over: object) => ({ id: "p", title: "Plan", phase: "base", status: "ACTIVE", startDate: day(-3), endDate: day(52), milestones: [], ...over });

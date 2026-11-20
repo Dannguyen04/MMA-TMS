@@ -1,18 +1,18 @@
 import { Tabs } from "expo-router";
-import { useNavRail } from "@/components/nav-rail";
-import { RoleTabBar } from "@/components/role-tab-bar";
-import { useTabFade } from "@/components/tab-fade";
-import { TabIcon } from "@/components/tab-icon";
+import { useNavRail } from "@/components/navigation/nav-rail";
+import { RoleTabBar } from "@/components/navigation/role-tab-bar";
+import { useTabFade } from "@/components/navigation/tab-fade";
+import { TabIcon } from "@/components/navigation/tab-icon";
 
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { RoleLayoutGate } from "@/session/role-gate";
 import { activeInkOn } from "@/screens/fighter/redesign/palette";
-import { coachRo } from "@/i18n/coach-ro";
+import { coachRo } from "@/i18n/coach/coach-ro";
 import { useThemePreference } from "@/theme";
 import { RoHeaderAction } from "@/screens/coach/readonly/ro-ui";
 import { CoachBell, CoachUnreadProvider } from "@/screens/coach/nav/coach-unread";
-import { pendingVi } from "@/i18n/pending-vi";
-import { todayText } from "@/i18n/coach-today";
+import { pendingVi } from "@/i18n/common/pending-vi";
+import { todayText } from "@/i18n/coach/coach-today";
 import { fz } from "@/theme/typography";
 
 export default function CoachTabsLayout() {

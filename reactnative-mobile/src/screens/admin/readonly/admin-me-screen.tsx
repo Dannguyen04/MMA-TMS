@@ -3,9 +3,9 @@ import { Text, View } from "react-native";
 import { useRouter, type Href } from "expo-router";
 
 import { Icon } from "@/components/icon";
-import { PressableScale, StaggerList } from "@/components/motion";
-import { RolePage } from "@/components/role-page";
-import { adminRest as t } from "@/i18n/admin-rest";
+import { PressableScale, StaggerList } from "@/components/motion/motion";
+import { RolePage } from "@/components/navigation/role-page";
+import { adminRest as t } from "@/i18n/admin/admin-rest";
 import { ConfirmDialog } from "@/screens/doctor/redesign/confirm-dialog";
 import { Initials } from "@/screens/fighter/me/me-tab";
 import { SlipRow } from "@/screens/fighter/redesign/tab-page";

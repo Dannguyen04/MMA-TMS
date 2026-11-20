@@ -1,5 +1,5 @@
 import type { MedicalJointState } from "@/api/types";
-import { medical } from "@/i18n/medical";
+import { medical } from "@/i18n/medical/medical";
 
 /**
  * Bảng cấu hình: mã khớp từ API (BODY_JOINTS, 13 giá trị) → vùng trên mô hình + bán kính (theo H).

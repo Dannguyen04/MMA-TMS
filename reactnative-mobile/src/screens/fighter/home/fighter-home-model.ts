@@ -1,7 +1,7 @@
 import type { CampBout, Suspension } from "@/features/fight-camp/api";
 import type { TrainingPlan, TrainingSession } from "@/api/types";
 import type { AiJob } from "@/api/video/video-ai.types";
-import { fighterHome as t } from "@/i18n/fighter-home";
+import { fighterHome as t } from "@/i18n/fighter/fighter-home";
 import { academyTime, addDays, dateKey } from "@/components/schedule/week-model";
 import { liveSuspensions, sessionNames } from "@/features/fight-camp/logic/camp-rules";
 

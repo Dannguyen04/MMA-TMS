@@ -1,7 +1,7 @@
 import { ApiError } from "@/api/core/errors";
 import type { AnalysisInput, CampDetail, CampStatus, Suspension } from "@/features/fight-camp/api";
 import { CampInputError } from "./camp-input-error";
-import { backendErrorText, GENERIC_ERROR } from "@/i18n/backend-codes";
+import { backendErrorText, GENERIC_ERROR } from "@/i18n/common/backend-codes";
 import { campText } from "@/features/fight-camp/i18n/fight-camp";
 
 export const statusLabel: Record<CampStatus, string> = {

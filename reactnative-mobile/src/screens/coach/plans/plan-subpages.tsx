@@ -6,12 +6,12 @@ import { addTrainingPlanExercise, createTrainingPlan, listExercises, removeTrain
 import { coachApi } from "@/api/coach/coach";
 import { EXERCISE_CATEGORIES, type Exercise, type ExerciseCategory, type PlanMilestone, type TrainingPlanPhase } from "@/api/types";
 import { Icon } from "@/components/icon";
-import { PressableScale } from "@/components/motion";
-import { EmptyLine, RolePage } from "@/components/role-page";
+import { PressableScale } from "@/components/motion/motion";
+import { EmptyLine, RolePage } from "@/components/navigation/role-page";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { fighter as fighterCopy } from "@/i18n/fighter";
-import { coachPlans as t } from "@/i18n/coach-plans";
-import { muscleQuery, musclesLine } from "@/i18n/server-text";
+import { fighter as fighterCopy } from "@/i18n/fighter/fighter";
+import { coachPlans as t } from "@/i18n/coach/coach-plans";
+import { muscleQuery, musclesLine } from "@/i18n/common/server-text";
 import { coachErrorMessage, coachProfileId, todayDateOnly } from "@/screens/coach/coach-error";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { Action, Choices, Field } from "@/shared/ui/camp-ui";

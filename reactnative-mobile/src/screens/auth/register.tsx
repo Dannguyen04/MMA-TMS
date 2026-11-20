@@ -19,7 +19,7 @@ import {
 } from "@/components/auth/auth-vision-shell";
 import { authType, useAuthColors } from "@/components/auth/auth-vision-tokens";
 import { useToastMessage } from "@/components/toast/app-toast";
-import { vi } from "@/i18n/vi";
+import { vi } from "@/i18n/common/vi";
 import { mapApiMessage } from "@/session/map-api-message";
 import { homeHrefForGate, useSession } from "@/session/session-context";
 import { spacing } from "@/theme";

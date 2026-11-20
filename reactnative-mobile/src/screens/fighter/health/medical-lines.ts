@@ -1,6 +1,6 @@
 import type { ScopeState } from "@/components/medical/eligibility-model";
 import { jointLabel, sessionTypeName, techniqueLabel } from "@/components/medical/medical-format";
-import { fighterBody as t } from "@/i18n/fighter-body";
+import { fighterBody as t } from "@/i18n/fighter/fighter-body";
 
 /** Backend reason code → words for the fighter. */
 export function reasonLine(code: string): string {

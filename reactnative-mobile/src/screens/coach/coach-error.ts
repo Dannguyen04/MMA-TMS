@@ -1,5 +1,5 @@
 import { isApiError, type PublicUser } from "@/api";
-import { coach } from "@/i18n/coach";
+import { coach } from "@/i18n/coach/coach";
 import { mapApiMessage } from "@/session/map-api-message";
 import type { Href } from "expo-router";
 

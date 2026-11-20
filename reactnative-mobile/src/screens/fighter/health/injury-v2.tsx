@@ -6,12 +6,12 @@ import type { MedicalHistoryEntry, MedicalInjury, RecoveryPlan } from "@/api/typ
 import { Icon } from "@/components/icon";
 import { classifyMilestones, formatMedicalWhen, snakeSnapshot, injuryFromSnapshot, injuryStatusLabel, severityLabel } from "@/components/medical/medical-format";
 import { dateKey } from "@/components/schedule/week-model";
-import { fighterHealth as t } from "@/i18n/fighter-health";
+import { fighterHealth as t } from "@/i18n/fighter/fighter-health";
 import { useSource } from "@/screens/coach/today/coach-today-screen";
 import { CampShell, Frame, sentences } from "@/shared/ui/camp-ui";
 import { planWeek } from "@/screens/fighter/plans/plans-model";
 import { RetryRow, SlipRow } from "@/screens/fighter/redesign/tab-page";
-import { useFighterId } from "@/screens/fighter/use-fighter-id";
+import { useFighterId } from "@/screens/fighter/shared/use-fighter-id";
 import { useThemePreference } from "@/theme";
 import { fonts, readableTextStyle, fz, lh } from "@/theme/typography";
 import { backToHealth, dmLocal, injuryTitle } from "./health-model";

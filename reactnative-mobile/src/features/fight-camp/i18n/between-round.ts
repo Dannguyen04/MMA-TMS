@@ -1,5 +1,5 @@
 import type { RoundInstruction } from "@/features/fight-camp/api";
-import { pendingVi } from "@/i18n/pending-vi";
+import { pendingVi } from "@/i18n/common/pending-vi";
 
 /** Vietnamese only (project decision 31/10). Owner-decided words (e.g. "Fight Camp", kept) live in pending-vi.ts. */
 export const betweenRound = {

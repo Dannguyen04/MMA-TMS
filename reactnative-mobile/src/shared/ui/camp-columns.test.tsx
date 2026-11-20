@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { Platform, StyleSheet, Text } from "react-native";
 import { act, fireEvent, render } from "@testing-library/react-native";
-import { READABLE_MAX_WIDTH } from "@/components/readable-width";
+import { READABLE_MAX_WIDTH } from "@/components/layout/readable-width";
 import { CAMP_TWO_COLUMN_MAX, CampColumns, campTwoColumns } from "./camp-columns";
 import { CampShell } from "./camp-ui";
 

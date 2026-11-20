@@ -60,7 +60,7 @@ Màn hình phía võ sĩ đang nằm ở `src/screens/fighter/bout/`, và dùng 
 - Kế hoạch hiệp sau (chọn chiến thuật, chỉ thị): `logic/next-round-plan.ts`.
 - Rút gợi ý AI thành dòng, xác định hiệp đích, timeout: `logic/round-ai.ts`.
 - Đánh giá chiến thuật và điểm cần cải thiện của báo cáo: `logic/bout-report-model.ts`.
-- Lộ trình cân (`referencePath`) do API tính (`nestjs-api/src/bouts/bouts.model.ts`, `buildReferencePath`). App chỉ vẽ nó bằng `WeightPlot` trong `src/shared/ui/camp-ui.tsx`.
+- Lộ trình cân (`referencePath`) do API tính (`nestjs-api/src/bouts/bouts.model.ts`, `buildReferencePath`). App chỉ vẽ nó bằng `WeightPlot` trong `src/shared/ui/camp-ui/weight-plot.tsx`.
 
 ## Chế độ xem trước (preview)
 

@@ -1,9 +1,9 @@
 import type { AiCoachingState, AiHealthAlert, AiJob, AiMovementReviews, AiVideo } from "@/api/video/video-ai.types";
 import { jointLabelVi } from "@/components/body3d/regions";
-import { vai } from "@/i18n/video-ai";
+import { vai } from "@/i18n/video/video-ai";
 import type { ChipSpec } from "@/screens/coach/readonly/ro-format";
 import { vnDate } from "@/screens/coach/readonly/ro-format";
-import { media } from "@/i18n/media";
+import { media } from "@/i18n/video/media";
 
 /** Backend trả tối đa 100 job cho GET /jobs; đúng 100 → có thể còn cũ hơn. */
 export const JOBS_CAP = 100;
