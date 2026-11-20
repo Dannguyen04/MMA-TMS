@@ -313,7 +313,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   chip: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,

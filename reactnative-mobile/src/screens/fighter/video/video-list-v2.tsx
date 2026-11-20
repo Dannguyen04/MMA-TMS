@@ -38,7 +38,7 @@ export function FighterVideosV2() {
       {src.state === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/> : null}
       {src.state === "error" ? <RetryRow message={t.loadFailed} retry={t.retry} onRetry={reload}/> : null}
       {src.state === "ok" && rows === null ? <Text style={{ ...readableTextStyle(15.5), color: c.ink }}>{t.demo}</Text> : null}
-      {rows && rows.length === 0 ? <Text testID="videos-empty" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(26), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.empty}</Text> : null}
+      {rows && rows.length === 0 ? <Text testID="videos-empty" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(30), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.empty}</Text> : null}
       {rows && rows.length ? <StaggerList testID="videos-list">
         {rows.map(({ video, job }, k) => {
           const v = rowView(video, job);

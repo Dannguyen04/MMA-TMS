@@ -26,7 +26,7 @@ if (Platform.OS !== "web") {
   };
   const wrapped = interopComponents?.get(Pressable);
   if (!interopComponents || !wrapped) {
-    console.warn("[pressable-style-fix] NativeWind Pressable wrapper not found; style functions stay broken");
+    if (__DEV__) console.warn("[pressable-style-fix] NativeWind Pressable wrapper not found; style functions stay broken");
   } else {
     const Fixed = forwardRef<unknown, PressableProps>(function PressableStyleFix(props, ref) {
       return jsx(typeof props.style === "function" ? Pressable : wrapped, { ...props, ref });

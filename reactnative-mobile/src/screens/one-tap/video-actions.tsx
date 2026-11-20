@@ -415,7 +415,7 @@ function WindowRow({ jobId, win, mine, onSaved, first, onSeek }: { jobId: string
 const styles = StyleSheet.create({
   round: { width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center" },
   menuRow: { minHeight: 56, flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 8, borderRadius: 12 },
-  refChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 2, borderRadius: 16, paddingHorizontal: 10, minHeight: 32, alignSelf: "flex-start" },
+  refChip: { flexDirection: "row", alignItems: "center", gap: 4, borderWidth: 2, borderRadius: 16, paddingHorizontal: 10, minHeight: 44, alignSelf: "flex-start" },
   pair: { flexDirection: "row", gap: 12 },
   rowWrap: { flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 8 },
   link: { minHeight: 48, minWidth: 48, justifyContent: "center", paddingHorizontal: 8 },

@@ -37,9 +37,10 @@ export function LitFill({ kind, cut = true }: { kind: LitKind; cut?: boolean }) 
   // Drawn at the measured size (owner 2026-11-11: corners must not be squashed on narrow buttons). The cut is 13px,
   // smaller on short controls; the edge is a stroke of the same shape, so it follows the diagonals.
   const [size, setSize] = useState({ w: 0, h: 0 });
-  const { w, h } = size;
+  const w = Math.floor(size.w), h = Math.floor(size.h);
   const k = cut ? Math.min(13, Math.round(h * 0.26)) : 0;
-  const o = 0.5;
+  // A point inside the canvas: Android clipped a stroke drawn on the last point (lost right and bottom edges).
+  const o = 1;
   const d = `M${o} ${o}H${w - k - o * 0.4}L${w - o} ${k + o * 0.4}V${h - o}H${k + o * 0.4}L${o} ${h - k - o * 0.4}Z`;
   return <View pointerEvents="none" aria-hidden={true} importantForAccessibility="no-hide-descendants" style={StyleSheet.absoluteFill}
     onLayout={(e: LayoutChangeEvent) => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}>
@@ -49,7 +50,7 @@ export function LitFill({ kind, cut = true }: { kind: LitKind; cut?: boolean }) 
       </LinearGradient></Defs>
       <Path d={d} fill={`url(#${id})`} stroke={r.edge} strokeWidth={1}/>
       <Path d={`M2 2.2H${w - k - 1.5}`} stroke={r.lip} strokeWidth={1.4}/>
-      <Path d={`M${k + 1.5} ${h - 1.5}H${w - 2}`} stroke={r.base} strokeWidth={3}/>
+      <Path d={`M${k + 1.5} ${h - 2.5}H${w - 2}`} stroke={r.base} strokeWidth={3}/>
     </Svg> : null}
   </View>;
 }
@@ -89,7 +90,8 @@ export function Sheen({ trigger }: { trigger: number }) {
 }
 
 export type CampTab<K extends string> = { key: K; label: string; /** Something here needs attention (red dot, also read out). */ alert?: boolean;
-  /** A waiting count shown as a small red box after the label (hidden at 0); `a11y` reads it out. */ count?: number; a11y?: string };
+  /** A waiting count shown as a small red box after the label (hidden at 0); `a11y` reads it out. */ count?: number; a11y?: string;
+  /** Shown dimmed and not pressable (e.g. "Hiệp sau" on the last round). */ disabled?: boolean };
 const tabEase = Easing.bezier(...motion.easeOut);
 /**
  * In-screen tabs: condensed uppercase labels and one red underline that slides to the selected tab (transform only).
@@ -107,8 +109,8 @@ export function CampTabs<K extends string>({ tabs, value, onChange, alertLabel }
   return <View accessibilityRole="tablist" testID="camp-tabs" onLayout={e => setW(e.nativeEvent.layout.width)} style={{ flexDirection: "row", borderBottomColor: c.line, borderBottomWidth: 1 }}>
     {tabs.map(t => {
       const selected = t.key === value;
-      return <Pressable key={t.key} testID={`camp-tab-${t.key}`} accessibilityRole="tab" accessibilityLabel={t.a11y ?? (t.alert ? `${t.label}, ${alertLabel}` : t.label)} aria-selected={selected} accessibilityState={{ selected }} onPress={() => onChange(t.key)}
-        style={({ pressed }) => ({ flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 4, opacity: pressed ? 0.7 : 1 })}>
+      return <Pressable key={t.key} testID={`camp-tab-${t.key}`} accessibilityRole="tab" accessibilityLabel={t.a11y ?? (t.alert ? `${t.label}, ${alertLabel}` : t.label)} aria-selected={selected} aria-disabled={!!t.disabled} accessibilityState={{ selected, disabled: !!t.disabled }} disabled={t.disabled} onPress={() => onChange(t.key)}
+        style={({ pressed }) => ({ flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 4, opacity: t.disabled ? 0.38 : pressed ? 0.7 : 1 })}>
         <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(15.5), letterSpacing: 0.6, textTransform: "uppercase", color: selected ? c.ink : c.inkMuted }}>{t.label}</Text>
         {t.count ? <View aria-hidden={true} style={{ minWidth: 22, height: 20, paddingHorizontal: 5, alignItems: "center", justifyContent: "center", backgroundColor: c.lotus }}>
           <Text style={{ ...readableTextStyle(12, true), lineHeight: lh(16), color: "#FFFFFF" }} maxFontSizeMultiplier={1.2}>{t.count > 99 ? "99+" : t.count}</Text>

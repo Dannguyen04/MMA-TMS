@@ -161,8 +161,8 @@ function ItemRow({ item, onPress }: { item: ScheduleItem; onPress: () => void })
     {/* Redesign step 18 (owner 2026-11-12): uppercase title, then one ink line "kind · who"; only the kind word of a
         weigh-in, fight or suspension end carries colour. Shared by coach Lịch, fighter Tập and doctor Lịch. */}
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{item.title}</Text>
-      <Text testID={`item-line-${item.key}`} numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>
+      <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{item.title}</Text>
+      <Text testID={`item-line-${item.key}`} numberOfLines={2} style={{ ...readableTextStyle(13.5), color: c.ink }}>
         <Text style={{ ...readableTextStyle(13.5, true), color: kindColor }}>{t.kind[item.kind]}</Text>{item.who ? ` · ${item.who}` : ""}
       </Text>
     </View>

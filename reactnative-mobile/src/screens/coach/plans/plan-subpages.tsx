@@ -44,7 +44,7 @@ function ErrorLine({ text }: { text: string }) {
 function Title({ children, line }: { children: string; line?: string }) {
   const { colors: c } = useThemePreference();
   return <View style={{ gap: 2 }}>
-    <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(22), lineHeight: lh(26), textTransform: "uppercase", color: c.ink }}>{children}</Text>
+    <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{children}</Text>
     {line ? <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{line}</Text> : null}
   </View>;
 }

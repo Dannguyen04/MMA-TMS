@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, type StyleProp, type ViewStyle } from "react-native";
-import Animated, { cubicBezier, Easing, FadeIn, FadeInDown, FadeOut, LinearTransition, useReducedMotion } from "react-native-reanimated";
+import Animated, { cubicBezier, Easing, FadeIn, FadeOut, LinearTransition, useReducedMotion } from "react-native-reanimated";
 import { motion } from "@/theme";
 
 const easeOut = Easing.bezier(...motion.easeOut);
@@ -10,7 +10,7 @@ const transitionEase = cubicBezier(...motion.easeOut);
 export function CampReveal({ children, style, disclosure = false }: { children: ReactNode; style?: StyleProp<ViewStyle>; disclosure?: boolean }) {
   const reduced = useReducedMotion();
   return <Animated.View
-    entering={(reduced ? FadeIn : FadeInDown).duration(reduced ? motion.press : motion.enter).easing(easeOut)}
+    entering={FadeIn.duration(reduced ? motion.press : motion.enter).easing(easeOut)}
     exiting={disclosure ? FadeOut.duration(motion.press) : undefined}
     layout={disclosure && !reduced ? LinearTransition.duration(motion.base).easing(easeOut) : undefined}
     style={style}>{children}</Animated.View>;

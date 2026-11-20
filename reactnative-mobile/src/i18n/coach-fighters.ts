@@ -44,8 +44,9 @@ export const coachFighters = {
   videosLine: (n: number, more = false) => (n ? `${more ? "Hơn " : ""}${n} video` : "Chưa có video"),
   coaches: "Huấn luyện viên",
   noCoach: "Chưa có huấn luyện viên",
-  coachLine: (name: string, since: string) => `${name} · từ ${since}`,
-  coachMore: (name: string, since: string, more: number) => `${name} · từ ${since} · và ${more} người khác`,
+  coachLine: (name: string, since: string) => `${name}, từ ${since}`,
+  // Short enough for one line on a phone (owner 2026-11-18: no "·" chains cut with "…").
+  coachMore: (name: string, _since: string, more: number) => `${name} và ${more} người khác`,
   doctors: "Bác sĩ phụ trách",
 
   weightLatest: "Mới nhất",

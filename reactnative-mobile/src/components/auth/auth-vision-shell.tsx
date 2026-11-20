@@ -71,6 +71,8 @@ type AuthVisionShellProps = {
   action?: ReactNode;
   /** Secondary link (forgot password, resend). Centered above the button; beside it while typing. */
   link?: ReactNode;
+  /** Put `link` under the button instead of above it (login: "Quên mật khẩu" below "Đăng nhập"). */
+  linkBelow?: boolean;
   /** Under the card on the photo, e.g. "Chưa có tài khoản? Tạo tài khoản". Hidden while typing. */
   below?: ReactNode;
   accessory?: ReactNode;
@@ -153,6 +155,7 @@ export function AuthVisionShell({
   footer,
   action,
   link,
+  linkBelow = false,
   below,
   accessory,
   title,
@@ -302,8 +305,9 @@ export function AuthVisionShell({
                   </Reanimated.View>
                 ) : (
                   <Reanimated.View key="stack" entering={reduced ? undefined : FadeIn.duration(250)} style={styles.actionStack}>
-                    {link ? <View style={styles.stackLink}>{link}</View> : null}
+                    {link && !linkBelow ? <View style={styles.stackLink}>{link}</View> : null}
                     {action}
+                    {link && linkBelow ? <View style={styles.stackLink}>{link}</View> : null}
                   </Reanimated.View>
                 )}
                 {footer && !compact ? <View style={styles.footer}>{footer}</View> : null}

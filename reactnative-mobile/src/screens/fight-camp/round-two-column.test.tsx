@@ -15,6 +15,9 @@ jest.mock("./camp-ui", () => {
     Copy: text, SvgTitle: text, SectionTitle: text, Frame: ({ children }: { children: unknown }) => React.createElement(View, null, children),
     Busy: () => React.createElement(Text, null, "Loading"),
     Notice: ({ title, children }: { title: string; children: unknown }) => React.createElement(View, null, React.createElement(Text, null, title), React.createElement(Text, null, children)),
+    MarkLegend: () => null,
+    MarkGroup: ({ title, count, open, onToggle, children }: { title: string; count?: string; open: boolean; onToggle: () => void; children: unknown }) => React.createElement(View, null, React.createElement(Pressable, { accessibilityRole: "button", accessibilityLabel: title, accessibilityState: { expanded: open }, onPress: onToggle }, React.createElement(Text, null, title)), count ? React.createElement(Text, null, count) : null, open ? children : null),
+    MarkRow: ({ label, options, onChange }: { label?: string; options: { value: unknown; label: string }[]; onChange: (v: unknown) => void }) => React.createElement(View, null, label ? React.createElement(Text, null, label) : null, ...options.map((o, i) => React.createElement(Pressable, { key: i, onPress: () => onChange(o.value) }, React.createElement(Text, null, o.label)))),
     Choices: ({ label, options, onChange }: { label?: string; options: { value: unknown; label: string }[]; onChange: (v: unknown) => void }) => React.createElement(View, null, label ? React.createElement(Text, null, label) : null, ...options.map((o, i) => React.createElement(Pressable, { key: i, onPress: () => onChange(o.value) }, React.createElement(Text, null, o.label)))),
     Action: ({ label, onPress, disabled, pending }: { label: string; onPress: () => void; disabled?: boolean; pending?: boolean }) => React.createElement(Pressable, { accessibilityLabel: label, disabled: disabled || pending, onPress }, React.createElement(Text, null, label)),
     PlanToggle: ({ label, selected, onPress, disabled }: { label: string; selected: boolean; onPress: () => void; disabled?: boolean }) => React.createElement(Pressable, { accessibilityRole: "checkbox", accessibilityLabel: label, accessibilityState: { checked: selected }, disabled, onPress }, React.createElement(Text, null, label)),
@@ -32,18 +35,38 @@ const extra = (previewBout.opponentAnalysis.tactics?.length ?? 0) + (previewBout
 const tab = (ui: Awaited<ReturnType<typeof render>>, name: RegExp) => fireEvent.press(ui.getByRole("tab", { name }));
 
 describe("Round entry tabs: Hiệp này · Sức khỏe · Hiệp sau (owner 2026-11-11)", () => {
-  it("phone: health and note sit in 'Sức khỏe'; extra marks open from 'Xem thêm' in a sheet", async () => {
+  it("phone: health and note sit in 'Sức khỏe'; every mark shows in 'Hiệp này', counted per group", async () => {
     const ui = await render(<RoundScreen bout={bout} preview/>);
     await ui.findByText("Chốt hiệp 1");
     expect(ui.queryByText(t.knockdowns)).toBeNull();
     expect(ui.queryByTestId("next-round-plan")).toBeNull();
-    if (extra) expect(ui.getByText(/^Xem thêm \d+ mục$/)).toBeTruthy();
+    expect(ui.queryByText(/^Xem thêm \d+ mục$/)).toBeNull();
+    const tactics = previewBout.opponentAnalysis.tactics?.length ?? 0;
+    const observations = previewBout.opponentAnalysis.observations?.length ?? 0;
+    if (extra) expect(ui.getAllByText(t.unseen).length).toBe(observations);
+    expect(ui.getByText(t.marked(0, observations))).toBeTruthy();
+    expect(ui.getAllByText(t.effective).length).toBeGreaterThanOrEqual(Math.min(tactics, 2));
     await tab(ui, /Sức khỏe/);
     expect(ui.getByTestId("round-health")).toBeTruthy();
     expect(ui.getByText(t.knockdowns)).toBeTruthy();
     expect(ui.getByLabelText(t.note)).toBeTruthy();
     await tab(ui, /Hiệp sau/);
     expect(ui.getByTestId("next-round-plan")).toBeTruthy();
+  });
+  it("a folded group stays folded after switching to another round and back (owner 2026-11-18)", async () => {
+    const ui = await render(<RoundScreen bout={bout} preview/>);
+    await ui.findByText("Chốt hiệp 1");
+    const tactics = () => ui.getByRole("button", { name: t.scoreTactics });
+    expect(ui.getAllByText(t.effective).length).toBeGreaterThan(0);
+    await fireEvent.press(tactics());
+    expect(ui.queryAllByText(t.effective)).toHaveLength(0);
+    await fireEvent.press(ui.getByLabelText("Hiệp 2"));
+    await ui.findByText("Chốt hiệp 2");
+    expect(ui.getAllByText(t.effective).length).toBeGreaterThan(0);
+    await fireEvent.press(ui.getByLabelText("Hiệp 1"));
+    await ui.findByText("Chốt hiệp 1");
+    expect(ui.queryAllByText(t.effective)).toHaveLength(0);
+    expect(tactics().props.accessibilityState).toMatchObject({ expanded: false });
   });
   it("two columns: every mark shows in 'Hiệp này' without a 'Xem thêm' link", async () => {
     const ui = await render(<CampTwoColumnsProvider value><RoundScreen bout={bout} preview/></CampTwoColumnsProvider>);

@@ -63,7 +63,7 @@ export function WhoHead({ name, line }: { name: string; line: string }) {
   return <View accessible accessibilityRole="header" accessibilityLabel={`${name}, ${line}`} style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 2 }}>
     <Initials text={nameInitials(name)}/>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(32), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(38), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{line}</Text>
     </View>
   </View>;
@@ -85,7 +85,7 @@ export function StateLine({ status, line, testID }: { status: ApplicationStatus;
       <Icon name={tone === "ok" ? "check" : tone === "warn" ? "close" : "history"} size={28} color={tone ? color : c.lotus}/>
     </View>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.5, textTransform: "uppercase", color }}>{title}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.5, textTransform: "uppercase", color }}>{title}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{line}</Text>
     </View>
   </View>;
@@ -128,7 +128,7 @@ export function StepStrip({ status }: { status: ApplicationStatus }) {
 export function Sec({ title, aside, tone }: { title: string; aside?: string; tone?: WordTone }) {
   const { colors: c } = useThemePreference();
   return <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginTop: 8 }}>
-    <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+    <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{title}</Text>
     {aside ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, true), color: tone === "ok" ? c.success : tone === "warn" ? c.danger : c.ink }}>{aside}</Text> : null}
   </View>;
 }

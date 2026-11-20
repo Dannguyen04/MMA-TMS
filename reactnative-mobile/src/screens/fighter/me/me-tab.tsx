@@ -28,7 +28,7 @@ export function Initials({ text, size = 64 }: { text: string; size?: number }) {
     <Svg width={size} height={size} style={{ position: "absolute" }}>
       <Polygon points={`0,0 ${size - k},0 ${size},${k} ${size},${size} ${k},${size} 0,${size - k}`} fill={c.lotus}/>
     </Svg>
-    <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: size * 0.44, lineHeight: size * 0.52, letterSpacing: 0.5, color: "#fff" }}>{text}</Text>
+    <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: size * 0.44, lineHeight: size * 0.6, letterSpacing: 0.5, color: c.onCta }}>{text}</Text>
   </View>;
 }
 
@@ -39,7 +39,7 @@ export function Identity({ p, onPress }: { p: MeProfile; onPress?: () => void })
   const body = <>
     <Initials text={initials(p)}/>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(32), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(38), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
       {p.gym ? <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{p.gym}</Text> : null}
     </View>
   </>;
@@ -120,6 +120,6 @@ function LogoutRow({ onPress }: { onPress: () => void }) {
   return <PressableScale testID="me-logout" scaleTo={0.99} accessibilityRole="button" accessibilityLabel={t.rows.logout} onPress={onPress}
     style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64, paddingVertical: 8, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
     <View style={{ width: 52 }}><Icon name="logout" size={28} color={c.danger}/></View>
-    <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.danger }}>{t.rows.logout}</Text>
+    <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.danger }}>{t.rows.logout}</Text>
   </PressableScale>;
 }

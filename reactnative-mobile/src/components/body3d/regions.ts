@@ -61,6 +61,9 @@ export const PAINT = {
 
 export type PaintStatus = "injury" | "recovering" | "healed";
 export const STATUS_COLOR: Record<PaintStatus, string> = { injury: "#FF6B7A", recovering: "#5CC8F0", healed: "#6EE07A" };
+/** Light mode: the dark-mode pastels barely show on a white page and a pale model, so deeper hues (>= 3:1 on white). */
+export const STATUS_COLOR_LIGHT: Record<PaintStatus, string> = { injury: "#D92D46", recovering: "#1C7FC0", healed: "#23944F" };
+export const statusColors = (light: boolean) => (light ? STATUS_COLOR_LIGHT : STATUS_COLOR);
 const RANK: Record<PaintStatus, number> = { healed: 1, recovering: 2, injury: 3 };
 
 export const STATUS_TEXT: Record<PaintStatus, string> = { injury: "Chấn thương", recovering: "Đang phục hồi", healed: "Đã khỏi" };
@@ -133,12 +136,12 @@ export function buildJointRows(
 }
 
 /** Vùng cần tô trên mô hình: tên vùng → {màu, R, core}. */
-export function paintRegions(rows: readonly JointRow[]): Record<string, { color: string; R: number; core: number }> {
+export function paintRegions(rows: readonly JointRow[], colors: Record<PaintStatus, string> = STATUS_COLOR): Record<string, { color: string; R: number; core: number }> {
   const out: Record<string, { color: string; R: number; core: number }> = {};
   for (const r of rows) {
     const cfg: RegionCfg | ExtraCfg | undefined = JOINT_REGIONS[r.joint] ?? EXTRA_REGIONS[r.joint];
     if (!cfg || !r.status) continue;
-    out[cfg.region] = { color: STATUS_COLOR[r.status], R: cfg.R, core: ("core" in cfg && cfg.core) || PAINT.core };
+    out[cfg.region] = { color: colors[r.status], R: cfg.R, core: ("core" in cfg && cfg.core) || PAINT.core };
   }
   return out;
 }

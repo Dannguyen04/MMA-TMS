@@ -36,8 +36,9 @@ import {
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type ScrollViewProps,
+  useWindowDimensions,
 } from "react-native";
-import { KeyboardAvoidingView, KeyboardProvider, useFocusedInputHandler } from "react-native-keyboard-controller";
+import { KeyboardAvoidingView, KeyboardProvider, useFocusedInputHandler, useKeyboardState } from "react-native-keyboard-controller";
 import { runOnJS } from "react-native-reanimated";
 
 /** Space kept between the focused field and the edge of what is visible. */
@@ -54,6 +55,22 @@ export function KeyboardRoot({ children }: { children: ReactNode }) {
 
 export function KeyboardFrame(props: ComponentProps<typeof KeyboardAvoidingView>) {
   return <KeyboardAvoidingView behavior="padding" {...props} />;
+}
+
+/** Below this much screen above the keyboard, a pinned footer gives its room to the field being typed in. */
+export const TYPING_ROOM_MIN = 560;
+
+/**
+ * While the keyboard is up, pinned chrome around a page's scroll view competes with the field for the little
+ * space left (owner 2026-11-16: round tabs on top and "Chốt hiệp" below hid the note being typed). Shells hide
+ * their pinned top while `typing`, and their pinned footer too when `tight`; both come back with the keyboard down.
+ */
+export function useTypingRoom(): { typing: boolean; tight: boolean } {
+  const visible = useKeyboardState(s => s.isVisible);
+  const height = useKeyboardState(s => s.height);
+  const window = useWindowDimensions();
+  const typing = Platform.OS !== "web" && !!visible;
+  return { typing, tight: typing && window.height - height < TYPING_ROOM_MIN };
 }
 
 export type KeyboardScrollProps = ScrollViewProps;
@@ -148,9 +165,10 @@ export const KeyboardScroll = forwardRef<KeyboardScrollRef, KeyboardScrollProps>
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
       const next = e.nativeEvent.layout.height;
-      const shrank = next < viewport.current;
+      const changed = next !== viewport.current;
       viewport.current = next;
-      if (shrank && keyboardUp.current) reveal();
+      // Shrunk by the keyboard, or grown when the shell folded its pinned chrome away: show the field again.
+      if (changed && keyboardUp.current) reveal();
       onLayout?.(e);
     },
     [onLayout, reveal],

@@ -33,7 +33,7 @@ export function PickRow({ testID, initials, title, line, on, last, onPress }: { 
     style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64, paddingVertical: 8, borderTopColor: c.line, borderTopWidth: 1, ...(last ? { borderBottomColor: c.line, borderBottomWidth: 1 } : null) }}>
     <Text numberOfLines={1} style={{ width: 52, fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(32), color: on ? c.lotus : c.ink }}>{initials}</Text>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>{line}</Text>
     </View>
     <View style={{ width: 22, alignItems: "center" }}>{on ? <Icon name="check" size={22} color={c.lotus}/> : null}</View>
@@ -106,7 +106,7 @@ export function AdminAssignScreen() {
       footer={applicationId ? <Action label={t.backToApplication} onPress={() => router.replace(`/quan-tri/nhap-hoc/${applicationId}` as Href)}/> : <Action label={t.another} onPress={again}/>}>
       <View accessible accessibilityRole="header" accessibilityLabel={t.done} style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
         <Icon name="check" size={30} color={c.success}/>
-        <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", color: c.ink }}>{t.done}</Text>
+        <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(41), textTransform: "uppercase", color: c.ink }}>{t.done}</Text>
       </View>
       <View>
         <FactLine label={t.fighter} value={done.fighter}/>

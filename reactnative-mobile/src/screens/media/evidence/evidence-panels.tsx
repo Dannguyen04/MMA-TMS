@@ -20,7 +20,7 @@ export type Word = { word: string; tone?: "ok" | "warn" };
 export function EvHead({ title, aside }: { title: string; aside?: string }) {
   const { colors: c } = useThemePreference();
   return <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-    <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+    <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{title}</Text>
     {aside ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, true), color: c.ink }}>{aside}</Text> : null}
   </View>;
 }
@@ -40,7 +40,7 @@ export function EvRow({ lead, leadTone, title, word, line, active, onPress, a11y
   const body = <>
     <Text numberOfLines={1} style={{ width: 60, fontFamily: fonts.displayExtraBold, fontSize: lead.length > 2 ? 20 : 28, lineHeight: lh(30), color: tone }}>{lead}</Text>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(16.5), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(16.5), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
       {word || line ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>
         {word ? <Text style={{ ...readableTextStyle(13.5, true), color: wordColor }}>{word.word}</Text> : null}
         {word && line ? ` · ${line}` : line}
@@ -95,7 +95,7 @@ export function TimelinePanel({
         style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 10, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
         <Text style={{ width: 60, fontFamily: fonts.displayExtraBold, fontSize: fz(20), lineHeight: lh(26), color: c.lotus }}>{formatPrecise(timeMs)}</Text>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(16.5), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{now ? strikeName(now) : ev.now}</Text>
+          <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(16.5), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{now ? strikeName(now) : ev.now}</Text>
           <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>{now ? nowFacts || " " : ev.nothingNow}</Text>
         </View>
       </View>

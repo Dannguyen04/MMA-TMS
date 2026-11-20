@@ -46,9 +46,7 @@ function RequirementRow({ item, last }: { item: BoutRequirement; last: boolean }
     >
       <Icon name={tone.icon} size={24} color={tone.fg} />
       <Text style={[TEXT.body, styles.reqLabel, { color: colors.ink }]}>{t.requirements.kind[item.kind]}</Text>
-      <View style={[styles.reqChip, { backgroundColor: tone.bg }]}>
-        <Text style={[TEXT.captionBold, { color: tone.fg }]}>{t.requirements.status[item.status]}</Text>
-      </View>
+      <Text style={[TEXT.captionBold, { color: tone.fg }]}>{t.requirements.status[item.status]}</Text>
     </View>
   );
 }
@@ -58,7 +56,7 @@ function Hero({ bout }: { bout: Bout }) {
   const days = vnDaysUntil(bout.weighInAt);
   return (
     <View style={[styles.hero, { backgroundColor: colors.agenda }]}>
-      <View style={[styles.stateChip, { backgroundColor: colors.day }]}>
+      <View style={styles.stateChip}>
         <Text style={[TEXT.captionBold, { color: colors.agendaInk }]}>{t.state[bout.status]}</Text>
       </View>
       <Text accessibilityRole="header" style={[TEXT.cardTitle, { color: colors.agendaInk }]}>
@@ -173,12 +171,11 @@ export function FighterBoutScreen() {
 const styles = StyleSheet.create({
   stack: { gap: SPEC.gap },
   hero: { borderRadius: SPEC.radius, padding: SPEC.card, gap: 8 },
-  stateChip: { alignSelf: "flex-start", borderRadius: 99, paddingHorizontal: 8, minHeight: 24, justifyContent: "center" },
+  stateChip: { alignSelf: "flex-start", minHeight: 24, justifyContent: "center" },
   heroFacts: { flexDirection: "row", gap: SPEC.gap, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
   fact: { flex: 1 },
   countdown: { alignSelf: "flex-start", borderRadius: 8, paddingHorizontal: SPEC.card, paddingVertical: 8 },
   reqCard: { borderWidth: 1, borderRadius: SPEC.radius, padding: SPEC.card, gap: 8 },
   reqRow: { flexDirection: "row", alignItems: "center", gap: 8, minHeight: 56 },
   reqLabel: { flex: 1 },
-  reqChip: { borderRadius: 99, paddingHorizontal: 8, minHeight: 24, justifyContent: "center" },
 });

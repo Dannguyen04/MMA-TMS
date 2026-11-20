@@ -90,7 +90,7 @@ const styles = liveSheet(() => ({
   fact: { gap: 2 },
   meta: { lineHeight: lh(16) },
   chip: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     borderRadius: 999,
     borderWidth: 1,

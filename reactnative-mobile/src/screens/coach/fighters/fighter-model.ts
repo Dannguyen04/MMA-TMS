@@ -25,14 +25,17 @@ export function statusMark(s: MedicalStatus): StatusMark {
   return { icon: "history", tone: "dim", word };
 }
 
-/** "Hạng lông · CLB Sài Gòn" */
-export function fighterLine(f: Pick<PublicFighter, "weightClass" | "gym">): string {
-  return [weightLabel(f.weightClass), f.gym ?? ""].filter(Boolean).join(" · ");
+/**
+ * "Hạng lông · CLB Sài Gòn". `gym: false` leaves the gym out: a coach's fighters all train at the coach's own gym,
+ * so on coach screens it only takes room (owner 2026-11-18). Doctor and admin screens, which span gyms, keep it.
+ */
+export function fighterLine(f: Pick<PublicFighter, "weightClass" | "gym">, { gym = true }: { gym?: boolean } = {}): string {
+  return [weightLabel(f.weightClass), gym ? f.gym ?? "" : ""].filter(Boolean).join(" · ");
 }
 
-/** "Hạng lông · 175 cm · CLB Sài Gòn" */
+/** "Hạng lông · 175 cm" on the coach's fighter page (no gym, see `fighterLine`). */
 export function fighterTopLine(f: Pick<PublicFighter, "weightClass" | "gym" | "heightCm">, cm: (n: number) => string): string {
-  return [weightLabel(f.weightClass), f.heightCm ? cm(f.heightCm) : "", f.gym ?? ""].filter(Boolean).join(" · ");
+  return [weightLabel(f.weightClass), f.heightCm ? cm(f.heightCm) : ""].filter(Boolean).join(" · ");
 }
 
 /** 4 → "04" for the date lead of a session row. */

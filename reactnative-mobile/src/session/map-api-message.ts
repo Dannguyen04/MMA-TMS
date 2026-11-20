@@ -4,11 +4,11 @@ import { vi } from "@/i18n/vi";
 /** Maps Nest `error.code` / HTTP status to everyday copy. Never show codes to the user. */
 export function mapApiMessage(error: unknown): string {
   if (!isApiError(error)) {
-    console.warn("[auth]", "UNKNOWN", error);
+    if (__DEV__) console.warn("[auth]", "UNKNOWN", error);
     return vi.api.generic;
   }
 
-  console.warn("[auth]", error.code, error.status);
+  if (__DEV__) console.warn("[auth]", error.code, error.status);
 
   switch (error.code) {
     case "INVALID_CREDENTIALS":

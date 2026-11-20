@@ -27,7 +27,7 @@ export function CornerScreen({ bout, name, preview, onRounds }: { bout: CampDeta
     {c ? <>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <View style={{ flex: 1, gap: 9 }}><Copy large strong>{name}</Copy><Copy muted>{campText.roundScreens.doiThu}{bout.opponentName || campText.roundScreens.chuaXacDinh}</Copy><Copy>{kg(bout.catchweightKg ?? bout.weightLimitKg)} {campText.roundScreens.kg}{bout.scheduledRounds == null ? campText.roundScreens.chuaDatSoHiep : `${bout.scheduledRounds} ${campText.roundScreens.hiep}`}</Copy></View>
-        <Image source={require("../../../assets/fight-camp/corner-stool.webp")} accessibilityLabel={campText.roundScreens.gocDaiVoiGheVa} resizeMode="contain" style={{ width: 108, height: 126 }}/>
+        <Image source={require("../../../assets/fight-camp/corner-stool.webp")} accessibilityLabel={campText.roundScreens.gocDaiVoiGheVa} resizeMode="contain" style={{ width: 84, height: 98 }}/>
       </View>
       {c.acuteLossFlag ? <Notice title={campText.roundScreens.giamCanCapTocVuot} danger>{campText.roundScreens.hlvCanLuuYCanh}</Notice> : null}
       <Choices<number | null> label={campText.roundScreens.chienThuatTheoHiep} value={round} onChange={setRound} options={[{ value: null, label: campText.roundScreens.tatCa }, ...Array.from({ length: bout.scheduledRounds ?? 0 }, (_, i) => ({ value: i + 1, label: campText.roundScreens.hiep2(i + 1) }))]}/>

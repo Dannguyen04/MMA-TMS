@@ -72,7 +72,7 @@ export function CoachSessionEditScreen() {
     {src.state === "error" ? <RetryRow message={t.loadFailed} retry={t.retry} onRetry={reload}/> : null}
     {s ? <>
       <View style={{ gap: 2 }}>
-        <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(22), lineHeight: lh(26), textTransform: "uppercase", color: c.ink }}>{s.title}</Text>
+        <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{s.title}</Text>
         <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{whenLine(s.scheduledAt)}</Text>
       </View>
       <Choices chips label={t.type} options={TYPES} value={type} onChange={v => { setType(v); setError(""); }}/>

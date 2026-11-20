@@ -127,18 +127,18 @@ function Preview({ palette: p, typo, dirty }: { palette: ColorTokens; typo: Typo
   const track = (n: number) => Math.round(typo.letterSpacingEm * size(n) * 100) / 100;
   const display = (n: number, extra = 0.4) => ({ fontFamily: fonts.display, fontSize: size(n), lineHeight: line(Math.ceil(n * 1.2)), letterSpacing: extra + track(n), textTransform: "uppercase" as const, color: p.ink });
   const meta = { ...textStyleWith(typo, 12.5), color: p.inkMuted };
-  const row = (mark: string, markColor: string, name: string, rest: string, note?: string) =>
+  const row = (mark: string, markColor: string, name: string, rest: string, note?: readonly string[]) =>
     <View style={{ flexDirection: "row", alignItems: "center", gap: 10, paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: p.line }}>
       <Text style={{ width: 30, textAlign: "center", fontFamily: fonts.displayExtraBold, fontSize: size(24), lineHeight: line(28), color: markColor }}>{mark}</Text>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text numberOfLines={1} style={display(14.5, 0.4)}>{name}</Text>
         <Text numberOfLines={1} style={meta}><Text style={{ color: p.success, fontFamily: typo.faces.semibold }}>Khỏe</Text>{` · ${rest}`}</Text>
-        {note ? <Text numberOfLines={2} style={{ ...meta, color: p.danger, fontFamily: typo.faces.semibold }}>{note}</Text> : null}
+        {note?.map((n, i) => <Text key={i} style={{ ...meta, color: p.danger, fontFamily: i === 0 ? typo.faces.semibold : typo.faces.regular }}>{n}</Text>)}
       </View>
     </View>;
   return <View testID="appearance-preview" accessibilityLabel={appearanceCopy.preview} style={{ gap: 8 }}>
     <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "baseline" }}>
-      <Text style={{ fontFamily: fonts.display, fontSize: fz(15), lineHeight: lh(18), letterSpacing: 0.6, textTransform: "uppercase", color: c.ink }}>{appearanceCopy.preview}</Text>
+      <Text style={{ fontFamily: fonts.display, fontSize: fz(15), lineHeight: lh(21), letterSpacing: 0.6, textTransform: "uppercase", color: c.ink }}>{appearanceCopy.preview}</Text>
       <Text testID="appearance-preview-state" style={{ fontFamily: dirty ? fonts.uiSemi : fonts.ui, fontSize: fz(12.5), lineHeight: lh(17), color: dirty ? c.lotus : c.inkMuted }}>
         {dirty ? appearanceCopy.unsaved : appearanceCopy.inUse}
       </Text>
@@ -146,8 +146,8 @@ function Preview({ palette: p, typo, dirty }: { palette: ColorTokens; typo: Typo
     <View style={{ backgroundColor: p.bg, borderWidth: 1, borderColor: p.line, borderTopRightRadius: 0, overflow: "hidden" }}>
       <Text style={{ ...display(16, 0.3), textAlign: "center", paddingVertical: 7, borderBottomWidth: 1, borderBottomColor: p.line }}>Võ sĩ</Text>
       <View style={{ paddingHorizontal: 12 }}>
-        {row("!", p.danger, "Anh Le", "Hạng rơm", "Đang đình chỉ đến 25/11 · Hạ đo ván (KO)")}
-        {row("✓", p.success, "Kenji Morita", "Hạng lông · Lotus Combat Academy")}
+        {row("!", p.danger, "Anh Le", "Hạng rơm", ["Đang đình chỉ đến 25/11", "Hạ đo ván (KO)"])}
+        {row("✓", p.success, "Kenji Morita", "Hạng lông")}
         <Text numberOfLines={3} style={{ ...textStyleWith(typo, 13.5), color: p.ink, paddingVertical: 8 }}>
           Hiệp sau: giữ khoảng cách, ra đòn rõ ràng và nghe chỉ dẫn của huấn luyện viên.
         </Text>

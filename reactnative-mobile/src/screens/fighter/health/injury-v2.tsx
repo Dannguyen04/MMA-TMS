@@ -66,10 +66,10 @@ export function FighterInjuryV2() {
   return <CampShell title={t.injury.title} onBack={() => backToHealth(router)}>
     {src.state === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/> : null}
     {src.state === "error" ? <RetryRow message={t.injury.failed} retry={t.retry} onRetry={reload}/> : null}
-    {src.state === "ok" && !i ? <Text testID="injury-missing" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(28), textTransform: "uppercase", color: c.ink }}>{t.injury.missing}</Text> : null}
+    {src.state === "ok" && !i ? <Text testID="injury-missing" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{t.injury.missing}</Text> : null}
     {i && d ? <View testID="injury-v2" style={{ gap: 14 }}>
       <Frame tone={resolved ? "success" : "danger"} pad={18}>
-        <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(28), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{injuryTitle(i.affectedJoint, i.injuryType)}</Text>
+        <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(33), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{injuryTitle(i.affectedJoint, i.injuryType)}</Text>
         <Text numberOfLines={1} style={{ ...readableTextStyle(15, true), color: resolved ? c.success : c.danger, marginBottom: 10 }}>{injuryStatusLabel(i.status)}</Text>
         <Fact label={t.injury.occurred} value={formatMedicalWhen(i.occurredAt)}/>
         <Fact label={t.injury.severity} value={severityLabel(i.severity)}/>

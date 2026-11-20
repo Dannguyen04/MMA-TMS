@@ -83,7 +83,7 @@ export function CoachSessionPage() {
         {s.cancellationReason ? <Fact label={t.cancelReason} value={s.cancellationReason} last/> : null}
       </View>
       <View style={{ gap: 8 }}>
-        <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{t.notes}</Text>
+        <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{t.notes}</Text>
         {s.coachNotes
           ? <View style={{ gap: 6 }}>{sentences(s.coachNotes).map((line, i) => <Text key={i} style={{ ...readableTextStyle(15), lineHeight: lh(23), color: c.ink }}>{line}</Text>)}</View>
           : <Text style={{ ...readableTextStyle(15), color: c.ink }}>{t.noNotes}</Text>}
@@ -120,7 +120,7 @@ function Top({ s, fighter }: { s: TrainingSession; fighter: string }) {
   ];
   return <View style={{ gap: 12 }}>
     <View style={{ gap: 3 }}>
-      <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{s.title}</Text>
+      <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(36), textTransform: "uppercase", color: c.ink }}>{s.title}</Text>
       <Text testID="session-line" numberOfLines={1} accessibilityLabel={`${rest}. ${t.statusA11y(w.word)}`} style={{ ...readableTextStyle(14.5), color: c.ink }}>
         {rest ? `${rest} · ` : ""}<Text style={{ ...readableTextStyle(14.5, true), color: w.tone === "ok" ? c.success : w.tone === "warn" ? c.danger : c.ink }}>{w.word}</Text>
       </Text>

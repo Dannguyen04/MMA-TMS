@@ -69,7 +69,13 @@
           "defaultChannel": "default"
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-navigation-bar",
+        {
+          "enforceContrast": false
+        }
+      ]
     ],
     "extra": {
       "EXPO_PUBLIC_API_URL": "http://localhost:3001"

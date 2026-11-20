@@ -77,6 +77,7 @@ export function FighterHomeV2() {
           onLog={() => router.push(fighterHref.boutWeighIn)} onOpen={() => router.push(fighterHref.bouts)}/>
       : medical.state === "ok" && medical.data?.eligibility.training?.eligible === false ? <BlockedSpot onOpen={() => router.push(CO_THE)}/>
       : <SessionSpot sessions={sessions.state === "ok" ? upcoming(sessions.data, now) : []} failed={sessions.state === "error" || bouts.state === "error"}
+          doneToday={sessions.state === "ok" && sessions.data.some(s => s.status === "COMPLETED" && dateKey(s.scheduledAt) === today)}
           onRetry={() => { reloadBouts(); reloadSessions(); }} today={today}
           onOpen={id => router.push(`/tap/${id}` as Href)} onSchedule={() => router.push(TAP)}/>}
   </Frame>;
@@ -112,7 +113,7 @@ function Big({ value, label, a11y, tone }: { value: string; label: string; a11y?
   const { colors: c } = useThemePreference();
   return <View accessible={!!a11y} accessibilityLabel={a11y} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 12, marginBottom: 4 }}>
     <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(68), lineHeight: lh(68), color: tone ?? c.ink }}>{value}</Text>
-    <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(22), lineHeight: lh(24), textTransform: "uppercase", color: c.ink }}>{label}</Text>
+    <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{label}</Text>
   </View>;
 }
 
@@ -145,7 +146,7 @@ function BlockedSpot({ onOpen }: { onOpen: () => void }) {
   </View>;
 }
 
-function SessionSpot({ sessions, failed, onRetry, today, onOpen, onSchedule }: { sessions: TrainingSession[]; failed: boolean; onRetry: () => void; today: string; onOpen: (id: string) => void; onSchedule: () => void }) {
+function SessionSpot({ sessions, failed, doneToday, onRetry, today, onOpen, onSchedule }: { sessions: TrainingSession[]; failed: boolean; doneToday?: boolean; onRetry: () => void; today: string; onOpen: (id: string) => void; onSchedule: () => void }) {
   const { colors: c } = useThemePreference();
   if (failed) return <RetryLine onRetry={onRetry}/>;
   const first = sessions[0];
@@ -163,9 +164,9 @@ function SessionSpot({ sessions, failed, onRetry, today, onOpen, onSchedule }: {
       {next ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, true), color: c.ink, marginTop: 10 }}>{t.after} <Text style={{ ...readableTextStyle(13.5), color: c.inkMuted }}>· {shortSession(next, sessionTypeLabel)}</Text></Text> : null}
     </View>;
   }
-  return <View testID="home-rest" style={{ gap: 2 }}>
+  return <View testID={doneToday ? "home-done" : "home-rest"} style={{ gap: 2 }}>
     <Kick>{t.restKick}</Kick>
-    <Big value={t.rest} label={t.restSub}/>
+    {doneToday ? <Big value={t.done} label={t.doneSub} tone={c.success}/> : <Big value={t.rest} label={t.restSub}/>}
     <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, true), color: c.ink, marginTop: 6 }}>{first ? <>{t.nextSession} <Text style={{ ...readableTextStyle(13.5), color: c.inkMuted }}>· {shortSession(first, sessionTypeLabel)}</Text></> : t.noUpcoming}</Text>
     <View style={{ marginTop: 12 }}><Action label={t.openSchedule} onPress={onSchedule}/></View>
   </View>;
@@ -189,7 +190,7 @@ function Row({ testID, title, src, reload, lead, leadTone, line, lineTone, onPre
   const body = <>
     <Text numberOfLines={1} style={{ width: 52, fontFamily: fonts.displayExtraBold, fontSize: fz(32), lineHeight: lh(36), color: ok ? tone(leadTone) ?? (lead === "0" ? c.inkSubtle : c.ink) : c.inkSubtle }}>{ok ? lead : "–"}</Text>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
       {src.state === "loading" ? <ActivityIndicator size="small" color={c.inkSubtle} style={{ alignSelf: "flex-start" }}/> : null}
       {src.state === "error" ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.danger }}>{t.loadFailed}</Text> : null}
       {ok ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, !!lineTone), color: tone(lineTone) ?? c.ink }}>{line}</Text> : null}

@@ -89,7 +89,9 @@ export const campText = {
     duLieuMau: "Dữ liệu mẫu",
     chuaCoSoCanGhi: "Chưa có số cân. Ghi cân hôm nay để bắt đầu theo dõi.",
     bieuDoCanLanGhi: (a: unknown, b: unknown, c: unknown) => `Biểu đồ cân: ${a} lần ghi. Mới nhất ${b} kg. Giới hạn ${c} kg.`,
-    chamSoCanDaGhi: "Chấm: số cân đã ghi · Nét đứt: lộ trình / giới hạn",
+    chamSoCanDaGhi: "Cân nặng",
+    loTrinhCan: "Lộ trình",
+    gioiHanCan: "Giới hạn",
   },
   coachCampScreen: {
     tranThiDau: "Trận thi đấu",

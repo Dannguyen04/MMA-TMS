@@ -43,7 +43,8 @@ export function SlipRow({ testID, lead, leadSub, leadTone, icon, title, line, li
   title: string; line?: string; lineTone?: "ok" | "warn";
   /** A status word before the line, coloured on its own ("Chấn thương · Hạng lông"); the rest stays ink. */
   word?: string; wordTone?: "ok" | "warn";
-  /** A red alert under the line that must not be cut (a suspension a coach has to see): up to two lines. */ note?: string;
+  /** A red alert under the line that must not be cut (a suspension a coach has to see): one fact per line, never
+   * truncated. */ note?: string | readonly string[];
   a11y: string; /** Without it the row is plain text, no chevron. */ onPress?: () => void; last?: boolean;
 }) {
   const { colors: c } = useThemePreference();
@@ -57,12 +58,15 @@ export function SlipRow({ testID, lead, leadSub, leadTone, icon, title, line, li
       {dot ? <View testID={testID ? `${testID}-dot` : undefined} aria-hidden={true} style={{ position: "absolute", left: 34, top: 0, width: 8, height: 8, backgroundColor: c.lotus }}/> : null}
     </View>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
-      {line || word ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, !!lineTone), color: lineTone === "ok" ? c.success : lineTone === "warn" ? c.danger : c.ink }}>
+      <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      {/* A plain row has nowhere to open the rest, so its line is never cut. */}
+      {line || word ? <Text numberOfLines={onPress ? 2 : undefined} style={{ ...readableTextStyle(13.5, !!lineTone), color: lineTone === "ok" ? c.success : lineTone === "warn" ? c.danger : c.ink }}>
         {word ? <Text style={{ ...readableTextStyle(13.5, true), color: wordTone === "ok" ? c.success : wordTone === "warn" ? c.danger : c.ink }}>{word}</Text> : null}
         {word && line ? ` · ${line}` : line}
       </Text> : null}
-      {note ? <Text testID={testID ? `${testID}-note` : undefined} numberOfLines={2} style={{ ...readableTextStyle(13.5, true), color: c.danger }}>{note}</Text> : null}
+      {note ? <View testID={testID ? `${testID}-note` : undefined}>
+        {(typeof note === "string" ? [note] : note).map((n, i) => <Text key={i} style={{ ...readableTextStyle(13.5, i === 0), color: c.danger }}>{n}</Text>)}
+      </View> : null}
     </View>
   </>;
   if (!onPress) return <View testID={testID} accessible accessibilityLabel={a11y} style={style}>{body}</View>;

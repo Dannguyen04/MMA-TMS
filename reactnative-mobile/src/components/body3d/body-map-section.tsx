@@ -13,7 +13,7 @@ import { useThemePreference } from "@/theme";
 
 import type { ViewState } from "./body-scene";
 import { BODY_MODEL_CREDIT } from "./model";
-import { buildJointRows, paintRegions, STATUS_COLOR, STATUS_TEXT, type JointRow, type PaintStatus } from "./regions";
+import { buildJointRows, paintRegions, STATUS_COLOR, STATUS_TEXT, statusColors, type JointRow, type PaintStatus } from "./regions";
 
 // Nạp khung GL trễ (three/R3F chỉ được đánh giá khi cần); require để chạy được cả trong Jest.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -58,7 +58,7 @@ export function BodyMapSection({
   const light = resolvedScheme === "light" || (!resolvedScheme && isLightHex(colors.bg));
   const reduced = useReducedMotion();
   const rows = useMemo(() => buildJointRows(injuries, jointStates, stateText, severityText), [injuries, jointStates, stateText, severityText]);
-  const paint = useMemo(() => paintRegions(rows), [rows]);
+  const paint = useMemo(() => paintRegions(rows, statusColors(light)), [rows, light]);
   const hasBackRegions = !!paint.SPINE;
   const body = useBodyMode(!!reduced);
   const [fps, setFps] = useState<number | null>(null);
@@ -146,7 +146,7 @@ export function BodyMapSection({
           <View testID="body-attribution" style={{ gap: 4 }}>
             <Text accessibilityRole="header" style={{ fontSize: 14, lineHeight: 20, fontWeight: "600", color: colors.inkMuted }}>{bodyText.attributionTitle}</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", alignItems: "center", columnGap: 4 }}>
-              <Text selectable style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}>{bodyText.attributionBefore(BODY_MODEL_CREDIT)}</Text>
+              <Text style={{ fontSize: 16, lineHeight: 24, color: colors.ink }}>{bodyText.attributionBefore(BODY_MODEL_CREDIT)}</Text>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Pressable testID="license-link" accessibilityRole="link" accessibilityLabel={bodyText.licenseA11y(BODY_MODEL_CREDIT)} onPress={() => void Linking.openURL(BODY_MODEL_CREDIT.licenseUrl)} style={{ minHeight: 48, justifyContent: "center" }}>
                   <Text style={{ fontSize: 16, lineHeight: 24, fontWeight: "600", color: p.link, textDecorationLine: "underline" }}>{BODY_MODEL_CREDIT.license}</Text>
@@ -182,13 +182,20 @@ export function withAlpha(hex: string, a: number): string {
   return `#${h}${Math.round(a * 255).toString(16).padStart(2, "0")}`;
 }
 
+/** The status colours for the current scheme (the pastels are for dark mode). */
+function useStatusColors() {
+  const { colors, resolvedScheme } = useThemePreference();
+  return statusColors(resolvedScheme === "light" || (!resolvedScheme && isLightHex(colors.bg)));
+}
+
 function Legend() {
   const { colors } = useThemePreference();
+  const sc = useStatusColors();
   return (
     <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12 }}>
       {(Object.keys(STATUS_COLOR) as PaintStatus[]).map((k) => (
         <View key={k} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-          <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: STATUS_COLOR[k] }} />
+          <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: sc[k] }} />
           <Text style={{ fontSize: 14, color: colors.ink }}>{STATUS_TEXT[k]}</Text>
         </View>
       ))}
@@ -198,6 +205,7 @@ function Legend() {
 
 function JointList({ rows }: { rows: readonly JointRow[] }) {
   const { colors } = useThemePreference();
+  const sc = useStatusColors();
   return (
     <View>
       {rows.map((r, i) => (
@@ -207,7 +215,7 @@ function JointList({ rows }: { rows: readonly JointRow[] }) {
           accessibilityLabel={[r.label, r.statusText, r.detail].filter(Boolean).join(", ")}
           style={{ minHeight: 48, flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, borderTopWidth: i ? 1 : 0, borderTopColor: colors.line }}
         >
-          <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: r.status ? STATUS_COLOR[r.status] : "transparent", borderWidth: r.status ? 0 : 1.5, borderColor: colors.ink }} />
+          <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: r.status ? sc[r.status] : "transparent", borderWidth: r.status ? 0 : 1.5, borderColor: colors.ink }} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 16, lineHeight: 22, fontWeight: "600", color: colors.ink }}>{r.label}</Text>
             {r.detail ? <Text style={{ fontSize: 14, lineHeight: 20, color: colors.ink }}>{r.detail}</Text> : null}

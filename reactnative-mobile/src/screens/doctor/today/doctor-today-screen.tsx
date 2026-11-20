@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { LiveRefreshControl, useLiveRefresh } from "@/components/live-refresh";
 import { CountUp, LeavingRow } from "@/components/motion-kit";
 import { hapticSuccess } from "@/components/motion";
@@ -132,7 +132,7 @@ function PendingRow({ p, onConfirm }: { p: Pending; onConfirm: () => void }) {
     <View style={{ flex: 1, minWidth: 0 }}>
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
         <Text numberOfLines={1} style={{ ...readableTextStyle(15.5, true), color: c.ink, flexShrink: 1 }}>{p.name}</Text>
-        {p.wait >= URGENT_WAIT ? <Text style={{ ...readableTextStyle(12, true), color: "#FFFFFF", backgroundColor: "#B4123F", paddingHorizontal: 7, paddingVertical: 2 }}>{t.wait(p.wait)}</Text> : null}
+        {p.wait >= URGENT_WAIT ? <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}><Text aria-hidden style={{ ...readableTextStyle(12.5, true), color: c.danger }}>!</Text><Text style={{ ...readableTextStyle(12.5, true), color: c.danger }}>{t.wait(p.wait)}</Text></View> : null}
       </View>
       <Text numberOfLines={1} style={{ ...readableTextStyle(13), color: c.inkMuted }}>{p.line}</Text>
     </View>
@@ -146,17 +146,19 @@ function CountTile({ label, n, onPress }: { label: string; n: number | null; onP
   const [size, setSize] = useState({ w: 0, h: 0 });
   const on = !!n;
   const dark = resolvedScheme === "dark";
+  // An SVG id must be a plain token: "tile-Tái khám" (a space) made url(#…) invalid and the tile fell back to black fill.
+  const gid = `tile-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
   const { w, h } = size; const k = 8;
   const shape = (i: number) => `M${i} ${i}H${w - k - i * 0.4}L${w - i} ${k + i * 0.4}V${h - i}H${k + i * 0.4}L${i} ${h - k - i * 0.4}Z`;
   return <PressableScale scaleTo={0.97} disabled={!on} testID={`tile-${label}`} accessibilityRole="button" accessibilityLabel={t.countA11y(label, n ?? 0)} accessibilityState={{ disabled: !on }} onPress={onPress}
     onLayout={e => setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height })}
     style={{ flex: 1, minWidth: 0, minHeight: 64, alignItems: "center", justifyContent: "center", gap: 3, paddingVertical: 6, paddingHorizontal: 4 }}>
     {w ? <Svg pointerEvents="none" width={w} height={h} style={StyleSheet.absoluteFill} aria-hidden={true}>
-      <Defs><LinearGradient id={`tile-${label}`} x1="0" y1="0" x2="0" y2="1">
+      <Defs><LinearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
         <Stop offset="0" stopColor={on ? (dark ? "#24242B" : "#FFFFFF") : c.surface}/><Stop offset="0.55" stopColor={c.surface}/><Stop offset="1" stopColor={on ? (dark ? "#121216" : "#ECECEF") : c.surface}/>
       </LinearGradient></Defs>
       {/* The edge is a stroked shape, so it follows the cut corners. */}
-      <Path d={shape(0.5)} fill={`url(#tile-${label})`} stroke={on ? c.controlBorder : c.line} strokeWidth={1}/>
+      <Path d={shape(0.5)} fill={`url(#${gid})`} stroke={on ? c.controlBorder : c.line} strokeWidth={1}/>
     </Svg> : null}
     {n === null ? <ActivityIndicator size="small" color={c.inkSubtle}/> : <CountUp value={n} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(28), color: on ? c.ink : c.inkSubtle }}/>}
     {/* Two lines: "Cân chính thức" does not fit a third of a phone width on one line. */}
@@ -171,7 +173,7 @@ function SummaryRow({ testID, title, src, reload, count, zero, top, onOpen }: { 
   const body = <>
     {ok ? <CountUp value={count} style={{ width: 48, fontFamily: fonts.displayExtraBold, fontSize: fz(38), lineHeight: lh(42), color: count ? c.ink : c.inkSubtle }}/> : <Text style={{ width: 48, fontFamily: fonts.displayExtraBold, fontSize: fz(38), lineHeight: lh(42), color: c.inkSubtle }}>–</Text>}
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
       {src.state === "loading" ? <ActivityIndicator size="small" color={c.inkSubtle} style={{ alignSelf: "flex-start" }}/> : null}
       {src.state === "error" ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.danger }}>{t.loadFailed}</Text> : null}
       {ok ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5, !!top?.danger), color: top?.danger ? c.danger : c.ink }}>{top ? `${top.title} · ${top.line}` : zero}</Text> : null}
@@ -207,7 +209,7 @@ function ConfirmClearance({ p, onCancel, onDone }: { p: Pending; onCancel: () =>
       : <View>{fact(t.fighter, p.name)}{fact(t.suspension, reason)}{fact(t.endedOn, ended)}</View>}
     <Text style={{ ...readableTextStyle(14, true), color: c.ink }}>{t.noteLabel}</Text>
     <ScrollView horizontal={kb} scrollEnabled={kb} showsHorizontalScrollIndicator={false} contentContainerStyle={{ flexDirection: "row", flexWrap: kb ? "nowrap" : "wrap", gap: 8 }}>
-      {t.picks.map(x => <PressableScale key={x} scaleTo={0.97} accessibilityRole="button" onPress={() => setNote(x)} style={{ minHeight: 40, paddingHorizontal: 12, justifyContent: "center", borderWidth: 1, borderColor: c.controlBorder }}>
+      {t.picks.map(x => <PressableScale key={x} scaleTo={0.97} accessibilityRole="button" onPress={() => setNote(x)} style={{ minHeight: 44, paddingHorizontal: 12, justifyContent: "center", borderWidth: 1, borderColor: c.controlBorder }}>
         <Text style={{ ...readableTextStyle(13.5, true), color: c.ink }}>{x}</Text>
       </PressableScale>)}
     </ScrollView>

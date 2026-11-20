@@ -81,7 +81,7 @@ export function ApplicantHomeScreen({ guest = false }: { guest?: boolean }) {
       <PressableScale testID="guest-logout" scaleTo={0.99} accessibilityRole="button" accessibilityLabel={adm.guest.signOut} onPress={() => setConfirm(true)}
         style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64, paddingVertical: 8, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
         <View style={{ width: 52 }}><Icon name="logout" size={28} color={c.danger}/></View>
-        <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.danger }}>{adm.guest.signOut}</Text>
+        <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.danger }}>{adm.guest.signOut}</Text>
       </PressableScale>
     </View>
     <ConfirmDialog visible={confirm} title={adm.guest.signOutAsk} cancelLabel={adm.cancel} confirmLabel={adm.guest.signOut} onCancel={() => setConfirm(false)} onConfirm={logout}/>

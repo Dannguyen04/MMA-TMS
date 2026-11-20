@@ -148,8 +148,8 @@ function WeightTab({ bout, limit, cols, onWeigh }: { bout: CampDetail; limit: nu
     : latest == null ? t.notWeighed : (over ?? 0) > 0 ? t.over(kg(over)) : t.within(kg(limit));
   const big = <View accessible accessibilityLabel={`${n == null ? t.notWeighed : `${kg(n)} ${line1}`}, ${line2}`} style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
     <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(64), lineHeight: lh(64), color: bad ? c.danger : c.ink }}>{n == null ? "—" : kg(n)}</Text>
-    <View><Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(21), lineHeight: lh(22), textTransform: "uppercase", color: bad ? c.danger : c.ink }}>{line1}</Text>
-      <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(21), lineHeight: lh(22), textTransform: "uppercase", color: bad ? c.danger : c.success }}>{line2}</Text></View>
+    <View><Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(21), lineHeight: lh(29), textTransform: "uppercase", color: bad ? c.danger : c.ink }}>{line1}</Text>
+      <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(21), lineHeight: lh(29), textTransform: "uppercase", color: bad ? c.danger : c.success }}>{line2}</Text></View>
   </View>;
   const acute = bout.acuteLoss?.status === "EXCEEDED" ? <Notice title={campText.coachCampScreen.giamCanCapTocVuot} danger>{`${campText.coachCampScreen.giam}${kg(bout.acuteLoss.lossPct)}${campText.coachCampScreen.nguongTheoBoLuatLa}${kg(bout.acuteLoss.limitPct)}%.`}</Notice> : null;
   const act = bout.status === "FIGHT_WEEK" ? <Action label={campText.coachCampScreen.ghiCanChinhThuc2} onPress={onWeigh}/>

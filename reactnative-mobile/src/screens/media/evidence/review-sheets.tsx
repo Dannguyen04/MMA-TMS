@@ -283,5 +283,5 @@ const styles = liveSheet(() => ({
   save: { minHeight: 48, borderRadius: 12, flexDirection: "row", gap: 8, alignItems: "center", justifyContent: "center" },
   rating: { flexDirection: "row", gap: 8 },
   rate: { flex: 1, minHeight: 44, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  rangeBtn: { flex: 1, minHeight: 40, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  rangeBtn: { flex: 1, minHeight: 44, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center" },
 }));

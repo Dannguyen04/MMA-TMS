@@ -213,7 +213,7 @@ const styles = liveSheet(() => ({
   meta: { lineHeight: lh(16) },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
-    minHeight: 36,
+    minHeight: 44,
     paddingHorizontal: spacing.md,
     borderRadius: radius.pill,
     borderWidth: 1,

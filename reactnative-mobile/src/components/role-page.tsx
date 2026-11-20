@@ -50,7 +50,7 @@ export function RolePage({ title, onBack, backLabel = "Quay lại", right, onRef
 export function EmptyLine({ title, line, testID }: { title: string; line?: string; testID?: string }) {
   const { colors: c } = useThemePreference();
   return <View testID={testID} style={{ gap: 6 }}>
-    <Text style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(26), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+    <Text style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(30), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{title}</Text>
     {line ? <Text style={{ fontSize: fz(15), lineHeight: lh(22), color: c.ink }}>{line}</Text> : null}
   </View>;
 }

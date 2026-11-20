@@ -26,6 +26,9 @@ export const fighterHome = {
   restKick: "Hôm nay",
   rest: "Nghỉ",
   restSub: "không có\nbuổi tập",
+  // Today's sessions are all done: not a rest day.
+  done: "Xong",
+  doneSub: "đã tập\nhôm nay",
   nextSession: "Buổi tiếp theo",
   noUpcoming: "Chưa có buổi tập nào sắp tới",
   openSchedule: "Xem lịch tập",

@@ -292,7 +292,7 @@ function EditorTitle({ children }: { children: string }) {
 }
 
 const styles = liveSheet(() => ({
-  oppName: { fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", letterSpacing: 0.3 },
+  oppName: { fontSize: fz(30), lineHeight: lh(41), textTransform: "uppercase", letterSpacing: 0.3 },
   recordNum: { fontSize: fz(46), lineHeight: lh(52), width: 56, textAlign: "center", padding: 0, borderWidth: 0 },
   recordDash: { fontSize: fz(30) },
   legend: { fontSize: fz(12), width: 56, textAlign: "center" },

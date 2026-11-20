@@ -61,7 +61,7 @@ function WeightLine({ value, word, tone, line }: { value: number | null; word: s
       {value != null ? <Text style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(26), color: c.ink, marginLeft: 3 }}>{t.kg}</Text> : null}
     </View>
     <View style={{ flex: 1, minWidth: 0, paddingBottom: 4 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(21), letterSpacing: 0.5, textTransform: "uppercase", color: toneColor(c, tone) }}>{word}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.5, textTransform: "uppercase", color: toneColor(c, tone) }}>{word}</Text>
       {line ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>{line}</Text> : null}
     </View>
   </View>;
@@ -87,8 +87,8 @@ function BoutBody({ d, bout }: { d: TranData; bout: CampDetail }) {
 
   return <>
     <View testID="bout-head" accessible accessibilityRole="header" accessibilityLabel={`${statusLabel[bout.status]}. ${bout.eventName}. ${opponent}`}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(15), lineHeight: lh(18), letterSpacing: 0.9, textTransform: "uppercase", color: c.lotus }}>{statusLabel[bout.status]}</Text>
-      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", color: c.ink }}>{bout.eventName}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(15), lineHeight: lh(21), letterSpacing: 0.9, textTransform: "uppercase", color: c.lotus }}>{statusLabel[bout.status]}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(41), textTransform: "uppercase", color: c.ink }}>{bout.eventName}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(15), color: c.ink }}>{opponent}</Text>
     </View>
     {track && w ? <>
@@ -124,7 +124,7 @@ function NoBout({ d }: { d: TranData }) {
   const { colors: c } = useThemePreference();
   const logged = isToday(d.latest?.on);
   return <>
-    <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", color: c.ink }}>{t.noBout}</Text>
+    <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(41), textTransform: "uppercase", color: c.ink }}>{t.noBout}</Text>
     {d.latest ? <WeightLine value={d.latest.kg} word={t.weight.latest} tone="dim" line={logged ? t.today : dmLocal(d.latest.on)}/> : null}
     <Action label={logged ? t.edit : t.log} secondary={logged} onPress={() => router.push(WEIGH)}/>
   </>;

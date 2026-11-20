@@ -79,7 +79,7 @@ export function AdminUserDetailScreen() {
       <View accessible accessibilityLabel={[name, roleLabel(u.role), u.isActive ? "" : t.locked].filter(Boolean).join(", ")} style={{ flexDirection: "row", alignItems: "center", gap: 14 }}>
         <Initials text={userInitials(name)}/>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(32), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(38), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
           <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>
             {roleLabel(u.role)}{u.isActive ? "" : " · "}{u.isActive ? null : <Text style={{ ...readableTextStyle(14.5, true), color: c.danger }}>{t.locked}</Text>}
           </Text>

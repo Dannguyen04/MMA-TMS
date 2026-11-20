@@ -40,7 +40,7 @@ function WhoLine({ fighterId, line }: { fighterId: string; line?: string }) {
   const { colors: c } = useThemePreference();
   const [src] = useSource(() => coachApi.getFighter(fighterId), `who|${fighterId}`);
   return <View style={{ gap: 2 }}>
-    <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(24), lineHeight: lh(28), textTransform: "uppercase", color: c.ink }}>{src.state === "ok" ? fighterName(src.data) : " "}</Text>
+    <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(24), lineHeight: lh(33), textTransform: "uppercase", color: c.ink }}>{src.state === "ok" ? fighterName(src.data) : " "}</Text>
     {line ? <Text style={{ ...readableTextStyle(14.5), color: c.ink }}>{line}</Text> : null}
   </View>;
 }
@@ -174,7 +174,7 @@ export function CoachExamRequestScreen() {
       error={tooLong ? t.askTooLong(REVIEW_REASON_MAX) : error || undefined} helper={text.length > REVIEW_REASON_MAX * 0.9 ? t.askCount(text.length, REVIEW_REASON_MAX) : undefined}/>
     {past.state === "error" ? <RetryRow message={t.askListFailed} retry={t.retry} onRetry={past.reload}/> : null}
     {past.state === "ok" && past.rows.length ? <>
-      <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink, marginTop: 6 }}>{t.askPast}</Text>
+      <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink, marginTop: 6 }}>{t.askPast}</Text>
       <StaggerList testID="exam-requests">
         {past.rows.map((r, k) => {
           const open = r.status === "OPEN";

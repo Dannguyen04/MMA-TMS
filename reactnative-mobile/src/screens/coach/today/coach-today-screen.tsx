@@ -203,13 +203,13 @@ function Spotlight({ bout: b, name, detail, onOpen, onStage }: { bout: CampBout;
       <View testID="today-countdown" accessible accessibilityLabel={cd.overdue ? t.overdueA11y(cd.days, cd.what) : t.daysA11y(cd.days, cd.what)} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 2 }}>
         {cd.overdue ? <>
           <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(76), lineHeight: lh(72), color: c.danger }}>{cd.days}</Text>
-          <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(24), lineHeight: lh(26), color: c.danger, textTransform: "uppercase" }}>{t.overdue[cd.what]}</Text>
+          <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(24), lineHeight: lh(33), color: c.danger, textTransform: "uppercase" }}>{t.overdue[cd.what]}</Text>
         </> : cd.days === 0 ? <>
-          <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(52), lineHeight: lh(56), color: c.ink, textTransform: "uppercase" }}>{t.today}</Text>
-          <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(24), lineHeight: lh(26), color: c.ink, textTransform: "uppercase" }}>{t.todayIs[cd.what]}</Text>
+          <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(52), lineHeight: lh(71), color: c.ink, textTransform: "uppercase" }}>{t.today}</Text>
+          <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(24), lineHeight: lh(33), color: c.ink, textTransform: "uppercase" }}>{t.todayIs[cd.what]}</Text>
         </> : <>
           <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(76), lineHeight: lh(72), color: c.ink }}>{cd.days}</Text>
-          <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(24), lineHeight: lh(26), color: c.ink, textTransform: "uppercase" }}>{t.daysTo[cd.what]}</Text>
+          <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(24), lineHeight: lh(33), color: c.ink, textTransform: "uppercase" }}>{t.daysTo[cd.what]}</Text>
         </>}
       </View>
       {facts.length ? <View style={{ marginTop: 8 }}>
@@ -231,7 +231,7 @@ function SummaryRow({ testID, title, src, reload, count, zero, line, urgent, onO
   const body = <>
     <Text style={{ width: 52, fontFamily: fonts.displayExtraBold, fontSize: fz(38), lineHeight: lh(42), color: ok && count ? (urgent ? c.danger : c.ink) : c.inkSubtle }}>{ok ? count : "–"}</Text>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      <Text style={{ fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.ink }}>{title}</Text>
       {src.state === "loading" ? <ActivityIndicator size="small" color={c.inkSubtle} style={{ alignSelf: "flex-start", marginTop: 2 }}/> : null}
       {src.state === "error" ? <Text style={{ ...readableTextStyle(13.5), color: c.danger }}>{t.loadFailed}</Text> : null}
       {ok ? <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: c.ink }}>{count ? line : zero}</Text> : null}

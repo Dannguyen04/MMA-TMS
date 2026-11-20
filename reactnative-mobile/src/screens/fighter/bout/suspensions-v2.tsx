@@ -28,14 +28,14 @@ export function FighterSuspensionsV2() {
   return <CampShell title={t.susp.title} onBack={() => backToTran(router)} preview={!!isDemo}>
     {src.state === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/> : null}
     {src.state === "error" ? <RetryRow message={t.susp.failed} retry={t.retry} onRetry={reload}/> : null}
-    {split && !split.live.length && !split.past.length ? <Text testID="susp-none" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(28), textTransform: "uppercase", color: c.ink }}>{t.susp.none}</Text> : null}
+    {split && !split.live.length && !split.past.length ? <Text testID="susp-none" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{t.susp.none}</Text> : null}
     {split ? <View testID="suspensions-v2" style={{ gap: 14 }}>
       {split.live.map(s => {
         const upcoming = s.status === "UPCOMING";
         const allowed = allowedTodayLine(s);
         return <Frame key={s.id} tone={upcoming ? undefined : "danger"} pad={18}>
           <View testID={`susp-${s.id}`} accessible accessibilityLabel={`${reason(s)}. ${suspensionHeadline(s)}`}>
-            <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(28), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{reason(s)}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(33), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{reason(s)}</Text>
             <Text numberOfLines={1} style={{ ...readableTextStyle(15, true), color: upcoming ? c.ink : c.danger, marginBottom: 10 }}>{suspensionHeadline(s)}</Text>
           </View>
           <Fact label={t.susp.from} value={dayMonth(s.startsOn)}/>

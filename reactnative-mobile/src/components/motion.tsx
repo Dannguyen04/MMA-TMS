@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import Animated, {
   Easing,
-  FadeInDown,
+  FadeIn,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -83,10 +83,10 @@ export function FadeInView({
   style?: StyleProp<ViewStyle>;
 }) {
   const reduced = useReducedMotion();
-  // FadeInDown có thể không tồn tại trong môi trường mock (jest) → render tĩnh.
-  if (reduced || !FadeInDown?.duration) return <View style={style}>{children}</View>;
+  // FadeIn có thể không tồn tại trong môi trường mock (jest) → render tĩnh.
+  if (reduced || !FadeIn?.duration) return <View style={style}>{children}</View>;
   return (
-    <Animated.View style={style} entering={FadeInDown.duration(motion.enter).delay(delay ?? staggerDelay(index))}>
+    <Animated.View style={style} entering={FadeIn.duration(motion.enter).delay(delay ?? staggerDelay(index))}>
       {children}
     </Animated.View>
   );

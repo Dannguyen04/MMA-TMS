@@ -5,14 +5,13 @@ import { radius, spacing, type, useThemePreference } from "@/theme";
 
 import { useBadgeColor, type BadgeId } from "./badge-colors";
 
-/** Colored status chip. Text stays on a surface that keeps the chosen color readable. */
+/** Status as a marked word (DESIGN.md: no chips for status). The chosen color falls back to ink when it would not read. */
 export function StatusBadge({ id, label }: { id: BadgeId; label: string }) {
   const { colors, resolvedScheme } = useThemePreference();
-  const color = useBadgeColor(id, resolvedScheme === "light" ? "light" : "dark");
-  const onMuted = contrastRatio(color, colors.surfaceMuted) >= 4.5;
-  const backgroundColor = onMuted ? colors.surfaceMuted : colors.dangerSoft;
+  const chosen = useBadgeColor(id, resolvedScheme === "light" ? "light" : "dark");
+  const color = contrastRatio(chosen, colors.bg) >= 4.5 ? chosen : colors.ink;
   return (
-    <View style={[styles.badge, { backgroundColor }]}>
+    <View style={styles.badge}>
       <View style={[styles.dot, { backgroundColor: color }]} />
       <Text style={[type.caption, { color }]}>{label}</Text>
     </View>
@@ -25,13 +24,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    borderRadius: radius.field,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 5,
+    paddingVertical: 2,
   },
   dot: {
-    width: 5,
-    height: 5,
+    width: 7,
+    height: 7,
     borderRadius: radius.pill,
   },
 });

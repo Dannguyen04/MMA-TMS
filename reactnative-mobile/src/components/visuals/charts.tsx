@@ -97,6 +97,17 @@ export function WeightChart({
       ? xAtTime(Date.parse(sorted[index]?.measuredAt ?? ""))
       : PAD.left + (sorted.length <= 1 ? plotW / 2 : (index / (sorted.length - 1)) * plotW);
   const yAt = (kg: number) => PAD.top + (1 - (kg - lo) / (hi - lo)) * plotH;
+  /**
+   * Where a point's value goes: above it, except a dip (lower than both sides), where the lines rising away would
+   * cross it. A dip goes underneath, or beside the point when underneath would sit on the date axis.
+   */
+  const valueSpot = (index: number, kg: number) => {
+    const x = xAt(index), y = yAt(kg);
+    const dip = (sorted[index - 1]?.weightKg ?? -Infinity) > kg && (sorted[index + 1]?.weightKg ?? -Infinity) > kg;
+    if (!dip) return { x, y: y - 9, textAnchor: "middle" as const };
+    if (y + 17 <= PAD.top + plotH - 4) return { x, y: y + 17, textAnchor: "middle" as const };
+    return { x: x + 8, y: y + 4, textAnchor: "start" as const };
+  };
   const ticks = [0, 1, 2, 3].map((step) => lo + ((hi - lo) * step) / 3);
   const labelled = pickLabelIndexes(sorted.length);
   const pointLabelled = sorted.length <= 6 ? labelled : new Set([0, sorted.length - 1]);
@@ -207,12 +218,10 @@ export function WeightChart({
               pointLabelled.has(index) ? (
                 <SvgText
                   key={`value-${row.id}`}
-                  x={xAt(index)}
-                  y={yAt(row.weightKg) - 9}
+                  {...valueSpot(index, row.weightKg)}
                   fill={colors.ink}
                   fontSize={11}
                   fontWeight="600"
-                  textAnchor="middle"
                 >
                   {num(row.weightKg)}
                 </SvgText>
@@ -256,21 +265,21 @@ export function WeightChart({
 const BODY_W = 318;
 const BODY_H = 280;
 
-/** Front view: the fighter's right side is on the viewer's left. */
+/** Mirror view, like the 3D model (owner 2026-11-19): the fighter's right side is on the viewer's right. */
 const JOINT_POS: Record<string, [number, number]> = {
-  RIGHT_SHOULDER: [122, 72],
-  LEFT_SHOULDER: [196, 72],
-  RIGHT_ELBOW: [104, 124],
-  LEFT_ELBOW: [214, 124],
-  RIGHT_WRIST: [92, 170],
-  LEFT_WRIST: [226, 170],
+  LEFT_SHOULDER: [122, 72],
+  RIGHT_SHOULDER: [196, 72],
+  LEFT_ELBOW: [104, 124],
+  RIGHT_ELBOW: [214, 124],
+  LEFT_WRIST: [92, 170],
+  RIGHT_WRIST: [226, 170],
   SPINE_CORE: [159, 116],
-  RIGHT_HIP: [140, 160],
-  LEFT_HIP: [178, 160],
-  RIGHT_KNEE: [134, 212],
-  LEFT_KNEE: [184, 212],
-  RIGHT_ANKLE: [130, 256],
-  LEFT_ANKLE: [188, 256],
+  LEFT_HIP: [140, 160],
+  RIGHT_HIP: [178, 160],
+  LEFT_KNEE: [134, 212],
+  RIGHT_KNEE: [184, 212],
+  LEFT_ANKLE: [130, 256],
+  RIGHT_ANKLE: [188, 256],
   // Vùng phụ (khớp với body3d EXTRA_REGIONS).
   HEAD: [159, 30],
   NECK: [159, 52],

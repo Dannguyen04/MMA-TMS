@@ -41,15 +41,15 @@ function Top({ f, dossier }: { f: PublicFighter; dossier: MedicalDossier | null 
   const line = injuries ? r.injuriesLine(injuries) : reviews ? r.reviewsLine(reviews) : "";
   return <View style={{ gap: 12 }}>
     <View style={{ gap: 2 }}>
-      <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", color: c.ink }}>{fighterName(f)}</Text>
+      <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(41), textTransform: "uppercase", color: c.ink }}>{fighterName(f)}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{fighterLine(f)}</Text>
-      {second ? <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{second}</Text> : null}
+      {second ? <Text numberOfLines={2} style={{ ...readableTextStyle(14), color: c.ink }}>{second}</Text> : null}
     </View>
     <View testID="doctor-fighter-status" accessible accessibilityLabel={line ? `${m.word}. ${line}` : m.word} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
       {m.icon ? <View style={{ width: 40, alignItems: "center" }}><Icon name={m.icon} size={28} color={markColor}/></View>
         : <Text style={{ width: 40, textAlign: "center", fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), color: markColor }}>{m.lead ?? "–"}</Text>}
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.5, textTransform: "uppercase", color: wordColor }}>{m.word}</Text>
+        <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.5, textTransform: "uppercase", color: wordColor }}>{m.word}</Text>
         {line ? <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{line}</Text> : null}
       </View>
     </View>

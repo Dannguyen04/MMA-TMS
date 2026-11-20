@@ -32,7 +32,7 @@ export function AdminMeScreen() {
       <View accessible accessibilityLabel={[name, t.roleAdmin].filter(Boolean).join(", ")} style={{ flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 2 }}>
         <Initials text={userInitials(name)}/>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(32), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
+          <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(38), letterSpacing: 0.2, textTransform: "uppercase", color: c.ink }}>{name}</Text>
           <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{t.roleAdmin}</Text>
         </View>
       </View>
@@ -46,7 +46,7 @@ export function AdminMeScreen() {
       <PressableScale testID="admin-logout" scaleTo={0.99} accessibilityRole="button" accessibilityLabel={t.signOut} onPress={() => setConfirm(true)}
         style={{ flexDirection: "row", alignItems: "center", gap: 12, minHeight: 64, paddingVertical: 8, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
         <View style={{ width: 52 }}><Icon name="logout" size={28} color={c.danger}/></View>
-        <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(20), letterSpacing: 0.5, textTransform: "uppercase", color: c.danger }}>{t.signOut}</Text>
+        <Text numberOfLines={1} style={{ flex: 1, fontFamily: fonts.display, fontSize: fz(17), lineHeight: lh(23), letterSpacing: 0.5, textTransform: "uppercase", color: c.danger }}>{t.signOut}</Text>
       </PressableScale>
     </StaggerList>
     <ConfirmDialog visible={confirm} title={t.signOutAsk} cancelLabel={t.cancel} confirmLabel={t.signOut} onCancel={() => setConfirm(false)} onConfirm={logout}/>

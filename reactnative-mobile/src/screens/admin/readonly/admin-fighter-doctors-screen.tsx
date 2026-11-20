@@ -85,7 +85,7 @@ export function AdminFighterDoctorsScreen() {
       </Pressable>
     </View> : null}
     {fighter ? <View style={{ gap: 2 }}>
-      <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{fighterName(fighter)}</Text>
+      <Text accessibilityRole="header" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(36), textTransform: "uppercase", color: c.ink }}>{fighterName(fighter)}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{fighterLine(fighter)}</Text>
     </View> : null}
     {fid ? <View style={{ gap: 8 }}>

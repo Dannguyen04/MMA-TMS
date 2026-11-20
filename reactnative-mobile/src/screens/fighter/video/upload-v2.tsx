@@ -64,7 +64,7 @@ export function VideoUploadPage({ testID, fighterId, top, needFighter, onBack, o
 
   const pickBody = <View style={{ minHeight: 128, alignItems: "center", justifyContent: "center", gap: 4, padding: 16 }}>
       <Icon name={asset ? "film" : "upload"} size={30} color={asset ? "#FFFFFF" : c.lotus}/>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.5, textTransform: "uppercase", color: asset ? "#FFFFFF" : c.ink }}>{asset ? asset.filename : t.pick.empty}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.5, textTransform: "uppercase", color: asset ? "#FFFFFF" : c.ink }}>{asset ? asset.filename : t.pick.empty}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(13.5), color: asset ? "#FFFFFF" : c.ink }}>{asset ? pickedLine(asset) || t.pick.change : t.pick.types}</Text>
     </View>;
   const picker = <PressableScale testID="video-pick" scaleTo={0.985} accessibilityRole="button" disabled={up.sending}

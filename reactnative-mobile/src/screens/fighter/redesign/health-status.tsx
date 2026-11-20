@@ -26,8 +26,8 @@ function useTone(level: EligibilityLevel) {
 export function LevelChip({ level, suspended = false }: { level: EligibilityLevel; suspended?: boolean }) {
   const tone = useTone(suspended && level !== "notEligible" ? "restricted" : level);
   return (
-    <View style={[styles.chip, { backgroundColor: tone.bg }]}>
-      <View style={[styles.dot, { backgroundColor: tone.fg }]} />
+    <View style={styles.chip}>
+      <MaterialCommunityIcons name={level === "eligible" && !suspended ? "check-circle" : level === "notEligible" ? "close-circle" : "alert-circle"} size={16} color={tone.fg} />
       <Text style={[styles.chipText, { color: tone.fg }]}>{suspended && level !== "notEligible" ? t.chip.suspended : t.chip[level]}</Text>
     </View>
   );
@@ -245,8 +245,7 @@ export function HealthInfoButton() {
 
 const styles = liveSheet(() => ({
   flex: { flex: 1 },
-  chip: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
-  dot: { width: 7, height: 7, borderRadius: 4 },
+  chip: { alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 2 },
   chipText: { fontSize: fz(13), lineHeight: lh(18), fontWeight: "600" },
   today: { borderWidth: StyleSheet.hairlineWidth, borderRadius: 16, padding: 16, gap: 14 },
   todayRow: { flexDirection: "row", gap: 12, alignItems: "flex-start" },

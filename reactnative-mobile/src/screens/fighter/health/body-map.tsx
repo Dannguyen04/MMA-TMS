@@ -10,15 +10,18 @@ import type { BodyMarks } from "./health-model";
 /** Mark colours, the same on the 3D model, this flat figure and the legend (the 3D shader needs fixed colours). */
 export const MARK_COLOR = { hurt: "#FF6B7A", avoid: "#FF9A4D" } as const;
 
-/** Front view: the fighter's left is on the viewer's right. One point per joint the server knows (BODY_JOINTS). */
+/**
+ * Mirror view, like the 3D model (owner 2026-11-19): the fighter's right is on the viewer's right. One point per
+ * joint the server knows (BODY_JOINTS).
+ */
 export const JOINT_POINTS: Record<string, readonly [number, number]> = {
-  RIGHT_SHOULDER: [44, 54], LEFT_SHOULDER: [88, 54],
-  RIGHT_ELBOW: [34, 90], LEFT_ELBOW: [98, 90],
-  RIGHT_WRIST: [28, 122], LEFT_WRIST: [104, 122],
+  LEFT_SHOULDER: [44, 54], RIGHT_SHOULDER: [88, 54],
+  LEFT_ELBOW: [34, 90], RIGHT_ELBOW: [98, 90],
+  LEFT_WRIST: [28, 122], RIGHT_WRIST: [104, 122],
   SPINE_CORE: [66, 104],
-  RIGHT_HIP: [54, 130], LEFT_HIP: [78, 130],
-  RIGHT_KNEE: [52, 172], LEFT_KNEE: [80, 172],
-  RIGHT_ANKLE: [52, 208], LEFT_ANKLE: [80, 208],
+  LEFT_HIP: [54, 130], RIGHT_HIP: [78, 130],
+  LEFT_KNEE: [52, 172], RIGHT_KNEE: [80, 172],
+  LEFT_ANKLE: [52, 208], RIGHT_ANKLE: [80, 208],
 };
 const BODY = "M44 46h44l8 10 8 34 4 34-10 2-8-30h-4l4 44-6 60-14 4-4-58h-2l-4 58-14-4-6-60 4-44h-4l-8 30-10-2 4-34 8-34z";
 

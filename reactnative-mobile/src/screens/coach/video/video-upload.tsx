@@ -28,7 +28,7 @@ export function CoachUploadScreen() {
   const back = () => (router.canGoBack() ? router.back() : router.replace(COACH_VIDEOS as never));
   const top = fixed
     ? <View testID="upload-fighter" style={{ gap: 2 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(22), lineHeight: lh(26), textTransform: "uppercase", color: c.ink }}>{fixedFighter ? fighterName(fixedFighter) : " "}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{fixedFighter ? fighterName(fixedFighter) : " "}</Text>
       <Text style={{ ...readableTextStyle(14.5), color: c.ink }}>{t.forFighter}</Text>
     </View>
     : <FighterPick testID="upload-pick-fighter" label={t.fighterField} placeholder={t.pickFighter} empty={t.noFighters} failed={t.fightersFailed} retry={t.retry}

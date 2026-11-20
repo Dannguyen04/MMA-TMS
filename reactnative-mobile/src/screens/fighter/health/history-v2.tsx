@@ -53,7 +53,7 @@ export function FighterHealthHistoryV2() {
   return <CampShell title={t.history.title} onBack={() => backToHealth(router)}>
     {state === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/> : null}
     {state === "error" ? <RetryRow message={t.history.failed} retry={t.retry} onRetry={() => void load(1)}/> : null}
-    {state !== "loading" && state !== "error" && !rows.length ? <Text testID="history-none" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(28), textTransform: "uppercase", color: c.ink }}>{t.history.none}</Text> : null}
+    {state !== "loading" && state !== "error" && !rows.length ? <Text testID="history-none" style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{t.history.none}</Text> : null}
     {groups.map(g => <View key={g.key} testID={`history-${g.key}`}>
       <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), letterSpacing: 0.6, textTransform: "uppercase", color: c.ink, marginTop: 6, marginBottom: 2 }}>{g.label}</Text>
       {g.items.map((e, k) => {

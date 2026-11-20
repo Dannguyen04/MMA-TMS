@@ -26,8 +26,11 @@ export async function loadLiveSuspensionsByFighter(): Promise<Map<string, Suspen
   return out;
 }
 
-/** One line a coach can act on: "Đang đình chỉ đến 30/11 · Nghỉ bắt buộc". */
-export function suspensionNote(s: Suspension): string {
+/**
+ * What a coach can act on, one fact per line (owner 2026-11-18: two lines, not one line joined by "·" and cut with
+ * "…"): ["Đang đình chỉ đến 30/11", "Nghỉ bắt buộc"].
+ */
+export function suspensionNote(s: Suspension): string[] {
   const reason = suspensionReasonLabel[s.reason];
-  return reason ? `${suspensionHeadline(s)} · ${reason}` : suspensionHeadline(s);
+  return reason ? [suspensionHeadline(s), reason] : [suspensionHeadline(s)];
 }

@@ -45,6 +45,13 @@ describe("LoginScreen", () => {
     });
   });
 
+  it("internal app: no sign-up link, only Quên mật khẩu", async () => {
+    await renderLogin();
+    expect(screen.queryByText(vi.login.noAccount, { exact: false })).toBeNull();
+    expect(screen.queryByText(vi.login.create)).toBeNull();
+    expect(screen.getByText(vi.login.forgot)).toBeTruthy();
+  });
+
   it("keeps login disabled until email and password are filled", async () => {
     await renderLogin();
     expect(screen.queryByText(vi.theme.light)).toBeNull();

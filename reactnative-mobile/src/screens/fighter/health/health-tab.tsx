@@ -102,7 +102,7 @@ function Spotlight({ dossier, suspension, onRetry, onRequest, onCell }: {
     <Action label={t.retry} secondary onPress={onRetry}/>
   </View></Frame>;
   const d = dossier.data;
-  if (!d) return <Frame pad={18}><Text testID="health-empty" style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(28), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.empty}</Text></Frame>;
+  if (!d) return <Frame pad={18}><Text testID="health-empty" style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(33), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.empty}</Text></Frame>;
 
   const v = verdict(d, suspension);
   const marks = bodyMarks(d, suspension);
@@ -139,8 +139,8 @@ function ScopeLine({ scope, cell, onPress }: { scope: EligibilityScope; cell: Ce
   return <Pressable testID={`health-cell-${scope}`} accessibilityRole="button" accessibilityLabel={t.cellA11y(t.scope[scope], cell.word)} onPress={onPress}
     style={({ pressed }) => ({ flexDirection: "row", alignItems: "center", gap: 4, paddingBottom: 8, borderBottomColor: c.line, borderBottomWidth: 1, opacity: pressed ? 0.7 : 1 })}>
     <View style={{ flex: 1, minWidth: 0 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(13), lineHeight: lh(16), letterSpacing: 1, textTransform: "uppercase", color: c.inkMuted }}>{t.scope[scope]}</Text>
-      <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(24), lineHeight: lh(27), letterSpacing: 0.3, textTransform: "uppercase", color: color(cell.tone) }}>{cell.word}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(13), lineHeight: lh(18), letterSpacing: 1, textTransform: "uppercase", color: c.inkMuted }}>{t.scope[scope]}</Text>
+      <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(24), lineHeight: lh(33), letterSpacing: 0.3, textTransform: "uppercase", color: color(cell.tone) }}>{cell.word}</Text>
     </View>
     <Icon name="chevron" size={16} color={c.inkSubtle}/>
   </Pressable>;
@@ -195,7 +195,7 @@ function Requests({ src, canAsk, onAsk, onRetry, onMore }: {
     {canAsk ? <Action label={t.request} onPress={onAsk}/> : null}
     {src.state === "loading" ? <ActivityIndicator color={c.lotus} style={{ paddingVertical: 24 }}/>
       : src.state === "error" ? <RetryRow message={t.requests.failed} retry={t.retry} onRetry={onRetry}/>
-      : !list.length ? <Text testID="requests-none" style={{ fontFamily: fonts.display, fontSize: fz(20), lineHeight: lh(26), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.requests.none}</Text>
+      : !list.length ? <Text testID="requests-none" style={{ fontFamily: fonts.display, fontSize: fz(20), lineHeight: lh(27), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.requests.none}</Text>
       : <View>
         {list.map((r, i) => {
           const isOpen = r.status === "OPEN";
@@ -232,7 +232,7 @@ function LimitsSheet({ dossier, scope, suspended, onClose, onRequest }: {
   return <SlideSheet visible={scope !== null} onClose={onClose} title={t.scope[s]}>
     <View testID="limits-sheet" style={{ gap: 16, paddingBottom: 8 }}>
       <View style={{ flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: 12 }}>
-        <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(32), textTransform: "uppercase", color: color(word === t.cell.suspended ? "lim" : tone) }}>{word}</Text>
+        <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(28), lineHeight: lh(38), textTransform: "uppercase", color: color(word === t.cell.suspended ? "lim" : tone) }}>{word}</Text>
         {until ? <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{t.limits.validUntil} {formatMedicalDay(until)}</Text> : null}
       </View>
       {block(t.limits.why, why)}

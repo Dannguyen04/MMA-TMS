@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { BottomTabBarProps } from "expo-router/build/layouts/Tabs";
@@ -5,6 +6,7 @@ import type { BottomTabBarProps } from "expo-router/build/layouts/Tabs";
 import { useFighterPalette } from "@/screens/fighter/redesign/palette";
 import { navSideWidth, useNavKind } from "@/components/nav-rail";
 import { TabMarkerScope, useSlidingMarker } from "@/components/tab-marker";
+import { setBottomTabBarVisible } from "@/components/tab-bar-visibility";
 import { fz, lh, liveSheet } from "@/theme/typography";
 
 /** Chiều cao tối thiểu của vùng nút (không tính vùng an toàn phía dưới). */
@@ -35,7 +37,12 @@ export function RoleTabBar({ state, descriptors, navigation }: BottomTabBarProps
   const focusedRoute = state.routes[state.index];
   // Redesign step 15: one red marker slides to the focused tab; a hidden route (notifications) hides it.
   const { marker, onItemLayout, onIconLayout } = useSlidingMarker(focusedRoute?.key ?? null, null, !sidebar);
-  if (focusedRoute && isHiddenTab(descriptors[focusedRoute.key]?.options.tabBarStyle as StyleProp<ViewStyle>)) return null;
+  const hidden = !!focusedRoute && isHiddenTab(descriptors[focusedRoute.key]?.options.tabBarStyle as StyleProp<ViewStyle>);
+  // Tells docked footers (CampShell) the bar already covers the bottom inset.
+  const bottomBar = !hidden && !rail;
+  useEffect(() => { setBottomTabBarVisible(bottomBar); }, [bottomBar]);
+  useEffect(() => () => setBottomTabBarVisible(false), []);
+  if (hidden) return null;
   return (
     <TabMarkerScope>
     <View

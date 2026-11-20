@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react-native";
+import { fireEvent, render, screen } from "@testing-library/react-native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import type { PublicFighter, TrainingSession } from "@/api/types";
@@ -123,13 +123,15 @@ describe("AdminOverviewV2Screen", () => {
       </SafeAreaProvider>,
     );
     expect(await screen.findByLabelText("Người dùng: 8")).toBeTruthy();
-    expect(await screen.findByLabelText("Tài khoản đã khóa: 2")).toBeTruthy();
     expect(screen.getByLabelText("Buổi hôm nay: 0")).toBeTruthy();
+    // Tab Y tế (mặc định): hai khối dùng danh sách võ sĩ đều báo lỗi.
     expect(screen.getAllByText("Không tải được dữ liệu").length).toBeGreaterThanOrEqual(2);
     expect(screen.getAllByText("Thử lại").length).toBeGreaterThanOrEqual(2);
     expect(screen.queryByText("Cần chú ý")).toBeNull();
+    fireEvent.press(screen.getByTestId("camp-tab-sessions"));
     expect(await screen.findByText("Chưa có buổi tập nào trong 7 ngày qua")).toBeTruthy();
-    expect(screen.getByText("Chưa có thông báo")).toBeTruthy();
+    fireEvent.press(screen.getByTestId("camp-tab-users"));
+    expect(await screen.findByLabelText("Tài khoản đã khóa: 2")).toBeTruthy();
   });
 
   it("Cần chú ý: tối đa 5 tên, chip 'Chưa cho phép', nút theo trạng thái ẩn khi bằng 0", async () => {
@@ -150,7 +152,7 @@ describe("AdminOverviewV2Screen", () => {
     expect(screen.queryByText("Chưa đủ điều kiện")).toBeNull();
   });
 
-  it("Quản trị: three rows at the bottom (step 23); tools without an API are hidden", async () => {
+  it("Quản trị: one row of three tools (owner 2026-11-19); tools without an API are hidden", async () => {
     mockUsers.mockImplementation(() => Promise.resolve({ items: [], total: 1, page: 1, limit: 1 }));
     await render(
       <SafeAreaProvider initialMetrics={{ frame: { x: 0, y: 0, width: 390, height: 844 }, insets: { top: 0, left: 0, right: 0, bottom: 0 } }}>

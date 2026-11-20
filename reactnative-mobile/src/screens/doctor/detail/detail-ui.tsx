@@ -72,7 +72,7 @@ export function FilterChips<T extends string>({ items, value, onChange, label }:
             accessibilityState={{ selected: on }}
             onPress={() => onChange(it.key)}
             hitSlop={{ top: 6, bottom: 6 }}
-            style={{ height: 36, paddingHorizontal: 14, borderRadius: 18, justifyContent: "center", borderWidth: 1, borderColor: on ? p.accentSoft : p.line, backgroundColor: on ? p.accentSoft : p.surface }}
+            style={{ minHeight: 44, paddingHorizontal: 14, borderRadius: 18, justifyContent: "center", borderWidth: 1, borderColor: on ? p.accentSoft : p.line, backgroundColor: on ? p.accentSoft : p.surface }}
           >
             <Text style={{ fontSize: fz(14), lineHeight: lh(20), fontWeight: on ? "700" : "400", color: on ? p.link : p.ink }}>{it.label}</Text>
           </Pressable>

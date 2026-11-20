@@ -446,7 +446,7 @@ function FighterTitle({ title, line }: { title: string; line: string }) {
   const { colors: c } = useThemePreference();
   return (
     <View testID="video-title-v2" style={{ gap: 2 }}>
-      <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{title}</Text>
+      <Text numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(36), textTransform: "uppercase", color: c.ink }}>{title}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{line}</Text>
     </View>
   );
@@ -478,7 +478,7 @@ function FighterStatus({ job, loading, failed, onRetry, canAsk, asking, onAsk, o
       <View testID="video-strip" style={[{ flexDirection: "row" }, rule]}>
         {cells.map((cell, k) => (
           <View key={cell.label} accessible accessibilityLabel={`${cell.label}: ${cell.value}`} style={{ flex: 1, minWidth: 0, alignItems: "center", paddingVertical: 12, paddingHorizontal: 6, borderLeftWidth: k ? 1 : 0, borderLeftColor: c.line }}>
-            <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(24), lineHeight: lh(28), textTransform: "uppercase", color: cell.color }}>{cell.value}</Text>
+            <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(24), lineHeight: lh(33), textTransform: "uppercase", color: cell.color }}>{cell.value}</Text>
             <Text numberOfLines={1} style={{ ...readableTextStyle(12.5), color: c.ink, marginTop: 2 }}>{cell.label}</Text>
           </View>
         ))}
@@ -496,7 +496,7 @@ function FighterStatus({ job, loading, failed, onRetry, canAsk, asking, onAsk, o
           )}
         </View>
         <View style={{ flex: 1, minWidth: 0 }}>
-          <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.5, textTransform: "uppercase", color: kind === "fail" ? c.danger : c.ink }}>{word}</Text>
+          <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.5, textTransform: "uppercase", color: kind === "fail" ? c.danger : c.ink }}>{word}</Text>
           {kind === "wait" && job ? <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{fv.sentAt(hmLocal(job.createdAt))}</Text> : null}
         </View>
       </View>

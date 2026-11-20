@@ -16,6 +16,12 @@ import { mapApiMessage } from "@/session/map-api-message";
 import { homeHrefForGate, useSession } from "@/session/session-context";
 import { isValidEmail } from "@/utils/is-valid-email";
 
+/**
+ * The app is internal for now (backend team, 2026-11-19): accounts are created by an admin, so the login screen
+ * does not offer "Chưa có tài khoản? Tạo tài khoản". Set to true to bring the sign-up link back.
+ */
+export const SIGN_UP_OPEN = false;
+
 export function LoginScreen() {
   const { signIn } = useSession();
   const router = useRouter();
@@ -80,18 +86,21 @@ export function LoginScreen() {
             disabled={!canSubmit}
           />
         }
+        linkBelow
         link={
           <Link href="/forgot-password" style={[authType.link, styles.forgot, { color: c.ink }]}>
             {vi.login.forgot}
           </Link>
         }
         below={
-          <Text style={[authType.caption, styles.footerText, { color: c.ink }]}>
-            {vi.login.noAccount}{" "}
-            <Link href="/register" style={[authType.link, { color: c.accent }]}>
-              {vi.login.create}
-            </Link>
-          </Text>
+          SIGN_UP_OPEN ? (
+            <Text style={[authType.caption, styles.footerText, { color: c.ink }]}>
+              {vi.login.noAccount}{" "}
+              <Link href="/register" style={[authType.link, { color: c.accent }]}>
+                {vi.login.create}
+              </Link>
+            </Text>
+          ) : undefined
         }
       >
         <View style={styles.credentials}>

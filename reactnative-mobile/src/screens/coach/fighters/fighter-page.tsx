@@ -123,17 +123,19 @@ function Top({ f, med, susp }: { f: PublicFighter; med: Medical | null; susp: Su
   const word = susp ? suspensionHeadline(susp) : medWord;
   const wordColor = susp ? c.danger : medWordColor;
   const mark = susp ? { lead: "!", tone: c.danger } : medMark;
-  const line = susp ? [suspensionReasonLabel[susp.reason], medLine].filter(Boolean).join(" · ") : medLine;
+  // One fact per line (owner 2026-11-18): the reason and the medical answer are not joined by "·" and cut.
+  const lines = (susp ? [suspensionReasonLabel[susp.reason], medLine] : [medLine]).filter((x): x is string => !!x);
+  const line = lines.join(", ");
   return <View style={{ gap: 12 }}>
     <View style={{ gap: 2 }}>
-      <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), textTransform: "uppercase", color: c.ink }}>{fighterName(f)}</Text>
+      <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(41), textTransform: "uppercase", color: c.ink }}>{fighterName(f)}</Text>
       <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{fighterTopLine(f, t.cm)}</Text>
     </View>
     <View testID="fighter-status" accessible accessibilityLabel={line ? `${word}. ${line}` : word} style={{ flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderTopColor: c.line, borderTopWidth: 1, borderBottomColor: c.line, borderBottomWidth: 1 }}>
       <Text style={{ width: 40, textAlign: "center", fontFamily: fonts.displayExtraBold, fontSize: fz(30), lineHeight: lh(34), color: mark?.tone ?? wordColor }}>{mark?.lead ?? fallback.lead ?? "–"}</Text>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.5, textTransform: "uppercase", color: wordColor }}>{word}</Text>
-        {line ? <Text numberOfLines={2} style={{ ...readableTextStyle(14), color: c.ink }}>{line}</Text> : null}
+        <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.5, textTransform: "uppercase", color: wordColor }}>{word}</Text>
+        {lines.map((l, i) => <Text key={i} style={{ ...readableTextStyle(14), color: c.ink }}>{l}</Text>)}
       </View>
     </View>
   </View>;
@@ -149,7 +151,7 @@ function FactRow({ label, value, last }: { label: string; value: string; last?: 
 
 function SectionHead({ children }: { children: string }) {
   const { colors: c } = useThemePreference();
-  return <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink, marginTop: 6 }}>{children}</Text>;
+  return <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink, marginTop: 6 }}>{children}</Text>;
 }
 
 function Spinner() { const { colors: c } = useThemePreference(); return <ActivityIndicator color={c.lotus} style={{ paddingVertical: 24 }}/>; }
@@ -212,7 +214,7 @@ function Weight({ f, refreshers }: { f: PublicFighter; refreshers: Refreshers })
       [delta == null ? "–" : `${delta > 0 ? "+" : delta < 0 ? "−" : ""}${kgText(Math.abs(delta))}`, delta == null ? "" : t.kg, t.weightDelta],
       [String(series.length), "", t.weighIns],
     ]}/>
-    {series.length >= 2 ? <WeightChart colors={colors} points={points} unit="kg" hideLatest/> : null}
+    {series.length >= 2 ? <WeightChart colors={colors} points={points} unit="kg" hideLatest decimalComma/> : null}
     <StaggerList testID="weight-rows">
       {rows.map((m, k) => <SlipRow key={m.id} lead={dayLead(m.measuredAt)} title={`${kgText(m.weightKg)} ${t.kg}`} line={`${vnDate(m.measuredAt)} · ${measurementContextLabel(m.measurementContext)}`}
         a11y={`${kgText(m.weightKg)} ${t.kg}, ${vnDate(m.measuredAt)}`} last={k === rows.length - 1}/>)}

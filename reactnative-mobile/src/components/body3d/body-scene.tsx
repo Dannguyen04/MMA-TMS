@@ -37,6 +37,9 @@ export function BodyScene({ paint, view, light, background, onReady, onFps, zoom
 
   const built = useMemo(() => {
     const root = gltf.scene.clone(true);
+    // Mirror view (owner 2026-11-19): the fighter's right shows on the viewer's right, as in a mirror. Three flips
+    // the face winding for a negative-scale object; the Euclid extra regions are symmetric in x, so they still match.
+    root.scale.x = -1;
     root.updateMatrixWorld(true);
     let mesh: THREE.Mesh | null = null;
     root.traverse((o) => {

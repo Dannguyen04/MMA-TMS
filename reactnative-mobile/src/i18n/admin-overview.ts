@@ -51,6 +51,7 @@ export const adminOverview = {
     total: "Tổng",
     activeLabel: "Đang hoạt động",
     lockedRow: "Tài khoản đã khóa",
+    lockedShort: "Đã khóa",
     empty: "Chưa có người dùng",
     a11y: (parts: string) => `Người dùng theo vai trò: ${parts}`,
   },
@@ -61,6 +62,8 @@ export const adminOverview = {
     seeAll: "Xem tất cả",
   },
   failed: "Phân tích lỗi",
+  /** The charts sit under three tabs, so the page fits about one screen (owner 2026-11-19: less scroll). */
+  tabs: { medical: "Y tế", sessions: "Buổi tập", users: "Người dùng" },
   tools: {
     title: "Quản trị",
     admissions: "Nhập học",

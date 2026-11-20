@@ -54,9 +54,11 @@ function Strip({ cells, testID }: { cells: { value: string; unit?: string; label
 
 function Fact({ label, value, last }: { label: string; value: string; last?: boolean }) {
   const { colors: c } = useThemePreference();
-  return <View accessible accessibilityLabel={`${label}: ${value}`} style={{ flexDirection: "row", justifyContent: "space-between", gap: 16, paddingVertical: 11, borderTopWidth: 1, borderTopColor: c.line, ...(last ? { borderBottomWidth: 1, borderBottomColor: c.line } : null) }}>
-    <Text numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>{label}</Text>
-    <Text numberOfLines={1} style={{ ...readableTextStyle(14.5, true), color: c.ink, flexShrink: 1, textAlign: "right" }}>{value}</Text>
+  // A restriction is never cut: a long value goes under its label, in full ("Buổi đư… Đấm bóng ma, Đấm đích, Sức mạn…").
+  const stacked = value.length > 22;
+  return <View accessible accessibilityLabel={`${label}: ${value}`} style={{ flexDirection: stacked ? "column" : "row", justifyContent: "space-between", gap: stacked ? 2 : 16, paddingVertical: 11, borderTopWidth: 1, borderTopColor: c.line, ...(last ? { borderBottomWidth: 1, borderBottomColor: c.line } : null) }}>
+    <Text style={{ ...readableTextStyle(14.5), color: stacked ? c.inkMuted : c.ink, flexShrink: 0 }}>{label}</Text>
+    <Text style={{ ...readableTextStyle(14.5, true), color: c.ink, flexShrink: 1, textAlign: stacked ? "left" : "right" }}>{value}</Text>
   </View>;
 }
 
@@ -102,7 +104,7 @@ export function DoctorExamPage() {
     {!e && !exam.loading && exam.error ? <RetryRow message={detailError(exam.error) || t.examsError} retry={t.retry} onRetry={() => void exam.reload()}/> : null}
     {e && w ? <StaggerList gap={16}>
       <View style={{ gap: 2 }}>
-        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{examTypeText(e) || t.examFallback}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(36), textTransform: "uppercase", color: c.ink }}>{examTypeText(e) || t.examFallback}</Text>
         <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.ink }}>{examSubline(e, f ? fighterName(f) : "")}</Text>
       </View>
       <SlipRow testID="exam-decision" lead={w.mark} leadTone={w.tone} title={w.word} line={det?.followUpDate ? t.followUpLine(vnDate(det.followUpDate)) : e.validUntil ? t.validUntil(vnDate(e.validUntil)) : t.noEffect}

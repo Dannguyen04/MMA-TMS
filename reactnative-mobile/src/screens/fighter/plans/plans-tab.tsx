@@ -70,21 +70,21 @@ function Spotlight({ plans, bouts, current, boutAt, sessions, today, onRetry, on
   const { colors: c } = useThemePreference();
   if (plans.state === "loading" || (plans.state === "ok" && bouts === "loading")) return <ActivityIndicator color={c.lotus} style={{ paddingVertical: 40 }}/>;
   if (plans.state === "error") return <View testID="plans-failed"><RetryRow message={t.failed} retry={t.retry} onRetry={onRetry}/></View>;
-  if (!current) return <Text testID="plans-none" style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(28), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.none}</Text>;
+  if (!current) return <Text testID="plans-none" style={{ fontFamily: fonts.display, fontSize: fz(24), lineHeight: lh(33), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{t.none}</Text>;
 
   const week = planWeek(current, today);
   const next = sessions ? nextPlanSession(sessions, current.id, new Date()) : null;
   const progress = current.progress;
   // Step 14: on the page, no frame (the framed spotlight belongs to Trang chủ only).
   return <View testID="plans-current">
-    <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(30), lineHeight: lh(34), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{current.title}</Text>
+    <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: fz(30), lineHeight: lh(41), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{current.title}</Text>
     <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.inkMuted }}>
       <Text style={{ ...readableTextStyle(14, true), color: c.ink }}>{planPhaseWord(current.phase)}</Text>{boutAt ? ` · ${t.forBout(dm(boutAt))}` : ""}
     </Text>
     {week ? <>
       <View accessible accessibilityLabel={t.weekA11y(week.now, week.total)} style={{ flexDirection: "row", alignItems: "center", gap: 10, marginTop: 14, marginBottom: 6 }}>
         <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(68), lineHeight: lh(68), color: c.ink }}>{week.now}</Text>
-        <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(22), lineHeight: lh(24), textTransform: "uppercase", color: c.ink }}>{t.weekOf(week.total)}</Text>
+        <Text style={{ fontFamily: fonts.displaySemi, fontSize: fz(22), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{t.weekOf(week.total)}</Text>
       </View>
       {week.total <= WEEK_TICKS_MAX ? <View testID="plan-weeks" aria-hidden={true} importantForAccessibility="no-hide-descendants" style={{ flexDirection: "row", gap: 4, marginTop: 2, marginBottom: 10 }}>
         {Array.from({ length: week.total }, (_, k) => <View key={k} style={{ flex: 1, height: 6, backgroundColor: k + 1 === week.now ? c.lotus : k + 1 < week.now ? c.inkMuted : c.surfaceMuted }}/>)}

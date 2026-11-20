@@ -21,6 +21,9 @@ jest.mock("./camp-ui", () => {
     Copy: text, SvgTitle: text, SectionTitle: text, Frame: ({ children }: { children: unknown }) => React.createElement(View, null, children),
     Busy: () => React.createElement(Text, null, "Loading"),
     Notice: ({ title, children }: { title: string; children: unknown }) => React.createElement(View, null, React.createElement(Text, null, title), React.createElement(Text, null, children)),
+    MarkLegend: () => null,
+    MarkGroup: ({ title, count, open, onToggle, children }: { title: string; count?: string; open: boolean; onToggle: () => void; children: unknown }) => React.createElement(View, null, React.createElement(Pressable, { accessibilityRole: "button", accessibilityLabel: title, accessibilityState: { expanded: open }, onPress: onToggle }, React.createElement(Text, null, title)), count ? React.createElement(Text, null, count) : null, open ? children : null),
+    MarkRow: ({ label, options, onChange }: { label?: string; options: { value: unknown; label: string }[]; onChange: (v: unknown) => void }) => React.createElement(View, null, label ? React.createElement(Text, null, label) : null, ...options.map((o, i) => React.createElement(Pressable, { key: i, onPress: () => onChange(o.value) }, React.createElement(Text, null, o.label)))),
     Choices: ({ label, options, onChange }: { label?: string; options: { value: unknown; label: string }[]; onChange: (v: unknown) => void }) => React.createElement(View, null, label ? React.createElement(Text, null, label) : null, ...options.map((o, i) => React.createElement(Pressable, { key: i, onPress: () => onChange(o.value) }, React.createElement(Text, null, o.label)))),
     Action: ({ label, onPress, disabled, pending }: { label: string; onPress: () => void; disabled?: boolean; pending?: boolean }) => React.createElement(Pressable, { accessibilityLabel: label, disabled: disabled || pending, onPress }, React.createElement(Text, null, label)),
     PlanToggle: ({ label, selected, onPress, disabled }: { label: string; selected: boolean; onPress: () => void; disabled?: boolean }) => React.createElement(Pressable, { accessibilityRole: "checkbox", accessibilityLabel: label, accessibilityState: { checked: selected }, disabled, onPress }, React.createElement(Text, null, label)),
@@ -57,8 +60,9 @@ describe("Round entry and advice", () => {
     await enter(1);
     expect(ui.queryByText(t.hardToWin)).toBeNull(); expect(ui.queryByText(t.dropped)).toBeNull();
     await enter(2);
-    // Advice sits above the plan in the "Hiệp sau" tab; there is no separate advice screen or button.
-    await tab(ui, /Hiệp sau/);
+    // Round 3 is the last: "Hiệp sau" is locked and the advice after round 2 leads "Hiệp này" (no separate screen).
+    expect(ui.getByTestId("camp-tab-next").props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
+    await tab(ui, /Hiệp này/);
     expect(ui.queryByLabelText(t.title)).toBeNull();
     expect(ui.getByText(t.hardToWin)).toBeTruthy();
     expect(ui.getByText(t.dropped)).toBeTruthy();
@@ -138,7 +142,7 @@ describe("Round entry and advice", () => {
     const ui = await render(<RoundScreen bout={bout} preview/>);
     await ui.findByText("Chốt hiệp 1");
     expect(ui.getAllByText("Hiệu quả")).toHaveLength(2);
-    expect(ui.getAllByText("Có thấy")).toHaveLength(1);
+    expect(ui.getAllByText("Thấy")).toHaveLength(1);
     expect(ui.getAllByText("HLV tự chấm")).toHaveLength(1);
     expect(ui.queryByLabelText("Ghi chú nhanh trong hiệp")).toBeNull();
     expect(ui.queryByText("Choáng")).toBeNull();
@@ -166,8 +170,7 @@ describe("Round entry and advice", () => {
     await ui.findByText("Trọng tâm"); expect(ui.getByText("Thêm ở hiệp 1")).toBeTruthy();
     await ui.rerender(<RoundScreen bout={bout} preview/>);
     await onRound(ui, 2);
-    // Extra marks open in the "Xem thêm" sheet on a phone.
-    const more = ui.queryByText(/^Xem thêm \d+ mục$/); if (more) await fireEvent.press(more);
+    // Every mark is on the page; no "Xem thêm" sheet.
     await fireEvent.press(within(ui.getAllByText("Đổi góc trái")[0].parent!).getByText("Hiệu quả"));
     await fireEvent.press(ui.getByText("Chốt hiệp 2"));
     await ui.findByText("Đã lưu hiệp 2");

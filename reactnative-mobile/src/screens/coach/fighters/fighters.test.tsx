@@ -126,7 +126,9 @@ describe("coach Võ sĩ (redesign step 16)", () => {
     const { CoachFightersScreen } = list();
     const ui = await wrap(<CoachFightersScreen/>);
     await waitFor(() => expect(ui.getByTestId("fighter-row-cf-4-note")).toBeTruthy());
-    expect(within(ui.getByTestId("fighter-row-cf-4")).getByText("Đang đình chỉ đến 30/11 · Nghỉ bắt buộc")).toBeTruthy();
+    // Two lines, no "·" join that gets cut (owner 2026-11-18).
+    expect(within(ui.getByTestId("fighter-row-cf-4")).getByText("Đang đình chỉ đến 30/11")).toBeTruthy();
+    expect(within(ui.getByTestId("fighter-row-cf-4")).getByText("Nghỉ bắt buộc")).toBeTruthy();
     ui.unmount();
 
     const { CoachFighterDetailScreen } = page();

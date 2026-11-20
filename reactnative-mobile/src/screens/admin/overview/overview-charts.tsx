@@ -40,7 +40,45 @@ export function LegendRow({ color, label, value, total, onPress, hint, last }: {
     style={({ pressed }) => [style, { backgroundColor: pressed ? c.surfaceMuted : "transparent" }]}>{body}</Pressable>;
 }
 
-export type Column = { key: string; label: string; today: boolean; total: number; parts: readonly Segment[] };
+/**
+ * Legend as a two-column grid (owner 2026-11-19: less scroll): each cell is swatch · label, then the number (and %),
+ * and opens its filtered list. Half the height of one row per entry.
+ */
+export function LegendGrid({ items, total, hint }: { items: readonly (Segment & { onPress?: () => void })[]; total?: number; hint?: string }) {
+  const { colors: c } = useThemePreference();
+  const rows: (typeof items)[] = [];
+  for (let i = 0; i < items.length; i += 2) rows.push(items.slice(i, i + 2));
+  return <View style={{ borderTopWidth: 1, borderTopColor: c.line }}>
+    {rows.map((pair, r) => <View key={r} style={{ flexDirection: "row", borderBottomWidth: 1, borderBottomColor: c.line }}>
+      {pair.map((s, k) => {
+        const a11y = total !== undefined ? `${s.label}: ${num(s.count)}, ${pct(s.count, total)} phần trăm` : `${s.label}: ${num(s.count)}`;
+        return <Pressable key={s.key} accessibilityRole={s.onPress ? "button" : undefined} accessibilityLabel={a11y} accessibilityHint={hint} disabled={!s.onPress} onPress={s.onPress}
+          style={({ pressed }) => ({ width: "50%", minHeight: 48, flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 8,
+            borderLeftWidth: k ? 1 : 0, borderLeftColor: c.line, backgroundColor: pressed ? c.surfaceMuted : "transparent" })}>
+          <View style={{ width: 12, height: 12, backgroundColor: s.color }}/>
+          <Text numberOfLines={1} style={{ ...readableTextStyle(14), flex: 1, minWidth: 0, color: c.ink }}>{s.label}</Text>
+          <Text style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(17), lineHeight: lh(21), color: c.ink }}>
+            {num(s.count)}{total !== undefined ? <Text style={{ ...readableTextStyle(12, true), color: c.ink }}>{` ${pct(s.count, total)}%`}</Text> : null}
+          </Text>
+        </Pressable>;
+      })}
+      {pair.length === 1 ? <View style={{ width: "50%", borderLeftWidth: 1, borderLeftColor: c.line }}/> : null}
+    </View>)}
+  </View>;
+}
+
+/** Legend on one wrapped line, not tappable: "■ Hoàn thành 34   ■ Bỏ buổi 0". */
+export function LegendInline({ items }: { items: readonly Segment[] }) {
+  const { colors: c } = useThemePreference();
+  return <View style={{ flexDirection: "row", flexWrap: "wrap", columnGap: 16, rowGap: 6 }}>
+    {items.map((s) => <View key={s.key} accessible accessibilityLabel={`${s.label}: ${num(s.count)}`} style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+      <View style={{ width: 12, height: 12, backgroundColor: s.color }}/>
+      <Text style={{ ...readableTextStyle(14), color: c.ink }}>{s.label} <Text style={{ ...readableTextStyle(14, true), color: c.ink }}>{num(s.count)}</Text></Text>
+    </View>)}
+  </View>;
+}
+
+export type Column ={ key: string; label: string; today: boolean; total: number; parts: readonly Segment[] };
 
 /** Stacked column per day, square; today's day label in red. Not tappable. */
 export function ColumnChart({ columns, height = 140 }: { columns: readonly Column[]; height?: number }) {

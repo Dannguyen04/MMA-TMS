@@ -58,7 +58,7 @@ function SessionBody({ s }: { s: TrainingSession }) {
   const notes = s.coachNotes?.trim() ? sentences(s.coachNotes) : [];
   return <>
     <View style={{ gap: 3 }}>
-      <Text accessibilityRole="header" numberOfLines={2} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{s.title}</Text>
+      <Text accessibilityRole="header" numberOfLines={2} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(36), textTransform: "uppercase", color: c.ink }}>{s.title}</Text>
       <Text testID="session-line" numberOfLines={1} accessibilityLabel={`${kind}. ${t.statusA11y(w.word)}`} style={{ ...readableTextStyle(14.5), color: c.ink }}>
         {kind} · <Text style={{ ...readableTextStyle(14.5, true), color: w.tone === "ok" ? c.success : w.tone === "warn" ? c.danger : c.ink }}>{w.word}</Text>
       </Text>
@@ -71,7 +71,7 @@ function SessionBody({ s }: { s: TrainingSession }) {
       </View>)}
     </View>
     <View testID="session-notes" style={{ gap: 8 }}>
-      <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{t.coachNotes}</Text>
+      <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink }}>{t.coachNotes}</Text>
       {notes.length
         ? <View style={{ gap: 6 }}>{notes.map((line, i) => <Text key={i} style={{ ...readableTextStyle(15), lineHeight: lh(23), color: c.ink }}>{line}</Text>)}</View>
         : <Text style={{ ...readableTextStyle(15), color: c.ink }}>{t.noNotes}</Text>}

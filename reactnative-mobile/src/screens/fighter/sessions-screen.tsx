@@ -218,7 +218,7 @@ const styles = liveSheet(() => ({
   title: { fontSize: fz(26), lineHeight: lh(36), fontWeight: "700" },
   pad: { paddingHorizontal: 20, gap: 16 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  chip: { borderRadius: 99, paddingHorizontal: 11, paddingVertical: 8, minHeight: 36, justifyContent: "center" },
+  chip: { borderRadius: 99, paddingHorizontal: 11, paddingVertical: 8, minHeight: 44, justifyContent: "center" },
   rowBetween: { flexDirection: "row", justifyContent: "space-between" },
   kicker: { fontSize: fz(12), fontWeight: "600", letterSpacing: 0.2 },
   empty: { minHeight: 220, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, gap: 8 },

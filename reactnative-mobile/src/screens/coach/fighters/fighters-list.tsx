@@ -42,7 +42,7 @@ export function FilterChips<T extends string>({ label, options, value, onChange,
     {options.map(o => {
       const on = o.value === value;
       return <Pressable key={o.value || "all"} accessibilityRole="radio" accessibilityState={{ checked: on }} aria-checked={on} onPress={() => onChange(o.value)}
-        style={({ pressed }) => ({ minHeight: 40, paddingHorizontal: 14, justifyContent: "center", borderWidth: 1.5, borderColor: on ? c.ink : c.controlBorder, backgroundColor: on ? c.ink : "transparent", opacity: pressed ? 0.75 : 1 })}>
+        style={({ pressed }) => ({ minHeight: 44, paddingHorizontal: 14, justifyContent: "center", borderWidth: 1.5, borderColor: on ? c.ink : c.controlBorder, backgroundColor: on ? c.ink : "transparent", opacity: pressed ? 0.75 : 1 })}>
         <Text numberOfLines={1} style={{ ...readableTextStyle(14, true), color: on ? c.bg : c.ink }}>{o.label}</Text>
       </Pressable>;
     })}
@@ -120,11 +120,11 @@ export function CoachFightersScreen({ title = t.title, detailPath = COACH_FIGHTE
       {list.items.map((f, k) => {
         const name = fighterName(f);
         const m = statusMark(f.currentMedicalStatus);
-        const line = fighterLine(f);
+        const line = fighterLine(f, { gym: false });
         const s = suspended?.get(f.id)?.[0];
         const note = s ? suspensionNote(s) : undefined;
         return <SlipRow key={f.id} testID={`fighter-row-${f.id}`} lead={s ? "!" : m.lead} icon={s ? undefined : m.icon} leadTone={s ? "warn" : m.tone} title={name} word={m.word} wordTone={m.wordTone} line={line}
-          note={note} a11y={t.rowA11y(name, note ? `${note}. ${m.word}, ${line}` : `${m.word}, ${line}`)} last={k === list.items.length - 1}
+          note={note} a11y={t.rowA11y(name, note ? `${note.join(", ")}. ${m.word}, ${line}` : `${m.word}, ${line}`)} last={k === list.items.length - 1}
           onPress={() => router.push({ pathname: detailPath, params: { id: f.id } } as never)}/>;
       })}
     </StaggerList> : null}

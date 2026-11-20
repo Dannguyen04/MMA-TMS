@@ -100,7 +100,7 @@ function Top({ plan, fighter }: { plan: TrainingPlan; fighter: string }) {
   ];
   return <View style={{ gap: 12 }}>
     <View style={{ gap: 3 }}>
-      <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(30), textTransform: "uppercase", color: c.ink }}>{plan.title}</Text>
+      <Text accessibilityRole="header" numberOfLines={1} style={{ fontFamily: fonts.displayExtraBold, fontSize: fz(26), lineHeight: lh(36), textTransform: "uppercase", color: c.ink }}>{plan.title}</Text>
       <Text testID="plan-line" numberOfLines={1} style={{ ...readableTextStyle(14.5), color: c.ink }}>
         <Text style={{ ...readableTextStyle(14.5, true), color: w.tone === "ok" ? c.success : w.tone === "warn" ? c.danger : c.ink }}>{w.word}</Text>{rest ? ` · ${rest}` : ""}
       </Text>
@@ -186,7 +186,7 @@ function Prose({ text }: { text: string }) {
 
 function SectionHead({ children }: { children: string }) {
   const { colors: c } = useThemePreference();
-  return <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(22), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink, marginTop: 6 }}>{children}</Text>;
+  return <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(18), lineHeight: lh(25), letterSpacing: 0.7, textTransform: "uppercase", color: c.ink, marginTop: 6 }}>{children}</Text>;
 }
 
 /** Goals, then milestones that toggle on tap and save at once; the undo line stays for 5 s. */

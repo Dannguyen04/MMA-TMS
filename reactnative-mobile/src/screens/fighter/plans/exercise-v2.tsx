@@ -114,7 +114,7 @@ export function FighterExerciseDetailV2() {
     {ex.state === "ok" && !e ? <Text style={{ ...readableTextStyle(15, true), color: c.ink }}>{t.noExercise}</Text> : null}
     {e ? <View testID="exercise-detail" style={{ gap: 16 }}>
       {e.thumbnailUrl ? <Image source={{ uri: e.thumbnailUrl }} accessibilityIgnoresInvertColors resizeMode="cover" style={{ width: "100%", aspectRatio: 16 / 9, backgroundColor: c.surfaceMuted }}/> : null}
-      <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(26), lineHeight: lh(30), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{e.name}</Text>
+      <Text accessibilityRole="header" style={{ fontFamily: fonts.display, fontSize: fz(26), lineHeight: lh(36), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{e.name}</Text>
       <View>
         <Row label={t.group} value={groupLabel(e.category)}/>
         {e.targetMuscleGroups.length ? <Row label={t.muscles} value={musclesLine(e.targetMuscleGroups)}/> : null}

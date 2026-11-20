@@ -12,11 +12,14 @@ export function ArenaSurface({ tone = "neutral", fill, stroke, active = false }:
   const { colors } = useThemePreference();
   const [size, setSize] = useState({ width: 1, height: 1 });
   const id = `arena-${useId().replace(/[^a-zA-Z0-9]/g, "")}`;
-  const w = Math.max(1, size.width), h = Math.max(1, size.height);
+  // Whole points, and every stroke kept a point inside: Android rounds the canvas to device pixels and clipped
+  // the right and bottom edges of a stroke drawn on the last point (owner 2026-11-16: frames lost an edge).
+  const w = Math.max(1, Math.floor(size.width)), h = Math.max(1, Math.floor(size.height));
+  const i = 1.5;
   const cut = Math.min(17, h / 4, w / 6);
   const accent = tone === "danger" ? colors.danger : tone === "success" ? colors.success : colors.lotus;
   const edge = stroke ?? (active || tone !== "neutral" ? accent : colors.controlBorder);
-  const d = `M1 1H${w - cut}L${w - 1} ${cut}V${h - 1}H${cut}L1 ${h - cut}Z`;
+  const d = `M${i} ${i}H${w - cut}L${w - i} ${cut}V${h - i}H${cut}L${i} ${h - cut}Z`;
   return <View pointerEvents="none" accessibilityElementsHidden importantForAccessibility="no-hide-descendants"
     onLayout={({ nativeEvent: { layout } }) => setSize(old => old.width === layout.width && old.height === layout.height ? old : layout)}
     style={[StyleSheet.absoluteFill, { pointerEvents: "none" }]}>
@@ -26,7 +29,7 @@ export function ArenaSurface({ tone = "neutral", fill, stroke, active = false }:
       </LinearGradient></Defs>
       {active ? <Path d={d} stroke={`url(#${id})`} strokeWidth={5} fill="none"/> : null}
       <Path d={d} fill={fill ?? colors.surface} stroke={edge} strokeWidth={active ? 1.5 : 1}/>
-      <Path d={`M1 ${Math.min(h / 2, 29)}V1H${Math.min(w / 4, 29)}M${w - Math.min(w / 4, 29)} ${h - 1}H${w - 1}V${h - Math.min(h / 2, 29)}`}
+      <Path d={`M${i} ${Math.min(h / 2, 29)}V${i}H${Math.min(w / 4, 29)}M${w - Math.min(w / 4, 29)} ${h - i}H${w - i}V${h - Math.min(h / 2, 29)}`}
         stroke={accent} strokeWidth={2} fill="none"/>
     </Svg> : null}
   </View>;
@@ -35,7 +38,7 @@ export function ArenaSurface({ tone = "neutral", fill, stroke, active = false }:
 export function ArenaFrame({ children, style, tone, pad = 16 }: {
   children?: ReactNode; style?: StyleProp<ViewStyle>; tone?: ArenaTone; pad?: number;
 }) {
-  return <View style={[{ position: "relative", padding: pad, gap: 12 }, style]}>
+  return <View style={[{ position: "relative", padding: pad, gap: 10 }, style]}>
     <ArenaSurface tone={tone}/>{children}
   </View>;
 }

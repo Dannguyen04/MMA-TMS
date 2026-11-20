@@ -67,6 +67,7 @@ export function DoctorFightersScreen() {
   ], []);
 
   const visible = useMemo(() => filterRoster(roster.items, { search, weightClass: wc, status }), [roster.items, search, wc, status]);
+  const oneGym = useMemo(() => new Set(roster.items.map(f => f.gym ?? "")).size <= 1, [roster.items]);
   const firstLoad = !roster.loaded || (roster.loading && roster.items.length === 0 && !roster.error);
   const filtered = Boolean(search.trim() || wc || status);
   const empty = roster.loaded && !roster.loading && !roster.error && visible.length === 0;
@@ -101,7 +102,8 @@ export function DoctorFightersScreen() {
         {visible.map((f, k) => {
           const name = fighterName(f);
           const m = statusMark(f.currentMedicalStatus);
-          const line = fighterLine(f);
+          // One gym for the whole roster says nothing per row (owner 2026-11-18, as on the coach list); several gyms do.
+          const line = fighterLine(f, { gym: oneGym === false });
           return <SlipRow key={f.id} testID={`doctor-fighter-${f.id}`} lead={m.lead} icon={m.icon} leadTone={m.tone} title={name} word={m.word} wordTone={m.wordTone} line={line}
             a11y={`${name}, ${m.word}, ${line}`} last={k === visible.length - 1}
             onPress={() => router.push({ pathname: DOCTOR_DETAIL_PATH, params: { id: f.id } } as never)}/>;

@@ -41,7 +41,7 @@ export function FighterPlanDetailV2() {
   const meta = p ? [week ? t.detailWeek(week.now, week.total) : null, p.progress?.totalSessions ? t.detailSessions(p.progress.completedSessions, p.progress.totalSessions) : null].filter(Boolean).join(" · ") : "";
 
   const top = p ? <View style={{ gap: 4 }}>
-    <Text numberOfLines={1} style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(26), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{p.title}</Text>
+    <Text numberOfLines={2} style={{ fontFamily: fonts.display, fontSize: fz(22), lineHeight: lh(30), letterSpacing: 0.4, textTransform: "uppercase", color: c.ink }}>{p.title}</Text>
     <Text numberOfLines={1} style={{ ...readableTextStyle(14), color: c.inkMuted }}><Text style={{ ...readableTextStyle(14, true), color: c.ink }}>{planPhaseWord(p.phase)}</Text>{meta ? ` · ${meta}` : ""}</Text>
     <View style={{ marginTop: 6, marginHorizontal: -22 }}><CampTabs alertLabel={t.tabAlert} value={tab} onChange={setTab} tabs={[
       { key: "exercises", label: t.tabs.exercises }, { key: "goals", label: t.tabs.goals }, { key: "notes", label: t.tabs.notes },
